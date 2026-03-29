@@ -5227,6 +5227,8 @@ textarea, select {
         }
     }
 
+    var EDGE_FUNCTION_URL = 'https://rnnrimzrypayvnmznpin.supabase.co/functions/v1/fetch-mma-news';
+
     function fetchMMANews() {
         var grid = document.getElementById('news-grid');
         var loading = document.getElementById('news-loading');
@@ -5235,51 +5237,38 @@ textarea, select {
         var searchQuery = document.getElementById('news-search-input')
             ? document.getElementById('news-search-input').value.trim() : '';
 
-        grid.innerHTML = '';
-        loading.classList.remove('hidden');
-
-        // 검색어 있으면 기존 캐시에서 필터링
+        // 검색어 있으면 캐시에서 필터링
         if (searchQuery && cachedNews.length > 0) {
-            loading.classList.add('hidden');
             renderNewsGrid();
             return;
         }
 
-        // RSS 피드 병렬 로드
-        var promises = MMA_RSS_FEEDS.map(function(feed) {
-            return fetchRSSFeed(feed.url, feed.source);
-        });
+        grid.innerHTML = '';
+        loading.classList.remove('hidden');
 
-        Promise.all(promises)
-            .then(function(results) {
-                loading.classList.add('hidden');
-                var allNews = [];
-                results.forEach(function(items) {
-                    allNews = allNews.concat(items);
-                });
-
-                // 날짜순 정렬
-                allNews.sort(function(a, b) {
-                    return new Date(b.published_at) - new Date(a.published_at);
-                });
-
-                if (allNews.length > 0) {
-                    cachedNews = allNews;
-                    newsFetched = true;
-                    // Supabase에 캐싱
-                    cacheNewsToDB(allNews.slice(0, 20));
-                    renderNewsGrid();
-                    // 홈 뉴스도 업데이트
-                    renderHomeNewsFromRSS(allNews.slice(0, 6));
-                } else {
-                    // RSS 실패 → DB 캐시 시도
-                    loadNewsFromDB();
-                }
-            })
-            .catch(function() {
-                loading.classList.add('hidden');
+        // Edge Function 호출 → 서버에서 RSS 수집 후 DB 저장
+        fetch(EDGE_FUNCTION_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + SUPABASE_KEY
+            }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            console.log('Edge Function 결과:', data);
+            if (data.success && data.count > 0) {
+                // DB에서 최신 뉴스 로드
                 loadNewsFromDB();
-            });
+            } else {
+                loadNewsFromDB();
+            }
+        })
+        .catch(function(e) {
+            console.warn('Edge Function 실패:', e);
+            loading.classList.add('hidden');
+            loadNewsFromDB();
+        });
     }
 
     function cacheNewsToDB(newsItems) {
