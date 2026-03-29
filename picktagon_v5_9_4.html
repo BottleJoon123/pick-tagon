@@ -5143,8 +5143,8 @@ textarea, select {
     }
 
     // ── 뉴스: Edge Function + DB 방식 ──
-    var EDGE_FUNCTION_URL = '// 새롭게 바꿀 뉴스 불러오기 코드 (복사해서 붙여넣으세요!)';
-
+   
+// ── 뉴스: DB(Cron 서버)에서 바로 읽어오기 ──
     function fetchMMANews() {
         var grid = document.getElementById('news-grid');
         var loading = document.getElementById('news-loading');
@@ -5153,7 +5153,7 @@ textarea, select {
         var searchQuery = document.getElementById('news-search-input')
             ? document.getElementById('news-search-input').value.trim() : '';
 
-        // 검색어 있으면 캐시에서 필터링
+        // 이미 불러온 뉴스가 있고 검색어가 있다면 필터링만 수행
         if (searchQuery && cachedNews.length > 0) {
             renderNewsGrid();
             return;
@@ -5162,49 +5162,8 @@ textarea, select {
         grid.innerHTML = '';
         loading.classList.remove('hidden');
 
-        // Edge Function 호출 → 서버에서 RSS 수집 후 DB 저장
-        fetch(EDGE_FUNCTION_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + SUPABASE_KEY
-            }
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            console.log('Edge Function 결과:', data);
-            if (data.success && data.count > 0) {
-                // DB에서 최신 뉴스 로드
-                loadNewsFromDB();
-            } else {
-                loadNewsFromDB();
-            }
-        })
-        .catch(function(e) {
-            console.warn('Edge Function 실패:', e);
-            loading.classList.add('hidden');
-            loadNewsFromDB();
-        });
-    }
-
-    function cacheNewsToDB(newsItems) {
-        if (!sb) return;
-        // 기존 뉴스 삭제 후 새로 삽입
-        sb.from('news_cache').delete().neq('id', 0)
-            .then(function() {
-                var rows = newsItems.map(function(n) {
-                    return {
-                        title: n.title,
-                        summary: n.summary,
-                        url: n.url || '',
-                        image_url: n.image_url || '',
-                        category: n.category,
-                        source: n.source,
-                        published_at: n.published_at
-                    };
-                });
-                sb.from('news_cache').insert(rows).then(function() {});
-            });
+        // Edge Function을 깨우지 않고, 바로 DB에서 최신 뉴스를 읽어옵니다.
+        loadNewsFromDB();
     }
 
     function loadNewsFromDB() {
