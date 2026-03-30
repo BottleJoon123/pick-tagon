@@ -4525,12 +4525,7 @@ textarea, select {
 
     // ---- PUBLIC RENDER ----
     function renderHomeNews() {
-        // 캐시 있으면 바로 사용
-        if (cachedNews.length > 0) {
-            renderHomeNewsFromRSS(cachedNews.slice(0, 6));
-            return;
-        }
-        // DB에서 로드
+        // 항상 DB에서 최신 뉴스를 가져옴 (캐시 무시)
         if (sb) {
             sb.from('news_cache')
                 .select('*')
@@ -4553,7 +4548,12 @@ textarea, select {
                     }
                 });
         } else {
-            renderHomeNewsLegacy();
+            // cachedNews 있으면 사용, 없으면 legacy
+            if (cachedNews.length > 0) {
+                renderHomeNewsFromRSS(cachedNews.slice(0, 6));
+            } else {
+                renderHomeNewsLegacy();
+            }
         }
     }
 
@@ -5264,6 +5264,7 @@ textarea, select {
                     newsFetched = true;
                 }
                 renderNewsGrid();
+                renderHomeNewsFromRSS(cachedNews.slice(0, 6));
             });
     }
 
