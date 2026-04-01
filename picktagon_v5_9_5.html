@@ -907,7 +907,6 @@ textarea, select {
             <button onclick="switchAdminTab('news')" id="admin-tab-news" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">📰 뉴스 관리</button>
             <button onclick="switchAdminTab('season')" id="admin-tab-season" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">🏆 시즌 관리</button>
             <button onclick="switchAdminTab('event')" id="admin-tab-event" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">🏟 이벤트 정보</button>
-            <button onclick="switchAdminTab('settings')" id="admin-tab-settings" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">⚙ 설정</button>
         </div>
 
         <!-- TAB: FIGHTERS DB -->
@@ -1016,28 +1015,6 @@ textarea, select {
                 <button onclick="openArchiveEventModal()" class="oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black px-6 lg:px-10 py-2 lg:py-3 rounded-xl italic text-xs lg:text-sm uppercase tracking-widest transition-all">+ 이벤트 추가</button>
             </div>
             <div id="archive-admin-list" class="space-y-3"></div>
-        </div>
-
-        <!-- TAB: SETTINGS -->
-        <div id="admin-panel-settings" class="hidden">
-            <div class="glass-card rounded-[2rem] p-6 lg:p-10 space-y-6">
-                <h4 class="oswald-sharp text-xl font-black italic uppercase text-gray-300 tracking-widest">AI 번역 설정</h4>
-                <div>
-                    <label class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic block mb-2">Gemini API Key</label>
-                    <div class="flex gap-3">
-                        <input id="admin-gemini-key-input" type="password" placeholder="AIza..."
-                            class="flex-1 bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-ufcRed text-sm font-mono">
-                        <button onclick="toggleGeminiKeyVisibility()" id="admin-gemini-key-toggle"
-                            class="oswald-sharp border border-white/10 text-gray-400 hover:text-white px-4 py-3 rounded-xl italic uppercase text-xs tracking-widest transition">SHOW</button>
-                    </div>
-                    <p id="admin-gemini-key-status" class="oswald-sharp text-[10px] mt-2 italic uppercase tracking-widest"></p>
-                </div>
-                <div class="flex gap-3">
-                    <button onclick="saveGeminiKey()" class="oswald-sharp bg-white text-black font-black px-10 py-3 rounded-xl italic uppercase text-sm tracking-widest hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] transition-all">저장</button>
-                    <button onclick="clearGeminiKey()" class="oswald-sharp border border-white/10 text-gray-400 hover:text-ufcRed px-6 py-3 rounded-xl italic uppercase text-sm tracking-widest transition">삭제</button>
-                </div>
-                <p class="text-gray-600 text-xs italic">키는 이 기기의 브라우저(localStorage)에만 저장되며 서버로 전송되지 않습니다.<br>뉴스 새로고침 시 영문 뉴스를 자동으로 한국어로 번역합니다.</p>
-            </div>
         </div>
 
         <!-- TAB: EVENT INFO -->
@@ -2858,7 +2835,7 @@ textarea, select {
 
     // ----- ADMIN TAB -----
     function switchAdminTab(tab) {
-        ['fighters', 'fights', 'archive', 'news', 'season', 'event', 'settings'].forEach(t => {
+        ['fighters', 'fights', 'archive', 'news', 'season', 'event'].forEach(t => {
             document.getElementById(`admin-panel-${t}`).classList.add('hidden');
             document.getElementById(`admin-tab-${t}`).classList.remove('active-tab', 'text-ufcRed');
             document.getElementById(`admin-tab-${t}`).classList.add('text-gray-500');
@@ -2867,52 +2844,6 @@ textarea, select {
         document.getElementById(`admin-tab-${tab}`).classList.add('active-tab');
         document.getElementById(`admin-tab-${tab}`).classList.remove('text-gray-500');
         if (tab === 'season') renderSeasonAdminPanel();
-        if (tab === 'settings') loadGeminiKeyToUI();
-    }
-
-    // ── Gemini API Key 관리 (어드민 설정 탭) ──
-    function loadGeminiKeyToUI() {
-        var key = localStorage.getItem('picktagon_gemini_key') || '';
-        var input = document.getElementById('admin-gemini-key-input');
-        var status = document.getElementById('admin-gemini-key-status');
-        if (input) input.value = key;
-        if (status) {
-            if (key) {
-                status.textContent = '✅ API 키가 설정되어 있습니다';
-                status.className = 'oswald-sharp text-[10px] mt-2 italic uppercase tracking-widest text-green-400';
-            } else {
-                status.textContent = '⚠ API 키가 없습니다 — 번역이 비활성화됩니다';
-                status.className = 'oswald-sharp text-[10px] mt-2 italic uppercase tracking-widest text-gray-500';
-            }
-        }
-    }
-
-    function saveGeminiKey() {
-        var key = (document.getElementById('admin-gemini-key-input').value || '').trim();
-        if (!key) { showToast('⚠ API 키를 입력해주세요'); return; }
-        localStorage.setItem('picktagon_gemini_key', key);
-        loadGeminiKeyToUI();
-        showToast('✅ Gemini API 키가 저장되었습니다');
-    }
-
-    function clearGeminiKey() {
-        localStorage.removeItem('picktagon_gemini_key');
-        document.getElementById('admin-gemini-key-input').value = '';
-        loadGeminiKeyToUI();
-        showToast('🗑 API 키가 삭제되었습니다');
-    }
-
-    function toggleGeminiKeyVisibility() {
-        var input = document.getElementById('admin-gemini-key-input');
-        var btn = document.getElementById('admin-gemini-key-toggle');
-        if (input.type === 'password') {
-            input.type = 'text';
-            btn.textContent = 'HIDE';
-        } else {
-            input.type = 'password';
-            btn.textContent = 'SHOW';
-        }
-    }
 
     // ----- FIGHTER DB -----
     // 예측 커뮤니티 자동 공유
@@ -5299,87 +5230,57 @@ textarea, select {
         loadNewsFromDB();
     }
 
-    // ── Gemini API 번역 ──
-    // 영문 뉴스 항목들을 Gemini API로 일괄 번역합니다.
-    // [버그 수정] Gemini가 응답을 ```json ... ``` 마크다운으로 감싸 반환할 때
-    // JSON.parse()가 실패하는 문제를 stripJsonFences()로 해결합니다.
-    var GEMINI_API_KEY = localStorage.getItem('picktagon_gemini_key') || '';
-    var GEMINI_TRANSLATE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=';
-
-    function stripJsonFences(text) {
-        // Gemini가 ```json ... ``` 또는 ``` ... ``` 형태로 감싸서 반환하는 경우 처리
-        return text
-            .replace(/^```json\s*/i, '')
-            .replace(/^```\s*/i, '')
-            .replace(/\s*```$/i, '')
-            .trim();
-    }
-
-    function isEnglishText(text) {
-        if (!text) return false;
-        // 한글 유니코드 범위(\uAC00-\uD7A3)가 없으면 영문으로 판단
-        return !/[\uAC00-\uD7A3]/.test(text);
-    }
-
+    // ── MyMemory 번역 (무료, API 키 불필요) ──
     var translationCache = JSON.parse(localStorage.getItem('picktagon_trans_cache') || '{}');
 
     function saveTranslationCache() {
         try { localStorage.setItem('picktagon_trans_cache', JSON.stringify(translationCache)); } catch(e) {}
     }
 
-    async function translateBatch(key, batch) {
-        var promptItems = batch.map(function(n, i) {
-            return i + ': title=' + JSON.stringify(n.title) + ' summary=' + JSON.stringify((n.summary || '').slice(0, 120));
-        }).join('\n');
-        var prompt = 'MMA 뉴스를 한국어로 번역하세요. 순수 JSON 배열만 반환하고 마크다운 코드블록(```)은 쓰지 마세요.\n\n' + promptItems + '\n\n출력:[{"title":"번역","summary":"번역"},...]';
-        var res = await fetch(GEMINI_TRANSLATE_URL + key, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { temperature: 0.1, maxOutputTokens: 1024 }
-            })
-        });
-        if (!res.ok) throw new Error('Gemini API 응답 오류: ' + res.status);
-        var data = await res.json();
-        var rawText = data.candidates[0].content.parts[0].text;
-        return JSON.parse(stripJsonFences(rawText));
+    function isEnglishText(text) {
+        if (!text) return false;
+        return !/[\uAC00-\uD7A3]/.test(text);
     }
 
-    async function translateNewsWithGemini(items) {
-        var key = localStorage.getItem('picktagon_gemini_key') || '';
-        if (!key) return null;
+    async function myMemoryTranslate(text) {
+        var url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text) + '&langpair=en|ko';
+        var res = await fetch(url);
+        var data = await res.json();
+        if (data.responseStatus === 200 && data.responseData && data.responseData.translatedText) {
+            return data.responseData.translatedText;
+        }
+        return null;
+    }
 
-        // 캐시에 없는 영문 항목만 번역
+    async function translateNewsItems(items) {
         var needsTranslation = items.filter(function(n) {
             return isEnglishText(n.title) && !translationCache[n.title];
         });
 
         if (needsTranslation.length === 0) {
-            // 캐시만으로 적용
             return items.map(function(n) {
                 var t = translationCache[n.title];
                 return t ? Object.assign({}, n, { title: t.title, summary: t.summary }) : n;
             });
         }
 
-        // 10개씩 나눠서 순차 요청 (429 방지)
-        var BATCH = 10;
-        try {
-            for (var i = 0; i < needsTranslation.length; i += BATCH) {
-                var batch = needsTranslation.slice(i, i + BATCH);
-                var translations = await translateBatch(key, batch);
-                batch.forEach(function(n, idx) {
-                    if (translations[idx]) translationCache[n.title] = translations[idx];
-                });
-                if (i + BATCH < needsTranslation.length) {
-                    await new Promise(function(r) { setTimeout(r, 1500); }); // 배치 간 1.5초 대기
+        // 항목당 title + summary 각각 요청, 항목 간 300ms 대기
+        for (var i = 0; i < needsTranslation.length; i++) {
+            var n = needsTranslation[i];
+            try {
+                var koTitle = await myMemoryTranslate(n.title);
+                var koSummary = n.summary ? await myMemoryTranslate(n.summary.slice(0, 200)) : '';
+                if (koTitle) {
+                    translationCache[n.title] = { title: koTitle, summary: koSummary || n.summary };
                 }
+            } catch(e) {
+                console.warn('[번역 스킵]', n.title, e.message);
             }
-            saveTranslationCache();
-        } catch (e) {
-            console.warn('[번역 오류] Gemini API 응답 파싱 실패:', e.message);
+            if (i < needsTranslation.length - 1) {
+                await new Promise(function(r) { setTimeout(r, 300); });
+            }
         }
+        saveTranslationCache();
 
         return items.map(function(n) {
             var t = translationCache[n.title];
@@ -5414,8 +5315,8 @@ textarea, select {
                             date: d.getFullYear() + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0')
                         };
                     });
-                    // Gemini API로 영문 뉴스 번역 (API 키가 있을 경우)
-                    var translated = await translateNewsWithGemini(mapped);
+                    // MyMemory API로 영문 뉴스 번역 (무료, API 키 불필요)
+                    var translated = await translateNewsItems(mapped);
                     cachedNews = translated || mapped;
                     newsFetched = true;
                 } else {
