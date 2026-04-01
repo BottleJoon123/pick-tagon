@@ -5304,7 +5304,7 @@ textarea, select {
     // [버그 수정] Gemini가 응답을 ```json ... ``` 마크다운으로 감싸 반환할 때
     // JSON.parse()가 실패하는 문제를 stripJsonFences()로 해결합니다.
     var GEMINI_API_KEY = localStorage.getItem('picktagon_gemini_key') || '';
-    var GEMINI_TRANSLATE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=';
+    var GEMINI_TRANSLATE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=';
 
     function stripJsonFences(text) {
         // Gemini가 ```json ... ``` 또는 ``` ... ``` 형태로 감싸서 반환하는 경우 처리
