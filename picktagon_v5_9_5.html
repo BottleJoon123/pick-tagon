@@ -5321,59 +5321,70 @@ textarea, select {
         return !/[\uAC00-\uD7A3]/.test(text);
     }
 
+    var translationCache = JSON.parse(localStorage.getItem('picktagon_trans_cache') || '{}');
+
+    function saveTranslationCache() {
+        try { localStorage.setItem('picktagon_trans_cache', JSON.stringify(translationCache)); } catch(e) {}
+    }
+
+    async function translateBatch(key, batch) {
+        var promptItems = batch.map(function(n, i) {
+            return i + ': title=' + JSON.stringify(n.title) + ' summary=' + JSON.stringify((n.summary || '').slice(0, 120));
+        }).join('\n');
+        var prompt = 'MMA 뉴스를 한국어로 번역하세요. 순수 JSON 배열만 반환하고 마크다운 코드블록(```)은 쓰지 마세요.\n\n' + promptItems + '\n\n출력:[{"title":"번역","summary":"번역"},...]';
+        var res = await fetch(GEMINI_TRANSLATE_URL + key, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { temperature: 0.1, maxOutputTokens: 1024 }
+            })
+        });
+        if (!res.ok) throw new Error('Gemini API 응답 오류: ' + res.status);
+        var data = await res.json();
+        var rawText = data.candidates[0].content.parts[0].text;
+        return JSON.parse(stripJsonFences(rawText));
+    }
+
     async function translateNewsWithGemini(items) {
         var key = localStorage.getItem('picktagon_gemini_key') || '';
-        if (!key) return null; // API 키 없으면 번역 건너뜀
+        if (!key) return null;
 
-        // 번역이 필요한 항목만 추출 (영문 제목인 경우)
+        // 캐시에 없는 영문 항목만 번역
         var needsTranslation = items.filter(function(n) {
-            return isEnglishText(n.title);
+            return isEnglishText(n.title) && !translationCache[n.title];
         });
-        if (needsTranslation.length === 0) return null;
 
-        // 배치 요청 프롬프트 구성
-        var promptItems = needsTranslation.map(function(n, i) {
-            return i + ': title=' + JSON.stringify(n.title) + ' summary=' + JSON.stringify(n.summary || '');
-        }).join('\n');
-
-        var prompt = 'MMA 뉴스를 한국어로 번역하세요. 반드시 순수 JSON 배열만 반환하고 마크다운 코드블록(```)은 사용하지 마세요.\n\n입력:\n' + promptItems + '\n\n출력 형식:\n[{"title":"번역 제목","summary":"번역 요약"},...]';
-
-        try {
-            var res = await fetch(GEMINI_TRANSLATE_URL + key, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { temperature: 0.1 }
-                })
-            });
-            if (!res.ok) throw new Error('Gemini API 응답 오류: ' + res.status);
-            var data = await res.json();
-            var rawText = data.candidates[0].content.parts[0].text;
-
-            // [핵심 버그 수정] 마크다운 코드 펜스 제거 후 파싱
-            var cleanJson = stripJsonFences(rawText);
-            var translations = JSON.parse(cleanJson);
-
-            // 번역 결과를 원본 items에 반영
-            var translationMap = {};
-            needsTranslation.forEach(function(n, i) {
-                if (translations[i]) translationMap[n.title] = translations[i];
-            });
+        if (needsTranslation.length === 0) {
+            // 캐시만으로 적용
             return items.map(function(n) {
-                var t = translationMap[n.title];
-                if (t) {
-                    return Object.assign({}, n, {
-                        title: t.title || n.title,
-                        summary: t.summary || n.summary
-                    });
-                }
-                return n;
+                var t = translationCache[n.title];
+                return t ? Object.assign({}, n, { title: t.title, summary: t.summary }) : n;
             });
+        }
+
+        // 10개씩 나눠서 순차 요청 (429 방지)
+        var BATCH = 10;
+        try {
+            for (var i = 0; i < needsTranslation.length; i += BATCH) {
+                var batch = needsTranslation.slice(i, i + BATCH);
+                var translations = await translateBatch(key, batch);
+                batch.forEach(function(n, idx) {
+                    if (translations[idx]) translationCache[n.title] = translations[idx];
+                });
+                if (i + BATCH < needsTranslation.length) {
+                    await new Promise(function(r) { setTimeout(r, 1500); }); // 배치 간 1.5초 대기
+                }
+            }
+            saveTranslationCache();
         } catch (e) {
             console.warn('[번역 오류] Gemini API 응답 파싱 실패:', e.message);
-            return null; // 번역 실패 시 원문 사용
         }
+
+        return items.map(function(n) {
+            var t = translationCache[n.title];
+            return t ? Object.assign({}, n, { title: t.title, summary: t.summary }) : n;
+        });
     }
 
     function loadNewsFromDB() {
