@@ -5231,6 +5231,83 @@ textarea, select {
         loadNewsFromDB();
     }
 
+    // ── Gemini API 번역 ──
+    // 영문 뉴스 항목들을 Gemini API로 일괄 번역합니다.
+    // [버그 수정] Gemini가 응답을 ```json ... ``` 마크다운으로 감싸 반환할 때
+    // JSON.parse()가 실패하는 문제를 stripJsonFences()로 해결합니다.
+    var GEMINI_API_KEY = localStorage.getItem('picktagon_gemini_key') || '';
+    var GEMINI_TRANSLATE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=';
+
+    function stripJsonFences(text) {
+        // Gemini가 ```json ... ``` 또는 ``` ... ``` 형태로 감싸서 반환하는 경우 처리
+        return text
+            .replace(/^```json\s*/i, '')
+            .replace(/^```\s*/i, '')
+            .replace(/\s*```$/i, '')
+            .trim();
+    }
+
+    function isEnglishText(text) {
+        if (!text) return false;
+        // 한글 유니코드 범위(\uAC00-\uD7A3)가 없으면 영문으로 판단
+        return !/[\uAC00-\uD7A3]/.test(text);
+    }
+
+    async function translateNewsWithGemini(items) {
+        var key = localStorage.getItem('picktagon_gemini_key') || '';
+        if (!key) return null; // API 키 없으면 번역 건너뜀
+
+        // 번역이 필요한 항목만 추출 (영문 제목인 경우)
+        var needsTranslation = items.filter(function(n) {
+            return isEnglishText(n.title);
+        });
+        if (needsTranslation.length === 0) return null;
+
+        // 배치 요청 프롬프트 구성
+        var promptItems = needsTranslation.map(function(n, i) {
+            return i + ': title=' + JSON.stringify(n.title) + ' summary=' + JSON.stringify(n.summary || '');
+        }).join('\n');
+
+        var prompt = 'MMA 뉴스를 한국어로 번역하세요. 반드시 순수 JSON 배열만 반환하고 마크다운 코드블록(```)은 사용하지 마세요.\n\n입력:\n' + promptItems + '\n\n출력 형식:\n[{"title":"번역 제목","summary":"번역 요약"},...]';
+
+        try {
+            var res = await fetch(GEMINI_TRANSLATE_URL + key, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: { temperature: 0.1 }
+                })
+            });
+            if (!res.ok) throw new Error('Gemini API 응답 오류: ' + res.status);
+            var data = await res.json();
+            var rawText = data.candidates[0].content.parts[0].text;
+
+            // [핵심 버그 수정] 마크다운 코드 펜스 제거 후 파싱
+            var cleanJson = stripJsonFences(rawText);
+            var translations = JSON.parse(cleanJson);
+
+            // 번역 결과를 원본 items에 반영
+            var translationMap = {};
+            needsTranslation.forEach(function(n, i) {
+                if (translations[i]) translationMap[n.title] = translations[i];
+            });
+            return items.map(function(n) {
+                var t = translationMap[n.title];
+                if (t) {
+                    return Object.assign({}, n, {
+                        title: t.title || n.title,
+                        summary: t.summary || n.summary
+                    });
+                }
+                return n;
+            });
+        } catch (e) {
+            console.warn('[번역 오류] Gemini API 응답 파싱 실패:', e.message);
+            return null; // 번역 실패 시 원문 사용
+        }
+    }
+
     function loadNewsFromDB() {
         if (!sb) {
             cachedNews = FALLBACK_NEWS;
@@ -5242,11 +5319,11 @@ textarea, select {
             .select('*')
             .order('published_at', { ascending: false })
             .limit(30)
-            .then(function(res) {
+            .then(async function(res) {
                 var loading = document.getElementById('news-loading');
                 if (loading) loading.classList.add('hidden');
                 if (res.data && res.data.length > 0) {
-                    cachedNews = res.data.map(function(n) {
+                    var mapped = res.data.map(function(n) {
                         var d = new Date(n.published_at);
                         return {
                             title: n.title,
@@ -5258,6 +5335,9 @@ textarea, select {
                             date: d.getFullYear() + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0')
                         };
                     });
+                    // Gemini API로 영문 뉴스 번역 (API 키가 있을 경우)
+                    var translated = await translateNewsWithGemini(mapped);
+                    cachedNews = translated || mapped;
                     newsFetched = true;
                 } else {
                     cachedNews = FALLBACK_NEWS;
