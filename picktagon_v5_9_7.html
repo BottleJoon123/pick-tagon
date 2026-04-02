@@ -5245,72 +5245,120 @@ textarea, select {
         localStorage.setItem('picktagon_ufc_rankings', JSON.stringify(ufcRankingsDB));
     }
 
-    // ── UFC 랭킹 자동 갱신 (api-sports.io 무료 플랜) ──
+    // ── UFC 랭킹 자동 갱신 (ESPN 공개 API — 키 불필요, CORS 무제한) ──
     async function fetchAndSyncUFCRankings() {
-        const apiKey = localStorage.getItem('picktagon_sports_api_key');
-        if (!apiKey) {
-            showToast('⚠ API 키가 없습니다 — 어드민 설정에서 api-sports.io 키를 입력하세요');
-            return;
-        }
         if (!sb) { showToast('⚠ Supabase 연결 필요'); return; }
 
         var btn = document.getElementById('btn-fetch-rankings');
         if (btn) { btn.textContent = '갱신 중...'; btn.disabled = true; }
-        showToast('🔄 UFC 랭킹 데이터를 가져오는 중...');
+        showToast('🔄 ESPN에서 UFC 랭킹 데이터를 가져오는 중...');
+
+        var ESPN = 'https://sports.core.api.espn.com/v2/sports/mma/leagues/ufc/rankings/';
+        // ESPN 슬러그 → 내부 division key 매핑
+        var DIV_MAP = [
+            { slug: 'pound-for-pound',       key: 'p4p'  },
+            { slug: 'heavyweight',           key: 'hw',   champSlug: 'heavyweight-champions'         },
+            { slug: 'light-heavyweight',     key: 'lhw',  champSlug: 'light-heavyweight-champions'   },
+            { slug: 'middleweight',          key: 'mw',   champSlug: 'middleweight-champions'        },
+            { slug: 'welterweight',          key: 'ww',   champSlug: 'welterweight-champions'        },
+            { slug: 'lightweight',           key: 'lw',   champSlug: 'lightweight-champions'         },
+            { slug: 'featherweight',         key: 'fw',   champSlug: 'featherweight-champions'       },
+            { slug: 'bantamweight',          key: 'bw',   champSlug: 'bantamweight-champions'        },
+            { slug: 'flyweight',             key: 'flw',  champSlug: 'flyweight-champions'           },
+            { slug: 'womens-bantamweight',   key: 'w-bw', champSlug: 'womens-bantamweight-champions' },
+            { slug: 'womens-strawweight',    key: 'w-sw', champSlug: 'womens-strawweight-champions'  }
+        ];
+
+        // ESPN 키/인치 신장 → cm 변환 ("6' 0\"" → "183cm")
+        function espnHeightToCm(str) {
+            if (!str) return '—';
+            var m = str.match(/(\d+)'\s*(\d+)/);
+            if (!m) return str;
+            return Math.round(parseInt(m[1]) * 30.48 + parseInt(m[2]) * 2.54) + 'cm';
+        }
+
+        // ESPN trend 문자 → 아이콘 변환
+        function trendIcon(t) {
+            return t === '1' || t === 'up' ? '↑' : t === '-1' || t === 'down' ? '↓' : '→';
+        }
+
+        // 선수 $ref URL을 받아 이름·신장 등을 반환
+        async function fetchAthlete(refUrl, divKey, rankPos, trend) {
+            try {
+                var url = refUrl.replace('http://', 'https://') + '?lang=en&region=us';
+                var a = await fetch(url).then(function(r) { return r.json(); });
+                return {
+                    division: divKey,
+                    rank_position: rankPos,
+                    fighter_name: a.displayName || a.fullName || '—',
+                    fighter_name_ko: a.displayName || a.fullName || '—',
+                    record: '',
+                    nation: '',
+                    height: espnHeightToCm(a.displayHeight),
+                    reach: '—',
+                    trend: trendIcon(String(trend || '')),
+                    stats: [75, 75, 75, 75, 75],
+                    updated_at: new Date().toISOString()
+                };
+            } catch(e) { return null; }
+        }
 
         try {
-            // api-sports.io MMA API (https://v1.mma.api-sports.io)
-            const divMap = [
-                { apiId: 1,  key: 'hw',   label: 'Heavyweight' },
-                { apiId: 2,  key: 'lhw',  label: 'Light Heavyweight' },
-                { apiId: 3,  key: 'mw',   label: 'Middleweight' },
-                { apiId: 4,  key: 'ww',   label: 'Welterweight' },
-                { apiId: 5,  key: 'lw',   label: 'Lightweight' },
-                { apiId: 6,  key: 'fw',   label: 'Featherweight' },
-                { apiId: 7,  key: 'bw',   label: 'Bantamweight' },
-                { apiId: 8,  key: 'flw',  label: 'Flyweight' },
-                { apiId: 9,  key: 'w-sw', label: "Women's Strawweight" },
-                { apiId: 10, key: 'w-flw',label: "Women's Flyweight" },
-                { apiId: 11, key: 'w-bw', label: "Women's Bantamweight" },
-                { apiId: 12, key: 'p4p',  label: 'Pound for Pound' }
-            ];
-            var rows = [];
-            for (var i = 0; i < divMap.length; i++) {
-                var div = divMap[i];
-                var resp = await fetch('https://v1.mma.api-sports.io/rankings?division=' + div.apiId + '&organisation=1', {
-                    headers: { 'x-apisports-key': apiKey }
-                });
-                if (!resp.ok) continue;
-                var json = await resp.json();
-                if (!json.response) continue;
-                json.response.forEach(function(r) {
-                    rows.push({
-                        division: div.key,
-                        rank_position: r.position === 0 ? 'C' : String(r.position),
-                        fighter_name: r.fighter.name,
-                        fighter_name_ko: r.fighter.name, // 번역 미지원 시 영문 사용
-                        record: (r.fighter.wins || 0) + '-' + (r.fighter.losses || 0),
-                        nation: r.fighter.nationality ? '🏴' : '',
-                        height: r.fighter.height ? r.fighter.height + 'cm' : '—',
-                        reach: '—',
-                        trend: r.evolution > 0 ? '↑' : r.evolution < 0 ? '↓' : '→',
-                        stats: [75,75,75,75,75],
-                        updated_at: new Date().toISOString()
+            var allRows = [];
+            var affectedDivs = DIV_MAP.map(function(d) { return d.key; });
+
+            for (var i = 0; i < DIV_MAP.length; i++) {
+                var div = DIV_MAP[i];
+                var promises = [];
+
+                // 랭킹 컨텐더 목록
+                try {
+                    var resp = await fetch(ESPN + div.slug + '?lang=en&region=us');
+                    var data = await resp.json();
+                    (data.ranks || []).forEach(function(r) {
+                        if (r.athlete && r.athlete['$ref']) {
+                            promises.push(fetchAthlete(r.athlete['$ref'], div.key, String(r.current), r.trend));
+                        }
                     });
-                });
-            }
-            if (rows.length === 0) { showToast('⚠ 가져온 데이터가 없습니다. API 키를 확인하세요'); }
-            else {
-                // Supabase에 upsert
-                var { error } = await sb.from('ufc_rankings').upsert(rows, { onConflict: 'division,rank_position' });
-                if (error) { showToast('❌ DB 저장 실패: ' + error.message); }
-                else {
-                    showToast('✅ ' + rows.length + '개 랭킹 데이터 갱신 완료!');
-                    loadUFCRankings();
+                } catch(e) { console.warn('[ESPN] div fetch fail:', div.slug, e.message); }
+
+                // 챔피언 별도 슬러그
+                if (div.champSlug) {
+                    try {
+                        var cResp = await fetch(ESPN + div.champSlug + '?lang=en&region=us');
+                        var cData = await cResp.json();
+                        (cData.ranks || []).forEach(function(r) {
+                            if (r.athlete && r.athlete['$ref']) {
+                                promises.push(fetchAthlete(r.athlete['$ref'], div.key, 'C', '→'));
+                            }
+                        });
+                    } catch(e) { console.warn('[ESPN] champ fetch fail:', div.champSlug, e.message); }
                 }
+
+                // 해당 체급 선수 데이터 병렬 로드
+                var rows = await Promise.all(promises);
+                rows.filter(Boolean).forEach(function(row) { allRows.push(row); });
+            }
+
+            if (allRows.length === 0) {
+                showToast('⚠ ESPN에서 데이터를 가져오지 못했습니다. 잠시 후 다시 시도하세요');
+                return;
+            }
+
+            // 기존 행 삭제 후 새 데이터 삽입 (stale 데이터 방지)
+            await sb.from('ufc_rankings').delete().in('division', affectedDivs);
+            var result = await sb.from('ufc_rankings').insert(allRows);
+            if (result.error) {
+                showToast('❌ DB 저장 실패: ' + result.error.message);
+            } else {
+                showToast('✅ ' + allRows.length + '개 랭킹 갱신 완료! (ESPN 기준)');
+                var updated = document.getElementById('ufc-rank-updated');
+                if (updated) updated.textContent = 'ESPN 기준 · ' + new Date().toLocaleDateString('ko-KR');
+                loadUFCRankings();
             }
         } catch(e) {
             showToast('❌ 갱신 실패: ' + e.message);
+            console.error('[UFC Rankings] 오류:', e);
         } finally {
             if (btn) { btn.textContent = '🔄 UFC 랭킹 자동 갱신'; btn.disabled = false; }
         }
