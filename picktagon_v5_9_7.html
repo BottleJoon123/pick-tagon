@@ -5297,11 +5297,20 @@ textarea, select {
                 return;
             }
 
+            // 테이블 존재 여부 확인
+            var testRes = await sb.from('ufc_rankings').select('id').limit(1);
+            if (testRes.error && (testRes.error.code === '42P01' || (testRes.error.message || '').includes('does not exist'))) {
+                showToast('❌ ufc_rankings 테이블 없음 — Supabase SQL Editor에서 테이블을 먼저 생성하세요');
+                console.error('[UFC Rankings] 테이블 생성 SQL:\nCREATE TABLE ufc_rankings (\n  id SERIAL PRIMARY KEY,\n  division TEXT NOT NULL,\n  rank_position TEXT NOT NULL,\n  fighter_name TEXT, fighter_name_ko TEXT,\n  record TEXT, nation TEXT, height TEXT, reach TEXT, trend TEXT,\n  stats JSONB, updated_at TIMESTAMPTZ DEFAULT now(),\n  UNIQUE(division, rank_position)\n);');
+                return;
+            }
+
             // 기존 행 삭제 후 새 데이터 삽입 (stale 데이터 방지)
             await sb.from('ufc_rankings').delete().in('division', affectedDivs);
             var result = await sb.from('ufc_rankings').insert(allRows);
             if (result.error) {
                 showToast('❌ DB 저장 실패: ' + result.error.message);
+                console.error('[UFC Rankings] insert error:', result.error);
             } else {
                 showToast('✅ ' + allRows.length + '개 랭킹 갱신 완료! (ESPN 기준)');
                 var updated = document.getElementById('ufc-rank-updated');
