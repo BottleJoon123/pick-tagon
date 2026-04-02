@@ -4542,32 +4542,7 @@ textarea, select {
     /* ==============================
        HOME NEWS SYSTEM
     ============================== */
-    const NEWS_SEED = [
-        {
-            id: 'news_1', tag: 'NEWS', pinned: true,
-            title: '마카체프 vs 포이리에 분석 리포트',
-            desc: '챔피언의 레슬링과 도전자 포이리에의 타격 화력전의 승자는?',
-            date: '2024-05-15',
-            img: 'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80',
-            link: ''
-        },
-        {
-            id: 'news_2', tag: 'RANKING', pinned: false,
-            title: '글로벌 예측가 랭킹 시즌 4 마감 임박',
-            desc: '퍼플벨트 이상 달성 시 한정판 프로필 뱃지가 지급됩니다.',
-            date: '2024-05-12',
-            img: 'https://images.unsplash.com/photo-1590556409324-aa1d726e5c3c?auto=format&fit=crop&q=80',
-            link: ''
-        },
-        {
-            id: 'news_3', tag: 'UPDATE', pinned: false,
-            title: '데이터 영구 보존 시스템 점검 완료',
-            desc: '이제 어떤 기기에서도 포인트와 이력을 안전하게 관리하세요.',
-            date: '2024-05-10',
-            img: 'https://images.unsplash.com/photo-1517438476312-10d79c67750d?auto=format&fit=crop&q=80',
-            link: ''
-        }
-    ];
+    const NEWS_SEED = []; // 하드코딩 제거 — Supabase news_cache가 유일한 소스
 
     const UNSPLASH_DEFAULTS = {
         'NEWS':     'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80',
@@ -4593,7 +4568,8 @@ textarea, select {
 
     // ---- PUBLIC RENDER ----
     function renderHomeNews() {
-        // 항상 DB에서 최신 뉴스를 가져옴 (캐시 무시)
+        // 항상 Supabase news_cache에서 최신 뉴스를 가져옴
+        var grid = document.getElementById('home-news-grid');
         if (sb) {
             sb.from('news_cache')
                 .select('*')
@@ -4612,15 +4588,15 @@ textarea, select {
                         });
                         renderHomeNewsFromRSS(items);
                     } else {
-                        renderHomeNewsLegacy();
+                        if (grid) grid.innerHTML = '<div class="col-span-3 glass-card rounded-[2rem] p-12 text-center text-gray-600 oswald-sharp text-xs italic uppercase tracking-widest">등록된 뉴스가 없습니다</div>';
                     }
                 });
         } else {
-            // cachedNews 있으면 사용, 없으면 legacy
+            // Supabase 초기화 전 — cachedNews가 있으면 사용, 없으면 로딩 표시
             if (cachedNews.length > 0) {
                 renderHomeNewsFromRSS(cachedNews.slice(0, 6));
             } else {
-                renderHomeNewsLegacy();
+                if (grid) grid.innerHTML = '<div class="col-span-3 glass-card rounded-[2rem] p-12 text-center text-gray-500 oswald-sharp text-xs italic uppercase tracking-widest">뉴스 로딩 중...</div>';
             }
         }
     }
@@ -5242,16 +5218,7 @@ textarea, select {
     var cachedNews = [];
     var newsFetched = false;
 
-    var FALLBACK_NEWS = [
-        { title:'UFC 313 마카체프 vs 포이리에 타이틀전 프리뷰', summary:'라이트급 챔피언 마카체프와 도전자 포이리에의 타이틀전. 레슬링 vs 복싱의 대결 관전 포인트.', category:'event', date:'2026.03.26', source:'MMA Junkie' },
-        { title:'존 존스, 다음 방어전 상대로 톰 아스피날 지목', summary:'헤비급 챔피언 존 존스가 아스피날과의 대결 의지 피력. UFC 측도 긍정적 반응.', category:'fighter', date:'2026.03.25', source:'ESPN MMA' },
-        { title:'알렉스 페레이라, P4P 랭킹 3위 등극', summary:'라이트헤비급 챔피언 페레이라가 연속 KO 방어 성공 후 파운드포파운드 랭킹 3위 상승.', category:'ranking', date:'2026.03.24', source:'UFC.com' },
-        { title:'UFC 314 대진표 공개 — 볼카노프스키 복귀전', summary:'4월 예정 UFC 314 카드 발표. 볼카노프스키가 페더급 복귀전으로 메인이벤트 출전 예정.', category:'event', date:'2026.03.23', source:'MMA Fighting' },
-        { title:'드라이커스 두 플레시 미들급 타이틀 첫 방어 성공', summary:'챔피언 두 플레시가 휘태커와의 리매치에서 만장일치 판정승 거두며 방어 성공.', category:'result', date:'2026.03.22', source:'Bloody Elbow' },
-        { title:'장웨일리, 스트로급 역대 최다 방어 타이 기록', summary:'챔피언 장웨일리가 코발키비츠와의 재대결서 승리하며 최다 타이틀 방어 기록에 도달.', category:'ufc', date:'2026.03.21', source:'MMA Mania' },
-        { title:'패디 핌블렛, 라이트급 탑10 진입 임박', summary:'영국 출신 핌블렛이 4연승 행진 이어가며 공식 랭킹 진입 가시권.', category:'fighter', date:'2026.03.20', source:'The Athletic' },
-        { title:'UFC 코리아 개최 논의 재점화 — 2027년 유력', summary:'UFC 측이 한국 프로모터들과 서울 개최 협의 중. 2027년 상반기 개최 유력.', category:'ufc', date:'2026.03.19', source:'MMA Korea' },
-    ];
+    var FALLBACK_NEWS = []; // 하드코딩 제거 — Supabase news_cache가 유일한 소스
 
     function renderNewsCatTabs() {
         var tabs = document.getElementById('news-cat-tabs');
@@ -5443,7 +5410,7 @@ textarea, select {
 
     function loadNewsFromDB() {
         if (!sb) {
-            cachedNews = FALLBACK_NEWS;
+            cachedNews = [];
             newsFetched = true;
             renderNewsGrid();
             return;
@@ -5473,7 +5440,7 @@ textarea, select {
                     cachedNews = translated || mapped;
                     newsFetched = true;
                 } else {
-                    cachedNews = FALLBACK_NEWS;
+                    cachedNews = [];
                     newsFetched = true;
                 }
                 renderNewsGrid();
