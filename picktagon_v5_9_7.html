@@ -5305,14 +5305,23 @@ textarea, select {
                 return;
             }
 
-            // 기존 행 삭제 후 새 데이터 삽입 (stale 데이터 방지)
-            await sb.from('ufc_rankings').delete().in('division', affectedDivs);
-            var result = await sb.from('ufc_rankings').insert(allRows);
+            // (division, rank_position) 기준 중복 제거
+            var seen = new Set();
+            var dedupedRows = allRows.filter(function(row) {
+                var key = row.division + '|' + row.rank_position;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+            console.log('[UFC Rankings] 수집:', allRows.length, '→ 중복제거:', dedupedRows.length);
+
+            // upsert — 충돌(동일 division+rank_position) 시 업데이트
+            var result = await sb.from('ufc_rankings').upsert(dedupedRows, { onConflict: 'division,rank_position' });
             if (result.error) {
                 showToast('❌ DB 저장 실패: ' + result.error.message);
-                console.error('[UFC Rankings] insert error:', result.error);
+                console.error('[UFC Rankings] upsert error:', result.error);
             } else {
-                showToast('✅ ' + allRows.length + '개 랭킹 갱신 완료! (ESPN 기준)');
+                showToast('✅ ' + dedupedRows.length + '개 랭킹 갱신 완료! (ESPN 기준)');
                 var updated = document.getElementById('ufc-rank-updated');
                 if (updated) updated.textContent = 'ESPN 기준 · ' + new Date().toLocaleDateString('ko-KR');
                 loadUFCRankings();
