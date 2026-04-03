@@ -2631,22 +2631,39 @@ textarea, select {
         const c = document.getElementById('post-con').value.trim();
         if(!t || !c) { showToast("⚠️ 모든 항목을 입력해주세요."); return; }
         if(!getNickname()) { showToast("⚠️ 먼저 닉네임을 설정해주세요!"); openNicknameModal(); return; }
-        
+        if(!sb || !currentUser) { showToast("⚠️ 로그인이 필요합니다."); return; }
+
         const bName = state.points <= 1000 ? "White Belt" : (state.points <= 2000 ? "Blue Belt" : (state.points <= 5000 ? "Purple Belt" : (state.points <= 10000 ? "Brown Belt" : "Black Belt")));
-        posts.unshift({
+        const newPost = {
             id: Date.now(), author: getDisplayUsername(), title: t.slice(0, 120), content: c.slice(0, 2000),
             likes: 0, date: new Date().toISOString().slice(0,10).replace(/-/g, "."), comments: [], belt: bName
-        });
+        };
 
-        // DB 저장
-        savePostToDB(posts[0]);
-        
         document.getElementById('post-tit').value = "";
         document.getElementById('post-con').value = "";
         toggleWriter();
-        save();
-        renderFeed();
-        showToast("🚀 분석 리포트가 업로드되었습니다.");
+
+        // DB에 먼저 저장 → dbId 확보 후 posts 배열에 추가하여 댓글 동기화 보장
+        sb.from('posts').insert({
+            user_id: currentUser.id,
+            nickname: newPost.author,
+            title: newPost.title,
+            content: newPost.content,
+            is_pick_share: newPost.isPickShare || false,
+            likes: 0,
+            belt: newPost.belt,
+            comments: []
+        }).select().single().then(function(res) {
+            if (res.error) {
+                showToast("⚠️ 게시 실패: " + res.error.message);
+                return;
+            }
+            newPost.dbId = res.data.id;
+            posts.unshift(newPost);
+            save();
+            renderFeed();
+            showToast("🚀 분석 리포트가 업로드되었습니다.");
+        });
     }
 
     /* ==============================
@@ -5837,10 +5854,11 @@ textarea, select {
                     loadUserFromDB(session.user.id);
                     document.getElementById('auth-modal').classList.add('hidden');
                     updateAuthUI();
-                    // 옥타곤 초대 수신 리스너 시작
                     setTimeout(initOctagonListener, 600);
                 } else {
+                    // 로그아웃: 어드민 권한 반드시 초기화
                     currentUser = null;
+                    adminUnlocked = false;
                     updateAuthUI();
                 }
             });
@@ -6009,18 +6027,20 @@ textarea, select {
     function loadUserFromDB(userId) {
         if (!sb) return;
 
-        // 다른 유저 로그인 시 로컬 데이터 초기화
+        // 계정 전환 시 어드민 권한 즉시 초기화 (비동기 콜백 전에)
+        adminUnlocked = false;
+
+        // 다른 유저 로그인 시 로컬 상태 초기화
         var storedUserId = localStorage.getItem('picktagon_current_user_id');
         if (storedUserId && storedUserId !== userId) {
-            // 다른 계정 → 로컬 상태 초기화
-            state = {
-                points: 1000, total: 0, success: 0,
-                history: [], pendings: {}, settled: {}
-            };
+            state = { points: 1000, total: 0, success: 0, history: [], pendings: {}, settled: {} };
             posts = [];
             save();
         }
         localStorage.setItem('picktagon_current_user_id', userId);
+
+        // 포스트는 계정 무관하게 항상 DB에서 로드 (공유 커뮤니티)
+        loadPostsFromDB();
 
         sb.from('users').select('*').eq('id', userId).single()
         .then(function(res) {
@@ -6031,15 +6051,12 @@ textarea, select {
                 if (res.data.nickname) {
                     localStorage.setItem('picktagon_nickname', res.data.nickname);
                 }
-                // 어드민: joonbyoung@naver.com 계정만 허용
-                if (currentUser && currentUser.email === 'joonbyoung@naver.com') {
-                    adminUnlocked = true;
-                }
+                // 어드민: joonbyoung@naver.com 계정만 허용 (이중 확인)
+                adminUnlocked = (currentUser && currentUser.email === 'joonbyoung@naver.com');
                 save();
                 refreshUI();
                 updateNicknameDisplay();
                 updateAuthUI();
-                loadPostsFromDB();
                 showToast('✅ ' + (res.data.nickname || '유저') + ' 님 환영해요!');
             } else {
                 // 첫 로그인 → 프로필 생성
@@ -6127,8 +6144,15 @@ textarea, select {
     }
 
     function updatePostCommentsInDB(dbId, comments) {
-        if (!sb || !dbId) return;
-        sb.from('posts').update({ comments: comments }).eq('id', dbId).then(function(){});
+        if (!sb) return;
+        if (!dbId) {
+            // dbId 없으면 전체 포스트 재로드로 다음 접속 시 복원
+            console.warn('updatePostCommentsInDB: dbId 없음, DB 저장 생략');
+            return;
+        }
+        sb.from('posts').update({ comments: comments }).eq('id', dbId).then(function(res) {
+            if (res.error) console.warn('댓글 DB 저장 실패:', res.error.message);
+        });
     }
 
     /* ==============================
