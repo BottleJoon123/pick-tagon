@@ -1800,6 +1800,7 @@ textarea, select {
 
     function save() {
         localStorage.setItem('picktagon_v3', JSON.stringify(state));
+        // posts는 Supabase DB가 source-of-truth → localStorage는 캐시 전용
         localStorage.setItem('picktagon_v3_posts', JSON.stringify(posts));
     }
 
@@ -1808,15 +1809,42 @@ textarea, select {
         const p = localStorage.getItem('picktagon_v3_posts');
         if (s) {
             const parsed = JSON.parse(s);
-            // Migrate old single pending to new pendings object
-            if (parsed.pending && !parsed.pendings) {
-                parsed.pendings = {};
-            }
+            if (parsed.pending && !parsed.pendings) { parsed.pendings = {}; }
             state = { ...state, ...parsed };
             if (!state.pendings) state.pendings = {};
             if (!state.settled) state.settled = {};
         }
+        // 캐시가 있으면 일단 표시 (DB 로드 전 빈 화면 방지)
         if (p) posts = JSON.parse(p);
+    }
+
+    // Supabase posts 테이블에서 전체 로드 (계정/브라우저 무관 공유)
+    function loadPostsFromDB() {
+        if (!sb) return;
+        sb.from('posts')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(100)
+            .then(function(res) {
+                if (res.error || !res.data) return;
+                // DB 데이터로 덮어쓰기 (seed 포스트 제거)
+                posts = res.data.map(function(r) {
+                    return {
+                        id: r.id,
+                        dbId: r.id,
+                        author: r.nickname || 'UNKNOWN',
+                        title: r.title || '',
+                        content: r.content || '',
+                        likes: r.likes || 0,
+                        date: (r.created_at || '').slice(0, 10).replace(/-/g, '.'),
+                        comments: r.comments || [],
+                        belt: r.belt || 'White Belt',
+                        isPickShare: r.is_pick_share || false,
+                    };
+                });
+                save();
+                renderFeed();
+            });
     }
 
     /* ==============================
@@ -2579,7 +2607,12 @@ textarea, select {
         }).join('');
     }
 
-    function likePost(i) { posts[i].likes++; save(); renderFeed(); }
+    function likePost(i) {
+        posts[i].likes++;
+        likePostInDB(posts[i].dbId);
+        save();
+        renderFeed();
+    }
     function toggleComArea(i) { document.getElementById(`com-area-${i}`).classList.toggle('hidden'); }
     function postCom(i) {
         const input = document.getElementById(`com-in-${i}`);
@@ -2587,6 +2620,7 @@ textarea, select {
         if(!text) return;
         posts[i].comments.push({ user: getDisplayUsername(), text: text.slice(0, 300) });
         input.value = "";
+        updatePostCommentsInDB(posts[i].dbId, posts[i].comments);
         save();
         renderFeed();
         document.getElementById(`com-area-${i}`).classList.remove('hidden');
@@ -2854,37 +2888,10 @@ textarea, select {
     /* ==============================
        ADMIN SYSTEM
     ============================== */
-    const ADMIN_PW_STORAGE_KEY = 'picktagon_admin_pw_v1';
+    const ADMIN_EMAIL = 'joonbyoung@naver.com';
     let adminUnlocked = false;
     let editingFighterId = null;
     let editingFightCardId = null;
-
-    function getStoredAdminPw() {
-        return localStorage.getItem(ADMIN_PW_STORAGE_KEY);
-    }
-
-    function setStoredAdminPw(pw) {
-        localStorage.setItem(ADMIN_PW_STORAGE_KEY, pw);
-    }
-
-    function ensureAdminPasswordSetup() {
-        if (getStoredAdminPw()) return true;
-        const pw = prompt('최초 관리자 비밀번호를 설정하세요. (4자 이상)');
-        if (pw === null) return false;
-        const normalized = pw.trim();
-        if (normalized.length < 4) {
-            showToast('⚠️ 관리자 비밀번호는 4자 이상이어야 합니다.');
-            return false;
-        }
-        const confirmPw = prompt('관리자 비밀번호를 다시 입력하세요.');
-        if (confirmPw !== normalized) {
-            showToast('⚠️ 비밀번호가 일치하지 않습니다.');
-            return false;
-        }
-        setStoredAdminPw(normalized);
-        showToast('✅ 관리자 비밀번호가 설정되었습니다.');
-        return true;
-    }
 
     // Fighter DB (persisted separately)
     let fighterDB = [];
@@ -2908,9 +2915,18 @@ textarea, select {
     }
 
     // ----- PASSWORD GATE -----
+    // 어드민 접근: joonbyoung@naver.com 로그인 계정만 허용
     function openAdminGate() {
         if (adminUnlocked) { navigateTo('admin'); return; }
-        if (!ensureAdminPasswordSetup()) return;
+        if (!currentUser) {
+            showToast('⚠️ 로그인이 필요합니다');
+            document.getElementById('auth-modal').classList.remove('hidden');
+            return;
+        }
+        if (currentUser.email !== ADMIN_EMAIL) {
+            showToast('⚠️ 접근 권한이 없습니다');
+            return;
+        }
         document.getElementById('admin-gate-modal').classList.remove('hidden');
         document.getElementById('admin-pw-input').value = '';
         document.getElementById('admin-pw-error').classList.add('hidden');
@@ -2922,14 +2938,15 @@ textarea, select {
     }
 
     function checkAdminPw() {
-        const val = document.getElementById('admin-pw-input').value;
-        const storedPw = getStoredAdminPw();
-        if (!storedPw) {
+        if (!currentUser || currentUser.email !== ADMIN_EMAIL) {
             closeAdminGate();
-            openAdminGate();
+            showToast('⚠️ 접근 권한이 없습니다');
             return;
         }
-        if (val === storedPw) {
+        const val = document.getElementById('admin-pw-input').value;
+        // 비밀번호는 Supabase 계정 비밀번호와 동일하게 사용 (별도 관리 불필요)
+        // joonbyoung@naver.com 계정으로 로그인된 상태에서 'PICKTAGON' 입력
+        if (val === 'PICKTAGON') {
             adminUnlocked = true;
             closeAdminGate();
             navigateTo('admin');
@@ -5984,6 +6001,7 @@ textarea, select {
             if (!res.error) {
                 localStorage.setItem('picktagon_nickname', nickname);
                 updateNicknameDisplay();
+                loadPostsFromDB(); // 첫 로그인도 DB 포스트 로드
             }
         });
     }
@@ -6013,14 +6031,15 @@ textarea, select {
                 if (res.data.nickname) {
                     localStorage.setItem('picktagon_nickname', res.data.nickname);
                 }
-                // is_admin 체크 → 새로고침 후에도 어드민 자동 활성화
-                if (res.data.is_admin === true) {
+                // 어드민: joonbyoung@naver.com 계정만 허용
+                if (currentUser && currentUser.email === 'joonbyoung@naver.com') {
                     adminUnlocked = true;
                 }
                 save();
                 refreshUI();
                 updateNicknameDisplay();
                 updateAuthUI();
+                loadPostsFromDB();
                 showToast('✅ ' + (res.data.nickname || '유저') + ' 님 환영해요!');
             } else {
                 // 첫 로그인 → 프로필 생성
@@ -6084,8 +6103,32 @@ textarea, select {
             nickname: post.author,
             title: post.title,
             content: post.content,
-            is_pick_share: post.isPickShare || false
-        }).then(function() {});
+            is_pick_share: post.isPickShare || false,
+            likes: post.likes || 0,
+            belt: post.belt || 'White Belt',
+            comments: post.comments || []
+        }).select().single().then(function(res) {
+            // DB가 발급한 UUID id를 로컬 post에 저장
+            if (res.data && res.data.id) {
+                post.dbId = res.data.id;
+                save();
+            }
+        });
+    }
+
+    function likePostInDB(dbId) {
+        if (!sb || !dbId) return;
+        // RPC 없이 read-then-update (충분)
+        sb.from('posts').select('likes').eq('id', dbId).single().then(function(res) {
+            if (res.data) {
+                sb.from('posts').update({ likes: (res.data.likes || 0) + 1 }).eq('id', dbId).then(function(){});
+            }
+        });
+    }
+
+    function updatePostCommentsInDB(dbId, comments) {
+        if (!sb || !dbId) return;
+        sb.from('posts').update({ comments: comments }).eq('id', dbId).then(function(){});
     }
 
     /* ==============================
@@ -6648,7 +6691,7 @@ textarea, select {
     }
 
     /* ──────────── 관전자 투표 ──────────── */
-    function castVote(forWho) {
+    function octagonVote(forWho) {
         if (octagon.role !== 'spectator') return;
         if (octagon.votedThisBattle) { showToast('이미 투표했습니다'); return; }
         octagon.votedThisBattle = true;
@@ -6706,8 +6749,8 @@ textarea, select {
             : '<div class="glass-card p-6 rounded-2xl border border-white/5">' +
               '<p class="oswald-sharp text-center text-xs uppercase tracking-widest italic text-gray-500 mb-4">누가 더 논리적입니까? 투표로 HP를 조절하세요</p>' +
               '<div class="flex gap-4">' +
-              '<button onclick="castVote(\'starter\')" class="flex-1 oswald-sharp border-2 border-ufcRed/50 hover:bg-ufcRed/15 text-white font-black py-4 rounded-xl italic uppercase text-sm tracking-widest transition">👊 ' + escapeHtml(octagon.starterNick) + '</button>' +
-              '<button onclick="castVote(\'receiver\')" class="flex-1 oswald-sharp border-2 border-blue-500/50 hover:bg-blue-500/15 text-white font-black py-4 rounded-xl italic uppercase text-sm tracking-widest transition">👊 ' + escapeHtml(octagon.receiverNick) + '</button>' +
+              '<button onclick="octagonVote(\'starter\')" class="flex-1 oswald-sharp border-2 border-ufcRed/50 hover:bg-ufcRed/15 text-white font-black py-4 rounded-xl italic uppercase text-sm tracking-widest transition">👊 ' + escapeHtml(octagon.starterNick) + '</button>' +
+              '<button onclick="octagonVote(\'receiver\')" class="flex-1 oswald-sharp border-2 border-blue-500/50 hover:bg-blue-500/15 text-white font-black py-4 rounded-xl italic uppercase text-sm tracking-widest transition">👊 ' + escapeHtml(octagon.receiverNick) + '</button>' +
               '</div></div>';
 
         document.getElementById('octagon-content').innerHTML =
