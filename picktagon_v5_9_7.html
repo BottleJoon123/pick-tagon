@@ -37,6 +37,25 @@ body {
 }
 @media(min-width:1024px){ body { padding-bottom:0; } }
 
+.build-badge {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 80;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(8,8,8,0.82);
+    border: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.78);
+}
+
 /* ── Typography ── */
 .barlow { font-family:'Barlow Condensed',sans-serif; }
 .oswald-sharp { font-family:'Oswald',sans-serif; letter-spacing:-0.02em; text-transform:uppercase; }
@@ -335,6 +354,8 @@ textarea, select {
         </button>
     </div>
 </header>
+
+<div class="build-badge">Live Build v5.9.7</div>
 
 <!-- Desktop Navigation -->
 <nav class="hidden lg:flex sticky top-0 z-50 py-4" style="background:rgba(8,8,8,0.85);backdrop-filter:blur(24px);border-bottom:1px solid rgba(255,255,255,0.05)">
@@ -703,7 +724,6 @@ textarea, select {
         </div>
         <!-- Grid -->
         <div id="news-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6"></div>
-    </section>
     </section>
 
     <!-- [SECTION: COMMUNITY] -->
@@ -1085,16 +1105,13 @@ textarea, select {
             <svg class="w-8 h-8 text-ufcRed" fill="currentColor" viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM12 17c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
         </div>
         <h3 class="oswald-sharp text-2xl lg:text-4xl font-black italic text-white mb-2 uppercase tracking-tighter">Admin Access</h3>
-        <p class="text-gray-500 text-xs uppercase tracking-widest oswald-sharp italic mb-8">관리자 비밀번호를 입력하세요</p>
-        <input id="admin-pw-input" type="password" placeholder="PASSWORD"
-            class="w-full bg-black/60 border border-white/10 rounded-xl px-5 py-4 text-white text-center oswald-sharp text-xl font-black italic uppercase tracking-widest focus:outline-none focus:border-ufcRed mb-3"
-            onkeydown="if(event.key==='Enter') checkAdminPw()">
-        <p id="admin-pw-error" class="text-ufcRed text-xs oswald-sharp italic uppercase tracking-widest mb-4 hidden">⚠ 비밀번호가 틀렸습니다</p>
+        <p id="admin-gate-copy" class="text-gray-400 text-xs uppercase tracking-widest oswald-sharp italic mb-3">Admin tools require a signed-in account.</p>
+        <p id="admin-gate-subcopy" class="text-gray-600 text-[11px] mb-6">Sign in with an authorized admin account to continue.</p>
         <div class="flex gap-3">
             <button onclick="closeAdminGate()" class="flex-1 oswald-sharp border border-white/10 text-gray-500 hover:text-white font-black py-3 rounded-xl italic uppercase text-sm tracking-widest transition">Cancel</button>
-            <button onclick="checkAdminPw()" class="flex-1 oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black py-3 rounded-xl italic uppercase text-sm tracking-widest transition">ENTER</button>
+            <button id="admin-gate-action" onclick="handleAdminGateAction()" class="flex-1 oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black py-3 rounded-xl italic uppercase text-sm tracking-widest transition">Sign In</button>
         </div>
-        <p class="text-gray-700 text-[10px] mt-4 oswald-sharp italic">로컬 데모용 관리자 비밀번호를 직접 설정하세요</p>
+        <p class="text-gray-700 text-[10px] mt-4 oswald-sharp italic">Local password-based admin unlock has been disabled for safety.</p>
     </div>
 </div>
 
@@ -2277,16 +2294,22 @@ textarea, select {
         save();
     }
 
-    function castVote(side, match, pick, odds, fightId) {
+    async function castVote(side, match, pick, odds, fightId) {
         if (state.points < BET_COST) { showToast(`⚠️ 포인트가 부족합니다! (${BET_COST}P 필요)`); return; }
         if (state.pendings[fightId]) { showToast("⚠️ 이미 이 경기에 예측을 등록했습니다."); return; }
         if (state.settled?.[fightId]) { showToast("⚠️ 이미 결과가 확정된 경기입니다."); return; }
 
         const fight = getActiveFights().find(f => f.id === fightId);
-        state.total += 1;
-        state.points -= BET_COST;
         const basePayout = Math.round(BET_COST * odds);
         const isUpset = odds >= 2.0;
+
+        if (sb && currentUser) {
+            const saved = await savePick(fightId, pick, null, null, odds, basePayout, isUpset);
+            if (!saved.ok) return;
+        }
+
+        state.total += 1;
+        state.points -= BET_COST;
 
         state.pendings[fightId] = {
             side, match, pick, payout: basePayout, fightId,
@@ -2321,7 +2344,6 @@ textarea, select {
         showToast(`${pick} 선택 · ${BET_COST}P 사용 · 기본 ${basePayout}P${upsetMsg}`);
 
         // DB 저장
-        savePick(fightId, pick, null, null, odds, basePayout, isUpset);
 
         // 커뮤니티 자동 공유
         autoSharePick(pick, match, basePayout, isUpset, fightId);
@@ -2381,7 +2403,7 @@ textarea, select {
         showToast(`✅ ${winner} 승리 (${method}, R${round} ${time}) 결과 확정!`);
     }
 
-    function settleBet(fightId, actualWinner, actualMethod, winnerSide, round, time) {
+    async function settleBet(fightId, actualWinner, actualMethod, winnerSide, round, time) {
         const pending = state.pendings[fightId];
         if (!pending) return;
 
@@ -2451,7 +2473,9 @@ textarea, select {
         updateEventTotalPicks();
         save();
         // DB 동기화
-        updatePickResult(fightId, userWon ? 'WIN' : 'LOSE', actualWinner, actualMethod, userWon ? state.settled[fightId]?.payout : 0);
+        if (sb && currentUser) {
+            await updatePickResult(fightId, userWon ? 'WIN' : 'LOSE', actualWinner, actualMethod, userWon ? state.settled[fightId]?.payout : 0);
+        }
         refreshUI();
     }
 
@@ -2548,21 +2572,25 @@ textarea, select {
         document.getElementById(`com-area-${i}`).classList.remove('hidden');
     }
 
-    function publishPost() {
+    async function publishPost() {
         const t = document.getElementById('post-tit').value.trim();
         const c = document.getElementById('post-con').value.trim();
         if(!t || !c) { showToast("⚠️ 모든 항목을 입력해주세요."); return; }
         if(!getNickname()) { showToast("⚠️ 먼저 닉네임을 설정해주세요!"); openNicknameModal(); return; }
         
         const bName = state.points <= 1000 ? "White Belt" : (state.points <= 2000 ? "Blue Belt" : (state.points <= 5000 ? "Purple Belt" : (state.points <= 10000 ? "Brown Belt" : "Black Belt")));
-        posts.unshift({
+        const post = {
             id: Date.now(), author: getDisplayUsername(), title: t.slice(0, 120), content: c.slice(0, 2000),
             likes: 0, date: new Date().toISOString().slice(0,10).replace(/-/g, "."), comments: [], belt: bName
-        });
+        };
 
-        // DB 저장
-        savePostToDB(posts[0]);
-        
+        if (sb && currentUser) {
+            const saved = await savePostToDB(post);
+            if (!saved.ok) return;
+        }
+
+        posts.unshift(post);
+
         document.getElementById('post-tit').value = "";
         document.getElementById('post-con').value = "";
         toggleWriter();
@@ -2810,37 +2838,10 @@ textarea, select {
     /* ==============================
        ADMIN SYSTEM
     ============================== */
-    const ADMIN_PW_STORAGE_KEY = 'picktagon_admin_pw_v1';
     let adminUnlocked = false;
+    let adminGateMode = 'signin';
     let editingFighterId = null;
     let editingFightCardId = null;
-
-    function getStoredAdminPw() {
-        return localStorage.getItem(ADMIN_PW_STORAGE_KEY);
-    }
-
-    function setStoredAdminPw(pw) {
-        localStorage.setItem(ADMIN_PW_STORAGE_KEY, pw);
-    }
-
-    function ensureAdminPasswordSetup() {
-        if (getStoredAdminPw()) return true;
-        const pw = prompt('최초 관리자 비밀번호를 설정하세요. (4자 이상)');
-        if (pw === null) return false;
-        const normalized = pw.trim();
-        if (normalized.length < 4) {
-            showToast('⚠️ 관리자 비밀번호는 4자 이상이어야 합니다.');
-            return false;
-        }
-        const confirmPw = prompt('관리자 비밀번호를 다시 입력하세요.');
-        if (confirmPw !== normalized) {
-            showToast('⚠️ 비밀번호가 일치하지 않습니다.');
-            return false;
-        }
-        setStoredAdminPw(normalized);
-        showToast('✅ 관리자 비밀번호가 설정되었습니다.');
-        return true;
-    }
 
     // Fighter DB (persisted separately)
     let fighterDB = [];
@@ -2864,39 +2865,43 @@ textarea, select {
     }
 
     // ----- PASSWORD GATE -----
+    function configureAdminGate(mode) {
+        adminGateMode = mode;
+        var copy = document.getElementById('admin-gate-copy');
+        var subcopy = document.getElementById('admin-gate-subcopy');
+        var action = document.getElementById('admin-gate-action');
+        if (!copy || !subcopy || !action) return;
+
+        if (mode === 'signin') {
+            copy.textContent = 'Admin tools require a signed-in account.';
+            subcopy.textContent = 'Sign in with an authorized admin account to continue.';
+            action.textContent = 'Sign In';
+            return;
+        }
+
+        copy.textContent = 'This account does not have admin access.';
+        subcopy.textContent = 'Admin privileges are controlled by your authenticated user profile.';
+        action.textContent = 'Close';
+    }
+
     function openAdminGate() {
         if (adminUnlocked) { navigateTo('admin'); return; }
-        if (!ensureAdminPasswordSetup()) return;
+        configureAdminGate(currentUser ? 'denied' : 'signin');
         document.getElementById('admin-gate-modal').classList.remove('hidden');
-        document.getElementById('admin-pw-input').value = '';
-        document.getElementById('admin-pw-error').classList.add('hidden');
-        setTimeout(() => document.getElementById('admin-pw-input').focus(), 100);
     }
 
     function closeAdminGate() {
         document.getElementById('admin-gate-modal').classList.add('hidden');
     }
 
-    function checkAdminPw() {
-        const val = document.getElementById('admin-pw-input').value;
-        const storedPw = getStoredAdminPw();
-        if (!storedPw) {
+    function handleAdminGateAction() {
+        if (adminGateMode === 'signin') {
             closeAdminGate();
-            openAdminGate();
+            document.getElementById('auth-modal').classList.remove('hidden');
+            setAuthTab('login');
             return;
         }
-        if (val === storedPw) {
-            adminUnlocked = true;
-            closeAdminGate();
-            navigateTo('admin');
-            renderAdminFighterList();
-            renderAdminFightCardList();
-            loadEventInfoInputs();
-        } else {
-            document.getElementById('admin-pw-error').classList.remove('hidden');
-            document.getElementById('admin-pw-input').value = '';
-            document.getElementById('admin-pw-input').focus();
-        }
+        closeAdminGate();
     }
 
     function logoutAdmin() {
@@ -5778,6 +5783,7 @@ textarea, select {
                     updateAuthUI();
                 } else {
                     currentUser = null;
+                    adminUnlocked = false;
                     updateAuthUI();
                 }
             });
@@ -5788,6 +5794,7 @@ textarea, select {
                     loadUserFromDB(currentUser.id);
                     updateAuthUI();
                 } else {
+                    adminUnlocked = false;
                     // 로그인 안 된 상태 — 모달 표시
                     setTimeout(function() {
                         document.getElementById('auth-modal').classList.remove('hidden');
@@ -5865,6 +5872,18 @@ textarea, select {
         }
     }
 
+    async function runSupabaseMutation(operation, failureMessage) {
+        try {
+            var res = await operation();
+            if (res && res.error) throw res.error;
+            return { ok: true, data: res ? res.data : null };
+        } catch (e) {
+            console.warn('[Supabase mutation failed]', e);
+            if (failureMessage) showToast(failureMessage);
+            return { ok: false, error: e };
+        }
+    }
+
     function skipAuth() {
         document.getElementById('auth-modal').classList.add('hidden');
         showToast('비로그인 모드 — 데이터가 이 기기에만 저장돼요');
@@ -5874,6 +5893,7 @@ textarea, select {
         if (!sb) return;
         sb.auth.signOut().then(function() {
             currentUser = null;
+            adminUnlocked = false;
             // 유저별 로컬 데이터 초기화
             localStorage.removeItem('picktagon_current_user_id');
             localStorage.removeItem('picktagon_nickname');
@@ -5966,9 +5986,7 @@ textarea, select {
                     localStorage.setItem('picktagon_nickname', res.data.nickname);
                 }
                 // is_admin 체크 → 새로고침 후에도 어드민 자동 활성화
-                if (res.data.is_admin === true) {
-                    adminUnlocked = true;
-                }
+                adminUnlocked = res.data.is_admin === true;
                 save();
                 refreshUI();
                 updateNicknameDisplay();
@@ -5982,43 +6000,48 @@ textarea, select {
         });
     }
 
-    function syncUserToDB() {
-        if (!sb || !currentUser) return;
-        sb.from('users').update({
-            points: state.points,
-            total_picks: state.total,
-            success_picks: state.success,
-            nickname: getNickname() || null
-        }).eq('id', currentUser.id).then(function() {});
+    async function syncUserToDB() {
+        if (!sb || !currentUser) return { ok: true };
+        return runSupabaseMutation(function() {
+            return sb.from('users').update({
+                points: state.points,
+                total_picks: state.total,
+                success_picks: state.success,
+                nickname: getNickname() || null
+            }).eq('id', currentUser.id);
+        }, '⚠ 프로필 동기화에 실패했습니다.');
     }
 
-    function savePick(fightId, pick, method, round, odds, payout, isUpset) {
-        if (!sb || !currentUser) return;
-        sb.from('picks').insert({
-            user_id: currentUser.id,
-            fight_id: fightId,
-            match_name: pick,
-            pick_name: pick,
-            method: method || null,
-            predicted_round: round || null,
-            odds: odds,
-            bet_cost: BET_COST,
-            payout: payout,
-            is_upset: isUpset,
-            status: 'pending'
-        }).then(function() {});
+    async function savePick(fightId, pick, method, round, odds, payout, isUpset) {
+        if (!sb || !currentUser) return { ok: true };
+        return runSupabaseMutation(function() {
+            return sb.from('picks').insert({
+                user_id: currentUser.id,
+                fight_id: fightId,
+                match_name: pick,
+                pick_name: pick,
+                method: method || null,
+                predicted_round: round || null,
+                odds: odds,
+                bet_cost: BET_COST,
+                payout: payout,
+                is_upset: isUpset,
+                status: 'pending'
+            });
+        }, '⚠ 예측 저장에 실패했습니다. 다시 시도해주세요.');
     }
 
-    function updatePickResult(fightId, result, actualWinner, actualMethod, finalPayout) {
-        if (!sb || !currentUser) return;
-        sb.from('picks')
-            .update({ status: result.toLowerCase(), actual_winner: actualWinner, actual_method: actualMethod, payout: finalPayout })
-            .eq('user_id', currentUser.id)
-            .eq('fight_id', fightId)
-            .eq('status', 'pending')
-            .then(function() {});
-        // 유저 통계도 업데이트
-        syncUserToDB();
+    async function updatePickResult(fightId, result, actualWinner, actualMethod, finalPayout) {
+        if (!sb || !currentUser) return { ok: true };
+        var updateResult = await runSupabaseMutation(function() {
+            return sb.from('picks')
+                .update({ status: result.toLowerCase(), actual_winner: actualWinner, actual_method: actualMethod, payout: finalPayout })
+                .eq('user_id', currentUser.id)
+                .eq('fight_id', fightId)
+                .eq('status', 'pending');
+        }, '⚠ 경기 결과 동기화에 실패했습니다.');
+        if (!updateResult.ok) return updateResult;
+        return syncUserToDB();
     }
 
     function loadRealRankings() {
@@ -6029,15 +6052,17 @@ textarea, select {
             .limit(20);
     }
 
-    function savePostToDB(post) {
-        if (!sb || !currentUser) return;
-        sb.from('posts').insert({
-            user_id: currentUser.id,
-            nickname: post.author,
-            title: post.title,
-            content: post.content,
-            is_pick_share: post.isPickShare || false
-        }).then(function() {});
+    async function savePostToDB(post) {
+        if (!sb || !currentUser) return { ok: true };
+        return runSupabaseMutation(function() {
+            return sb.from('posts').insert({
+                user_id: currentUser.id,
+                nickname: post.author,
+                title: post.title,
+                content: post.content,
+                is_pick_share: post.isPickShare || false
+            });
+        }, '⚠ 게시글 저장에 실패했습니다.');
     }
 
     /* ==============================
@@ -6054,6 +6079,7 @@ textarea, select {
             sb.removeChannel(realtimeChannel);
             realtimeChannel = null;
         }
+        livePicks = {};
 
         // 초기 픽 카운트 먼저 로드
         loadInitialPickCounts();
@@ -6148,6 +6174,7 @@ textarea, select {
             sb.removeChannel(realtimeChannel);
             realtimeChannel = null;
         }
+        livePicks = {};
     }
 
     window.onload = function() {
