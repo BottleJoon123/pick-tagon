@@ -744,6 +744,17 @@ textarea, select {
         <div id="community-feed" class="space-y-6 lg:space-y-10 uppercase italic font-bold"></div>
     </section>
 
+    <!-- [SECTION: OCTAGON BATTLE ROOM] -->
+    <section id="octagon" class="section-animate max-w-5xl mx-auto px-4 lg:px-6 pt-6 pb-12 lg:pt-8 lg:pb-20">
+        <div id="octagon-content" class="min-h-[70vh]">
+            <div class="flex flex-col items-center justify-center min-h-[70vh] text-center">
+                <div class="text-6xl mb-6">⚡</div>
+                <h2 class="oswald-sharp text-4xl font-black italic text-white uppercase tracking-tighter mb-3">OCTAGON</h2>
+                <p class="oswald-sharp text-xs text-gray-600 uppercase tracking-widest italic">커뮤니티 댓글에서 배틀을 신청하세요</p>
+            </div>
+        </div>
+    </section>
+
     <!-- [SECTION: PROFILE] -->
     <section id="profile" class="section-animate max-w-7xl mx-auto px-4 lg:px-6 pt-6 pb-16 lg:pt-8 lg:pb-20 uppercase italic font-bold">
         <div class="mb-5 lg:mb-8 border-l-8 lg:border-l-[10px] border-ufcRed pl-4 lg:pl-8 flex items-end justify-between flex-wrap gap-4">
@@ -1576,6 +1587,26 @@ textarea, select {
 </div>
 
 <!-- ================================
+     OCTAGON BATTLE INVITE MODAL
+================================ -->
+<div id="octagon-invite-modal" class="hidden fixed inset-0 z-[700] flex items-center justify-center p-4" style="background:rgba(0,0,0,0.97)">
+    <div class="glass-card rounded-[2rem] p-8 lg:p-12 w-full max-w-md border border-ufcRed/50 text-center" style="box-shadow:0 0 80px rgba(232,0,13,0.35)">
+        <div class="text-6xl mb-4">⚡</div>
+        <p class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic mb-1">BATTLE REQUEST</p>
+        <h3 class="oswald-sharp text-4xl font-black italic text-ufcRed uppercase tracking-tighter mb-6">옥타곤 입장!</h3>
+        <div class="glass-card rounded-2xl px-6 py-4 mb-2 border border-white/10">
+            <p class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic mb-1">도전자</p>
+            <div id="invite-challenger-name" class="oswald-sharp text-3xl font-black italic text-white uppercase tracking-tighter">—</div>
+        </div>
+        <p class="text-gray-600 text-[10px] italic mb-8">5라운드 · 30초 턴제 · 실시간 관전 투표</p>
+        <div class="flex gap-3">
+            <button onclick="declineBattle()" class="flex-1 oswald-sharp border border-white/20 text-gray-400 hover:text-white font-black py-4 rounded-xl italic uppercase text-sm tracking-widest transition">거절</button>
+            <button onclick="acceptBattle()" class="flex-1 oswald-sharp text-white font-black py-4 rounded-xl italic uppercase text-sm tracking-widest transition" style="background:#e8000d;box-shadow:0 0 24px rgba(232,0,13,0.5)">⚡ 수락</button>
+        </div>
+    </div>
+</div>
+
+<!-- ================================
      ADMIN RESULT INPUT MODAL
 ================================ -->
 <div id="result-modal" class="hidden fixed inset-0 z-[300] flex items-center justify-center p-4" style="background:rgba(0,0,0,0.92)">
@@ -2125,6 +2156,10 @@ textarea, select {
             mobNav.classList.remove('text-gray-500');
         }
         if(id === 'home') { renderHomeNews(); }
+        if(id === 'octagon') {
+            window.scrollTo(0, 0);
+            // 활성 배틀이 없으면 기본 대기 화면 유지
+        }
         if(id === 'mma-news') {
             renderNewsCatTabs();
             if (!newsFetched) fetchMMANews();
@@ -2499,12 +2534,21 @@ textarea, select {
                 : '';
             // Use original post index for like/comment
             const origIdx = posts.indexOf(p);
-            const commentsHtml = (p.comments || []).map(c => `
+            const commentsHtml = (p.comments || []).map(c => {
+                const isSelf = c.user === getDisplayUsername();
+                const battleBtn = (!isSelf && currentUser)
+                    ? `<button onclick="requestBattle('${escapeHtml(c.user).replace(/'/g,"\\'")}', event)"
+                          class="oswald-sharp text-[8px] text-gray-600 hover:text-ufcRed border border-white/5 hover:border-ufcRed/40 px-2 py-0.5 rounded-lg italic uppercase font-black tracking-widest transition ml-2 flex-shrink-0">⚡ 옥타곤</button>`
+                    : '';
+                return `
                             <div class="bg-black/40 p-4 lg:p-5 rounded-2xl border-l-4 border-ufcRed uppercase italic font-bold">
-                                <span class="oswald-sharp text-[8px] lg:text-[10px] text-gray-500 font-black italic uppercase block mb-1 tracking-tighter uppercase">${escapeHtml(c.user)}:</span> 
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="oswald-sharp text-[8px] lg:text-[10px] text-gray-500 font-black italic uppercase tracking-tighter">${escapeHtml(c.user)}</span>
+                                    ${battleBtn}
+                                </div>
                                 <p class="text-gray-300 font-light text-xs lg:text-sm italic tracking-tight">${escapeHtml(c.text)}</p>
-                            </div>
-                        `).join('');
+                            </div>`;
+            }).join('');
 
             return `
             <div class="glass-card p-6 lg:p-10 rounded-[2rem] hover:border-ufcRed/50 transition-all duration-500 uppercase italic font-bold">
@@ -5776,6 +5820,8 @@ textarea, select {
                     loadUserFromDB(session.user.id);
                     document.getElementById('auth-modal').classList.add('hidden');
                     updateAuthUI();
+                    // 옥타곤 초대 수신 리스너 시작
+                    setTimeout(initOctagonListener, 600);
                 } else {
                     currentUser = null;
                     updateAuthUI();
@@ -5787,6 +5833,8 @@ textarea, select {
                     currentUser = res.data.session.user;
                     loadUserFromDB(currentUser.id);
                     updateAuthUI();
+                    // 페이지 로드 시 이미 로그인된 경우 옥타곤 리스너 시작
+                    setTimeout(initOctagonListener, 1200);
                 } else {
                     // 로그인 안 된 상태 — 모달 표시
                     setTimeout(function() {
@@ -6198,6 +6246,629 @@ textarea, select {
         animateCount('stat-fights', totalFights);
         animateCount('stat-picks', state.total);
         animateCount('stat-pts', state.points);
+    }
+
+    /* ============================================================
+       OCTAGON BATTLE SYSTEM
+       흐름: 댓글 신청 → Realtime Invite → 수락 → 배틀룸 핸드쉐이크
+       턴: 스타터 30s → 리시버 30s × 5라운드
+       채팅: Broadcast (휘발), 라운드 최종 발언만 DB 저장
+    ============================================================ */
+    var octagon = {
+        battleId: null,
+        role: null,            // 'starter' | 'receiver' | 'spectator'
+        status: 'idle',        // 'idle' | 'waiting' | 'active' | 'finished'
+        starterNick: null,
+        receiverNick: null,
+        currentRound: 1,
+        currentTurnNick: null,
+        timeLeft: 30,
+        messages: [],          // [{nick, text, round, isFinal}]
+        roundFinalMessages: {}, // {round: {starter: text, receiver: text}}
+        votes: { starter: 0, receiver: 0 },
+        starterHp: 100,
+        receiverHp: 100,
+        spectatorCount: 0,
+        battleChannel: null,
+        inviteChannel: null,
+        timerInterval: null,
+        liveTypingOpponent: '',
+        pendingBattleId: null,
+        pendingStarterNick: null,
+        votedThisBattle: false,
+    };
+
+    /* ── 배틀 신청 (댓글의 ⚡ 옥타곤 버튼) ── */
+    function requestBattle(opponentNick, evt) {
+        if (evt) evt.stopPropagation();
+        if (!sb || !currentUser) { showToast('⚠️ 로그인이 필요합니다'); return; }
+        var myNick = getDisplayUsername();
+        if (opponentNick === myNick) { showToast('⚠️ 자신에게 신청할 수 없습니다'); return; }
+        if (octagon.status !== 'idle') { showToast('⚠️ 이미 진행 중인 배틀이 있습니다'); return; }
+
+        sb.from('battles').insert({
+            starter_id: currentUser.id,
+            starter_nick: myNick,
+            receiver_nick: opponentNick,
+            status: 'pending',
+            current_round: 1,
+            round_info: {},
+            starter_votes: 0,
+            receiver_votes: 0,
+        }).select().single().then(function(res) {
+            if (res.error) { showToast('⚠️ 배틀 신청 실패: ' + (res.error.message || '')); return; }
+            var battleId = res.data.id;
+            octagon.battleId = battleId;
+            octagon.role = 'starter';
+            octagon.status = 'waiting';
+            octagon.starterNick = myNick;
+            octagon.receiverNick = opponentNick;
+
+            // 상대방 invite 채널에 브로드캐스트
+            var ch = sb.channel('octagon:invite:' + opponentNick);
+            ch.subscribe(function(state) {
+                if (state === 'SUBSCRIBED') {
+                    ch.send({
+                        type: 'broadcast', event: 'battle_invite',
+                        payload: { battleId: battleId, starterNick: myNick }
+                    });
+                    showToast('⚡ ' + opponentNick + ' 에게 배틀을 신청했습니다!');
+                }
+            });
+
+            navigateTo('octagon');
+            renderOctagonWaiting();
+            // 수락 신호 대기
+            _subscribeOctagonRoom(battleId, 'starter', myNick, opponentNick);
+        });
+    }
+
+    /* ── 수신 대기 리스너 (로그인 시 상시 구독) ── */
+    function initOctagonListener() {
+        if (!sb || !currentUser) return;
+        var myNick = getDisplayUsername();
+        if (!myNick) return;
+        if (octagon.inviteChannel) { sb.removeChannel(octagon.inviteChannel); }
+
+        octagon.inviteChannel = sb.channel('octagon:invite:' + myNick);
+        octagon.inviteChannel
+            .on('broadcast', { event: 'battle_invite' }, function(payload) {
+                var d = payload.payload;
+                if (!d || !d.battleId) return;
+                octagon.pendingBattleId = d.battleId;
+                octagon.pendingStarterNick = d.starterNick;
+                document.getElementById('invite-challenger-name').textContent = d.starterNick;
+                document.getElementById('octagon-invite-modal').classList.remove('hidden');
+                // 화면 테두리 경고 효과
+                document.body.style.outline = '4px solid #e8000d';
+                setTimeout(function() { document.body.style.outline = ''; }, 2500);
+            })
+            .subscribe();
+    }
+
+    /* ── 수락 ── */
+    function acceptBattle() {
+        var battleId = octagon.pendingBattleId;
+        var starterNick = octagon.pendingStarterNick;
+        if (!battleId || !sb || !currentUser) return;
+        document.getElementById('octagon-invite-modal').classList.add('hidden');
+        var myNick = getDisplayUsername();
+
+        sb.from('battles').update({
+            receiver_id: currentUser.id,
+            receiver_nick: myNick,
+            status: 'active',
+            current_turn_nick: starterNick,
+            current_round: 1,
+            turn_started_at: new Date().toISOString(),
+        }).eq('id', battleId).then(function(res) {
+            if (res.error) { showToast('⚠️ 수락 실패'); return; }
+            octagon.battleId = battleId;
+            octagon.role = 'receiver';
+            octagon.status = 'active';
+            octagon.starterNick = starterNick;
+            octagon.receiverNick = myNick;
+            octagon.currentRound = 1;
+            octagon.currentTurnNick = starterNick;
+            octagon.starterHp = 100; octagon.receiverHp = 100;
+
+            navigateTo('octagon');
+            _subscribeOctagonRoom(battleId, 'receiver', starterNick, myNick);
+            renderOctagonRoom();
+
+            // 스타터에게 수락 신호 전송 (구독 완료 후)
+            setTimeout(function() {
+                if (octagon.battleChannel) {
+                    octagon.battleChannel.send({
+                        type: 'broadcast', event: 'battle_accepted',
+                        payload: {
+                            receiverNick: myNick,
+                            currentTurnNick: starterNick,
+                            currentRound: 1,
+                            starterHp: 100, receiverHp: 100,
+                        }
+                    });
+                }
+            }, 800);
+        });
+    }
+
+    function declineBattle() {
+        document.getElementById('octagon-invite-modal').classList.add('hidden');
+        octagon.pendingBattleId = null;
+        octagon.pendingStarterNick = null;
+    }
+
+    /* ── 배틀룸 Realtime 구독 (Broadcast + Presence) ── */
+    function _subscribeOctagonRoom(battleId, role, starterNick, receiverNick) {
+        if (octagon.battleChannel) sb.removeChannel(octagon.battleChannel);
+        var myNick = getDisplayUsername();
+
+        octagon.battleChannel = sb.channel('octagon:room:' + battleId, {
+            config: { presence: { key: myNick } }
+        });
+
+        octagon.battleChannel
+            /* ── 수락 확인 (starter가 수신) ── */
+            .on('broadcast', { event: 'battle_accepted' }, function(p) {
+                var d = p.payload;
+                if (role !== 'starter') return;
+                octagon.status = 'active';
+                octagon.receiverNick = d.receiverNick;
+                octagon.currentTurnNick = d.currentTurnNick;
+                octagon.currentRound = d.currentRound;
+                octagon.starterHp = d.starterHp; octagon.receiverHp = d.receiverHp;
+                renderOctagonRoom();
+                _startTimer();
+            })
+            /* ── 실시간 타이핑 ── */
+            .on('broadcast', { event: 'live_typing' }, function(p) {
+                var d = p.payload;
+                if (d.nick === myNick) return;
+                octagon.liveTypingOpponent = d.text;
+                var el = document.getElementById('octagon-live-typing');
+                if (el) el.textContent = d.text;
+            })
+            /* ── 발언 확정 ── */
+            .on('broadcast', { event: 'turn_submitted' }, function(p) {
+                var d = p.payload;
+                octagon.messages.push({ nick: d.nick, text: d.text, round: d.round, isFinal: true });
+                if (!octagon.roundFinalMessages[d.round]) octagon.roundFinalMessages[d.round] = {};
+                var key = d.nick === octagon.starterNick ? 'starter' : 'receiver';
+                octagon.roundFinalMessages[d.round][key] = d.text;
+                _renderMessages();
+            })
+            /* ── 턴 교체 ── */
+            .on('broadcast', { event: 'turn_changed' }, function(p) {
+                var d = p.payload;
+                octagon.currentTurnNick = d.currentTurnNick;
+                octagon.currentRound = d.currentRound;
+                octagon.liveTypingOpponent = '';
+                _updateTurnUI();
+                if (d.currentTurnNick === myNick) { _startTimer(); }
+                else { _startTimerDisplay(); }
+            })
+            /* ── 투표 ── */
+            .on('broadcast', { event: 'vote_cast' }, function(p) {
+                var d = p.payload;
+                if (d.for === 'starter') {
+                    octagon.starterHp = Math.min(100, octagon.starterHp + 3);
+                    octagon.receiverHp = Math.max(10, octagon.receiverHp - 3);
+                } else {
+                    octagon.receiverHp = Math.min(100, octagon.receiverHp + 3);
+                    octagon.starterHp = Math.max(10, octagon.starterHp - 3);
+                }
+                _updateHpBars();
+            })
+            /* ── 배틀 종료 ── */
+            .on('broadcast', { event: 'battle_ended' }, function(p) {
+                var d = p.payload;
+                octagon.status = 'finished';
+                _stopTimer();
+                renderOctagonResult(d.winnerNick, d.starterHp, d.receiverHp, d.reason);
+            })
+            /* ── Presence: 관전자 수 ── */
+            .on('presence', { event: 'sync' }, function() {
+                var s = octagon.battleChannel.presenceState();
+                octagon.spectatorCount = Object.keys(s).length;
+                _updateSpectatorCount();
+            })
+            .on('presence', { event: 'join' }, function() {
+                var s = octagon.battleChannel.presenceState();
+                octagon.spectatorCount = Object.keys(s).length;
+                _updateSpectatorCount();
+            })
+            .on('presence', { event: 'leave' }, function() {
+                var s = octagon.battleChannel.presenceState();
+                octagon.spectatorCount = Object.keys(s).length;
+                _updateSpectatorCount();
+            })
+            .subscribe(function(state) {
+                if (state === 'SUBSCRIBED') {
+                    octagon.battleChannel.track({ nick: myNick, role: role, at: Date.now() });
+                }
+            });
+    }
+
+    /* ──────────── 타이머 ──────────── */
+    function _startTimer() {
+        _stopTimer();
+        octagon.timeLeft = 30;
+        _updateTimerEl();
+        octagon.timerInterval = setInterval(function() {
+            octagon.timeLeft--;
+            _updateTimerEl();
+            if (octagon.timeLeft <= 0) { _stopTimer(); _autoSubmit(); }
+        }, 1000);
+    }
+    function _startTimerDisplay() {
+        _stopTimer();
+        octagon.timeLeft = 30;
+        _updateTimerEl();
+        octagon.timerInterval = setInterval(function() {
+            octagon.timeLeft--;
+            _updateTimerEl();
+            if (octagon.timeLeft <= 0) _stopTimer();
+        }, 1000);
+    }
+    function _stopTimer() {
+        if (octagon.timerInterval) { clearInterval(octagon.timerInterval); octagon.timerInterval = null; }
+    }
+    function _updateTimerEl() {
+        var el = document.getElementById('octagon-timer');
+        if (!el) return;
+        el.textContent = octagon.timeLeft + 's';
+        el.className = octagon.timeLeft <= 10
+            ? 'oswald-sharp text-5xl font-black text-ufcRed'
+            : 'oswald-sharp text-5xl font-black text-white';
+    }
+    function _autoSubmit() {
+        var input = document.getElementById('octagon-input');
+        submitOctagonTurn(input && input.value.trim() ? input.value.trim() : '(시간 초과)');
+    }
+
+    /* ──────────── 메시지 전송 / 턴 진행 ──────────── */
+    function sendOctagonMessage() {
+        var input = document.getElementById('octagon-input');
+        if (!input || input.disabled) return;
+        var text = input.value.trim();
+        if (!text) return;
+        submitOctagonTurn(text);
+    }
+    function onOctagonTyping(text) {
+        if (!octagon.battleChannel) return;
+        octagon.battleChannel.send({
+            type: 'broadcast', event: 'live_typing',
+            payload: { nick: getDisplayUsername(), text: text }
+        });
+    }
+    function submitOctagonTurn(text) {
+        var myNick = getDisplayUsername();
+        var input = document.getElementById('octagon-input');
+        if (input) input.value = '';
+        _stopTimer();
+
+        // Broadcast 발언 확정
+        if (octagon.battleChannel) {
+            octagon.battleChannel.send({
+                type: 'broadcast', event: 'turn_submitted',
+                payload: { nick: myNick, text: text.slice(0, 500), round: octagon.currentRound, isFinal: true }
+            });
+        }
+        octagon.messages.push({ nick: myNick, text: text.slice(0, 500), round: octagon.currentRound, isFinal: true });
+        if (!octagon.roundFinalMessages[octagon.currentRound]) octagon.roundFinalMessages[octagon.currentRound] = {};
+        var key = myNick === octagon.starterNick ? 'starter' : 'receiver';
+        octagon.roundFinalMessages[octagon.currentRound][key] = text.slice(0, 500);
+        _renderMessages();
+        _advanceTurn();
+    }
+    function _advanceTurn() {
+        var myNick = getDisplayUsername();
+        var cur = octagon.currentTurnNick;
+        var round = octagon.currentRound;
+        var nextTurn, nextRound;
+
+        if (cur === octagon.starterNick) {
+            nextTurn = octagon.receiverNick; nextRound = round;
+        } else {
+            if (round >= 5) { _endBattle(); return; }
+            nextTurn = octagon.starterNick; nextRound = round + 1;
+        }
+
+        octagon.currentTurnNick = nextTurn;
+        octagon.currentRound = nextRound;
+
+        // DB 턴 상태 갱신
+        if (sb) {
+            sb.from('battles').update({
+                current_turn_nick: nextTurn,
+                current_round: nextRound,
+                turn_started_at: new Date().toISOString(),
+            }).eq('id', octagon.battleId).then(function(){});
+        }
+
+        // Broadcast 턴 교체
+        if (octagon.battleChannel) {
+            octagon.battleChannel.send({
+                type: 'broadcast', event: 'turn_changed',
+                payload: { currentTurnNick: nextTurn, currentRound: nextRound }
+            });
+        }
+
+        _updateTurnUI();
+        if (nextTurn === myNick) _startTimer();
+        else _startTimerDisplay();
+    }
+
+    /* ──────────── 배틀 종료 + Tie-break ──────────── */
+    function _endBattle() {
+        _stopTimer();
+        octagon.status = 'finished';
+
+        var sHp = octagon.starterHp, rHp = octagon.receiverHp;
+        var winnerNick, reason;
+        if (sHp > rHp) {
+            winnerNick = octagon.starterNick; reason = '투표 결과';
+        } else if (rHp > sHp) {
+            winnerNick = octagon.receiverNick; reason = '투표 결과';
+        } else {
+            // Tie-break: 발언 수 기준
+            var sCount = octagon.messages.filter(function(m) { return m.nick === octagon.starterNick; }).length;
+            var rCount = octagon.messages.filter(function(m) { return m.nick === octagon.receiverNick; }).length;
+            winnerNick = sCount >= rCount ? octagon.starterNick : octagon.receiverNick;
+            reason = '동점 — 참여도 기준 Tie-break';
+        }
+
+        // DB 결과 저장
+        if (sb) {
+            sb.from('battles').update({
+                status: 'finished', winner_nick: winnerNick,
+                starter_votes: octagon.votes.starter,
+                receiver_votes: octagon.votes.receiver,
+                finished_at: new Date().toISOString(),
+            }).eq('id', octagon.battleId).then(function(){});
+
+            // 각 라운드 최종 발언 battle_messages에 저장
+            Object.keys(octagon.roundFinalMessages).forEach(function(r) {
+                var msgs = octagon.roundFinalMessages[r];
+                var rows = [];
+                if (msgs.starter) rows.push({ battle_id: octagon.battleId, user_nick: octagon.starterNick, content: msgs.starter, round: parseInt(r) });
+                if (msgs.receiver) rows.push({ battle_id: octagon.battleId, user_nick: octagon.receiverNick, content: msgs.receiver, round: parseInt(r) });
+                if (rows.length) sb.from('battle_messages').insert(rows).then(function(){});
+            });
+        }
+
+        if (octagon.battleChannel) {
+            octagon.battleChannel.send({
+                type: 'broadcast', event: 'battle_ended',
+                payload: { winnerNick: winnerNick, starterHp: sHp, receiverHp: rHp, reason: reason }
+            });
+        }
+        renderOctagonResult(winnerNick, sHp, rHp, reason);
+    }
+
+    /* ──────────── 관전자 투표 ──────────── */
+    function castVote(forWho) {
+        if (octagon.role !== 'spectator') return;
+        if (octagon.votedThisBattle) { showToast('이미 투표했습니다'); return; }
+        octagon.votedThisBattle = true;
+        octagon.votes[forWho]++;
+        if (forWho === 'starter') {
+            octagon.starterHp = Math.min(100, octagon.starterHp + 3);
+            octagon.receiverHp = Math.max(10, octagon.receiverHp - 3);
+        } else {
+            octagon.receiverHp = Math.min(100, octagon.receiverHp + 3);
+            octagon.starterHp = Math.max(10, octagon.starterHp - 3);
+        }
+        _updateHpBars();
+        if (octagon.battleChannel) {
+            octagon.battleChannel.send({
+                type: 'broadcast', event: 'vote_cast', payload: { for: forWho }
+            });
+        }
+        showToast('🗳️ 투표 완료!');
+    }
+
+    /* ──────────── UI 렌더링 ──────────── */
+    function renderOctagonWaiting() {
+        document.getElementById('octagon-content').innerHTML =
+            '<div class="flex flex-col items-center justify-center min-h-[70vh] text-center">' +
+            '<div class="text-6xl mb-6" style="animation:spin 3s linear infinite">⚡</div>' +
+            '<h2 class="oswald-sharp text-4xl lg:text-6xl font-black italic text-white uppercase tracking-tighter mb-3">WAITING FOR OPPONENT</h2>' +
+            '<p class="oswald-sharp text-ufcRed text-xl font-black italic uppercase tracking-widest mb-8">' + escapeHtml(octagon.receiverNick) + ' 의 수락 대기 중...</p>' +
+            '<div class="flex gap-2 items-center">' +
+            '<div class="w-2 h-2 rounded-full bg-ufcRed" style="animation:bounce 1s infinite 0s"></div>' +
+            '<div class="w-2 h-2 rounded-full bg-ufcRed" style="animation:bounce 1s infinite .2s"></div>' +
+            '<div class="w-2 h-2 rounded-full bg-ufcRed" style="animation:bounce 1s infinite .4s"></div>' +
+            '</div>' +
+            '<button onclick="cancelBattleRequest()" class="mt-12 oswald-sharp text-gray-600 hover:text-white transition text-xs uppercase tracking-widest italic">취소</button>' +
+            '</div>';
+    }
+
+    function renderOctagonRoom() {
+        var myNick = getDisplayUsername();
+        var isPlayer = (octagon.role === 'starter' || octagon.role === 'receiver');
+        var isMyTurn = octagon.currentTurnNick === myNick;
+        var sHp = octagon.starterHp, rHp = octagon.receiverHp;
+
+        var inputArea = isPlayer
+            ? '<div class="flex gap-3">' +
+              '<input id="octagon-input" type="text" maxlength="500"' +
+              (isMyTurn ? '' : ' disabled') +
+              ' placeholder="' + (isMyTurn ? '⚡ 당신의 차례! 논리로 압도하세요...' : '상대방의 차례입니다...') + '"' +
+              ' class="flex-1 bg-black/40 border ' + (isMyTurn ? 'border-ufcRed/50 focus:border-ufcRed' : 'border-white/5 opacity-40 cursor-not-allowed') + ' rounded-xl px-4 py-3 text-white text-sm focus:outline-none transition"' +
+              ' oninput="onOctagonTyping(this.value)"' +
+              ' onkeydown="if(event.key===\'Enter\'&&!this.disabled)sendOctagonMessage()">' +
+              '<button onclick="sendOctagonMessage()" ' + (isMyTurn ? '' : 'disabled') +
+              ' class="oswald-sharp ' + (isMyTurn ? 'hover:bg-red-700' : 'opacity-40 cursor-not-allowed') + ' text-white font-black px-6 py-3 rounded-xl italic uppercase text-xs tracking-widest transition"' +
+              ' style="' + (isMyTurn ? 'background:#e8000d' : 'background:#1f1f1f') + '">SEND</button>' +
+              '</div>'
+            : '<div class="glass-card p-6 rounded-2xl border border-white/5">' +
+              '<p class="oswald-sharp text-center text-xs uppercase tracking-widest italic text-gray-500 mb-4">누가 더 논리적입니까? 투표로 HP를 조절하세요</p>' +
+              '<div class="flex gap-4">' +
+              '<button onclick="castVote(\'starter\')" class="flex-1 oswald-sharp border-2 border-ufcRed/50 hover:bg-ufcRed/15 text-white font-black py-4 rounded-xl italic uppercase text-sm tracking-widest transition">👊 ' + escapeHtml(octagon.starterNick) + '</button>' +
+              '<button onclick="castVote(\'receiver\')" class="flex-1 oswald-sharp border-2 border-blue-500/50 hover:bg-blue-500/15 text-white font-black py-4 rounded-xl italic uppercase text-sm tracking-widest transition">👊 ' + escapeHtml(octagon.receiverNick) + '</button>' +
+              '</div></div>';
+
+        document.getElementById('octagon-content').innerHTML =
+            '<div class="max-w-3xl mx-auto">' +
+            /* Header */
+            '<div class="flex items-center justify-between mb-6">' +
+            '<div class="border-l-4 border-ufcRed pl-4">' +
+            '<h2 class="oswald-sharp text-3xl lg:text-5xl font-black italic text-white uppercase tracking-tighter">OCTAGON</h2>' +
+            '<p class="oswald-sharp text-[10px] text-gray-600 uppercase tracking-widest italic">' + (octagon.battleId ? octagon.battleId.slice(0,8).toUpperCase() : '') + '</p>' +
+            '</div>' +
+            '<div class="text-right">' +
+            '<div id="spectator-count" class="oswald-sharp text-xs text-gray-500 uppercase italic tracking-widest">👁 ' + octagon.spectatorCount + '명 관전 중</div>' +
+            '<div class="oswald-sharp text-sm text-ufcRed font-black italic uppercase">ROUND ' + octagon.currentRound + ' / 5</div>' +
+            '</div></div>' +
+            /* HP Bars */
+            '<div class="glass-card p-5 lg:p-8 rounded-2xl mb-5 border border-white/5">' +
+            '<div class="flex items-center gap-4">' +
+            '<div class="flex-1">' +
+            '<div class="flex justify-between items-center mb-2">' +
+            '<span class="oswald-sharp text-xs font-black italic uppercase text-white tracking-tighter">' + escapeHtml(octagon.starterNick) + '</span>' +
+            '<span id="hp-starter-val" class="oswald-sharp text-xs text-ufcRed font-black italic">' + sHp + 'HP</span>' +
+            '</div>' +
+            '<div class="w-full bg-black/60 rounded-full h-4 border border-white/5">' +
+            '<div id="hp-bar-starter" class="h-4 rounded-full transition-all duration-500" style="width:' + sHp + '%;background:linear-gradient(90deg,#e8000d,#ff4444)"></div>' +
+            '</div></div>' +
+            '<div class="oswald-sharp text-xl font-black italic text-gray-700 flex-shrink-0">VS</div>' +
+            '<div class="flex-1">' +
+            '<div class="flex justify-between items-center mb-2">' +
+            '<span id="hp-receiver-val" class="oswald-sharp text-xs text-blue-400 font-black italic">' + rHp + 'HP</span>' +
+            '<span class="oswald-sharp text-xs font-black italic uppercase text-white tracking-tighter">' + escapeHtml(octagon.receiverNick) + '</span>' +
+            '</div>' +
+            '<div class="w-full bg-black/60 rounded-full h-4 border border-white/5">' +
+            '<div id="hp-bar-receiver" class="h-4 rounded-full transition-all duration-500 ml-auto" style="width:' + rHp + '%;background:linear-gradient(270deg,#2563eb,#60a5fa)"></div>' +
+            '</div></div></div></div>' +
+            /* Timer + Turn */
+            '<div class="glass-card p-4 rounded-2xl mb-5 border ' + (isMyTurn && isPlayer ? 'border-ufcRed/40' : 'border-white/5') + ' text-center">' +
+            '<p id="octagon-turn-label" class="oswald-sharp text-xs uppercase tracking-widest italic text-gray-500 mb-1">' +
+            (isMyTurn && isPlayer ? '⚡ 당신의 차례!' : escapeHtml(octagon.currentTurnNick) + ' 의 턴') +
+            '</p>' +
+            '<div id="octagon-timer" class="oswald-sharp text-5xl font-black text-white">30s</div>' +
+            '</div>' +
+            /* Messages */
+            '<div id="octagon-messages" class="space-y-3 mb-5 max-h-72 overflow-y-auto pr-1">' + _messagesHtml() + '</div>' +
+            /* Live typing (players only) */
+            (isPlayer ? '<div class="glass-card px-5 py-3 rounded-2xl mb-4 border border-white/5 min-h-[48px]">' +
+            '<span class="oswald-sharp text-[10px] text-gray-600 uppercase tracking-widest italic">상대방 입력 중: </span>' +
+            '<span id="octagon-live-typing" class="text-gray-400 text-sm italic font-light"></span>' +
+            '</div>' : '') +
+            /* Input or Vote */
+            inputArea +
+            '</div>';
+
+        // 타이머 시작
+        if (isPlayer && isMyTurn) _startTimer();
+        else if (octagon.status === 'active') _startTimerDisplay();
+    }
+
+    function _messagesHtml() {
+        if (!octagon.messages.length) {
+            return '<div class="text-center text-gray-700 oswald-sharp text-xs uppercase italic tracking-widest py-10">배틀이 시작됩니다...</div>';
+        }
+        return octagon.messages.map(function(m) {
+            var isSt = m.nick === octagon.starterNick;
+            var align = isSt ? 'items-start' : 'items-end';
+            var col = isSt ? 'text-ufcRed' : 'text-blue-400';
+            var bg = isSt ? 'bg-ufcRed/10 border-ufcRed/25' : 'bg-blue-500/10 border-blue-500/25';
+            return '<div class="flex flex-col ' + align + '">' +
+                '<span class="oswald-sharp text-[10px] font-black italic uppercase ' + col + ' mb-1 px-2">R' + m.round + ' · ' + escapeHtml(m.nick) + '</span>' +
+                '<div class="max-w-[88%] glass-card ' + bg + ' border px-4 py-3 rounded-2xl text-sm text-gray-200 font-light leading-relaxed">' +
+                escapeHtml(m.text) + '</div></div>';
+        }).join('');
+    }
+
+    function _renderMessages() {
+        var el = document.getElementById('octagon-messages');
+        if (el) { el.innerHTML = _messagesHtml(); el.scrollTop = el.scrollHeight; }
+    }
+
+    function renderOctagonResult(winnerNick, sHp, rHp, reason) {
+        document.getElementById('octagon-content').innerHTML =
+            '<div class="flex flex-col items-center justify-center min-h-[70vh] text-center max-w-lg mx-auto">' +
+            '<div class="text-7xl mb-5">🏆</div>' +
+            '<h2 class="oswald-sharp text-6xl font-black italic uppercase tracking-tighter mb-2" style="color:#e8000d">WINNER</h2>' +
+            '<div class="oswald-sharp text-4xl font-black italic text-white uppercase tracking-tighter mb-2">' + escapeHtml(winnerNick) + '</div>' +
+            '<p class="oswald-sharp text-gray-500 text-xs uppercase tracking-widest italic mb-8">' + escapeHtml(reason || '투표 결과') + '</p>' +
+            '<div class="w-full glass-card p-6 rounded-2xl border border-white/5 mb-6">' +
+            '<div class="flex justify-between oswald-sharp text-xs uppercase italic font-black mb-3">' +
+            '<span class="text-ufcRed">' + escapeHtml(octagon.starterNick) + '</span>' +
+            '<span class="text-gray-600">FINAL HP</span>' +
+            '<span class="text-blue-400">' + escapeHtml(octagon.receiverNick) + '</span>' +
+            '</div>' +
+            '<div class="flex items-center gap-3">' +
+            '<span class="oswald-sharp text-2xl font-black text-ufcRed">' + sHp + '</span>' +
+            '<div class="flex-1 h-3 bg-black/50 rounded-full overflow-hidden border border-white/5">' +
+            '<div class="h-full" style="background:linear-gradient(90deg,#e8000d ' + sHp + '%,#2563eb ' + sHp + '%)"></div></div>' +
+            '<span class="oswald-sharp text-2xl font-black text-blue-400">' + rHp + '</span></div></div>' +
+            '<div class="w-full mb-6 text-left max-h-60 overflow-y-auto space-y-2">' + _messagesHtml() + '</div>' +
+            '<button onclick="exitOctagon()" class="oswald-sharp bg-white text-black font-black px-12 py-4 rounded-xl italic uppercase tracking-widest text-sm hover:bg-gray-200 transition">돌아가기</button>' +
+            '</div>';
+    }
+
+    /* ──────────── UI 헬퍼 ──────────── */
+    function _updateTurnUI() {
+        var myNick = getDisplayUsername();
+        var isPlayer = (octagon.role === 'starter' || octagon.role === 'receiver');
+        var isMyTurn = octagon.currentTurnNick === myNick;
+
+        var lbl = document.getElementById('octagon-turn-label');
+        if (lbl) lbl.textContent = isMyTurn && isPlayer ? '⚡ 당신의 차례!' : octagon.currentTurnNick + ' 의 턴';
+
+        var inp = document.getElementById('octagon-input');
+        var btn = document.querySelector('#octagon-content button[onclick="sendOctagonMessage()"]');
+        if (inp) {
+            inp.disabled = !isMyTurn;
+            inp.placeholder = isMyTurn ? '⚡ 당신의 차례! 논리로 압도하세요...' : '상대방의 차례입니다...';
+            inp.style.opacity = isMyTurn ? '1' : '0.35';
+        }
+        if (btn) { btn.disabled = !isMyTurn; btn.style.opacity = isMyTurn ? '1' : '0.35'; btn.style.background = isMyTurn ? '#e8000d' : '#1f1f1f'; }
+
+        // 라운드 표시 업데이트
+        var rndEl = document.querySelector('#octagon-content .text-ufcRed.font-black.italic.uppercase');
+        if (rndEl) rndEl.textContent = 'ROUND ' + octagon.currentRound + ' / 5';
+
+        var msgs = document.getElementById('octagon-messages');
+        if (msgs) msgs.scrollTop = msgs.scrollHeight;
+    }
+    function _updateHpBars() {
+        var sbEl = document.getElementById('hp-bar-starter'), rbEl = document.getElementById('hp-bar-receiver');
+        var svEl = document.getElementById('hp-starter-val'),  rvEl = document.getElementById('hp-receiver-val');
+        if (sbEl) sbEl.style.width = octagon.starterHp + '%';
+        if (rbEl) rbEl.style.width = octagon.receiverHp + '%';
+        if (svEl) svEl.textContent = octagon.starterHp + 'HP';
+        if (rvEl) rvEl.textContent = octagon.receiverHp + 'HP';
+    }
+    function _updateSpectatorCount() {
+        var el = document.getElementById('spectator-count');
+        if (el) el.textContent = '👁 ' + octagon.spectatorCount + '명 관전 중';
+    }
+
+    /* ──────────── 퇴장 / 취소 ──────────── */
+    function cancelBattleRequest() {
+        if (octagon.battleId && sb) {
+            sb.from('battles').update({ status: 'cancelled' }).eq('id', octagon.battleId).then(function(){});
+        }
+        exitOctagon();
+    }
+    function exitOctagon() {
+        _stopTimer();
+        if (octagon.battleChannel && sb) sb.removeChannel(octagon.battleChannel);
+        octagon = {
+            battleId: null, role: null, status: 'idle',
+            starterNick: null, receiverNick: null,
+            currentRound: 1, currentTurnNick: null, timeLeft: 30,
+            messages: [], roundFinalMessages: {},
+            votes: { starter: 0, receiver: 0 },
+            starterHp: 100, receiverHp: 100, spectatorCount: 0,
+            battleChannel: null, inviteChannel: octagon.inviteChannel,  // 수신 채널은 유지
+            timerInterval: null, liveTypingOpponent: '',
+            pendingBattleId: null, pendingStarterNick: null, votedThisBattle: false,
+        };
+        navigateTo('community');
     }
 
     function animateCount(id, target) {
