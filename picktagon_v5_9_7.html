@@ -1818,17 +1818,20 @@ textarea, select {
         if (p) posts = JSON.parse(p);
     }
 
-    // Supabase posts 테이블에서 전체 로드 (계정/브라우저 무관 공유)
+    // Supabase posts + post_comments 조인 로드 (계정/브라우저 무관 공유)
     function loadPostsFromDB() {
         if (!sb) return;
         sb.from('posts')
-            .select('*')
+            .select('*, post_comments(id, user_nick, content, created_at)')
             .order('created_at', { ascending: false })
             .limit(100)
             .then(function(res) {
-                if (res.error || !res.data) return;
-                // DB 데이터로 덮어쓰기 (seed 포스트 제거)
+                if (res.error) { console.warn('loadPostsFromDB 오류:', res.error.message); return; }
+                if (!res.data) return;
                 posts = res.data.map(function(r) {
+                    var comments = (r.post_comments || [])
+                        .sort(function(a, b) { return new Date(a.created_at) - new Date(b.created_at); })
+                        .map(function(c) { return { user: c.user_nick, text: c.content }; });
                     return {
                         id: r.id,
                         dbId: r.id,
@@ -1837,7 +1840,7 @@ textarea, select {
                         content: r.content || '',
                         likes: r.likes || 0,
                         date: (r.created_at || '').slice(0, 10).replace(/-/g, '.'),
-                        comments: r.comments || [],
+                        comments: comments,
                         belt: r.belt || 'White Belt',
                         isPickShare: r.is_pick_share || false,
                     };
@@ -2617,13 +2620,26 @@ textarea, select {
     function postCom(i) {
         const input = document.getElementById(`com-in-${i}`);
         const text = input.value.trim();
-        if(!text) return;
-        posts[i].comments.push({ user: getDisplayUsername(), text: text.slice(0, 300) });
-        input.value = "";
-        updatePostCommentsInDB(posts[i].dbId, posts[i].comments);
+        if (!text) return;
+        if (!sb || !currentUser) { showToast('⚠️ 로그인이 필요합니다'); return; }
+        if (!posts[i].dbId) { showToast('⚠️ 게시글 동기화 중입니다. 잠시 후 시도하세요'); return; }
+
+        const myNick = getDisplayUsername();
+        // 로컬 즉시 반영
+        posts[i].comments.push({ user: myNick, text: text.slice(0, 300) });
+        input.value = '';
         save();
         renderFeed();
         document.getElementById(`com-area-${i}`).classList.remove('hidden');
+
+        // DB 저장 (post_comments 테이블)
+        sb.from('post_comments').insert({
+            post_id: posts[i].dbId,
+            user_nick: myNick,
+            content: text.slice(0, 300),
+        }).then(function(res) {
+            if (res.error) console.warn('댓글 저장 실패:', res.error.message);
+        });
     }
 
     function publishPost() {
@@ -2643,16 +2659,13 @@ textarea, select {
         document.getElementById('post-con').value = "";
         toggleWriter();
 
-        // DB에 먼저 저장 → dbId 확보 후 posts 배열에 추가하여 댓글 동기화 보장
+        // DB insert: 원래 존재하는 컬럼만 사용 (migration 의존성 제거)
         sb.from('posts').insert({
             user_id: currentUser.id,
             nickname: newPost.author,
             title: newPost.title,
             content: newPost.content,
             is_pick_share: newPost.isPickShare || false,
-            likes: 0,
-            belt: newPost.belt,
-            comments: []
         }).select().single().then(function(res) {
             if (res.error) {
                 showToast("⚠️ 게시 실패: " + res.error.message);
@@ -3040,25 +3053,31 @@ textarea, select {
     // ----- FIGHTER DB -----
     // 예측 커뮤니티 자동 공유
     function autoSharePick(pick, match, payout, isUpset, fightId) {
+        if (!sb || !currentUser) return;
         const name = getDisplayUsername();
         const bName = state.points <= 1000 ? "White Belt" : (state.points <= 2000 ? "Blue Belt" : (state.points <= 5000 ? "Purple Belt" : (state.points <= 10000 ? "Brown Belt" : "Black Belt")));
         const upsetTag = isUpset ? ' 🔥 [업셋픽]' : '';
         const title = `${name}의 픽: ${match.split(' vs ')[0].split(' ').pop()} vs ${match.split(' vs ')[1]?.split(' ').pop() || '?'}`;
         const content = `${pick} 승리 예측${upsetTag} · 예상 배당 ${payout}P`;
 
-        posts.unshift({
-            id: Date.now(),
-            author: name,
+        sb.from('posts').insert({
+            user_id: currentUser.id,
+            nickname: name,
             title,
             content,
-            likes: 0,
-            date: new Date().toISOString().slice(0,10).replace(/-/g,'.'),
-            comments: [],
-            belt: bName,
-            isPickShare: true,
-            fightId
+            is_pick_share: true,
+        }).select().single().then(function(res) {
+            if (res.error) { console.warn('픽 공유 저장 실패:', res.error.message); return; }
+            const newPost = {
+                id: res.data.id, dbId: res.data.id,
+                author: name, title, content,
+                likes: 0,
+                date: new Date().toISOString().slice(0,10).replace(/-/g,'.'),
+                comments: [], belt: bName, isPickShare: true, fightId
+            };
+            posts.unshift(newPost);
+            save();
         });
-        save();
     }
 
     const STYLE_LABELS = { striker:'스트라이커 🥊', grappler:'그래플러 🤼', wrestler:'레슬러 💪', submission:'서브미션 🔒', 'all-around':'올라운더 ⭐' };
@@ -6113,45 +6132,11 @@ textarea, select {
             .limit(20);
     }
 
-    function savePostToDB(post) {
-        if (!sb || !currentUser) return;
-        sb.from('posts').insert({
-            user_id: currentUser.id,
-            nickname: post.author,
-            title: post.title,
-            content: post.content,
-            is_pick_share: post.isPickShare || false,
-            likes: post.likes || 0,
-            belt: post.belt || 'White Belt',
-            comments: post.comments || []
-        }).select().single().then(function(res) {
-            // DB가 발급한 UUID id를 로컬 post에 저장
-            if (res.data && res.data.id) {
-                post.dbId = res.data.id;
-                save();
-            }
-        });
-    }
-
     function likePostInDB(dbId) {
+        // likes 컬럼은 선택적 migration: ALTER TABLE posts ADD COLUMN IF NOT EXISTS likes integer DEFAULT 0;
         if (!sb || !dbId) return;
-        // RPC 없이 read-then-update (충분)
-        sb.from('posts').select('likes').eq('id', dbId).single().then(function(res) {
-            if (res.data) {
-                sb.from('posts').update({ likes: (res.data.likes || 0) + 1 }).eq('id', dbId).then(function(){});
-            }
-        });
-    }
-
-    function updatePostCommentsInDB(dbId, comments) {
-        if (!sb) return;
-        if (!dbId) {
-            // dbId 없으면 전체 포스트 재로드로 다음 접속 시 복원
-            console.warn('updatePostCommentsInDB: dbId 없음, DB 저장 생략');
-            return;
-        }
-        sb.from('posts').update({ comments: comments }).eq('id', dbId).then(function(res) {
-            if (res.error) console.warn('댓글 DB 저장 실패:', res.error.message);
+        sb.rpc('increment_post_likes', { post_id: dbId }).then(function(res) {
+            // RPC 없으면 조용히 무시 (likes는 로컬에서만 표시)
         });
     }
 
