@@ -6780,7 +6780,7 @@ textarea, select {
             ? '<div class="flex gap-3">' +
               '<input id="octagon-input" type="text" maxlength="500"' +
               (isMyTurn ? '' : ' disabled') +
-              ' placeholder="' + (isMyTurn ? '???�신??차�?! ?�리�??�도?�세??..' : '?��?방의 차�??�니??..') + '"' +
+              ' placeholder="' + (isMyTurn ? '⚡ 당신의 차례! 논리로 압도하세요...' : '상대방의 차례입니다...') + '"' +
               ' class="flex-1 bg-black/40 border ' + (isMyTurn ? 'border-ufcRed/50 focus:border-ufcRed' : 'border-white/5 opacity-40 cursor-not-allowed') + ' rounded-xl px-4 py-3 text-white text-sm focus:outline-none transition"' +
               ' oninput="onOctagonTyping(this.value)"' +
               ' onkeydown="if(event.key===\'Enter\'&&!this.disabled)sendOctagonMessage()">' +
@@ -6830,7 +6830,7 @@ textarea, select {
             /* Timer + Turn */
             '<div class="glass-card p-4 rounded-2xl mb-5 border ' + (isMyTurn && isPlayer ? 'border-ufcRed/40' : 'border-white/5') + ' text-center">' +
             '<p id="octagon-turn-label" class="oswald-sharp text-xs uppercase tracking-widest italic text-gray-500 mb-1">' +
-            (isMyTurn && isPlayer ? '???�신??차�?!' : escapeHtml(octagon.currentTurnNick) + ' ????) +
+            (isMyTurn && isPlayer ? '⚡ 당신의 차례!' : escapeHtml(octagon.currentTurnNick) + ' 의 턴') +
             '</p>' +
             '<div id="octagon-timer" class="oswald-sharp text-5xl font-black text-white">30s</div>' +
             '</div>' +
@@ -6901,13 +6901,13 @@ textarea, select {
         var isMyTurn = octagon.currentTurnNick === myNick;
 
         var lbl = document.getElementById('octagon-turn-label');
-        if (lbl) lbl.textContent = isMyTurn && isPlayer ? '???�신??차�?!' : octagon.currentTurnNick + ' ????;
+        if (lbl) lbl.textContent = isMyTurn && isPlayer ? '⚡ 당신의 차례!' : octagon.currentTurnNick + ' 의 턴';
 
         var inp = document.getElementById('octagon-input');
         var btn = document.querySelector('#octagon-content button[onclick="sendOctagonMessage()"]');
         if (inp) {
             inp.disabled = !isMyTurn;
-            inp.placeholder = isMyTurn ? '???�신??차�?! ?�리�??�도?�세??..' : '?��?방의 차�??�니??..';
+            inp.placeholder = isMyTurn ? '⚡ 당신의 차례! 논리로 압도하세요...' : '상대방의 차례입니다...';
             inp.style.opacity = isMyTurn ? '1' : '0.35';
         }
         if (btn) { btn.disabled = !isMyTurn; btn.style.opacity = isMyTurn ? '1' : '0.35'; btn.style.background = isMyTurn ? '#e8000d' : '#1f1f1f'; }
