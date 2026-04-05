@@ -1834,34 +1834,38 @@ textarea, select {
         if (p) posts = JSON.parse(p);
     }
 
-    // Supabase posts 테이블에서 전체 로드 (계정/브라우저 무관 공유)
-    function loadPostsFromDB() {
-        if (!sb) return;
-        sb.from('posts')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(100)
-            .then(function(res) {
-                if (res.error || !res.data) return;
-                // DB 데이터로 덮어쓰기 (seed 포스트 제거)
-                posts = res.data.map(function(r) {
-                    return {
-                        id: r.id,
-                        dbId: r.id,
-                        author: r.nickname || 'UNKNOWN',
-                        title: r.title || '',
-                        content: r.content || '',
-                        likes: r.likes || 0,
-                        date: (r.created_at || '').slice(0, 10).replace(/-/g, '.'),
-                        comments: r.comments || [],
-                        belt: r.belt || 'White Belt',
-                        isPickShare: r.is_pick_share || false,
-                    };
-                });
-                save();
-                renderFeed();
+    ```javascript
+// [A안] posts + post_comments 테이블 JOIN으로 로드
+function loadPostsFromDB() {
+    if (!sb) return;
+    sb.from('posts')
+        .select('*, post_comments(id, user_nick, content, created_at)')
+        .order('created_at', { ascending: false })
+        .limit(100)
+        .then(function(res) {
+            if (res.error || !res.data) return;
+            posts = res.data.map(function(r) {
+                // post_comments 테이블에서 댓글 로드 (created_at 오름차순 정렬)
+                var comments = (r.post_comments || [])
+                    .sort(function(a, b) { return new Date(a.created_at) - new Date(b.created_at); })
+                    .map(function(c) { return { user: c.user_nick, text: c.content }; });
+                return {
+                    id: r.id,
+                    dbId: r.id,
+                    author: r.nickname || 'UNKNOWN',
+                    title: r.title || '',
+                    content: r.content || '',
+                    likes: r.likes || 0,
+                    date: (r.created_at || '').slice(0, 10).replace(/-/g, '.'),
+                    comments: comments,
+                    belt: r.belt || 'White Belt',
+                    isPickShare: r.is_pick_share || false,
+                };
             });
-    }
+            save();
+            renderFeed();
+        });
+}
 
     /* ==============================
        FIGHT CARD RENDERING
@@ -2636,66 +2640,69 @@ textarea, select {
         save();
         renderFeed();
     }
-    function toggleComArea(i) { document.getElementById(`com-area-${i}`).classList.toggle('hidden'); }
-    function postCom(i) {
-        const input = document.getElementById(`com-in-${i}`);
-        const text = input.value.trim();
-        if(!text) return;
-        posts[i].comments.push({ user: getDisplayUsername(), text: text.slice(0, 300) });
-        input.value = "";
-        updatePostCommentsInDB(posts[i].dbId, posts[i].comments);
-        save();
-        renderFeed();
-        document.getElementById(`com-area-${i}`).classList.remove('hidden');
+   ```javascript
+async function postCom(i) {
+    const input = document.getElementById(`com-in-${i}`);
+    const text = input.value.trim();
+    if(!text) return;
+    if (!currentUser) { showToast('⚠ 댓글은 로그인 후 작성할 수 있습니다'); return; }
+    const nick = getDisplayUsername();
+    const comment = { user: nick, text: text.slice(0, 300) };
+    posts[i].comments.push(comment);
+    input.value = "";
+    // [A안] post_comments 테이블에 INSERT
+    await addCommentToDB(posts[i].dbId, nick, text.slice(0, 300));
+    save();
+    renderFeed();
+    document.getElementById(`com-area-${i}`).classList.remove('hidden');
     }
 
-    async function publishPost() {
-        const t = document.getElementById('post-tit').value.trim();
-        const c = document.getElementById('post-con').value.trim();
-        if(!t || !c) { showToast("⚠️ 모든 항목을 입력해주세요."); return; }
-        if(!getNickname()) { showToast("⚠️ 먼저 닉네임을 설정해주세요!"); openNicknameModal(); return; }
-        if(!sb || !currentUser) { showToast("⚠️ 로그인이 필요합니다."); return; }
+   ```javascript
+// [버그수정] 이중 INSERT 제거, dbId 즉시 캡처
+async function publishPost() {
+    const t = document.getElementById('post-tit').value.trim();
+    const c = document.getElementById('post-con').value.trim();
+    if(!t || !c) { showToast("⚠️ 모든 항목을 입력해주세요."); return; }
+    if(!getNickname()) { showToast("⚠️ 먼저 닉네임을 설정해주세요!"); openNicknameModal(); return; }
+    if(!sb || !currentUser) { showToast("⚠️ 로그인이 필요합니다."); return; }
 
-        const bName = state.points <= 1000 ? "White Belt" : (state.points <= 2000 ? "Blue Belt" : (state.points <= 5000 ? "Purple Belt" : (state.points <= 10000 ? "Brown Belt" : "Black Belt")));
-        const post = {
-            id: Date.now(), author: getDisplayUsername(), title: t.slice(0, 120), content: c.slice(0, 2000),
-            likes: 0, date: new Date().toISOString().slice(0,10).replace(/-/g, "."), comments: [], belt: bName
-        };
+    const bName = state.points <= 1000 ? "White Belt" : (state.points <= 2000 ? "Blue Belt" : (state.points <= 5000 ? "Purple Belt" : (state.points <= 10000 ? "Brown Belt" : "Black Belt")));
 
-        if (sb && currentUser) {
-            const saved = await savePostToDB(post);
-            if (!saved.ok) return;
-        }
+    // DB에 단 한 번만 INSERT → dbId 즉시 확보
+    const res = await sb.from('posts').insert({
+        user_id: currentUser.id,
+        nickname: getDisplayUsername(),
+        title: t.slice(0, 120),
+        content: c.slice(0, 2000),
+        is_pick_share: false,
+        likes: 0,
+        belt: bName,
+        comments: []
+    }).select().single();
 
-        posts.unshift(post);
+    if (res.error) { showToast("⚠️ 게시 실패: " + res.error.message); return; }
 
-        document.getElementById('post-tit').value = "";
-        document.getElementById('post-con').value = "";
-        toggleWriter();
+    const newPost = {
+        id: res.data.id,
+        dbId: res.data.id,
+        author: getDisplayUsername(),
+        title: t.slice(0, 120),
+        content: c.slice(0, 2000),
+        likes: 0,
+        date: new Date().toISOString().slice(0,10).replace(/-/g, "."),
+        comments: [],
+        belt: bName,
+        isPickShare: false,
+    };
 
-        // DB에 먼저 저장 → dbId 확보 후 posts 배열에 추가하여 댓글 동기화 보장
-        sb.from('posts').insert({
-            user_id: currentUser.id,
-            nickname: newPost.author,
-            title: newPost.title,
-            content: newPost.content,
-            is_pick_share: newPost.isPickShare || false,
-            likes: 0,
-            belt: newPost.belt,
-            comments: []
-        }).select().single().then(function(res) {
-            if (res.error) {
-                showToast("⚠️ 게시 실패: " + res.error.message);
-                return;
-            }
-            newPost.dbId = res.data.id;
-            posts.unshift(newPost);
-            save();
-            renderFeed();
-            showToast("🚀 분석 리포트가 업로드되었습니다.");
-        });
-    }
-
+    posts.unshift(newPost);
+    document.getElementById('post-tit').value = "";
+    document.getElementById('post-con').value = "";
+    toggleWriter();
+    save();
+    renderFeed();
+    showToast("🚀 분석 리포트가 업로드되었습니다.");
+}
     /* ==============================
        EVENT LEADERBOARD
     ============================== */
@@ -6178,12 +6185,18 @@ textarea, select {
         });
     }
 
-    function updatePostCommentsInDB(dbId, comments) {
-        if (!sb || !dbId) return;
-        sb.from('posts').update({ comments: comments }).eq('id', dbId).then(function(res) {
-            if (res.error) console.warn('Comment sync failed:', res.error.message);
+```javascript
+// [A안] post_comments 테이블에 댓글 INSERT (posts jsonb UPDATE 방식 폐기)
+async function addCommentToDB(postDbId, userNick, text) {
+    if (!sb || !postDbId) return { ok: true };
+    return runSupabaseMutation(function() {
+        return sb.from('post_comments').insert({
+            post_id: postDbId,
+            user_nick: userNick,
+            content: text
         });
-    }
+    }, '⚠ 댓글 저장에 실패했습니다.');
+}
 
     /* ==============================
        REALTIME 실시간 연동
