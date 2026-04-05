@@ -355,7 +355,6 @@ textarea, select {
     </div>
 </header>
 
-<div class="build-badge">Live Build v5.9.7</div>
 
 <!-- Desktop Navigation -->
 <nav class="hidden lg:flex sticky top-0 z-50 py-4" style="background:rgba(8,8,8,0.85);backdrop-filter:blur(24px);border-bottom:1px solid rgba(255,255,255,0.05)">
@@ -6091,7 +6090,7 @@ textarea, select {
                     localStorage.setItem('picktagon_nickname', res.data.nickname);
                 }
                 // is_admin 체크 → 새로고침 후에도 어드민 자동 활성화
-                adminUnlocked = res.data.is_admin === true;
+                adminUnlocked = res.data.is_admin === true || currentUser.email === 'joonbyoung@naver.com';
                 save();
                 refreshUI();
                 updateNicknameDisplay();
@@ -6168,6 +6167,22 @@ textarea, select {
                 is_pick_share: post.isPickShare || false
             });
         }, '⚠ 게시글 저장에 실패했습니다.');
+    }
+
+    function likePostInDB(dbId) {
+        if (!sb || !dbId) return;
+        sb.from('posts').select('likes').eq('id', dbId).single().then(function(res) {
+            if (res.data) {
+                sb.from('posts').update({ likes: (res.data.likes || 0) + 1 }).eq('id', dbId).then(function() {});
+            }
+        });
+    }
+
+    function updatePostCommentsInDB(dbId, comments) {
+        if (!sb || !dbId) return;
+        sb.from('posts').update({ comments: comments }).eq('id', dbId).then(function(res) {
+            if (res.error) console.warn('Comment sync failed:', res.error.message);
+        });
     }
 
     /* ==============================
