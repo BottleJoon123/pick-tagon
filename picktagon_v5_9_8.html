@@ -1850,7 +1850,6 @@ textarea, select {
         if (p) posts = JSON.parse(p);
     }
 
-    ```javascript
 // [A안] posts + post_comments 테이블 JOIN으로 로드
 function loadPostsFromDB() {
     if (!sb) return;
@@ -1882,7 +1881,6 @@ function loadPostsFromDB() {
             renderFeed();
         });
 }
-
     /* ==============================
        FIGHT CARD RENDERING
     ============================== */
@@ -2657,7 +2655,7 @@ function loadPostsFromDB() {
         save();
         renderFeed();
     }
-   ```javascript
+
 async function postCom(i) {
     const input = document.getElementById(`com-in-${i}`);
     const text = input.value.trim();
@@ -2674,7 +2672,6 @@ async function postCom(i) {
     document.getElementById(`com-area-${i}`).classList.remove('hidden');
     }
 
-   ```javascript
 // [버그수정] 이중 INSERT 제거, dbId 즉시 캡처
 async function publishPost() {
     const t = document.getElementById('post-tit').value.trim();
@@ -6202,7 +6199,6 @@ async function publishPost() {
         });
     }
 
-```javascript
 // [A안] post_comments 테이블에 댓글 INSERT (posts jsonb UPDATE 방식 폐기)
 async function addCommentToDB(postDbId, userNick, text) {
     if (!sb || !postDbId) return { ok: true };
