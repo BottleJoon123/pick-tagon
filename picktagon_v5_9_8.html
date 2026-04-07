@@ -732,7 +732,23 @@ textarea, select {
                 <h3 class="oswald-sharp text-3xl lg:text-5xl font-black italic tracking-tighter uppercase uppercase italic font-bold">Community</h3>
                 <p class="text-gray-500 oswald-sharp uppercase tracking-widest mt-1 lg:mt-2 italic text-[10px] lg:text-sm uppercase italic font-bold">격투기 팬들의 뜨거운 설전과 분석</p>
             </div>
-            <button onclick="toggleWriter()" class="oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black px-6 lg:px-12 py-3 lg:py-4 rounded-xl italic transition-all text-sm lg:text-base uppercase italic font-bold uppercase">글쓰기</button>
+           <button onclick="toggleMyBattlePanel()"
+                class="oswald-sharp border border-ufcRed/40 text-ufcRed hover:bg-ufcRed/10 font-black px-5 lg:px-8 py-3 lg:py-4 rounded-xl italic transition-all text-sm lg:text-base uppercase">
+                ⚡ 내 배틀
+            </button> <button onclick="toggleWriter()" class="oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black px-6 lg:px-12 py-3 lg:py-4 rounded-xl italic transition-all text-sm lg:text-base uppercase italic font-bold uppercase">글쓰기</button>
+        </div>
+
+<!-- 내 배틀 패널 -->
+        <div id="my-battle-panel" class="hidden mb-8 glass-card p-5 lg:p-8 rounded-[2rem] border border-ufcRed/20">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <span class="text-xl">⚡</span>
+                    <h4 class="oswald-sharp text-base font-black italic text-white uppercase tracking-tighter">내 배틀</h4>
+                    <span id="my-battle-count" class="oswald-sharp text-[9px] bg-ufcRed/15 border border-ufcRed/30 text-ufcRed px-2 py-0.5 rounded-lg font-black italic uppercase">0</span>
+                </div>
+                <button onclick="toggleMyBattlePanel()" class="oswald-sharp text-[10px] text-gray-500 hover:text-white border border-white/10 px-3 py-1.5 rounded-xl italic uppercase tracking-widest transition">접기</button>
+            </div>
+            <div id="my-battle-list" class="space-y-3"></div>
         </div>
 
         <div id="write-panel" class="hidden mb-12 lg:mb-16 glass-card p-6 lg:p-12 rounded-[2rem] lg:rounded-[3rem] uppercase italic font-bold">
@@ -2229,6 +2245,7 @@ function loadPostsFromDB() {
         }
         if(id === 'rankings') setTimeout(() => { renderLeaderboard(); renderHallOfFame(); }, 100);
         if(id === 'archive') { renderArchive(); }
+        if(id === 'community') { if (currentUser) loadMyBattles(); }
         if(id === 'profile') { setTimeout(() => renderProfileStats(), 100); }
         if(id === 'admin') {
             renderAdminFighterList();
@@ -6390,6 +6407,160 @@ async function addCommentToDB(postDbId, userNick, text) {
         votedThisBattle: false,
     };
 
+/* ==============================
+       내 배틀 목록 시스템
+    ============================== */
+    var myBattlesList = [];
+
+    async function loadMyBattles() {
+        if (!sb || !currentUser) return;
+        var myNick = getDisplayUsername();
+        var res = await sb.from('battles')
+            .select('*')
+            .or('starter_nick.eq.' + myNick + ',receiver_nick.eq.' + myNick)
+            .in('status', ['pending', 'active'])
+            .order('created_at', { ascending: false })
+            .limit(10);
+        if (res.error || !res.data) return;
+        myBattlesList = res.data;
+
+        var pendingCount = res.data.filter(function(b) {
+            return b.receiver_nick === myNick && b.status === 'pending';
+        }).length;
+        _updateBattleBadge(pendingCount);
+        renderMyBattleList();
+
+        if (octagon.status === 'idle') {
+            var unhandled = res.data.find(function(b) {
+                return b.receiver_nick === myNick && b.status === 'pending';
+            });
+            if (unhandled && !octagon.pendingBattleId) {
+                octagon.pendingBattleId = unhandled.id;
+                octagon.pendingStarterNick = unhandled.starter_nick;
+                document.getElementById('invite-challenger-name').textContent = unhandled.starter_nick;
+                document.getElementById('octagon-invite-modal').classList.remove('hidden');
+            }
+        }
+    }
+
+    function _updateBattleBadge(count) {
+        ['mob-nav-community', 'nav-community'].forEach(function(id) {
+            var btn = document.getElementById(id);
+            if (!btn) return;
+            var badge = btn.querySelector('.battle-badge');
+            if (count > 0) {
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'battle-badge';
+                    badge.style.cssText = 'position:absolute;top:-4px;right:-4px;width:16px;height:16px;background:#e8000d;border-radius:50%;font-size:8px;font-weight:900;display:flex;align-items:center;justify-content:center;color:#fff;';
+                    btn.style.position = 'relative';
+                    btn.appendChild(badge);
+                }
+                badge.textContent = count;
+            } else {
+                if (badge) badge.remove();
+            }
+        });
+    }
+
+    function renderMyBattleList() {
+        var el = document.getElementById('my-battle-list');
+        if (!el) return;
+        var myNick = getDisplayUsername();
+        var countEl = document.getElementById('my-battle-count');
+        if (countEl) countEl.textContent = myBattlesList.length;
+
+        if (myBattlesList.length === 0) {
+            el.innerHTML = '<div class="oswald-sharp text-xs text-gray-700 italic uppercase tracking-widest text-center py-6">진행 중인 배틀 없음</div>';
+            return;
+        }
+        el.innerHTML = myBattlesList.map(function(b) {
+            var isStarter = b.starter_nick === myNick;
+            var opponent = isStarter ? b.receiver_nick : b.starter_nick;
+            var isPending = b.status === 'pending';
+            var isActive  = b.status === 'active';
+            var isMyInvite = isPending && !isStarter;
+
+            var statusHtml = isPending
+                ? (isStarter
+                    ? '<span class="oswald-sharp text-[9px] text-yellow-400 border border-yellow-400/30 bg-yellow-400/10 px-2 py-0.5 rounded-lg font-black italic uppercase animate-pulse">수락 대기 중</span>'
+                    : '<span class="oswald-sharp text-[9px] text-ufcRed border border-ufcRed/30 bg-ufcRed/10 px-2 py-0.5 rounded-lg font-black italic uppercase">⚡ 배틀 신청 받음</span>')
+                : '<span class="oswald-sharp text-[9px] text-green-400 border border-green-400/30 bg-green-400/10 px-2 py-0.5 rounded-lg font-black italic uppercase animate-pulse">진행 중</span>';
+
+            var actionHtml = '';
+            if (isMyInvite) {
+                actionHtml = '<div class="flex gap-2 mt-3">' +
+                    '<button onclick="acceptBattleFromList(\'' + b.id + '\',\'' + b.starter_nick + '\')" ' +
+                    'class="flex-1 oswald-sharp text-white font-black py-2 rounded-xl italic uppercase text-[10px] tracking-widest" style="background:#e8000d">⚡ 수락</button>' +
+                    '<button onclick="declineBattleFromList(\'' + b.id + '\')" ' +
+                    'class="oswald-sharp border border-white/10 text-gray-500 hover:text-white font-black px-4 py-2 rounded-xl italic uppercase text-[10px] tracking-widest transition">거절</button>' +
+                    '</div>';
+            } else if (isActive) {
+                actionHtml = '<button onclick="rejoinBattle(\'' + b.id + '\',\'' + b.starter_nick + '\',\'' + b.receiver_nick + '\')" ' +
+                    'class="mt-3 w-full oswald-sharp border border-ufcRed/50 text-ufcRed hover:bg-ufcRed/10 font-black py-2 rounded-xl italic uppercase text-[10px] tracking-widest transition">⚔️ 배틀 룸 재입장</button>';
+            } else if (isPending && isStarter) {
+                actionHtml = '<button onclick="cancelBattleById(\'' + b.id + '\')" ' +
+                    'class="mt-3 w-full oswald-sharp border border-white/10 text-gray-600 hover:text-ufcRed font-black py-2 rounded-xl italic uppercase text-[10px] tracking-widest transition">신청 취소</button>';
+            }
+
+            return '<div class="glass-card p-4 rounded-2xl border ' + (isMyInvite ? 'border-ufcRed/40' : 'border-white/5') + '">' +
+                '<div class="flex items-center justify-between mb-1">' +
+                '<span class="oswald-sharp text-sm font-black italic text-white uppercase">vs ' + escapeHtml(opponent) + '</span>' +
+                statusHtml + '</div>' +
+                '<p class="oswald-sharp text-[9px] text-gray-600 italic uppercase">' +
+                (isStarter ? '내가 신청' : b.starter_nick + ' 이 신청') + ' · R' + (b.current_round || 1) + '/5</p>' +
+                actionHtml + '</div>';
+        }).join('');
+    }
+
+    function toggleMyBattlePanel() {
+        var panel = document.getElementById('my-battle-panel');
+        if (!panel) return;
+        panel.classList.toggle('hidden');
+        if (!panel.classList.contains('hidden')) loadMyBattles();
+    }
+
+    function acceptBattleFromList(battleId, starterNick) {
+        octagon.pendingBattleId = battleId;
+        octagon.pendingStarterNick = starterNick;
+        document.getElementById('octagon-invite-modal').classList.add('hidden');
+        acceptBattle();
+    }
+
+    function declineBattleFromList(battleId) {
+        if (!sb) return;
+        sb.from('battles').update({ status: 'declined' }).eq('id', battleId).then(function() {
+            showToast('배틀을 거절했습니다');
+            loadMyBattles();
+        });
+    }
+
+    function cancelBattleById(battleId) {
+        if (!sb) return;
+        sb.from('battles').update({ status: 'cancelled' }).eq('id', battleId).then(function() {
+            showToast('배틀 신청을 취소했습니다');
+            if (octagon.battleId === battleId) { octagon.status = 'idle'; octagon.battleId = null; }
+            loadMyBattles();
+        });
+    }
+
+    function rejoinBattle(battleId, starterNick, receiverNick) {
+        var myNick = getDisplayUsername();
+        octagon.battleId = battleId;
+        octagon.role = myNick === starterNick ? 'starter' : 'receiver';
+        octagon.status = 'active';
+        octagon.starterNick = starterNick;
+        octagon.receiverNick = receiverNick;
+        sb.from('battles').select('*').eq('id', battleId).single().then(function(res) {
+            if (res.error || !res.data) return;
+            octagon.currentRound = res.data.current_round || 1;
+            octagon.currentTurnNick = res.data.current_turn_nick;
+            navigateTo('octagon');
+            _subscribeOctagonRoom(battleId, octagon.role, starterNick, receiverNick);
+            renderOctagonRoom();
+        });
+    }
+
     /* ── 배틀 신청 (댓글의 ⚡ 옥타곤 버튼) ── */
     function requestBattle(opponentNick, evt) {
         if (evt) evt.stopPropagation();
@@ -6437,26 +6608,55 @@ async function addCommentToDB(postDbId, userNick, text) {
 
     /* ── 수신 대기 리스너 (로그인 시 상시 구독) ── */
     function initOctagonListener() {
-        if (!sb || !currentUser) return;
-        var myNick = getDisplayUsername();
-        if (!myNick) return;
-        if (octagon.inviteChannel) { sb.removeChannel(octagon.inviteChannel); }
+    if (!sb || !currentUser) return;
+    var myNick = getDisplayUsername();
+    if (!myNick) return;
+    if (octagon.inviteChannel) { sb.removeChannel(octagon.inviteChannel); }
 
-        octagon.inviteChannel = sb.channel('octagon:invite:' + myNick);
-        octagon.inviteChannel
-            .on('broadcast', { event: 'battle_invite' }, function(payload) {
-                var d = payload.payload;
-                if (!d || !d.battleId) return;
-                octagon.pendingBattleId = d.battleId;
-                octagon.pendingStarterNick = d.starterNick;
-                document.getElementById('invite-challenger-name').textContent = d.starterNick;
-                document.getElementById('octagon-invite-modal').classList.remove('hidden');
-                // 화면 테두리 경고 효과
-                document.body.style.outline = '4px solid #e8000d';
-                setTimeout(function() { document.body.style.outline = ''; }, 2500);
-            })
-            .subscribe();
-    }
+    octagon.inviteChannel = sb.channel('octagon:invite:db:' + myNick)
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'battles',
+            filter: 'receiver_nick=eq.' + myNick
+        }, function(payload) {
+            var d = payload.new;
+            if (!d || d.status !== 'pending') return;
+            if (octagon.status !== 'idle') return;
+            octagon.pendingBattleId = d.id;
+            octagon.pendingStarterNick = d.starter_nick;
+            document.getElementById('invite-challenger-name').textContent = d.starter_nick;
+            document.getElementById('octagon-invite-modal').classList.remove('hidden');
+            document.body.style.outline = '4px solid #e8000d';
+            setTimeout(function() { document.body.style.outline = ''; }, 2500);
+            showToast('⚡ ' + d.starter_nick + ' 님이 배틀을 신청했습니다!');
+            _updateBattleBadge(1);
+        })
+        .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'battles',
+            filter: 'starter_nick=eq.' + myNick
+        }, function(payload) {
+            var d = payload.new;
+            if (!d) return;
+            if (d.status === 'active' && octagon.role === 'starter' && octagon.battleId === d.id) {
+                octagon.status = 'active';
+                octagon.receiverNick = d.receiver_nick;
+                octagon.currentTurnNick = d.current_turn_nick;
+                octagon.currentRound = d.current_round || 1;
+                octagon.starterHp = 100; octagon.receiverHp = 100;
+                renderOctagonRoom();
+                _startTimer();
+            }
+            loadMyBattles();
+        })
+        .subscribe(function(status) {
+            if (status === 'SUBSCRIBED') {
+                loadMyBattles();
+            }
+        });
+}
 
     /* ── 수락 ── */
     function acceptBattle() {
