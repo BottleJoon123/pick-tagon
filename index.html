@@ -706,7 +706,7 @@ textarea, select {
             <div class="border-l-8 lg:border-l-[12px] border-ufcRed pl-4 lg:pl-8">
                 <p class="oswald-sharp text-ufcRed text-[10px] tracking-[0.3em] font-black italic uppercase mb-1">AI POWERED</p>
                 <h3 class="oswald-sharp text-3xl lg:text-6xl font-black italic tracking-tighter uppercase leading-none">MMA 뉴스</h3>
-                <p class="text-gray-500 oswald-sharp uppercase tracking-widest mt-2 text-[10px] lg:text-sm italic">AI 기반 최신 MMA 뉴스</p>
+                <p class="text-gray-500 oswald-sharp uppercase tracking-widest mt-2 text-[10px] lg:text-sm italic">한국어 최신 MMA 뉴스 + 유튜브</p>
             </div>
             <div class="flex gap-3">
                 <input id="news-search-input" type="text" placeholder="키워드 검색..."
@@ -5609,6 +5609,16 @@ async function publishPost() {
         { id:'event', label:'이벤트', icon:'📅' },
         { id:'result', label:'결과', icon:'🏅' },
         { id:'ranking', label:'랭킹', icon:'📊' },
+        { id:'youtube', label:'유튜브', icon:'🎬' },
+    ];
+
+    var YOUTUBE_CARDS = [
+        { title: 'UFC 최신 하이라이트', desc: '최신 UFC 경기 하이라이트 영상 모음', query: 'UFC 하이라이트', color: 'from-red-900/60 to-red-800/30', icon: '🥊' },
+        { title: 'UFC 한국어 분석/리뷰', desc: '국내 유튜버들의 UFC 심층 분석 영상', query: 'UFC 분석 리뷰', color: 'from-blue-900/60 to-blue-800/30', icon: '🎙️' },
+        { title: 'MMA 격투기 뉴스', desc: '최신 MMA 격투기 소식과 이슈', query: 'MMA 격투기 뉴스', color: 'from-purple-900/60 to-purple-800/30', icon: '📰' },
+        { title: '선수 인터뷰 & 기자회견', desc: 'UFC 선수들의 인터뷰 및 프레스 컨퍼런스', query: 'UFC 선수 인터뷰 기자회견', color: 'from-yellow-900/60 to-yellow-800/30', icon: '🎤' },
+        { title: 'UFC 경기 프리뷰', desc: '다가오는 UFC 경기 예측 및 프리뷰', query: 'UFC 경기 프리뷰 예측', color: 'from-green-900/60 to-green-800/30', icon: '🔮' },
+        { title: '넘버원 한국 격투기', desc: '한국 선수들의 MMA 경기 및 소식', query: '한국 MMA 격투기 선수', color: 'from-orange-900/60 to-orange-800/30', icon: '🇰🇷' },
     ];
     var currentNewsCat = 'all';
     var cachedNews = [];
@@ -5637,38 +5647,74 @@ async function publishPost() {
         var grid = document.getElementById('news-grid');
         if (!grid) return;
         var query = (document.getElementById('news-search-input') ? document.getElementById('news-search-input').value : '').toLowerCase();
-        var filtered = cachedNews.filter(function(n) {
+
+        // ── 유튜브 탭 ──
+        if (currentNewsCat === 'youtube') {
+            grid.innerHTML = YOUTUBE_CARDS.map(function(c) {
+                var ytUrl = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(c.query) + '&sp=CAI%3D';
+                return '<a href="' + ytUrl + '" target="_blank" rel="noopener noreferrer" class="glass-card rounded-[1.5rem] overflow-hidden hover:border-red-500/40 transition-all duration-500 bg-gradient-to-br ' + c.color + ' block">' +
+                    '<div class="p-5 lg:p-7 relative">' +
+                    '<div class="absolute top-4 right-4 text-3xl opacity-20">▶</div>' +
+                    '<div class="text-3xl mb-3">' + c.icon + '</div>' +
+                    '<h4 class="oswald-sharp text-sm lg:text-base font-black italic text-white uppercase tracking-tight leading-snug mb-2">' + c.title + '</h4>' +
+                    '<p class="text-gray-300 text-xs leading-relaxed mb-3">' + c.desc + '</p>' +
+                    '<div class="flex items-center gap-2">' +
+                    '<span class="oswald-sharp text-[9px] px-2 py-1 rounded-lg font-black italic uppercase border border-red-500/30 bg-red-500/10 text-red-400">YouTube 검색</span>' +
+                    '<span class="oswald-sharp text-[9px] text-gray-500 italic">' + c.query + '</span>' +
+                    '</div></div></a>';
+            }).join('');
+            return;
+        }
+
+        // youtube 카테고리 뉴스는 일반 탭에서 제외
+        var newsItems = cachedNews.filter(function(n) { return n.category !== 'youtube'; });
+
+        var filtered = newsItems.filter(function(n) {
             var matchCat = currentNewsCat === 'all' || n.category === currentNewsCat;
             var matchQ = !query || n.title.toLowerCase().indexOf(query) >= 0 || n.summary.toLowerCase().indexOf(query) >= 0;
             return matchCat && matchQ;
         });
 
-        if (filtered.length === 0) {
-            grid.innerHTML = '<div class="col-span-2 py-16 text-center oswald-sharp text-xs text-gray-600 italic uppercase tracking-widest">해당하는 뉴스가 없습니다</div>';
-            return;
-        }
-
         var CAT_BAR = { ufc:'bg-ufcRed', fighter:'bg-blue-600', event:'bg-purple-600', result:'bg-green-600', ranking:'bg-yellow-500' };
         var CAT_BADGE = { ufc:'bg-ufcRed/15 text-ufcRed', fighter:'bg-blue-600/15 text-blue-400', event:'bg-purple-600/15 text-purple-400', result:'bg-green-600/15 text-green-400', ranking:'bg-yellow-500/15 text-yellow-400' };
         var CAT_LBL = { ufc:'UFC', fighter:'선수', event:'이벤트', result:'결과', ranking:'랭킹' };
 
-        grid.innerHTML = filtered.map(function(n, i) {
-            var bar = CAT_BAR[n.category] || 'bg-white/10';
-            var badge = CAT_BADGE[n.category] || 'bg-white/10 text-white';
-            var lbl = CAT_LBL[n.category] || '뉴스';
-            var realIdx = cachedNews.indexOf(n);
-            return '<div class="glass-card rounded-[1.5rem] overflow-hidden hover:border-ufcRed/30 transition-all duration-500 cursor-pointer" onclick="openNewsDetail(' + realIdx + ')">' +
-                '<div class="h-1 w-full ' + bar + '"></div>' +
-                '<div class="p-5 lg:p-7">' +
-                '<div class="flex items-center justify-between mb-3">' +
-                '<span class="oswald-sharp text-[9px] px-2 py-1 rounded-lg font-black italic uppercase border border-white/10 ' + badge + '">' + lbl + (i < 2 ? ' 🔥' : '') + '</span>' +
-                '<span class="oswald-sharp text-[9px] text-gray-600 italic">' + (n.date || '') + '</span>' +
-                '</div>' +
-                '<h4 class="oswald-sharp text-sm lg:text-base font-black italic text-white uppercase tracking-tight leading-snug mb-3">' + escapeHtml(n.title) + '</h4>' +
-                '<p class="text-gray-400 text-xs lg:text-sm leading-relaxed">' + escapeHtml(n.summary) + '</p>' +
-                (n.source ? '<p class="oswald-sharp text-[9px] text-gray-600 italic uppercase mt-3">출처: ' + escapeHtml(n.source) + '</p>' : '') +
-                '</div></div>';
-        }).join('');
+        var newsHtml = filtered.length === 0
+            ? '<div class="col-span-2 py-16 text-center oswald-sharp text-xs text-gray-600 italic uppercase tracking-widest">해당하는 뉴스가 없습니다</div>'
+            : filtered.map(function(n, i) {
+                var bar = CAT_BAR[n.category] || 'bg-white/10';
+                var badge = CAT_BADGE[n.category] || 'bg-white/10 text-white';
+                var lbl = CAT_LBL[n.category] || '뉴스';
+                var realIdx = cachedNews.indexOf(n);
+                return '<div class="glass-card rounded-[1.5rem] overflow-hidden hover:border-ufcRed/30 transition-all duration-500 cursor-pointer" onclick="openNewsDetail(' + realIdx + ')">' +
+                    '<div class="h-1 w-full ' + bar + '"></div>' +
+                    '<div class="p-5 lg:p-7">' +
+                    '<div class="flex items-center justify-between mb-3">' +
+                    '<span class="oswald-sharp text-[9px] px-2 py-1 rounded-lg font-black italic uppercase border border-white/10 ' + badge + '">' + lbl + (i < 2 ? ' 🔥' : '') + '</span>' +
+                    '<span class="oswald-sharp text-[9px] text-gray-600 italic">' + (n.date || '') + '</span>' +
+                    '</div>' +
+                    '<h4 class="oswald-sharp text-sm lg:text-base font-black italic text-white uppercase tracking-tight leading-snug mb-3">' + escapeHtml(n.title) + '</h4>' +
+                    '<p class="text-gray-400 text-xs lg:text-sm leading-relaxed">' + escapeHtml(n.summary) + '</p>' +
+                    (n.source ? '<p class="oswald-sharp text-[9px] text-gray-600 italic uppercase mt-3">출처: ' + escapeHtml(n.source) + '</p>' : '') +
+                    '</div></div>';
+            }).join('');
+
+        // 전체 탭 + 검색어 없을 때 하단에 YouTube 바로가기 추가
+        var extraYt = '';
+        if (currentNewsCat === 'all' && !query) {
+            var ytShortcuts = YOUTUBE_CARDS.slice(0, 4).map(function(c) {
+                var ytUrl = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(c.query) + '&sp=CAI%3D';
+                return '<a href="' + ytUrl + '" target="_blank" rel="noopener noreferrer" class="glass-card rounded-xl p-3 flex items-center gap-3 hover:border-red-500/30 transition-all">' +
+                    '<span class="text-xl">' + c.icon + '</span>' +
+                    '<div><p class="oswald-sharp text-[10px] font-black italic text-white uppercase">' + c.title + '</p>' +
+                    '<p class="text-[9px] text-gray-500">YouTube ▶</p></div></a>';
+            }).join('');
+            extraYt = '<div class="col-span-1 lg:col-span-2 mt-2">' +
+                '<p class="oswald-sharp text-[9px] text-gray-600 italic uppercase tracking-widest mb-2">🎬 유튜브 바로가기</p>' +
+                '<div class="grid grid-cols-2 lg:grid-cols-4 gap-2">' + ytShortcuts + '</div></div>';
+        }
+
+        grid.innerHTML = newsHtml + extraYt;
     }
 
     function openNewsDetail(idx) {
