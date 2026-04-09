@@ -329,6 +329,64 @@ textarea, select {
 @media(min-width:1024px){
     .section-header-line { border-left-width:10px; padding-left:2rem; }
 }
+
+/* ── Octagon Fighter Animations ── */
+@keyframes fighter-jab {
+    0%   { transform: translateX(0) scale(1); }
+    35%  { transform: translateX(28px) scale(1.15); }
+    100% { transform: translateX(0) scale(1); }
+}
+@keyframes fighter-jab-r {
+    0%   { transform: scaleX(-1) translateX(0); }
+    35%  { transform: scaleX(-1) translateX(28px) scale(1.15); }
+    100% { transform: scaleX(-1) translateX(0); }
+}
+@keyframes fighter-kick {
+    0%   { transform: rotate(0deg) scale(1); }
+    40%  { transform: rotate(-35deg) translateY(-10px) scale(1.15); }
+    100% { transform: rotate(0deg) scale(1); }
+}
+@keyframes fighter-uppercut {
+    0%   { transform: translateY(0) scale(1); }
+    40%  { transform: translateY(-30px) scale(1.3); }
+    100% { transform: translateY(0) scale(1); }
+}
+@keyframes fighter-special {
+    0%   { transform: scale(1) rotate(0deg); filter: brightness(1); }
+    25%  { transform: scale(1.5) rotate(-20deg); filter: brightness(2) hue-rotate(30deg); }
+    75%  { transform: scale(1.5) rotate(20deg);  filter: brightness(2) hue-rotate(-30deg); }
+    100% { transform: scale(1) rotate(0deg); filter: brightness(1); }
+}
+@keyframes fighter-hit {
+    0%   { transform: translateX(0); filter: brightness(1); }
+    20%  { transform: translateX(-18px); filter: brightness(3) saturate(4); }
+    55%  { transform: translateX(10px);  filter: brightness(1.5); }
+    100% { transform: translateX(0); filter: brightness(1); }
+}
+@keyframes fighter-hit-r {
+    0%   { transform: scaleX(-1) translateX(0); filter: brightness(1); }
+    20%  { transform: scaleX(-1) translateX(-18px); filter: brightness(3) saturate(4); }
+    55%  { transform: scaleX(-1) translateX(10px);  filter: brightness(1.5); }
+    100% { transform: scaleX(-1) translateX(0); filter: brightness(1); }
+}
+@keyframes attack-effect-pop {
+    0%   { opacity:0; transform: scale(0.5); }
+    40%  { opacity:1; transform: scale(1.3); }
+    70%  { opacity:1; transform: scale(1); }
+    100% { opacity:0; transform: scale(0.8); }
+}
+@keyframes referee-in {
+    0%   { opacity:0; transform: translateY(-30px) scale(0.8); }
+    60%  { opacity:1; transform: translateY(6px) scale(1.05); }
+    100% { opacity:1; transform: translateY(0) scale(1); }
+}
+.anim-jab       { animation: fighter-jab      0.4s ease-out; }
+.anim-jab-r     { animation: fighter-jab-r    0.4s ease-out; }
+.anim-kick      { animation: fighter-kick     0.5s ease-out; }
+.anim-uppercut  { animation: fighter-uppercut 0.55s ease-out; }
+.anim-special   { animation: fighter-special  0.7s ease-out; }
+.anim-hit       { animation: fighter-hit      0.5s ease-out; }
+.anim-hit-r     { animation: fighter-hit-r    0.5s ease-out; }
 </style>
 </head>
 <body class="antialiased font-roboto">
@@ -1677,6 +1735,21 @@ textarea, select {
             <button onclick="declineBattle()" class="flex-1 oswald-sharp border border-white/20 text-gray-400 hover:text-white font-black py-4 rounded-xl italic uppercase text-sm tracking-widest transition">거절</button>
             <button onclick="acceptBattle()" class="flex-1 oswald-sharp text-white font-black py-4 rounded-xl italic uppercase text-sm tracking-widest transition" style="background:#e8000d;box-shadow:0 0 24px rgba(232,0,13,0.5)">⚡ 수락</button>
         </div>
+    </div>
+</div>
+
+<!-- ================================
+     OCTAGON REFEREE FOUL MODAL
+================================ -->
+<div id="referee-modal" class="hidden fixed inset-0 z-[800] flex items-center justify-center pointer-events-none">
+    <div class="glass-card rounded-[2rem] p-8 border border-yellow-400/60 text-center max-w-xs w-full mx-4"
+         style="box-shadow:0 0 60px rgba(250,204,21,0.4);animation:referee-in 0.4s ease-out;">
+        <div class="text-6xl mb-3">🧑‍⚖️</div>
+        <div class="oswald-sharp text-xs text-yellow-400/70 uppercase tracking-widest italic mb-1">REFEREE STOPS THE ACTION</div>
+        <h3 class="oswald-sharp text-3xl font-black italic text-yellow-400 uppercase tracking-tighter">FOUL!</h3>
+        <p id="referee-foul-type" class="oswald-sharp text-base text-white uppercase tracking-widest font-black italic mt-2">—</p>
+        <p class="oswald-sharp text-xs text-ufcRed font-black italic mt-1 tracking-widest">-10 HP 패널티</p>
+        <p id="referee-foul-nick" class="oswald-sharp text-[10px] text-gray-500 uppercase italic mt-3">—</p>
     </div>
 </div>
 
@@ -3775,7 +3848,22 @@ async function addCommentToDB(postDbId, userNick, text) {
         pendingBattleId: null,
         pendingStarterNick: null,
         votedThisBattle: false,
+        // 게임화 추가
+        attackCooldown: false,
+        foulCooldown: false,
     };
+
+    /* ── 공격 설정 ── */
+    var OCTAGON_ATTACKS = {
+        'z':  { name: 'JAB',      emoji: '👊', damage: 3,  durationMs: 400,  animSelf: 'anim-jab',      animSelfR: 'anim-jab-r',  animHit: 'anim-hit',  animHitR: 'anim-hit-r' },
+        'x':  { name: 'KICK',     emoji: '🦵', damage: 5,  durationMs: 500,  animSelf: 'anim-kick',     animSelfR: 'anim-kick',   animHit: 'anim-hit',  animHitR: 'anim-hit-r' },
+        'c':  { name: 'UPPERCUT', emoji: '🥊', damage: 7,  durationMs: 550,  animSelf: 'anim-uppercut', animSelfR: 'anim-uppercut',animHit: 'anim-hit',  animHitR: 'anim-hit-r' },
+        ' ':  { name: 'SPECIAL',  emoji: '⚡', damage: 10, durationMs: 700,  animSelf: 'anim-special',  animSelfR: 'anim-special', animHit: 'anim-hit',  animHitR: 'anim-hit-r' },
+    };
+
+    /* ── 욕설 목록 ── */
+    var SWEAR_WORDS = ['씨발','씨바','시발','시바','존나','개새끼','새끼','병신','지랄','미친놈','닥쳐','개년','개놈','ㅅㅂ','ㅂㅅ','ㅈㄹ','fuck','shit','asshole','bitch','bastard'];
+    var FOUL_NAMES  = ['로블로 (Low Blow)','써밍 (Eye Poke)','케이지 잡기','뒤통수 가격','머리 박기'];
 
 /* ==============================
        내 배틀 목록 시스템
@@ -4130,6 +4218,50 @@ async function addCommentToDB(postDbId, userNick, text) {
                 if (d.currentTurnNick === myNick) { _startTimer(); }
                 else { _startTimerDisplay(); }
             })
+            /* ── 공격 수신 (상대방이 보낸 것) ── */
+            .on('broadcast', { event: 'attack' }, function(p) {
+                var d = p.payload;
+                if (d.attackerNick === myNick) return; // 내가 보낸 것 무시
+                var oppRole = d.attackerRole;
+                var victimRole = oppRole === 'starter' ? 'receiver' : 'starter';
+                // HP 차감 (상대방 기준)
+                if (victimRole === 'starter') {
+                    octagon.starterHp = Math.max(5, octagon.starterHp - d.damage);
+                } else {
+                    octagon.receiverHp = Math.max(5, octagon.receiverHp - d.damage);
+                }
+                _updateHpBars();
+                // 애니메이션 재생
+                var attEl = document.getElementById('fighter-' + oppRole);
+                var hitEl = document.getElementById('fighter-' + victimRole);
+                if (attEl) {
+                    var aKey = Object.keys(OCTAGON_ATTACKS).find(function(k) { return OCTAGON_ATTACKS[k].name === d.attackName; });
+                    var atk = aKey ? OCTAGON_ATTACKS[aKey] : null;
+                    if (atk) {
+                        var sa = (oppRole === 'receiver') ? atk.animSelfR : atk.animSelf;
+                        attEl.classList.add(sa);
+                        setTimeout(function() { attEl.classList.remove(sa); }, atk.durationMs);
+                    }
+                }
+                if (hitEl) {
+                    var ha = (victimRole === 'receiver') ? 'anim-hit-r' : 'anim-hit';
+                    hitEl.classList.add(ha);
+                    setTimeout(function() { hitEl.classList.remove(ha); }, 500);
+                }
+                _showAttackEffect(d.emoji, d.attackName, d.damage);
+            })
+            /* ── 반칙 수신 ── */
+            .on('broadcast', { event: 'foul_called' }, function(p) {
+                var d = p.payload;
+                if (d.nick === myNick) return; // 내가 발동한 것은 이미 처리됨
+                if (d.role === 'starter') {
+                    octagon.starterHp = Math.max(5, octagon.starterHp - d.damage);
+                } else {
+                    octagon.receiverHp = Math.max(5, octagon.receiverHp - d.damage);
+                }
+                _updateHpBars();
+                _showRefereeModal(d.foul, d.nick);
+            })
             /* ── 투표 ── */
             .on('broadcast', { event: 'vote_cast' }, function(p) {
                 var d = p.payload;
@@ -4196,6 +4328,11 @@ async function addCommentToDB(postDbId, userNick, text) {
     function _stopTimer() {
         if (octagon.timerInterval) { clearInterval(octagon.timerInterval); octagon.timerInterval = null; }
     }
+    function _cleanupOctagonGame() {
+        document.removeEventListener('keydown', _handleOctagonKey);
+        octagon.attackCooldown = false;
+        octagon.foulCooldown = false;
+    }
     function _updateTimerEl() {
         var el = document.getElementById('octagon-timer');
         if (!el) return;
@@ -4219,10 +4356,132 @@ async function addCommentToDB(postDbId, userNick, text) {
     }
     function onOctagonTyping(text) {
         if (!octagon.battleChannel) return;
+        // 욕설 감지 → 반칙 선언
+        if (_checkSwearWords(text)) _triggerFoul();
         octagon.battleChannel.send({
             type: 'broadcast', event: 'live_typing',
             payload: { nick: getDisplayUsername(), text: text }
         });
+    }
+
+    /* ── 욕설 감지 ── */
+    function _checkSwearWords(text) {
+        var lower = text.toLowerCase();
+        return SWEAR_WORDS.some(function(w) { return lower.includes(w); });
+    }
+
+    /* ── 반칙 발동 ── */
+    function _triggerFoul() {
+        if (octagon.foulCooldown) return;
+        octagon.foulCooldown = true;
+        setTimeout(function() { octagon.foulCooldown = false; }, 5000);
+
+        var foulName = FOUL_NAMES[Math.floor(Math.random() * FOUL_NAMES.length)];
+        var myNick = getDisplayUsername();
+        var myRole = octagon.role;
+
+        // 내 HP -10
+        if (myRole === 'starter') {
+            octagon.starterHp = Math.max(5, octagon.starterHp - 10);
+        } else {
+            octagon.receiverHp = Math.max(5, octagon.receiverHp - 10);
+        }
+        _updateHpBars();
+        _showRefereeModal(foulName, myNick);
+
+        if (octagon.battleChannel) {
+            octagon.battleChannel.send({
+                type: 'broadcast', event: 'foul_called',
+                payload: { nick: myNick, foul: foulName, role: myRole, damage: 10 }
+            });
+        }
+    }
+
+    /* ── 심판 모달 표시 ── */
+    function _showRefereeModal(foulName, nick) {
+        var modal = document.getElementById('referee-modal');
+        if (!modal) return;
+        document.getElementById('referee-foul-type').textContent = foulName;
+        document.getElementById('referee-foul-nick').textContent = (nick || '') + ' 선수 반칙';
+        modal.classList.remove('hidden');
+        setTimeout(function() { modal.classList.add('hidden'); }, 2800);
+    }
+
+    /* ── 키보드 공격 핸들러 ── */
+    function _handleOctagonKey(e) {
+        if (!octagon || octagon.status !== 'active') return;
+        var myNick = getDisplayUsername();
+        if (octagon.currentTurnNick !== myNick) return;
+        // 입력 필드에 포커스된 경우 Space는 무시 (타이핑 중 오발사 방지)
+        var tag = document.activeElement ? document.activeElement.tagName : '';
+        var key = e.key === ' ' ? ' ' : e.key.toLowerCase();
+        if (key === ' ' && (tag === 'INPUT' || tag === 'TEXTAREA')) return;
+        var attack = OCTAGON_ATTACKS[key];
+        if (!attack) return;
+        e.preventDefault();
+        _doAttack(attack);
+    }
+
+    /* ── 공격 실행 ── */
+    function _doAttack(attack) {
+        if (octagon.attackCooldown) return;
+        octagon.attackCooldown = true;
+        setTimeout(function() { octagon.attackCooldown = false; }, 850);
+
+        var myRole = octagon.role; // starter | receiver
+        var oppRole = myRole === 'starter' ? 'receiver' : 'starter';
+        var myNick = getDisplayUsername();
+
+        // 상대 HP 차감
+        if (oppRole === 'starter') {
+            octagon.starterHp = Math.max(5, octagon.starterHp - attack.damage);
+        } else {
+            octagon.receiverHp = Math.max(5, octagon.receiverHp - attack.damage);
+        }
+        _updateHpBars();
+
+        // 내 캐릭터 공격 애니메이션
+        var myEl = document.getElementById('fighter-' + myRole);
+        if (myEl) {
+            var selfAnim = (myRole === 'receiver') ? attack.animSelfR : attack.animSelf;
+            myEl.classList.add(selfAnim);
+            setTimeout(function() { if (myEl) myEl.classList.remove(selfAnim); }, attack.durationMs);
+        }
+        // 상대 캐릭터 피격 애니메이션
+        var oppEl = document.getElementById('fighter-' + oppRole);
+        if (oppEl) {
+            var hitAnim = (oppRole === 'receiver') ? attack.animHitR : attack.animHit;
+            oppEl.classList.add(hitAnim);
+            setTimeout(function() { if (oppEl) oppEl.classList.remove(hitAnim); }, 500);
+        }
+
+        // 공격 이펙트 표시
+        _showAttackEffect(attack.emoji, attack.name, attack.damage);
+
+        // Broadcast
+        if (octagon.battleChannel) {
+            octagon.battleChannel.send({
+                type: 'broadcast', event: 'attack',
+                payload: { attackerNick: myNick, attackerRole: myRole, attackName: attack.name, emoji: attack.emoji, damage: attack.damage }
+            });
+        }
+    }
+
+    function _doAttackByKey(key) { var a = OCTAGON_ATTACKS[key]; if (a) _doAttack(a); }
+
+    /* ── 공격 이펙트 팝업 ── */
+    function _showAttackEffect(emoji, name, damage) {
+        var el = document.getElementById('attack-effect');
+        if (!el) return;
+        el.innerHTML = '<span style="font-size:2rem">' + emoji + '</span>' +
+            '<span class="oswald-sharp text-ufcRed font-black text-lg italic uppercase ml-2">' + name + '</span>' +
+            '<span class="oswald-sharp text-white text-sm font-black ml-2">-' + damage + 'HP</span>';
+        el.style.opacity = '1';
+        el.style.animation = 'attack-effect-pop 0.7s ease-out forwards';
+        setTimeout(function() {
+            el.style.animation = '';
+            el.style.opacity = '0';
+        }, 700);
     }
     function submitOctagonTurn(text) {
         var myNick = getDisplayUsername();
@@ -4285,6 +4544,7 @@ async function addCommentToDB(postDbId, userNick, text) {
     /* ──────────── 배틀 종료 + Tie-break ──────────── */
     function _endBattle() {
         _stopTimer();
+        _cleanupOctagonGame();
         octagon.status = 'finished';
 
         var sHp = octagon.starterHp, rHp = octagon.receiverHp;
@@ -4424,6 +4684,29 @@ async function addCommentToDB(postDbId, userNick, text) {
             '<div class="w-full bg-black/60 rounded-full h-4 border border-white/5">' +
             '<div id="hp-bar-receiver" class="h-4 rounded-full transition-all duration-500 ml-auto" style="width:' + rHp + '%;background:linear-gradient(270deg,#2563eb,#60a5fa)"></div>' +
             '</div></div></div></div>' +
+            /* Fighter Characters */
+            '<div class="glass-card rounded-2xl mb-5 border border-white/5 px-6 py-4 relative overflow-hidden" style="min-height:110px">' +
+            '<div class="flex justify-between items-center">' +
+            /* Starter (left) */
+            '<div class="flex flex-col items-center gap-1">' +
+            '<div id="fighter-starter" class="text-5xl lg:text-6xl select-none transition-transform" style="display:inline-block">🥊</div>' +
+            '<span class="oswald-sharp text-[9px] text-ufcRed font-black italic uppercase truncate max-w-[80px]">' + escapeHtml(octagon.starterNick) + '</span>' +
+            '</div>' +
+            /* Center attack effect */
+            '<div id="attack-effect" class="absolute inset-0 flex items-center justify-center pointer-events-none" style="opacity:0"></div>' +
+            /* VS */
+            '<div class="oswald-sharp text-2xl font-black italic text-gray-700 flex-shrink-0 z-10">VS</div>' +
+            /* Receiver (right, mirrored) */
+            '<div class="flex flex-col items-center gap-1">' +
+            '<div id="fighter-receiver" class="text-5xl lg:text-6xl select-none transition-transform" style="display:inline-block;transform:scaleX(-1)">🥊</div>' +
+            '<span class="oswald-sharp text-[9px] text-blue-400 font-black italic uppercase truncate max-w-[80px]">' + escapeHtml(octagon.receiverNick) + '</span>' +
+            '</div>' +
+            '</div>' +
+            /* Keyboard hint for desktop players */
+            (isPlayer && isMyTurn
+                ? '<div class="mt-2 text-center oswald-sharp text-[9px] text-gray-700 uppercase italic tracking-widest">Z:JAB · X:KICK · C:UPPERCUT · SPACE:SPECIAL</div>'
+                : '') +
+            '</div>' +
             /* Timer + Turn */
             '<div class="glass-card p-4 rounded-2xl mb-5 border ' + (isMyTurn && isPlayer ? 'border-ufcRed/40' : 'border-white/5') + ' text-center">' +
             '<p id="octagon-turn-label" class="oswald-sharp text-xs uppercase tracking-widest italic text-gray-500 mb-1">' +
@@ -4440,11 +4723,26 @@ async function addCommentToDB(postDbId, userNick, text) {
             '</div>' : '') +
             /* Input or Vote */
             inputArea +
+            /* Mobile attack buttons (내 턴일 때만) */
+            (isPlayer && isMyTurn
+                ? '<div class="grid grid-cols-4 gap-2 mt-3">' +
+                  '<button onclick="_doAttackByKey(\'z\')" class="oswald-sharp py-3 rounded-xl text-xs font-black italic uppercase tracking-widest text-white border border-white/10 hover:border-ufcRed/50 hover:bg-ufcRed/10 transition active:scale-95">👊<br>JAB</button>' +
+                  '<button onclick="_doAttackByKey(\'x\')" class="oswald-sharp py-3 rounded-xl text-xs font-black italic uppercase tracking-widest text-white border border-white/10 hover:border-ufcRed/50 hover:bg-ufcRed/10 transition active:scale-95">🦵<br>KICK</button>' +
+                  '<button onclick="_doAttackByKey(\'c\')" class="oswald-sharp py-3 rounded-xl text-xs font-black italic uppercase tracking-widest text-white border border-white/10 hover:border-ufcRed/50 hover:bg-ufcRed/10 transition active:scale-95">🥊<br>UPPER</button>' +
+                  '<button onclick="_doAttackByKey(\' \')" class="oswald-sharp py-3 rounded-xl text-xs font-black italic uppercase tracking-widest text-ufcRed border border-ufcRed/40 hover:bg-ufcRed/15 transition active:scale-95">⚡<br>SPECIAL</button>' +
+                  '</div>'
+                : '') +
             '</div>';
 
         // 타이머 시작
         if (isPlayer && isMyTurn) _startTimer();
         else if (octagon.status === 'active') _startTimerDisplay();
+
+        // 키보드 이벤트 등록 (중복 방지)
+        document.removeEventListener('keydown', _handleOctagonKey);
+        if (isPlayer && octagon.status === 'active') {
+            document.addEventListener('keydown', _handleOctagonKey);
+        }
     }
 
     function _messagesHtml() {
@@ -4515,6 +4813,16 @@ async function addCommentToDB(postDbId, userNick, text) {
 
         var msgs = document.getElementById('octagon-messages');
         if (msgs) msgs.scrollTop = msgs.scrollHeight;
+
+        // 키보드 힌트 + 공격 버튼 표시/숨김
+        var hint = document.querySelector('#octagon-content .text-gray-700.italic.tracking-widest');
+        if (hint) hint.style.display = (isMyTurn && isPlayer) ? '' : 'none';
+
+        // 재등록: 키 리스너
+        document.removeEventListener('keydown', _handleOctagonKey);
+        if (isPlayer && octagon.status === 'active') {
+            document.addEventListener('keydown', _handleOctagonKey);
+        }
     }
     function _updateHpBars() {
         var sbEl = document.getElementById('hp-bar-starter'), rbEl = document.getElementById('hp-bar-receiver');
