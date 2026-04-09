@@ -23,6 +23,9 @@ var adminUnlocked = false;
 var cachedNews = [];
 var newsFetched = false;
 
+// 커뮤니티 필터 상태
+var communityFilter = 'all';
+
 // 뉴스/유튜브 탭 상태
 var currentNewsCat = 'all';
 
