@@ -1,12 +1,12 @@
-/* ==============================
+﻿/* ==============================
    SHARED STATE
-   (extracted from index.html – global vars, no import/export)
+   (extracted from index.html ??global vars, no import/export)
 ============================== */
 
 // 커뮤니티 포스트 (Supabase가 source-of-truth)
 var posts = [];
 
-// 베팅/픽 상태
+// 배팅/예측 상태
 var state = {
     points: 1000,
     total: 0,
@@ -19,6 +19,16 @@ var state = {
 // 어드민
 var adminUnlocked = false;
 
+// 어드민 UI 상태
+var adminGateMode = 'signin';
+var editingFighterId = null;
+var editingFightCardId = null;
+
+// Fighter DB (persisted separately)
+var fighterDB = [];
+// Dynamic fight cards (override FIGHTS if set)
+var customFights = [];
+
 // 뉴스 캐시
 var cachedNews = [];
 var newsFetched = false;
@@ -26,7 +36,7 @@ var newsFetched = false;
 // 커뮤니티 필터 상태
 var communityFilter = 'all';
 
-// 뉴스/유튜브 탭 상태
+// 뉴스/유튜브 카테고리 상태
 var currentNewsCat = 'all';
 
 // 유튜브 영상 캐시 {query: [{id, title}]}
