@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -6089,7 +6089,8 @@ async function publishPost() {
     async function fetchYoutubeVideosForQuery(query) {
         if (ytVideoCache[query]) return ytVideoCache[query];
         try {
-            var searchUrl = 'https://r.jina.ai/https://www.youtube.com/results?search_query=' + encodeURIComponent(query) + '&sp=CAI%3D';
+            // EgQIBBABMAE%3D = "This month" + sort by upload date
+            var searchUrl = 'https://r.jina.ai/https://www.youtube.com/results?search_query=' + encodeURIComponent(query) + '&sp=EgQIBBABMAE%3D';
             var res = await fetch(searchUrl, { headers: { 'Accept': 'text/plain' } });
             if (!res.ok) throw new Error('fetch 실패');
             var text = await res.text();
@@ -6158,7 +6159,7 @@ async function publishPost() {
 
             if (vids.length === 0) {
                 // 스크래핑 실패 시 fallback: YouTube 검색 링크
-                var ytUrl = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(c.query) + '&sp=CAI%3D';
+                var ytUrl = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(c.query) + '&sp=EgQIBBABMAE%3D';
                 return '<div class="' + sectionClass + '">' + headerHtml +
                     '<a href="' + ytUrl + '" target="_blank" rel="noopener" ' +
                     'class="glass-card rounded-xl p-4 flex items-center gap-3 hover:border-red-500/30 transition-all bg-gradient-to-r ' + c.color + '">' +
@@ -6247,7 +6248,27 @@ async function publishPost() {
             return kws.some(function(kw) { return haystack.indexOf(kw) >= 0; });
         }
 
+        // MMA 관련 키워드 (전체 탭에서도 적용)
+        var MMA_KEYWORDS = ['ufc', 'mma', '격투기', '파이터', '옥타곤', '무에타이', '주짓수', '이종격투기',
+            '챔피언십', '타이틀전', '파이트', '프로하츠카', '울버그', '최두호', '정다운', '코리안'];
+        function isMMARelated(newsItem) {
+            var hay = (newsItem.title + ' ' + (newsItem.source || '')).toLowerCase();
+            return MMA_KEYWORDS.some(function(kw) { return hay.indexOf(kw) >= 0; });
+        }
+        // 30일 이내 뉴스만 표시
+        var cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - 30);
         var filtered = newsItems.filter(function(n) {
+            // 날짜 필터
+            if (n.date) {
+                var parts = n.date.split('.');
+                if (parts.length === 3) {
+                    var nd = new Date(parts[0], parts[1]-1, parts[2]);
+                    if (nd < cutoff) return false;
+                }
+            }
+            // MMA 관련성 필터 (전체 탭에서도 적용)
+            if (!isMMARelated(n)) return false;
             var matchCat = currentNewsCat === 'all' || (n.category === currentNewsCat && matchesCategory(n));
             var matchQ = !query || n.title.toLowerCase().indexOf(query) >= 0 || (n.summary || '').toLowerCase().indexOf(query) >= 0;
             return matchCat && matchQ;
@@ -6262,18 +6283,23 @@ async function publishPost() {
             : filtered.map(function(n, i) {
                 var bar = CAT_BAR[n.category] || 'bg-white/10';
                 var badge = CAT_BADGE[n.category] || 'bg-white/10 text-white';
-                var lbl = CAT_LBL[n.category] || '뉴스';
+                var lbl = CAT_LBL[n.category] || '?댁뒪';
                 var realIdx = cachedNews.indexOf(n);
-                return '<div class="glass-card rounded-[1.5rem] overflow-hidden hover:border-ufcRed/30 transition-all duration-500 cursor-pointer" onclick="openNewsDetail(' + realIdx + ')">' +
+                var cardClick = (n.url && n.url.startsWith('http'))
+                    ? 'onclick="window.open(\'' + n.url + '\',\'_blank\')"'
+                    : 'onclick="openNewsDetail(' + realIdx + ')"';
+                return '<div class="glass-card rounded-[1.5rem] overflow-hidden hover:border-ufcRed/30 transition-all duration-500 cursor-pointer" ' + cardClick + '>' +
                     '<div class="h-1 w-full ' + bar + '"></div>' +
                     '<div class="p-5 lg:p-7">' +
                     '<div class="flex items-center justify-between mb-3">' +
-                    '<span class="oswald-sharp text-[9px] px-2 py-1 rounded-lg font-black italic uppercase border border-white/10 ' + badge + '">' + lbl + (i < 2 ? ' 🔥' : '') + '</span>' +
+                    '<span class="oswald-sharp text-[9px] px-2 py-1 rounded-lg font-black italic uppercase border border-white/10 ' + badge + '">' + lbl + (i < 2 ? ' ?뵦' : '') + '</span>' +
                     '<span class="oswald-sharp text-[9px] text-gray-600 italic">' + (n.date || '') + '</span>' +
                     '</div>' +
                     '<h4 class="oswald-sharp text-sm lg:text-base font-black italic text-white uppercase tracking-tight leading-snug mb-3">' + escapeHtml(n.title) + '</h4>' +
-                    '<p class="text-gray-400 text-xs lg:text-sm leading-relaxed">' + (function(){ var s = stripHtmlSummary(n.summary); return s ? escapeHtml(s) : '<span class="text-gray-600 italic">▶ 클릭하면 기사 내용을 불러옵니다</span>'; })() + '</p>' +
-                    (n.source ? '<p class="oswald-sharp text-[9px] text-gray-600 italic uppercase mt-3">출처: ' + escapeHtml(n.source) + '</p>' : '') +
+                    '<div class="flex items-center justify-between mt-3">' +
+                    (n.source ? '<p class="oswald-sharp text-[9px] text-gray-600 italic uppercase">출처: ' + escapeHtml(n.source) + '</p>' : '<span></span>') +
+                    '<span class="oswald-sharp text-[9px] text-ufcRed/60 italic uppercase">원문 →</span>' +
+                    '</div>' +
                     '</div></div>';
             }).join('');
 
@@ -7990,3 +8016,6 @@ CREATE POLICY "본인 픽 삭제"
 -->
 </body>
 </html>
+
+
+
