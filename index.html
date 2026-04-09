@@ -6520,7 +6520,7 @@ async function publishPost() {
                 '</div>' +
                 '<div class="p-4 lg:p-6">' +
                 '<h4 class="barlow text-sm lg:text-base font-black italic text-white uppercase leading-tight mb-2 group-hover:text-red-400 transition line-clamp-2">' + n.title + '</h4>' +
-                '<p class="text-gray-500 text-[11px] lg:text-xs mb-3 leading-relaxed line-clamp-2">' + (n.summary || '') + '</p>' +
+                '<p class="text-gray-500 text-[11px] lg:text-xs mb-3 leading-relaxed line-clamp-2">' + escapeHtml(stripHtmlSummary(n.summary) || '') + '</p>' +
                 '<div class="flex items-center justify-between">' +
                 '<span class="barlow text-[10px] font-bold italic text-gray-600 uppercase">' + (n.source || '') + '</span>' +
                 '<span class="barlow text-[10px] font-bold italic text-gray-700 uppercase">' + (n.date || '') + '</span>' +
