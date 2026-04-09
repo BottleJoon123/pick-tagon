@@ -6074,15 +6074,14 @@ async function publishPost() {
         var titleText = vid.title ? escapeHtml(vid.title.substring(0, 60)) : escapeHtml(cardInfo.title);
         return '<a href="' + watchUrl + '" target="_blank" rel="noopener noreferrer" ' +
             'class="glass-card rounded-[1.2rem] overflow-hidden hover:border-red-500/40 transition-all duration-300 block group">' +
-            '<div class="relative h-36 bg-gray-900 overflow-hidden">' +
+            '<div class="relative bg-gray-900 overflow-hidden" style="aspect-ratio:16/9">' +
             '<img src="' + thumb + '" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" ' +
-            'onerror="this.parentElement.innerHTML=\'<div class=\\\"flex items-center justify-center h-full text-4xl\\\">' + cardInfo.icon + '</div>\'">' +
-            '<div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">' +
+            'onerror="this.style.display=\'none\'">' +
+            '<div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition bg-black/40">' +
             '<div class="bg-red-600/90 rounded-full w-10 h-10 flex items-center justify-center text-white text-lg">▶</div></div>' +
-            '<div class="absolute top-2 left-2 bg-red-600/90 text-white text-[8px] px-1.5 py-0.5 rounded oswald-sharp font-black italic uppercase">YouTube</div>' +
+            '<div class="absolute top-2 left-2 bg-red-600 text-white text-[8px] px-1.5 py-0.5 rounded oswald-sharp font-black italic uppercase">YouTube</div>' +
             '</div>' +
             '<div class="p-3"><p class="oswald-sharp text-[10px] lg:text-xs font-black italic text-white leading-snug line-clamp-2">' + titleText + '</p>' +
-            '<p class="text-[8px] text-gray-600 mt-1 oswald-sharp italic uppercase">' + escapeHtml(cardInfo.title) + '</p>' +
             '</div></a>';
     }
 
@@ -6104,9 +6103,12 @@ async function publishPost() {
                     seen.add(m[1]);
                     // 제목: 앞 줄에서 텍스트 추출 시도
                     var titleLine = '';
+                    var ytUiWords = ['search filters', 'show less', 'show more', 'from the video', 'description', 'subscribe', 'views', 'ago', 'shorts'];
                     for (var j = i - 1; j >= Math.max(0, i - 5); j--) {
                         var l = lines[j].replace(/^#+\s*/, '').replace(/\[([^\]]+)\].*/,'$1').trim();
-                        if (l.length > 5 && l.length < 120 && !l.startsWith('http')) { titleLine = l; break; }
+                        var lLower = l.toLowerCase();
+                        var isUiText = ytUiWords.some(function(w) { return lLower.indexOf(w) >= 0; });
+                        if (l.length > 5 && l.length < 120 && !l.startsWith('http') && !isUiText) { titleLine = l; break; }
                     }
                     videoIds.push({ id: m[1], title: titleLine });
                 }
@@ -6136,7 +6138,7 @@ async function publishPost() {
         var html = results.map(function(r) {
             var c = r.card;
             var vids = r.videos;
-            var sectionClass = 'col-span-1 lg:col-span-2 mb-4';
+            var sectionClass = 'mb-8';
             var headerHtml = '<div class="flex items-center gap-2 mb-3">' +
                 '<span class="text-xl">' + c.icon + '</span>' +
                 '<h4 class="oswald-sharp text-sm font-black italic text-white uppercase tracking-tight">' + c.title + '</h4>' +
@@ -6155,12 +6157,19 @@ async function publishPost() {
             }
 
             return '<div class="' + sectionClass + '">' + headerHtml +
-                '<div class="grid grid-cols-2 lg:grid-cols-3 gap-3">' +
+                '<div class="grid grid-cols-2 md:grid-cols-3 gap-3">' +
                 vids.map(function(vid) { return renderYoutubeVideoCard(vid, c); }).join('') +
                 '</div></div>';
         }).join('');
 
-        grid.innerHTML = '<div class="col-span-1 lg:col-span-2">' + html + '</div>';
+        grid.innerHTML = html;
+    }
+
+    function stripHtmlSummary(text) {
+        if (!text) return '';
+        var stripped = text.replace(/<[^>]*>/g, ' ').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim();
+        if (!stripped || /^https?:\/\/\S+$/.test(stripped)) return '';
+        return stripped.substring(0, 200);
     }
 
     function renderNewsCatTabs() {
@@ -6198,8 +6207,23 @@ async function publishPost() {
         // youtube 카테고리 뉴스는 일반 탭에서 제외
         var newsItems = cachedNews.filter(function(n) { return n.category !== 'youtube'; });
 
+        // 카테고리 키워드 검증 — DB 분류 오류 보정
+        var CAT_KEYWORDS = {
+            'ufc': ['ufc', 'mma', '격투기', '옥타곤', '얼티밋', '파이팅 챔피언십'],
+            'fighter': ['선수', '파이터', '챔피언', '랭커', '도전자'],
+            'result': ['결과', '승리', '패배', 'ko', '서브미션', '판정', '타이틀'],
+            'ranking': ['랭킹', '순위', '랭크'],
+            'event': ['이벤트', '대회', '카드', '경기 예정']
+        };
+        function matchesCategory(newsItem) {
+            var kws = CAT_KEYWORDS[newsItem.category];
+            if (!kws) return true;
+            var haystack = (newsItem.title + ' ' + (newsItem.summary || '')).toLowerCase();
+            return kws.some(function(kw) { return haystack.indexOf(kw) >= 0; });
+        }
+
         var filtered = newsItems.filter(function(n) {
-            var matchCat = currentNewsCat === 'all' || n.category === currentNewsCat;
+            var matchCat = currentNewsCat === 'all' || (n.category === currentNewsCat && matchesCategory(n));
             var matchQ = !query || n.title.toLowerCase().indexOf(query) >= 0 || (n.summary || '').toLowerCase().indexOf(query) >= 0;
             return matchCat && matchQ;
         });
@@ -6223,7 +6247,7 @@ async function publishPost() {
                     '<span class="oswald-sharp text-[9px] text-gray-600 italic">' + (n.date || '') + '</span>' +
                     '</div>' +
                     '<h4 class="oswald-sharp text-sm lg:text-base font-black italic text-white uppercase tracking-tight leading-snug mb-3">' + escapeHtml(n.title) + '</h4>' +
-                    '<p class="text-gray-400 text-xs lg:text-sm leading-relaxed">' + (n.summary && n.summary.startsWith('http') ? '<span class="text-gray-600 italic">▶ 클릭하면 기사 내용을 불러옵니다</span>' : escapeHtml(n.summary || '')) + '</p>' +
+                    '<p class="text-gray-400 text-xs lg:text-sm leading-relaxed">' + (function(){ var s = stripHtmlSummary(n.summary); return s ? escapeHtml(s) : '<span class="text-gray-600 italic">▶ 클릭하면 기사 내용을 불러옵니다</span>'; })() + '</p>' +
                     (n.source ? '<p class="oswald-sharp text-[9px] text-gray-600 italic uppercase mt-3">출처: ' + escapeHtml(n.source) + '</p>' : '') +
                     '</div></div>';
             }).join('');
@@ -6272,9 +6296,10 @@ async function publishPost() {
             link.classList.add('hidden');
         }
 
-        // summary 처리: URL이면 숨기고, 텍스트면 표시
-        if (n.summary && !n.summary.startsWith('http')) {
-            ndSummary.textContent = n.summary;
+        // summary 처리: HTML/URL 제거 후 텍스트 표시
+        var cleanSummary = stripHtmlSummary(n.summary);
+        if (cleanSummary) {
+            ndSummary.textContent = cleanSummary;
             ndSummary.classList.remove('hidden');
         } else {
             ndSummary.textContent = '';
