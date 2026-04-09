@@ -36,8 +36,10 @@ var newsDB = [];
 var editingNewsId = null;
 var h2hRadarChart = null;
 
-// 커뮤니티 필터 상태
-var communityFilter = 'all';
+// 커뮤니티 필터/정렬/시간 상태
+var communityFilter = 'all';   // all | post | pick
+var communitySortMode = 'latest';  // latest | recommend | hot
+var communityTimeFilter = 'all';   // all | day | week | month
 
 // 뉴스/유튜브 카테고리 상태
 var currentNewsCat = 'all';
@@ -81,3 +83,6 @@ var NEWS_SEED = []; // 하드코딩 제거 — Supabase news_cache가 유일한 
 
 var sb = null;
 var currentUser = null;
+
+// 내가 추천한 포스트 ID 목록 (post_likes 테이블과 동기화)
+var likedPostIds = new Set();

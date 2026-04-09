@@ -9,9 +9,10 @@
            createUserProfile, refreshUI)
 ============================== */
 
-// [A안] posts + post_comments 테이블 JOIN으로 로드
+// [A안] posts + post_comments 테이블 JOIN으로 로드 + 내 좋아요 목록 로드
 function loadPostsFromDB() {
     if (!sb) return;
+    // posts + comments 로드
     sb.from('posts')
         .select('*, post_comments(id, user_nick, content, created_at)')
         .order('created_at', { ascending: false })
@@ -19,7 +20,6 @@ function loadPostsFromDB() {
         .then(function(res) {
             if (res.error || !res.data) return;
             posts = res.data.map(function(r) {
-                // post_comments 테이블에서 댓글 로드 (created_at 오름차순 정렬)
                 var comments = (r.post_comments || [])
                     .sort(function(a, b) { return new Date(a.created_at) - new Date(b.created_at); })
                     .map(function(c) { return { user: c.user_nick, text: c.content }; });
@@ -37,7 +37,18 @@ function loadPostsFromDB() {
                 };
             });
             save();
-            renderFeed();
+            // 로그인 상태면 내 좋아요 목록도 로드
+            if (currentUser) {
+                sb.from('post_likes')
+                    .select('post_id')
+                    .eq('user_id', currentUser.id)
+                    .then(function(likesRes) {
+                        likedPostIds = new Set((likesRes.data || []).map(function(l) { return l.post_id; }));
+                        renderFeed();
+                    });
+            } else {
+                renderFeed();
+            }
         });
 }
 

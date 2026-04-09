@@ -760,19 +760,56 @@ textarea, select {
             </div>
         </div>
 
-        <!-- 필터 탭 -->
+        <!-- 필터 / 정렬 컨트롤 바 -->
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <!-- 타입 필터 -->
+            <div class="flex gap-2">
+                <button onclick="setCommunityFilter('all')" id="cf-all"
+                    class="oswald-sharp px-4 py-2 rounded-xl font-black italic text-[10px] uppercase tracking-widest border bg-ufcRed/15 border-ufcRed/50 text-white transition-all">
+                    전체
+                </button>
+                <button onclick="setCommunityFilter('post')" id="cf-post"
+                    class="oswald-sharp px-4 py-2 rounded-xl font-black italic text-[10px] uppercase tracking-widest border border-white/10 text-gray-500 hover:text-white transition-all">
+                    ✍️ 분석글
+                </button>
+                <button onclick="setCommunityFilter('pick')" id="cf-pick"
+                    class="oswald-sharp px-4 py-2 rounded-xl font-black italic text-[10px] uppercase tracking-widest border border-white/10 text-gray-500 hover:text-white transition-all">
+                    🎯 픽 공유
+                </button>
+            </div>
+            <!-- 정렬 -->
+            <div class="flex gap-2">
+                <button onclick="setCommunitySort('latest')" id="cs-latest"
+                    class="oswald-sharp px-3 py-2 rounded-xl font-black italic text-[10px] uppercase tracking-widest border bg-white/10 border-white/20 text-white transition-all">
+                    🕐 최신순
+                </button>
+                <button onclick="setCommunitySort('recommend')" id="cs-recommend"
+                    class="oswald-sharp px-3 py-2 rounded-xl font-black italic text-[10px] uppercase tracking-widest border border-white/10 text-gray-500 hover:text-white transition-all">
+                    🔥 추천순
+                </button>
+                <button onclick="setCommunitySort('hot')" id="cs-hot"
+                    class="oswald-sharp px-3 py-2 rounded-xl font-black italic text-[10px] uppercase tracking-widest border border-white/10 text-gray-500 hover:text-white transition-all">
+                    📊 인기순
+                </button>
+            </div>
+        </div>
+        <!-- 시간 필터 -->
         <div class="flex gap-2 mb-6">
-            <button onclick="setCommunityFilter('all')" id="cf-all"
-                class="oswald-sharp px-4 py-2 rounded-xl font-black italic text-[10px] uppercase tracking-widest border bg-ufcRed/15 border-ufcRed/50 text-white transition-all">
+            <button onclick="setCommunityTime('all')" id="ct-all"
+                class="oswald-sharp px-3 py-1.5 rounded-lg font-black italic text-[9px] uppercase tracking-widest border bg-white/8 border-white/15 text-white transition-all">
                 전체
             </button>
-            <button onclick="setCommunityFilter('post')" id="cf-post"
-                class="oswald-sharp px-4 py-2 rounded-xl font-black italic text-[10px] uppercase tracking-widest border border-white/10 text-gray-500 hover:text-white transition-all">
-                ✍️ 분석글
+            <button onclick="setCommunityTime('day')" id="ct-day"
+                class="oswald-sharp px-3 py-1.5 rounded-lg font-black italic text-[9px] uppercase tracking-widest border border-white/10 text-gray-500 hover:text-white transition-all">
+                일간
             </button>
-            <button onclick="setCommunityFilter('pick')" id="cf-pick"
-                class="oswald-sharp px-4 py-2 rounded-xl font-black italic text-[10px] uppercase tracking-widest border border-white/10 text-gray-500 hover:text-white transition-all">
-                🎯 픽 공유
+            <button onclick="setCommunityTime('week')" id="ct-week"
+                class="oswald-sharp px-3 py-1.5 rounded-lg font-black italic text-[9px] uppercase tracking-widest border border-white/10 text-gray-500 hover:text-white transition-all">
+                주간
+            </button>
+            <button onclick="setCommunityTime('month')" id="ct-month"
+                class="oswald-sharp px-3 py-1.5 rounded-lg font-black italic text-[9px] uppercase tracking-widest border border-white/10 text-gray-500 hover:text-white transition-all">
+                월간
             </button>
         </div>
 
@@ -2122,6 +2159,7 @@ textarea, select {
 
     /* [커뮤니티 인터랙션 로직] */
 
+    function toggleComArea(i) { document.getElementById('com-area-' + i).classList.toggle('hidden'); }
 
 async function postCom(i) {
     const input = document.getElementById(`com-in-${i}`);
@@ -3522,11 +3560,16 @@ async function publishPost() {
     }
 
     function likePostInDB(dbId) {
-        if (!sb || !dbId) return;
-        sb.from('posts').select('likes').eq('id', dbId).single().then(function(res) {
-            if (res.data) {
-                sb.from('posts').update({ likes: (res.data.likes || 0) + 1 }).eq('id', dbId).then(function() {});
-            }
+        if (!sb || !dbId || !currentUser) return;
+        // post_likes에 INSERT (중복 시 무시)
+        sb.from('post_likes').insert({ post_id: dbId, user_id: currentUser.id }).then(function(r) {
+            if (r.error) return; // 중복 등 에러 시 무시
+            // posts.likes 카운트 동기화
+            sb.from('posts').select('likes').eq('id', dbId).single().then(function(res) {
+                if (res.data) {
+                    sb.from('posts').update({ likes: (res.data.likes || 0) + 1 }).eq('id', dbId).then(function() {});
+                }
+            });
         });
     }
 
