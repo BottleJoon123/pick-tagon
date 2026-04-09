@@ -20,6 +20,9 @@ var adminUnlocked = false;
 var cachedNews = [];
 var newsFetched = false;
 
+// 뉴스/유튜브 탭 상태
+var currentNewsCat = 'all';
+
 // 유튜브 영상 캐시 {query: [{id, title}]}
 var ytVideoCache = {};
 var activeYoutubeCardIdx = -1; // -1 = 전체, 0~N = 특정 카드만 표시

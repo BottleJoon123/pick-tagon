@@ -1,0 +1,157 @@
+/* ==============================
+   YOUTUBE & NEWS TAB LAYER
+   (extracted from index.html – global functions, no import/export)
+   의존성: state.js (ytVideoCache, activeYoutubeCardIdx, currentNewsCat)
+           constants.js (YOUTUBE_CARDS, NEWS_CATS)
+           utils.js (escapeHtml)
+============================== */
+
+    function renderYoutubeSkeletons() {
+        return '<div class="col-span-1 lg:col-span-2">' +
+            '<p class="oswald-sharp text-[10px] text-gray-500 italic uppercase tracking-widest mb-4 flex items-center gap-2">' +
+            '<span class="animate-spin inline-block w-3 h-3 border border-red-500 border-t-transparent rounded-full"></span> 최신 영상 불러오는 중...</p>' +
+            '<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">' +
+            Array(6).fill(0).map(function() {
+                return '<div class="glass-card rounded-[1.2rem] overflow-hidden animate-pulse">' +
+                    '<div class="bg-gray-800 h-36 w-full"></div>' +
+                    '<div class="p-3"><div class="h-3 bg-gray-700 rounded w-3/4 mb-2"></div>' +
+                    '<div class="h-2 bg-gray-800 rounded w-1/2"></div></div></div>';
+            }).join('') +
+            '</div></div>';
+    }
+
+    function renderYoutubeVideoCard(vid, cardInfo) {
+        var thumb = 'https://img.youtube.com/vi/' + vid.id + '/mqdefault.jpg';
+        var watchUrl = 'https://www.youtube.com/watch?v=' + vid.id;
+        var titleText = vid.title ? escapeHtml(vid.title.substring(0, 60)) : escapeHtml(cardInfo.title);
+        return '<a href="' + watchUrl + '" target="_blank" rel="noopener noreferrer" ' +
+            'class="glass-card rounded-[1.2rem] overflow-hidden hover:border-red-500/40 transition-all duration-300 block group">' +
+            '<div class="relative bg-gray-900 overflow-hidden" style="aspect-ratio:16/9">' +
+            '<img src="' + thumb + '" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" ' +
+            'onerror="this.style.display=\'none\'">' +
+            '<div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition bg-black/40">' +
+            '<div class="bg-red-600/90 rounded-full w-10 h-10 flex items-center justify-center text-white text-lg">▶</div></div>' +
+            '<div class="absolute top-2 left-2 bg-red-600 text-white text-[8px] px-1.5 py-0.5 rounded oswald-sharp font-black italic uppercase">YouTube</div>' +
+            '</div>' +
+            '<div class="p-3"><p class="oswald-sharp text-[10px] lg:text-xs font-black italic text-white leading-snug line-clamp-2">' + titleText + '</p>' +
+            '</div></a>';
+    }
+
+    async function fetchYoutubeVideosForQuery(query) {
+        if (ytVideoCache[query]) return ytVideoCache[query];
+        try {
+            // EgQIBBABMAE%3D = "This month" + sort by upload date
+            var searchUrl = 'https://r.jina.ai/https://www.youtube.com/results?search_query=' + encodeURIComponent(query) + '&sp=EgQIBBABMAE%3D';
+            var res = await fetch(searchUrl, { headers: { 'Accept': 'text/plain' } });
+            if (!res.ok) throw new Error('fetch 실패');
+            var text = await res.text();
+            // 비디오 ID 추출 (11자 영상 ID + 제목 파싱)
+            var videoIds = [];
+            var seen = new Set();
+            // 패턴: /watch?v=XXXXXXXXXXX 형태 (제목은 이전 줄에서 추출 시도)
+            var lines = text.split('\n');
+            for (var i = 0; i < lines.length; i++) {
+                var m = lines[i].match(/\/watch\?v=([\w-]{11})/);
+                if (m && !seen.has(m[1])) {
+                    seen.add(m[1]);
+                    // 제목: 앞 줄에서 텍스트 추출 시도
+                    var titleLine = '';
+                    var ytUiWords = ['search filters', 'show less', 'show more', 'from the video', 'description', 'subscribe', 'views', 'ago', 'shorts'];
+                    for (var j = i - 1; j >= Math.max(0, i - 5); j--) {
+                        var l = lines[j].replace(/^#+\s*/, '').replace(/\[([^\]]+)\].*/,'$1').trim();
+                        var lLower = l.toLowerCase();
+                        var isUiText = ytUiWords.some(function(w) { return lLower.indexOf(w) >= 0; });
+                        if (l.length > 5 && l.length < 120 && !l.startsWith('http') && !isUiText) { titleLine = l; break; }
+                    }
+                    videoIds.push({ id: m[1], title: titleLine });
+                }
+                if (videoIds.length >= 6) break;
+            }
+            ytVideoCache[query] = videoIds;
+            return videoIds;
+        } catch(e) {
+            return [];
+        }
+    }
+
+    function goToYoutubeCard(idx) {
+        activeYoutubeCardIdx = idx;
+        currentNewsCat = 'youtube';
+        renderNewsCatTabs();
+        loadYoutubeTab();
+    }
+
+    async function loadYoutubeTab() {
+        var grid = document.getElementById('news-grid');
+        if (!grid) return;
+        grid.innerHTML = renderYoutubeSkeletons();
+
+        // 모든 카테고리 영상 병렬 fetch
+        var cardsToLoad = (activeYoutubeCardIdx >= 0 && activeYoutubeCardIdx < YOUTUBE_CARDS.length)
+            ? [YOUTUBE_CARDS[activeYoutubeCardIdx]]
+            : YOUTUBE_CARDS;
+
+        var results = await Promise.all(cardsToLoad.map(function(c) {
+            return fetchYoutubeVideosForQuery(c.query).then(function(vids) {
+                return { card: c, videos: vids };
+            });
+        }));
+
+        if (currentNewsCat !== 'youtube') return; // 탭 전환됐으면 무시
+
+        var html = results.map(function(r) {
+            var c = r.card;
+            var vids = r.videos;
+            var sectionClass = 'mb-8';
+            var headerHtml = '<div class="flex items-center gap-2 mb-3">' +
+                '<span class="text-xl">' + c.icon + '</span>' +
+                '<h4 class="oswald-sharp text-sm font-black italic text-white uppercase tracking-tight">' + c.title + '</h4>' +
+                '</div>';
+
+            if (vids.length === 0) {
+                // 스크래핑 실패 시 fallback: YouTube 검색 링크
+                var ytUrl = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(c.query) + '&sp=EgQIBBABMAE%3D';
+                return '<div class="' + sectionClass + '">' + headerHtml +
+                    '<a href="' + ytUrl + '" target="_blank" rel="noopener" ' +
+                    'class="glass-card rounded-xl p-4 flex items-center gap-3 hover:border-red-500/30 transition-all bg-gradient-to-r ' + c.color + '">' +
+                    '<span class="text-2xl">🔍</span>' +
+                    '<div><p class="oswald-sharp text-xs font-black italic text-white uppercase">YouTube에서 검색</p>' +
+                    '<p class="text-[9px] text-gray-400">' + escapeHtml(c.query) + '</p></div>' +
+                    '<span class="ml-auto text-red-400 text-lg">→</span></a></div>';
+            }
+
+            return '<div class="' + sectionClass + '">' + headerHtml +
+                '<div class="grid grid-cols-2 md:grid-cols-3 gap-3">' +
+                vids.map(function(vid) { return renderYoutubeVideoCard(vid, c); }).join('') +
+                '</div></div>';
+        }).join('');
+
+        var backBtn = '';
+        if (activeYoutubeCardIdx >= 0) {
+            backBtn = '<div class="mb-5"><button onclick="activeYoutubeCardIdx=-1;loadYoutubeTab()" ' +
+                'class="oswald-sharp text-xs text-gray-400 hover:text-white border border-white/10 hover:border-white/30 px-4 py-2 rounded-xl italic uppercase tracking-widest transition">← 전체 보기</button></div>';
+        }
+        grid.innerHTML = backBtn + html;
+    }
+
+    function renderNewsCatTabs() {
+        var tabs = document.getElementById('news-cat-tabs');
+        if (!tabs) return;
+        tabs.innerHTML = NEWS_CATS.map(function(c) {
+            var active = currentNewsCat === c.id;
+            return '<button onclick="setNewsCat(\'' + c.id + '\')" class="oswald-sharp flex-shrink-0 px-4 py-2 rounded-xl font-black italic text-[10px] uppercase tracking-widest transition-all border ' +
+                (active ? 'bg-ufcRed/15 border-ufcRed/50 text-white' : 'border-white/10 text-gray-500 hover:text-white') + '">' +
+                c.icon + ' ' + c.label + '</button>';
+        }).join('');
+    }
+
+    function setNewsCat(catId) {
+        currentNewsCat = catId;
+        renderNewsCatTabs();
+        if (catId === 'youtube') {
+            activeYoutubeCardIdx = -1; // 탭 직접 클릭 시 전체 표시
+            loadYoutubeTab();
+        } else {
+            renderNewsGrid();
+        }
+    }
