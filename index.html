@@ -1474,8 +1474,15 @@ textarea, select {
             </div>
             <!-- 제목 -->
             <h2 id="nd-title" class="oswald-sharp text-xl lg:text-2xl font-black italic text-white uppercase tracking-tight leading-snug mb-5"></h2>
+            <!-- 요약 (항상 표시) -->
+            <p id="nd-summary" class="text-gray-400 text-xs leading-relaxed mb-4 italic border-l-2 border-white/10 pl-3"></p>
+            <!-- 본문 로딩 -->
+            <div id="nd-content-loading" class="hidden flex items-center gap-3 py-6 mb-4">
+                <div class="animate-spin w-5 h-5 border-2 border-ufcRed border-t-transparent rounded-full flex-shrink-0"></div>
+                <span class="oswald-sharp text-xs text-gray-500 italic uppercase tracking-widest">기사 내용 불러오는 중...</span>
+            </div>
             <!-- 본문 -->
-            <p id="nd-summary" class="text-gray-300 text-sm lg:text-base leading-relaxed mb-8 whitespace-pre-line"></p>
+            <div id="nd-content" class="text-gray-300 text-sm lg:text-[15px] leading-relaxed mb-8 whitespace-pre-wrap hidden"></div>
             <!-- 출처 링크 -->
             <div class="border-t border-white/08 pt-5 flex items-center justify-between gap-4">
                 <span id="nd-source-label" class="oswald-sharp text-[10px] text-gray-600 italic uppercase tracking-widest"></span>
@@ -2645,8 +2652,13 @@ function loadPostsFromDB() {
         }
         if(id === 'mma-news') {
             renderNewsCatTabs();
-            if (!newsFetched) fetchMMANews();
-            else renderNewsGrid();
+            if (currentNewsCat === 'youtube') {
+                loadYoutubeTab();
+            } else if (!newsFetched) {
+                fetchMMANews();
+            } else {
+                renderNewsGrid();
+            }
             var si = document.getElementById('news-search-input');
             if (si && !si.dataset.bound) {
                 si.addEventListener('input', renderNewsGrid);
@@ -6039,6 +6051,118 @@ async function publishPost() {
 
     var FALLBACK_NEWS = []; // 하드코딩 제거 — Supabase news_cache가 유일한 소스
 
+    // ── 유튜브 영상 캐시 {query: [{id, title}]} ──
+    var ytVideoCache = {};
+
+    function renderYoutubeSkeletons() {
+        return '<div class="col-span-1 lg:col-span-2">' +
+            '<p class="oswald-sharp text-[10px] text-gray-500 italic uppercase tracking-widest mb-4 flex items-center gap-2">' +
+            '<span class="animate-spin inline-block w-3 h-3 border border-red-500 border-t-transparent rounded-full"></span> 최신 영상 불러오는 중...</p>' +
+            '<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">' +
+            Array(6).fill(0).map(function() {
+                return '<div class="glass-card rounded-[1.2rem] overflow-hidden animate-pulse">' +
+                    '<div class="bg-gray-800 h-36 w-full"></div>' +
+                    '<div class="p-3"><div class="h-3 bg-gray-700 rounded w-3/4 mb-2"></div>' +
+                    '<div class="h-2 bg-gray-800 rounded w-1/2"></div></div></div>';
+            }).join('') +
+            '</div></div>';
+    }
+
+    function renderYoutubeVideoCard(vid, cardInfo) {
+        var thumb = 'https://img.youtube.com/vi/' + vid.id + '/mqdefault.jpg';
+        var watchUrl = 'https://www.youtube.com/watch?v=' + vid.id;
+        var titleText = vid.title ? escapeHtml(vid.title.substring(0, 60)) : escapeHtml(cardInfo.title);
+        return '<a href="' + watchUrl + '" target="_blank" rel="noopener noreferrer" ' +
+            'class="glass-card rounded-[1.2rem] overflow-hidden hover:border-red-500/40 transition-all duration-300 block group">' +
+            '<div class="relative h-36 bg-gray-900 overflow-hidden">' +
+            '<img src="' + thumb + '" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" ' +
+            'onerror="this.parentElement.innerHTML=\'<div class=\\\"flex items-center justify-center h-full text-4xl\\\">' + cardInfo.icon + '</div>\'">' +
+            '<div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">' +
+            '<div class="bg-red-600/90 rounded-full w-10 h-10 flex items-center justify-center text-white text-lg">▶</div></div>' +
+            '<div class="absolute top-2 left-2 bg-red-600/90 text-white text-[8px] px-1.5 py-0.5 rounded oswald-sharp font-black italic uppercase">YouTube</div>' +
+            '</div>' +
+            '<div class="p-3"><p class="oswald-sharp text-[10px] lg:text-xs font-black italic text-white leading-snug line-clamp-2">' + titleText + '</p>' +
+            '<p class="text-[8px] text-gray-600 mt-1 oswald-sharp italic uppercase">' + escapeHtml(cardInfo.title) + '</p>' +
+            '</div></a>';
+    }
+
+    async function fetchYoutubeVideosForQuery(query) {
+        if (ytVideoCache[query]) return ytVideoCache[query];
+        try {
+            var searchUrl = 'https://r.jina.ai/https://www.youtube.com/results?search_query=' + encodeURIComponent(query) + '&sp=CAI%3D';
+            var res = await fetch(searchUrl, { headers: { 'Accept': 'text/plain' } });
+            if (!res.ok) throw new Error('fetch 실패');
+            var text = await res.text();
+            // 비디오 ID 추출 (11자 영상 ID + 제목 파싱)
+            var videoIds = [];
+            var seen = new Set();
+            // 패턴: /watch?v=XXXXXXXXXXX 형태 (제목은 이전 줄에서 추출 시도)
+            var lines = text.split('\n');
+            for (var i = 0; i < lines.length; i++) {
+                var m = lines[i].match(/\/watch\?v=([\w-]{11})/);
+                if (m && !seen.has(m[1])) {
+                    seen.add(m[1]);
+                    // 제목: 앞 줄에서 텍스트 추출 시도
+                    var titleLine = '';
+                    for (var j = i - 1; j >= Math.max(0, i - 5); j--) {
+                        var l = lines[j].replace(/^#+\s*/, '').replace(/\[([^\]]+)\].*/,'$1').trim();
+                        if (l.length > 5 && l.length < 120 && !l.startsWith('http')) { titleLine = l; break; }
+                    }
+                    videoIds.push({ id: m[1], title: titleLine });
+                }
+                if (videoIds.length >= 6) break;
+            }
+            ytVideoCache[query] = videoIds;
+            return videoIds;
+        } catch(e) {
+            return [];
+        }
+    }
+
+    async function loadYoutubeTab() {
+        var grid = document.getElementById('news-grid');
+        if (!grid) return;
+        grid.innerHTML = renderYoutubeSkeletons();
+
+        // 모든 카테고리 영상 병렬 fetch
+        var results = await Promise.all(YOUTUBE_CARDS.map(function(c) {
+            return fetchYoutubeVideosForQuery(c.query).then(function(vids) {
+                return { card: c, videos: vids };
+            });
+        }));
+
+        if (currentNewsCat !== 'youtube') return; // 탭 전환됐으면 무시
+
+        var html = results.map(function(r) {
+            var c = r.card;
+            var vids = r.videos;
+            var sectionClass = 'col-span-1 lg:col-span-2 mb-4';
+            var headerHtml = '<div class="flex items-center gap-2 mb-3">' +
+                '<span class="text-xl">' + c.icon + '</span>' +
+                '<h4 class="oswald-sharp text-sm font-black italic text-white uppercase tracking-tight">' + c.title + '</h4>' +
+                '</div>';
+
+            if (vids.length === 0) {
+                // 스크래핑 실패 시 fallback: YouTube 검색 링크
+                var ytUrl = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(c.query) + '&sp=CAI%3D';
+                return '<div class="' + sectionClass + '">' + headerHtml +
+                    '<a href="' + ytUrl + '" target="_blank" rel="noopener" ' +
+                    'class="glass-card rounded-xl p-4 flex items-center gap-3 hover:border-red-500/30 transition-all bg-gradient-to-r ' + c.color + '">' +
+                    '<span class="text-2xl">🔍</span>' +
+                    '<div><p class="oswald-sharp text-xs font-black italic text-white uppercase">YouTube에서 검색</p>' +
+                    '<p class="text-[9px] text-gray-400">' + escapeHtml(c.query) + '</p></div>' +
+                    '<span class="ml-auto text-red-400 text-lg">→</span></a></div>';
+            }
+
+            return '<div class="' + sectionClass + '">' + headerHtml +
+                '<div class="grid grid-cols-2 lg:grid-cols-3 gap-3">' +
+                vids.map(function(vid) { return renderYoutubeVideoCard(vid, c); }).join('') +
+                '</div></div>';
+        }).join('');
+
+        grid.innerHTML = '<div class="col-span-1 lg:col-span-2">' + html + '</div>';
+    }
+
     function renderNewsCatTabs() {
         var tabs = document.getElementById('news-cat-tabs');
         if (!tabs) return;
@@ -6053,7 +6177,11 @@ async function publishPost() {
     function setNewsCat(catId) {
         currentNewsCat = catId;
         renderNewsCatTabs();
-        renderNewsGrid();
+        if (catId === 'youtube') {
+            loadYoutubeTab();
+        } else {
+            renderNewsGrid();
+        }
     }
 
     function renderNewsGrid() {
@@ -6061,21 +6189,9 @@ async function publishPost() {
         if (!grid) return;
         var query = (document.getElementById('news-search-input') ? document.getElementById('news-search-input').value : '').toLowerCase();
 
-        // ── 유튜브 탭 ──
+        // ── 유튜브 탭: loadYoutubeTab()이 처리하므로 여기선 skeleton만 표시 ──
         if (currentNewsCat === 'youtube') {
-            grid.innerHTML = YOUTUBE_CARDS.map(function(c) {
-                var ytUrl = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(c.query) + '&sp=CAI%3D';
-                return '<a href="' + ytUrl + '" target="_blank" rel="noopener noreferrer" class="glass-card rounded-[1.5rem] overflow-hidden hover:border-red-500/40 transition-all duration-500 bg-gradient-to-br ' + c.color + ' block">' +
-                    '<div class="p-5 lg:p-7 relative">' +
-                    '<div class="absolute top-4 right-4 text-3xl opacity-20">▶</div>' +
-                    '<div class="text-3xl mb-3">' + c.icon + '</div>' +
-                    '<h4 class="oswald-sharp text-sm lg:text-base font-black italic text-white uppercase tracking-tight leading-snug mb-2">' + c.title + '</h4>' +
-                    '<p class="text-gray-300 text-xs leading-relaxed mb-3">' + c.desc + '</p>' +
-                    '<div class="flex items-center gap-2">' +
-                    '<span class="oswald-sharp text-[9px] px-2 py-1 rounded-lg font-black italic uppercase border border-red-500/30 bg-red-500/10 text-red-400">YouTube 검색</span>' +
-                    '<span class="oswald-sharp text-[9px] text-gray-500 italic">' + c.query + '</span>' +
-                    '</div></div></a>';
-            }).join('');
+            grid.innerHTML = renderYoutubeSkeletons();
             return;
         }
 
@@ -6084,7 +6200,7 @@ async function publishPost() {
 
         var filtered = newsItems.filter(function(n) {
             var matchCat = currentNewsCat === 'all' || n.category === currentNewsCat;
-            var matchQ = !query || n.title.toLowerCase().indexOf(query) >= 0 || n.summary.toLowerCase().indexOf(query) >= 0;
+            var matchQ = !query || n.title.toLowerCase().indexOf(query) >= 0 || (n.summary || '').toLowerCase().indexOf(query) >= 0;
             return matchCat && matchQ;
         });
 
@@ -6107,20 +6223,19 @@ async function publishPost() {
                     '<span class="oswald-sharp text-[9px] text-gray-600 italic">' + (n.date || '') + '</span>' +
                     '</div>' +
                     '<h4 class="oswald-sharp text-sm lg:text-base font-black italic text-white uppercase tracking-tight leading-snug mb-3">' + escapeHtml(n.title) + '</h4>' +
-                    '<p class="text-gray-400 text-xs lg:text-sm leading-relaxed">' + escapeHtml(n.summary) + '</p>' +
+                    '<p class="text-gray-400 text-xs lg:text-sm leading-relaxed">' + (n.summary && n.summary.startsWith('http') ? '<span class="text-gray-600 italic">▶ 클릭하면 기사 내용을 불러옵니다</span>' : escapeHtml(n.summary || '')) + '</p>' +
                     (n.source ? '<p class="oswald-sharp text-[9px] text-gray-600 italic uppercase mt-3">출처: ' + escapeHtml(n.source) + '</p>' : '') +
                     '</div></div>';
             }).join('');
 
-        // 전체 탭 + 검색어 없을 때 하단에 YouTube 바로가기 추가
+        // 전체 탭 + 검색어 없을 때 하단에 YouTube 탭 바로가기 추가
         var extraYt = '';
         if (currentNewsCat === 'all' && !query) {
             var ytShortcuts = YOUTUBE_CARDS.slice(0, 4).map(function(c) {
-                var ytUrl = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(c.query) + '&sp=CAI%3D';
-                return '<a href="' + ytUrl + '" target="_blank" rel="noopener noreferrer" class="glass-card rounded-xl p-3 flex items-center gap-3 hover:border-red-500/30 transition-all">' +
+                return '<button onclick="setNewsCat(\'youtube\')" class="glass-card rounded-xl p-3 flex items-center gap-3 hover:border-red-500/30 transition-all text-left">' +
                     '<span class="text-xl">' + c.icon + '</span>' +
                     '<div><p class="oswald-sharp text-[10px] font-black italic text-white uppercase">' + c.title + '</p>' +
-                    '<p class="text-[9px] text-gray-500">YouTube ▶</p></div></a>';
+                    '<p class="text-[9px] text-gray-500">🎬 영상 보기</p></div></button>';
             }).join('');
             extraYt = '<div class="col-span-1 lg:col-span-2 mt-2">' +
                 '<p class="oswald-sharp text-[9px] text-gray-600 italic uppercase tracking-widest mb-2">🎬 유튜브 바로가기</p>' +
@@ -6130,15 +6245,18 @@ async function publishPost() {
         grid.innerHTML = newsHtml + extraYt;
     }
 
-    function openNewsDetail(idx) {
+    async function openNewsDetail(idx) {
         var n = cachedNews[idx];
         if (!n) return;
         var CAT_BAR_HEX = { ufc:'#e8000d', fighter:'#2563eb', event:'#9333ea', result:'#16a34a', ranking:'#eab308' };
         var CAT_BADGE = { ufc:'bg-ufcRed/15 text-ufcRed', fighter:'bg-blue-600/15 text-blue-400', event:'bg-purple-600/15 text-purple-400', result:'bg-green-600/15 text-green-400', ranking:'bg-yellow-500/15 text-yellow-400' };
         var CAT_LBL = { ufc:'UFC', fighter:'선수', event:'이벤트', result:'결과', ranking:'랭킹' };
         var modal = document.getElementById('news-detail-modal');
+        var ndContent = document.getElementById('nd-content');
+        var ndLoading = document.getElementById('nd-content-loading');
+        var ndSummary = document.getElementById('nd-summary');
+
         document.getElementById('nd-title').textContent = n.title || '';
-        document.getElementById('nd-summary').textContent = n.summary || '';
         document.getElementById('nd-date').textContent = n.date || '';
         document.getElementById('nd-source-label').textContent = n.source ? '출처: ' + n.source : '';
         document.getElementById('nd-cat-bar').style.background = CAT_BAR_HEX[n.category] || '#fff';
@@ -6153,8 +6271,54 @@ async function publishPost() {
             link.href = '#';
             link.classList.add('hidden');
         }
+
+        // summary 처리: URL이면 숨기고, 텍스트면 표시
+        if (n.summary && !n.summary.startsWith('http')) {
+            ndSummary.textContent = n.summary;
+            ndSummary.classList.remove('hidden');
+        } else {
+            ndSummary.textContent = '';
+            ndSummary.classList.add('hidden');
+        }
+
+        // 본문 초기화
+        ndContent.classList.add('hidden');
+        ndContent.textContent = '';
+
         modal.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
+
+        // Jina.ai로 기사 본문 fetch
+        if (n.url && n.url.startsWith('http')) {
+            ndLoading.classList.remove('hidden');
+            try {
+                var jinaUrl = 'https://r.jina.ai/' + n.url;
+                var res = await fetch(jinaUrl, { headers: { 'Accept': 'text/plain' } });
+                if (!res.ok) throw new Error('fetch 실패');
+                var raw = await res.text();
+                // 앞쪽 메타데이터(Title:, URL:, Published:) 제거 후 본문만 추출
+                var body = raw
+                    .replace(/^(Title|URL|Published Time|Description|Images|Links)[^\n]*\n/gmi, '')
+                    .replace(/\[!\[.*?\]\(.*?\)\]\(.*?\)/g, '') // 이미지 링크 제거
+                    .replace(/!\[.*?\]\(.*?\)/g, '')            // 이미지 제거
+                    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')    // 하이퍼링크 → 텍스트
+                    .replace(/\n{3,}/g, '\n\n')                 // 연속 빈줄 정리
+                    .trim();
+                // 너무 길면 4000자로 제한 (자연스러운 문단 경계에서)
+                if (body.length > 4000) {
+                    var cut = body.lastIndexOf('\n', 4000);
+                    body = body.substring(0, cut > 2000 ? cut : 4000) + '\n\n…(이하 원문 참조)';
+                }
+                if (body.length > 50) {
+                    ndContent.textContent = body;
+                    ndContent.classList.remove('hidden');
+                }
+            } catch(e) {
+                // fetch 실패 시 조용히 무시 (원문 보기 링크로 대체)
+            } finally {
+                ndLoading.classList.add('hidden');
+            }
+        }
     }
 
     function closeNewsDetail() {
