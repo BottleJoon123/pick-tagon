@@ -1711,6 +1711,7 @@ textarea, select {
 <script src="/js/data/fights.js"></script>
 <script src="/js/data/constants.js"></script>
 <script src="/js/state.js"></script>
+<script src="/js/storage.js"></script>
 <script src="/js/utils.js"></script>
 <script src="/js/api/supabase.js"></script>
 <script src="/js/news.js"></script>
@@ -1722,12 +1723,6 @@ textarea, select {
     /* [SPA & 데이터 보존 로직] */
 
 
-
-    let posts = [{
-        id: 0, author: "MMA_STRATEGIST", title: "이슬람 마카체프 vs 더스틴 포이리에 기술 분석",
-        content: "마카체프의 체인 레슬링은 라이트급 누구도 경험하지 못한 압박을 선사할 것입니다. 포이리에의 길로틴 초크 성공 여부가 관건입니다.",
-        likes: 285, date: "2024.05.20", comments: [{ user: "FIGHT_FAN_99", text: "포이리에의 복싱 카운터가 변수가 될 것 같네요." }], belt: "Black Belt"
-    }];
 
     const fightCharts = {};  // { fightId: Chart instance }
 
@@ -1759,61 +1754,7 @@ textarea, select {
     }
 
 
-    function findHistoryEntry(fightId) {
-        return state.history.find(h => h.fightId === fightId && h.res === 'PENDING');
-    }
 
-    function save() {
-        localStorage.setItem('picktagon_v3', JSON.stringify(state));
-        // posts는 Supabase DB가 source-of-truth → localStorage는 캐시 전용
-        localStorage.setItem('picktagon_v3_posts', JSON.stringify(posts));
-    }
-
-    function load() {
-        const s = localStorage.getItem('picktagon_v3');
-        const p = localStorage.getItem('picktagon_v3_posts');
-        if (s) {
-            const parsed = JSON.parse(s);
-            if (parsed.pending && !parsed.pendings) { parsed.pendings = {}; }
-            state = { ...state, ...parsed };
-            if (!state.pendings) state.pendings = {};
-            if (!state.settled) state.settled = {};
-        }
-        // 캐시가 있으면 일단 표시 (DB 로드 전 빈 화면 방지)
-        if (p) posts = JSON.parse(p);
-    }
-
-// [A안] posts + post_comments 테이블 JOIN으로 로드
-function loadPostsFromDB() {
-    if (!sb) return;
-    sb.from('posts')
-        .select('*, post_comments(id, user_nick, content, created_at)')
-        .order('created_at', { ascending: false })
-        .limit(100)
-        .then(function(res) {
-            if (res.error || !res.data) return;
-            posts = res.data.map(function(r) {
-                // post_comments 테이블에서 댓글 로드 (created_at 오름차순 정렬)
-                var comments = (r.post_comments || [])
-                    .sort(function(a, b) { return new Date(a.created_at) - new Date(b.created_at); })
-                    .map(function(c) { return { user: c.user_nick, text: c.content }; });
-                return {
-                    id: r.id,
-                    dbId: r.id,
-                    author: r.nickname || 'UNKNOWN',
-                    title: r.title || '',
-                    content: r.content || '',
-                    likes: r.likes || 0,
-                    date: (r.created_at || '').slice(0, 10).replace(/-/g, '.'),
-                    comments: comments,
-                    belt: r.belt || 'White Belt',
-                    isPickShare: r.is_pick_share || false,
-                };
-            });
-            save();
-            renderFeed();
-        });
-}
     /* ==============================
        FIGHT CARD RENDERING
     ============================== */

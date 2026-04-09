@@ -1,12 +1,45 @@
 /* ==============================
    SUPABASE API LAYER
    (extracted from index.html – global functions, no import/export)
-   의존성: state.js (sb, currentUser, adminUnlocked, cachedNews, newsFetched)
-           index.html 내 함수들 (renderNewsGrid, translateNewsWithGemini,
-           renderHomeNewsFromRSS, initOctagonListener, loadPostsFromDB,
-           loadAllEventPickCounts, loadMyEventPicks, createUserProfile,
-           save, refreshUI, updateNicknameDisplay, showToast, getNickname)
+   의존성: state.js (sb, currentUser, adminUnlocked, cachedNews, newsFetched, posts)
+           storage.js (save)
+           utils.js (showToast, getNickname, updateNicknameDisplay)
+           index.html 내 함수들 (renderNewsGrid, renderFeed,
+           initOctagonListener, loadAllEventPickCounts, loadMyEventPicks,
+           createUserProfile, refreshUI)
 ============================== */
+
+// [A안] posts + post_comments 테이블 JOIN으로 로드
+function loadPostsFromDB() {
+    if (!sb) return;
+    sb.from('posts')
+        .select('*, post_comments(id, user_nick, content, created_at)')
+        .order('created_at', { ascending: false })
+        .limit(100)
+        .then(function(res) {
+            if (res.error || !res.data) return;
+            posts = res.data.map(function(r) {
+                // post_comments 테이블에서 댓글 로드 (created_at 오름차순 정렬)
+                var comments = (r.post_comments || [])
+                    .sort(function(a, b) { return new Date(a.created_at) - new Date(b.created_at); })
+                    .map(function(c) { return { user: c.user_nick, text: c.content }; });
+                return {
+                    id: r.id,
+                    dbId: r.id,
+                    author: r.nickname || 'UNKNOWN',
+                    title: r.title || '',
+                    content: r.content || '',
+                    likes: r.likes || 0,
+                    date: (r.created_at || '').slice(0, 10).replace(/-/g, '.'),
+                    comments: comments,
+                    belt: r.belt || 'White Belt',
+                    isPickShare: r.is_pick_share || false,
+                };
+            });
+            save();
+            renderFeed();
+        });
+}
 
     function loadNewsFromDB() {
         if (!sb) {

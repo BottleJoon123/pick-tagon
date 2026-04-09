@@ -3,6 +3,9 @@
    (extracted from index.html – global vars, no import/export)
 ============================== */
 
+// 커뮤니티 포스트 (Supabase가 source-of-truth)
+var posts = [];
+
 // 베팅/픽 상태
 var state = {
     points: 1000,
