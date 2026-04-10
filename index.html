@@ -3518,6 +3518,7 @@ async function publishPost() {
         sb.auth.signOut().then(function() {
             currentUser = null;
             adminUnlocked = false;
+            closeFactionSelectModal(); // stale 모달 즉시 닫기
             // 유저별 로컬 데이터 초기화
             localStorage.removeItem('picktagon_current_user_id');
             localStorage.removeItem('picktagon_nickname');
@@ -5006,6 +5007,7 @@ async function addCommentToDB(postDbId, userNick, text) {
 
     // 집단 선택 모달 열기
     function openFactionSelectModal() {
+        if (!currentUser) return; // 로그아웃 후 stale 콜백 방지
         var modal = document.getElementById('faction-select-modal');
         if (!modal) return;
         _renderFactionCards();

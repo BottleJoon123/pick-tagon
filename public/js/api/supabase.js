@@ -135,6 +135,7 @@ function loadPostsFromDB() {
                     // 로그아웃: 어드민 권한 반드시 초기화
                     currentUser = null;
                     adminUnlocked = false;
+                    if (typeof closeFactionSelectModal === 'function') closeFactionSelectModal();
                     updateAuthUI();
                 }
             });
@@ -234,7 +235,9 @@ function loadPostsFromDB() {
                 showToast('✅ ' + (res.data.nickname || '유저') + ' 님 환영해요!');
                 // 집단 미선택 유저 → 집단 선택 모달 유도 (첫 로그인 또는 미설정)
                 if (!res.data.faction_id && typeof openFactionSelectModal === 'function') {
-                    setTimeout(openFactionSelectModal, 800);
+                    setTimeout(function() {
+                        if (currentUser) openFactionSelectModal();
+                    }, 800);
                 }
             } else {
                 // 첫 로그인 → 프로필 생성
