@@ -1,13 +1,40 @@
 /* ==============================
    SUPABASE API LAYER
    (extracted from index.html – global functions, no import/export)
-   의존성: state.js (sb, currentUser, adminUnlocked, cachedNews, newsFetched, posts)
+   의존성: state.js (sb, currentUser, adminUnlocked, cachedNews, newsFetched, posts, factions, currentFaction)
            storage.js (save)
            utils.js (showToast, getNickname, updateNicknameDisplay)
            index.html 내 함수들 (renderNewsGrid, renderFeed,
            initOctagonListener, loadAllEventPickCounts, loadMyEventPicks,
-           createUserProfile, refreshUI)
+           createUserProfile, refreshUI, openFactionSelectModal, renderFactionRanking)
 ============================== */
+
+// ── Faction API ──────────────────────────────────────
+function loadFactions() {
+    if (!sb) return;
+    sb.from('factions')
+        .select('*')
+        .order('total_score', { ascending: false })
+        .then(function(res) {
+            if (res.error || !res.data) return;
+            factions = res.data;
+            if (typeof renderFactionRanking === 'function') renderFactionRanking();
+        });
+}
+
+function setUserFaction(factionId) {
+    if (!sb || !currentUser) return Promise.resolve({ ok: false });
+    return sb.from('users')
+        .update({ faction_id: factionId })
+        .eq('id', currentUser.id)
+        .then(function(res) {
+            if (res.error) return { ok: false };
+            // 로컬 currentFaction 업데이트
+            currentFaction = factions.find(function(f) { return f.id === factionId; }) || null;
+            if (typeof updateFactionBadgeUI === 'function') updateFactionBadgeUI();
+            return { ok: true };
+        });
+}
 
 // [A안] posts + post_comments 테이블 JOIN으로 로드 + 내 좋아요 목록 로드
 function loadPostsFromDB() {
@@ -95,6 +122,7 @@ function loadPostsFromDB() {
     function initSupabase() {
         try {
             sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            loadFactions(); // 집단 목록은 로그인 여부와 무관하게 즉시 로드
             // 로그인 상태 변경 감지
             sb.auth.onAuthStateChange(function(event, session) {
                 if (session && session.user) {
@@ -185,7 +213,7 @@ function loadPostsFromDB() {
         loadAllEventPickCounts();
         loadMyEventPicks();
 
-        sb.from('users').select('*').eq('id', userId).single()
+        sb.from('users').select('*, factions(id, name, emoji_icon)').eq('id', userId).single()
         .then(function(res) {
             if (res.data) {
                 state.points = res.data.points || 1000;
@@ -196,11 +224,18 @@ function loadPostsFromDB() {
                 }
                 // is_admin 체크 → 새로고침 후에도 어드민 자동 활성화
                 adminUnlocked = res.data.is_admin === true || currentUser.email === 'joonbyoung@naver.com';
+                // faction 로드
+                currentFaction = res.data.factions || null;
                 save();
                 refreshUI();
                 updateNicknameDisplay();
                 updateAuthUI();
+                if (typeof updateFactionBadgeUI === 'function') updateFactionBadgeUI();
                 showToast('✅ ' + (res.data.nickname || '유저') + ' 님 환영해요!');
+                // 집단 미선택 유저 → 집단 선택 모달 유도 (첫 로그인 또는 미설정)
+                if (!res.data.faction_id && typeof openFactionSelectModal === 'function') {
+                    setTimeout(openFactionSelectModal, 800);
+                }
             } else {
                 // 첫 로그인 → 프로필 생성
                 var nick = getNickname() || currentUser.email.split('@')[0];

@@ -387,6 +387,29 @@ textarea, select {
 .anim-special   { animation: fighter-special  0.7s ease-out; }
 .anim-hit       { animation: fighter-hit      0.5s ease-out; }
 .anim-hit-r     { animation: fighter-hit-r    0.5s ease-out; }
+
+/* ── Faction System ── */
+.faction-card {
+    cursor: pointer;
+    border: 2px solid rgba(255,255,255,0.07);
+    background: rgba(255,255,255,0.03);
+    border-radius: 1.25rem;
+    padding: 1.25rem 0.75rem;
+    text-align: center;
+    transition: border-color 0.2s, background 0.2s, transform 0.15s;
+}
+.faction-card:hover {
+    border-color: rgba(232,0,13,0.5);
+    background: rgba(232,0,13,0.07);
+    transform: translateY(-2px);
+}
+.faction-card.selected {
+    border-color: #e8000d;
+    background: rgba(232,0,13,0.15);
+    box-shadow: 0 0 24px rgba(232,0,13,0.35);
+}
+@keyframes faction-pop { 0%{transform:scale(0.92);opacity:0} 100%{transform:scale(1);opacity:1} }
+.faction-card { animation: faction-pop 0.25s ease-out both; }
 </style>
 </head>
 <body class="antialiased font-roboto">
@@ -727,8 +750,20 @@ textarea, select {
             </div>
         </div>
 
-        <!-- Leaderboard Table -->
-        <div class="glass-card rounded-[2rem] overflow-hidden">
+        <!-- Ranking Tabs -->
+        <div class="flex gap-2 mb-5">
+            <button id="rank-tab-player" onclick="setRankTab('player')"
+                class="oswald-sharp text-xs font-black italic uppercase px-4 py-2 rounded-xl border transition bg-ufcRed/15 border-ufcRed/50 text-white">
+                👤 개인 랭킹
+            </button>
+            <button id="rank-tab-faction" onclick="setRankTab('faction')"
+                class="oswald-sharp text-xs font-black italic uppercase px-4 py-2 rounded-xl border transition border-white/10 text-gray-500">
+                🏟️ 집단 랭킹
+            </button>
+        </div>
+
+        <!-- Leaderboard Table (개인) -->
+        <div id="leaderboard-player-panel" class="glass-card rounded-[2rem] overflow-hidden">
             <div class="grid grid-cols-12 px-6 lg:px-10 py-4 lg:py-5 border-b border-white/5 bg-black/30">
                 <span class="col-span-1 oswald-sharp text-[8px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest text-center">#</span>
                 <span class="col-span-5 oswald-sharp text-[8px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest pl-2">Fighter</span>
@@ -737,6 +772,11 @@ textarea, select {
                 <span class="col-span-1 oswald-sharp text-[8px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest text-center">Belt</span>
             </div>
             <div id="leaderboard-list"></div>
+        </div>
+
+        <!-- Faction Ranking Panel -->
+        <div id="leaderboard-faction-panel" class="hidden">
+            <div id="faction-ranking-board" class="space-y-3"></div>
         </div>
 
         <!-- Hall of Fame -->
@@ -897,8 +937,9 @@ textarea, select {
                     <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-widest italic">내 닉네임</p>
                     <p id="profile-nickname-display" class="oswald-sharp text-base font-black italic text-white uppercase tracking-tight"></p>
                 </div>
-                <div class="flex items-center gap-2">
-                    <button onclick="openNicknameModal()" class="oswald-sharp text-[10px] border border-white/20 text-gray-400 hover:text-white hover:border-white/40 px-3 py-1.5 rounded-xl italic uppercase tracking-widest transition">변경</button>
+                    <div id="profile-faction-display" class="flex items-center gap-2 mt-1"></div>
+                <div class="flex items-center gap-2 mt-2">
+                    <button onclick="openNicknameModal()" class="oswald-sharp text-[10px] border border-white/20 text-gray-400 hover:text-white hover:border-white/40 px-3 py-1.5 rounded-xl italic uppercase tracking-widest transition">닉네임변경</button>
                     <button onclick="logoutUser()" id="logout-btn" class="oswald-sharp text-[10px] border border-red-900/40 text-red-600 hover:text-red-400 hover:border-red-500/40 px-3 py-1.5 rounded-xl italic uppercase tracking-widest transition hidden">로그아웃</button>
             </div>
         </div>
@@ -1750,6 +1791,26 @@ textarea, select {
         <p id="referee-foul-type" class="oswald-sharp text-base text-white uppercase tracking-widest font-black italic mt-2">—</p>
         <p class="oswald-sharp text-xs text-ufcRed font-black italic mt-1 tracking-widest">-10 HP 패널티</p>
         <p id="referee-foul-nick" class="oswald-sharp text-[10px] text-gray-500 uppercase italic mt-3">—</p>
+    </div>
+</div>
+
+<!-- ================================
+     FACTION SELECT MODAL
+================================ -->
+<div id="faction-select-modal" class="hidden fixed inset-0 z-[650] flex items-center justify-center p-4" style="background:rgba(0,0,0,0.97)">
+    <div class="w-full max-w-2xl">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <div class="text-5xl mb-4">🏟️</div>
+            <h2 class="barlow text-4xl lg:text-5xl font-black italic text-white uppercase tracking-tight">당신의 집단을 선택하라</h2>
+            <p class="text-gray-500 text-sm mt-2 oswald-sharp italic uppercase tracking-widest">한 번 선택한 집단은 나중에 프로필에서 변경 가능합니다</p>
+        </div>
+        <!-- 8 Faction Cards -->
+        <div id="faction-cards-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6"></div>
+        <!-- Skip -->
+        <div class="text-center">
+            <button onclick="closeFactionSelectModal()" class="text-gray-700 text-xs hover:text-gray-500 transition oswald-sharp italic uppercase tracking-widest">나중에 선택할게요</button>
+        </div>
     </div>
 </div>
 
@@ -3406,6 +3467,11 @@ async function publishPost() {
                 } else {
                     showToast('✅ 로그인 성공!');
                 }
+            }).catch(function() {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '로그인';
+                errEl.textContent = '네트워크 오류가 발생했습니다. 다시 시도해주세요';
+                errEl.classList.remove('hidden');
             });
         } else {
             sb.auth.signUp({ email: email, password: password })
@@ -3421,6 +3487,11 @@ async function publishPost() {
                     showToast('🎉 환영해요! 이메일을 확인해주세요');
                     document.getElementById('auth-modal').classList.add('hidden');
                 }
+            }).catch(function() {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '회원가입';
+                errEl.textContent = '네트워크 오류가 발생했습니다. 다시 시도해주세요';
+                errEl.classList.remove('hidden');
             });
         }
     }
@@ -4874,6 +4945,116 @@ async function addCommentToDB(postDbId, userNick, text) {
         }
         requestAnimationFrame(step);
     }
+
+    /* ==============================
+       FACTION SYSTEM
+    ============================== */
+
+    // 랭킹 탭 전환
+    function setRankTab(tab) {
+        var playerPanel  = document.getElementById('leaderboard-player-panel');
+        var factionPanel = document.getElementById('leaderboard-faction-panel');
+        var tabPlayer    = document.getElementById('rank-tab-player');
+        var tabFaction   = document.getElementById('rank-tab-faction');
+        var isPlayer = (tab === 'player');
+        if (playerPanel)  playerPanel.classList.toggle('hidden', !isPlayer);
+        if (factionPanel) factionPanel.classList.toggle('hidden', isPlayer);
+        if (tabPlayer) {
+            tabPlayer.className  = tabPlayer.className.replace(isPlayer  ? 'border-white/10 text-gray-500' : 'bg-ufcRed/15 border-ufcRed/50 text-white', isPlayer  ? 'bg-ufcRed/15 border-ufcRed/50 text-white' : 'border-white/10 text-gray-500');
+        }
+        if (tabFaction) {
+            tabFaction.className = tabFaction.className.replace(!isPlayer ? 'border-white/10 text-gray-500' : 'bg-ufcRed/15 border-ufcRed/50 text-white', !isPlayer ? 'bg-ufcRed/15 border-ufcRed/50 text-white' : 'border-white/10 text-gray-500');
+        }
+        if (!isPlayer && factions.length > 0) renderFactionRanking();
+    }
+
+    // 집단 랭킹 렌더링
+    function renderFactionRanking() {
+        var el = document.getElementById('faction-ranking-board');
+        if (!el) return;
+        if (!factions || factions.length === 0) {
+            el.innerHTML = '<div class="glass-card p-10 text-center text-gray-600 oswald-sharp text-xs italic uppercase tracking-widest rounded-2xl">집단 데이터 로딩 중...</div>';
+            return;
+        }
+        // total_score 내림차순 정렬 (이미 DB에서 정렬되어 오지만 안전하게 재정렬)
+        var sorted = factions.slice().sort(function(a, b) { return (b.total_score || 0) - (a.total_score || 0); });
+        var maxScore = sorted[0].total_score || 1;
+
+        el.innerHTML = sorted.map(function(f, idx) {
+            var pct = Math.round(((f.total_score || 0) / maxScore) * 100);
+            var isMyFaction = currentFaction && currentFaction.id === f.id;
+            var rank = idx + 1;
+            var medalEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '<span class="oswald-sharp text-gray-500 font-black italic">#' + rank + '</span>';
+            return '<div class="glass-card rounded-[2rem] p-5 lg:p-8 border ' + (isMyFaction ? 'border-ufcRed/50' : 'border-white/5') + ' ' + (isMyFaction ? 'faction-ranking-mine' : '') + '">' +
+                '<div class="flex items-center gap-4 mb-4">' +
+                  '<div class="text-2xl lg:text-3xl w-10 text-center">' + medalEmoji + '</div>' +
+                  '<div class="text-3xl lg:text-4xl">' + f.emoji_icon + '</div>' +
+                  '<div class="flex-1">' +
+                    '<div class="flex items-center justify-between mb-1">' +
+                      '<span class="oswald-sharp text-base lg:text-xl font-black italic text-white uppercase">' + escapeHtml(f.name) + (isMyFaction ? ' <span class="text-ufcRed text-xs">◀ 내 집단</span>' : '') + '</span>' +
+                      '<span class="oswald-sharp text-sm lg:text-base font-black italic text-ufcRed">' + (f.total_score || 0).toLocaleString() + ' pt</span>' +
+                    '</div>' +
+                    '<div class="w-full bg-white/5 rounded-full h-1.5">' +
+                      '<div class="h-1.5 rounded-full bg-ufcRed transition-all duration-700" style="width:' + pct + '%"></div>' +
+                    '</div>' +
+                    '<p class="oswald-sharp text-[10px] text-gray-600 italic uppercase tracking-widest mt-1">' + escapeHtml(f.representative_fighters) + '</p>' +
+                  '</div>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+    }
+
+    // 집단 선택 모달 열기
+    function openFactionSelectModal() {
+        var modal = document.getElementById('faction-select-modal');
+        if (!modal) return;
+        _renderFactionCards();
+        modal.classList.remove('hidden');
+    }
+
+    function closeFactionSelectModal() {
+        var modal = document.getElementById('faction-select-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    // 집단 카드 그리드 렌더링
+    function _renderFactionCards() {
+        var grid = document.getElementById('faction-cards-grid');
+        if (!grid) return;
+        if (!factions || factions.length === 0) {
+            grid.innerHTML = '<div class="col-span-2 lg:col-span-4 text-center text-gray-600 oswald-sharp text-xs italic uppercase tracking-widest py-8">집단 목록을 불러오는 중...</div>';
+            loadFactions();
+            return;
+        }
+        grid.innerHTML = factions.map(function(f, i) {
+            var isSelected = currentFaction && currentFaction.id === f.id;
+            return '<div class="faction-card ' + (isSelected ? 'selected' : '') + '" onclick="selectFaction(' + f.id + ')" style="animation-delay:' + (i * 0.04) + 's">' +
+                '<div class="text-4xl lg:text-5xl mb-3">' + f.emoji_icon + '</div>' +
+                '<div class="oswald-sharp text-sm lg:text-base font-black italic text-white uppercase tracking-tight mb-1">' + escapeHtml(f.name) + '</div>' +
+                '<div class="oswald-sharp text-[9px] text-gray-500 italic uppercase leading-tight">' + escapeHtml(f.representative_fighters) + '</div>' +
+            '</div>';
+        }).join('');
+    }
+
+    // 집단 선택 확정
+    function selectFaction(factionId) {
+        if (!currentUser) { showToast('⚠ 로그인 후 집단을 선택할 수 있습니다'); return; }
+        // 카드 선택 표시 즉시 반영
+        var cards = document.querySelectorAll('.faction-card');
+        cards.forEach(function(c, i) {
+            c.classList.toggle('selected', factions[i] && factions[i].id === factionId);
+        });
+        setUserFaction(factionId).then(function(r) {
+            if (r && r.ok) {
+                showToast('✅ ' + (currentFaction ? currentFaction.emoji_icon + ' ' + currentFaction.name : '') + ' 집단에 합류했습니다!');
+                closeFactionSelectModal();
+                updateFactionBadgeUI();
+                loadFactions(); // 랭킹 최신화
+            } else {
+                showToast('⚠ 집단 선택 중 오류가 발생했습니다');
+            }
+        });
+    }
 </script>
 <!--
 =================================================
@@ -4912,6 +5093,3 @@ CREATE POLICY "본인 픽 삭제"
 -->
 </body>
 </html>
-
-
-

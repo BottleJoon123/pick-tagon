@@ -126,12 +126,17 @@
                             </div>`;
             }).join('');
 
+            // 현재 로그인 유저 본인 포스트에는 faction 뱃지 표시
+            const authorFactionBadge = (typeof getFactionBadge === 'function' && p.author === getDisplayUsername() && currentFaction)
+                ? getFactionBadge(currentFaction) + ' '
+                : '';
+
             return `
             <div class="glass-card p-6 lg:p-10 rounded-[2rem] hover:border-ufcRed/50 transition-all duration-500 uppercase italic font-bold">
                 <div class="flex justify-between items-start mb-4 lg:mb-6">
                     <div class="flex items-center space-x-3 lg:space-x-4">
                         <span class="oswald-sharp text-[8px] lg:text-[10px] bg-white text-black px-2 lg:px-3 py-1 rounded-full font-black italic uppercase">${belt}</span>
-                        <span class="oswald-sharp text-sm lg:text-xl italic font-black text-gray-200 tracking-tighter uppercase">${author}</span>
+                        <span class="oswald-sharp text-sm lg:text-xl italic font-black text-gray-200 tracking-tighter uppercase">${authorFactionBadge}${author}</span>
                         ${pickTag}
                     </div>
                     <span class="oswald-sharp text-[8px] lg:text-xs italic text-gray-600 tracking-widest uppercase">${date}</span>

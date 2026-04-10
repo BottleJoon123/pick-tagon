@@ -86,3 +86,7 @@ var currentUser = null;
 
 // 내가 추천한 포스트 ID 목록 (post_likes 테이블과 동기화)
 var likedPostIds = new Set();
+
+// 집단(Faction) 시스템
+var factions = [];        // factions 테이블 전체 캐시 [{id, name, emoji_icon, representative_fighters, total_score}]
+var currentFaction = null; // 현재 로그인 유저의 faction 객체 (null = 미선택)
