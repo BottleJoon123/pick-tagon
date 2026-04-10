@@ -125,6 +125,9 @@ function loadPostsFromDB() {
             loadFactions(); // 집단 목록은 로그인 여부와 무관하게 즉시 로드
             // 로그인 상태 변경 감지
             sb.auth.onAuthStateChange(function(event, session) {
+                // TOKEN_REFRESHED, USER_UPDATED 등 불필요한 이벤트는 무시
+                if (event !== 'INITIAL_SESSION' && event !== 'SIGNED_IN' && event !== 'SIGNED_OUT') return;
+
                 if (session && session.user) {
                     currentUser = session.user;
                     loadUserFromDB(session.user.id);
@@ -132,10 +135,13 @@ function loadPostsFromDB() {
                     updateAuthUI();
                     setTimeout(initOctagonListener, 600);
                 } else {
-                    // 로그아웃: 어드민 권한 반드시 초기화
+                    // 로그아웃: 모든 오버레이 닫기 + 어드민 권한 초기화
                     currentUser = null;
                     adminUnlocked = false;
                     if (typeof closeFactionSelectModal === 'function') closeFactionSelectModal();
+                    // octagon-invite-modal(z-700)도 닫기 — auth-modal(z-600)보다 위에 있어서 차단
+                    var octModal = document.getElementById('octagon-invite-modal');
+                    if (octModal) octModal.classList.add('hidden');
                     updateAuthUI();
                 }
             });
@@ -210,8 +216,12 @@ function loadPostsFromDB() {
         loadAllEventPickCounts();
         loadMyEventPicks();
 
+        var requestedUserId = userId; // stale 콜백 감지용
         sb.from('users').select('*, factions(id, name, emoji_icon)').eq('id', userId).single()
         .then(function(res) {
+            // 비동기 콜백 도달 시점에 다른 유저로 전환됐으면 무시
+            if (!currentUser || currentUser.id !== requestedUserId) return;
+
             if (res.data) {
                 state.points = res.data.points || 1000;
                 state.total = res.data.total_picks || 0;
@@ -219,8 +229,9 @@ function loadPostsFromDB() {
                 if (res.data.nickname) {
                     localStorage.setItem('picktagon_nickname', res.data.nickname);
                 }
-                // is_admin 체크 → 새로고침 후에도 어드민 자동 활성화
-                adminUnlocked = res.data.is_admin === true || currentUser.email === 'joonbyoung@naver.com';
+                // is_admin 체크 (currentUser null-safe)
+                var userEmail = (currentUser && currentUser.email) ? currentUser.email : '';
+                adminUnlocked = res.data.is_admin === true || userEmail === 'joonbyoung@naver.com';
                 // faction 로드
                 currentFaction = res.data.factions || null;
                 save();
@@ -229,17 +240,17 @@ function loadPostsFromDB() {
                 updateAuthUI();
                 if (typeof updateFactionBadgeUI === 'function') updateFactionBadgeUI();
                 showToast('✅ ' + (res.data.nickname || '유저') + ' 님 환영해요!');
-                // 집단 미선택 유저 → 집단 선택 모달 유도 (첫 로그인 또는 미설정)
                 // 집단 미선택 유저 → 세션당 1회만 모달 표시 (매 페이지 로드마다 방해 방지)
                 if (!res.data.faction_id && typeof openFactionSelectModal === 'function'
                     && !sessionStorage.getItem('factionModalDismissed')) {
                     setTimeout(function() {
-                        if (currentUser) openFactionSelectModal();
+                        if (currentUser && currentUser.id === requestedUserId) openFactionSelectModal();
                     }, 800);
                 }
             } else {
-                // 첫 로그인 → 프로필 생성
-                var nick = getNickname() || currentUser.email.split('@')[0];
+                // 첫 로그인 → 프로필 생성 (currentUser null-safe)
+                var userEmail = (currentUser && currentUser.email) ? currentUser.email : '';
+                var nick = getNickname() || (userEmail ? userEmail.split('@')[0] : 'PLAYER');
                 createUserProfile(userId, nick);
             }
         });

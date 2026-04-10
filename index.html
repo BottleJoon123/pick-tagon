@@ -3519,6 +3519,8 @@ async function publishPost() {
             currentUser = null;
             adminUnlocked = false;
             closeFactionSelectModal(); // stale 모달 즉시 닫기
+            var _octM = document.getElementById('octagon-invite-modal');
+            if (_octM) _octM.classList.add('hidden'); // z-700 오버레이도 닫기
             // 유저별 로컬 데이터 초기화
             localStorage.removeItem('picktagon_current_user_id');
             localStorage.removeItem('picktagon_nickname');
