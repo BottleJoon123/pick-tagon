@@ -1797,7 +1797,7 @@ textarea, select {
 <!-- ================================
      FACTION SELECT MODAL
 ================================ -->
-<div id="faction-select-modal" class="hidden fixed inset-0 z-[650] flex items-center justify-center p-4" style="background:rgba(0,0,0,0.97)">
+<div id="faction-select-modal" class="hidden fixed inset-0 z-[650] flex items-center justify-center p-4" style="background:rgba(0,0,0,0.97)" onclick="if(event.target===this)closeFactionSelectModal()">
     <div class="w-full max-w-2xl">
         <!-- Header -->
         <div class="text-center mb-8">
@@ -5017,6 +5017,7 @@ async function addCommentToDB(postDbId, userNick, text) {
     function closeFactionSelectModal() {
         var modal = document.getElementById('faction-select-modal');
         if (modal) modal.classList.add('hidden');
+        sessionStorage.setItem('factionModalDismissed', '1');
     }
 
     // 집단 카드 그리드 렌더링

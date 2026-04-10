@@ -139,21 +139,17 @@ function loadPostsFromDB() {
                     updateAuthUI();
                 }
             });
-            // 현재 세션 확인
+            // 현재 세션 확인 (onAuthStateChange INITIAL_SESSION 이벤트가 이미 처리하므로
+            // 여기서는 비로그인 상태일 때 auth-modal 표시만 담당)
             sb.auth.getSession().then(function(res) {
-                if (res.data && res.data.session) {
-                    currentUser = res.data.session.user;
-                    loadUserFromDB(currentUser.id);
-                    updateAuthUI();
-                    // 페이지 로드 시 이미 로그인된 경우 옥타곤 리스너 시작
-                    setTimeout(initOctagonListener, 1200);
-                } else {
+                if (!res.data || !res.data.session) {
                     adminUnlocked = false;
                     // 로그인 안 된 상태 — 모달 표시
                     setTimeout(function() {
                         document.getElementById('auth-modal').classList.remove('hidden');
                     }, 600);
                 }
+                // 로그인 상태는 onAuthStateChange(INITIAL_SESSION)이 이미 처리
             });
         } catch(e) {
             console.warn('Supabase init failed:', e);
@@ -234,7 +230,9 @@ function loadPostsFromDB() {
                 if (typeof updateFactionBadgeUI === 'function') updateFactionBadgeUI();
                 showToast('✅ ' + (res.data.nickname || '유저') + ' 님 환영해요!');
                 // 집단 미선택 유저 → 집단 선택 모달 유도 (첫 로그인 또는 미설정)
-                if (!res.data.faction_id && typeof openFactionSelectModal === 'function') {
+                // 집단 미선택 유저 → 세션당 1회만 모달 표시 (매 페이지 로드마다 방해 방지)
+                if (!res.data.faction_id && typeof openFactionSelectModal === 'function'
+                    && !sessionStorage.getItem('factionModalDismissed')) {
                     setTimeout(function() {
                         if (currentUser) openFactionSelectModal();
                     }, 800);
