@@ -1,10 +1,10 @@
 /* ==============================
    COMMUNITY & SCORING LAYER
    (extracted from index.html – global functions, no import/export)
-   의존성: state.js (posts, communityFilter, communitySortMode, communityTimeFilter, currentUser, state, likedPostIds)
+   의존성: state.js (posts, communityFilter, communitySortMode, communityTimeFilter, currentUser, state, likedPostIds, livePicks)
            storage.js (save)
            utils.js (escapeHtml, getDisplayUsername)
-           index.html 내 함수들 (likePostInDB, toggleComArea, postCom, requestBattle)
+           index.html 내 함수들 (likePostInDB, toggleComArea, postCom, requestBattle, getActiveFights, navigateTo)
 ============================== */
 
     function setCommunityFilter(f) {
@@ -51,113 +51,217 @@
 
     function toggleWriter() { document.getElementById('write-panel').classList.toggle('hidden'); }
 
-    function renderFeed() {
-        const feed = document.getElementById('community-feed');
-        if(!feed) return;
+    /* ── Matchup Board ── */
+    function renderMatchups(fights) {
+        var container = document.getElementById('matchup-board');
+        if (!container) return;
+        if (!fights || fights.length === 0) { container.innerHTML = ''; return; }
 
-        // 1. 타입 필터
+        container.innerHTML = fights.map(function(fight) {
+            // Live pick percentages
+            var lp = (typeof livePicks !== 'undefined') && livePicks[fight.id];
+            var leftPct = 50, rightPct = 50;
+            if (lp && lp.total > 0) {
+                leftPct  = Math.round((lp.left / lp.total) * 100);
+                rightPct = 100 - leftPct;
+            } else if (fight.leftBias != null) {
+                leftPct  = Math.round(fight.leftBias * 100);
+                rightPct = 100 - leftPct;
+            }
+
+            // Tag class
+            var tag = (fight.tag || '').toUpperCase();
+            var tagCls = 'matchup-tag-bout';
+            if (tag.includes('MAIN EVENT') && !tag.includes('CO')) tagCls = 'matchup-tag-main';
+            else if (tag.includes('CO')) tagCls = 'matchup-tag-co';
+
+            // Picked state
+            var isPending  = state.pendings && state.pendings[fight.id];
+            var isSettled  = state.settled  && state.settled[fight.id];
+            var hasPick    = !!(isPending || isSettled);
+
+            var f1  = escapeHtml(fight.f1.name);
+            var f2  = escapeHtml(fight.f2.name);
+            var div = escapeHtml(fight.weight || fight.division || '');
+            var fid = escapeHtml(fight.id);
+
+            return `
+            <div class="matchup-card" onclick="navigateTo('home'); setTimeout(function(){ var el=document.getElementById('card-${fid}'); if(el) el.scrollIntoView({behavior:'smooth',block:'center'}); },350);">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
+                    <span class="matchup-tag ${tagCls}">${escapeHtml(fight.tag || 'BOUT')}</span>
+                    ${hasPick ? `<span style="font-family:'Oswald',sans-serif;font-size:8px;font-style:italic;font-weight:900;color:#e8000d;text-transform:uppercase;letter-spacing:.06em;">✓ PICKED</span>` : ''}
+                </div>
+                <div class="matchup-names">
+                    <div class="matchup-fighter-name">${f1}</div>
+                    <div class="matchup-vs-label">VS</div>
+                    <div class="matchup-fighter-name right">${f2}</div>
+                </div>
+                <div class="matchup-bar-wrap">
+                    <div class="matchup-bar-fill" style="width:${leftPct}%"></div>
+                </div>
+                <div class="matchup-pct-row">
+                    <span class="${leftPct >= rightPct ? 'pct-hot' : ''}">${leftPct}%</span>
+                    <span style="font-size:7px;color:#2a2a2a;letter-spacing:.05em;">커뮤니티 픽</span>
+                    <span class="${rightPct > leftPct ? 'pct-hot' : ''}">${rightPct}%</span>
+                </div>
+                <div class="matchup-card-foot">
+                    <span class="matchup-weight-lbl">${div}</span>
+                    <button class="matchup-go-btn ${hasPick ? 'picked' : ''}" onclick="event.stopPropagation(); navigateTo('home');">
+                        ${hasPick ? '✓ PICKED' : '→ PICK'}
+                    </button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    /* ── Dense Post List ── */
+    function renderPosts(filtered) {
+        var container = document.getElementById('post-list');
+        if (!container) return;
+
+        if (!filtered || filtered.length === 0) {
+            container.innerHTML = `<div style="padding:36px 20px;text-align:center;font-family:'Oswald',sans-serif;font-size:10px;color:#2e2e2e;text-transform:uppercase;letter-spacing:.1em;font-style:italic;">표시할 게시글이 없습니다</div>`;
+            return;
+        }
+
+        var header = `
+        <div class="post-list-head">
+            <div>Type</div>
+            <div>Title / Author</div>
+            <div>Stats</div>
+            <div class="plh-date">Date</div>
+            <div class="plh-act">Action</div>
+        </div>`;
+
+        var rows = filtered.map(function(p) {
+            var origIdx = posts.indexOf(p);
+            var belt    = escapeHtml(p.belt || 'White Belt');
+            var author  = escapeHtml(p.author || 'UNKNOWN');
+            var date    = escapeHtml(p.date || '');
+            var title   = escapeHtml(p.title || '');
+            var content = escapeHtml(p.content || '');
+            var tagCls  = p.isPickShare ? 'pick' : 'post';
+            var tagLbl  = p.isPickShare ? '🎯 픽' : '✍️ 분석';
+            var isLiked = likedPostIds.has(p.dbId);
+            var cntCom  = (p.comments || []).length;
+
+            // Faction badge for own posts
+            var factionBadge = (typeof getFactionBadge === 'function'
+                && p.author === getDisplayUsername()
+                && typeof currentFaction !== 'undefined'
+                && currentFaction)
+                ? getFactionBadge(currentFaction) + ' '
+                : '';
+
+            // Comments HTML
+            var commentsHtml = (p.comments || []).map(function(c) {
+                var isSelf = c.user === getDisplayUsername();
+                var battleBtn = (!isSelf && currentUser)
+                    ? `<button onclick="requestBattle('${escapeHtml(c.user).replace(/'/g,"\\'")}', event)"
+                           style="font-family:'Oswald',sans-serif;font-size:8px;font-weight:900;font-style:italic;text-transform:uppercase;background:transparent;border:1px solid #222;color:#444;padding:2px 7px;border-radius:5px;cursor:pointer;letter-spacing:.05em;transition:color .12s,border-color .12s;"
+                           onmouseover="this.style.color='#e8000d';this.style.borderColor='rgba(232,0,13,.4)'"
+                           onmouseout="this.style.color='#444';this.style.borderColor='#222'">⚡ 옥타곤</button>`
+                    : '';
+                return `
+                <div class="post-comment-block">
+                    <div class="post-comment-nick">
+                        <span>${escapeHtml(c.user)}</span>
+                        ${battleBtn}
+                    </div>
+                    <p class="post-comment-txt">${escapeHtml(c.text)}</p>
+                </div>`;
+            }).join('');
+
+            return `
+            <div class="post-row" id="post-row-${origIdx}" onclick="togglePostExpand(${origIdx})">
+                <div><span class="post-type-tag ${tagCls}">${tagLbl}</span></div>
+                <div style="min-width:0;">
+                    <div class="post-row-title">${title}</div>
+                    <div class="post-row-author">${factionBadge}${author} · ${belt}</div>
+                </div>
+                <div class="post-row-stats">
+                    <span class="${(p.likes || 0) > 0 ? 'stat-hot' : ''}">🔥 ${p.likes || 0}</span>
+                    <span>💬 ${cntCom}</span>
+                </div>
+                <div class="post-row-date">${date}</div>
+                <div class="post-row-act">
+                    <button onclick="event.stopPropagation(); likePost(${origIdx});"
+                        class="post-act-btn ${isLiked ? 'liked' : ''}" title="${isLiked ? '이미 추천함' : '추천'}">
+                        ${isLiked ? '✓' : '↑'} ${p.likes || 0}
+                    </button>
+                </div>
+            </div>
+            <div class="post-expand" id="post-expand-${origIdx}">
+                <p class="post-expand-body">${content}</p>
+                <div id="post-com-list-${origIdx}">${commentsHtml}</div>
+                <div class="post-com-input-row">
+                    <input type="text" id="com-in-${origIdx}" class="post-com-input" placeholder="의견을 남겨주세요...">
+                    <button onclick="postCom(${origIdx})" class="post-com-send">SEND</button>
+                </div>
+            </div>`;
+        }).join('');
+
+        container.innerHTML = header + '<div>' + rows + '</div>';
+    }
+
+    function togglePostExpand(origIdx) {
+        var expandEl = document.getElementById('post-expand-' + origIdx);
+        var rowEl    = document.getElementById('post-row-'    + origIdx);
+        if (!expandEl) return;
+        var wasOpen = expandEl.classList.contains('open');
+        // close all
+        document.querySelectorAll('.post-expand.open').forEach(function(el) { el.classList.remove('open'); });
+        document.querySelectorAll('.post-row.is-expanded').forEach(function(el) { el.classList.remove('is-expanded'); });
+        if (!wasOpen) {
+            expandEl.classList.add('open');
+            if (rowEl) rowEl.classList.add('is-expanded');
+        }
+    }
+
+    /* ── Main renderFeed ── */
+    function renderFeed() {
+        // 1. Matchup board
+        if (typeof getActiveFights === 'function') {
+            renderMatchups(getActiveFights());
+        }
+
+        // 2. Filter by type
         var filtered = posts.filter(function(p) {
             if (communityFilter === 'pick') return !!p.isPickShare;
             if (communityFilter === 'post') return !p.isPickShare;
             return true;
         });
 
-        // 2. 시간 필터
+        // 3. Time filter
         if (communityTimeFilter !== 'all') {
-            var now = new Date();
+            var now    = new Date();
             var cutoff = new Date(now);
             if (communityTimeFilter === 'day')   cutoff.setDate(now.getDate() - 1);
             if (communityTimeFilter === 'week')  cutoff.setDate(now.getDate() - 7);
             if (communityTimeFilter === 'month') cutoff.setDate(now.getDate() - 30);
             filtered = filtered.filter(function(p) {
-                // date 형식: "2026.04.09" → 비교 가능한 Date 변환
                 var d = new Date(p.date.replace(/\./g, '-'));
                 return d >= cutoff;
             });
         }
 
-        // 3. 정렬
-        filtered = filtered.slice(); // 원본 불변
+        // 4. Sort
+        filtered = filtered.slice();
         if (communitySortMode === 'recommend') {
             filtered.sort(function(a, b) { return (b.likes || 0) - (a.likes || 0); });
         } else if (communitySortMode === 'hot') {
-            // 인기순 = 추천 × 2 + 댓글 수
             filtered.sort(function(a, b) {
                 var sa = (b.likes || 0) * 2 + (b.comments ? b.comments.length : 0);
                 var sb2 = (a.likes || 0) * 2 + (a.comments ? a.comments.length : 0);
                 return sa - sb2;
             });
         } else {
-            // 최신순 (기본 — posts는 이미 created_at DESC로 로드됨)
             filtered.sort(function(a, b) {
                 return (b.date || '').localeCompare(a.date || '');
             });
         }
 
-        if (filtered.length === 0) {
-            feed.innerHTML = '<div class="glass-card p-10 text-center text-gray-600 oswald-sharp text-xs italic uppercase tracking-widest rounded-2xl">표시할 게시글이 없습니다</div>';
-            return;
-        }
-
-        feed.innerHTML = filtered.map((p, idx) => {
-            const belt = escapeHtml(p.belt);
-            const author = escapeHtml(p.author);
-            const date = escapeHtml(p.date);
-            const title = escapeHtml(p.title);
-            const content = escapeHtml(p.content);
-            const pickTag = p.isPickShare
-                ? `<span class="oswald-sharp text-[8px] bg-ufcRed/10 border border-ufcRed/20 text-ufcRed px-2 py-0.5 rounded-lg font-black italic uppercase ml-2">🎯 픽 공유</span>`
-                : '';
-            // Use original post index for like/comment
-            const origIdx = posts.indexOf(p);
-            const commentsHtml = (p.comments || []).map(c => {
-                const isSelf = c.user === getDisplayUsername();
-                const battleBtn = (!isSelf && currentUser)
-                    ? `<button onclick="requestBattle('${escapeHtml(c.user).replace(/'/g,"\\'")}', event)"
-                          class="oswald-sharp text-[8px] text-gray-600 hover:text-ufcRed border border-white/5 hover:border-ufcRed/40 px-2 py-0.5 rounded-lg italic uppercase font-black tracking-widest transition ml-2 flex-shrink-0">⚡ 옥타곤</button>`
-                    : '';
-                return `
-                            <div class="bg-black/40 p-4 lg:p-5 rounded-2xl border-l-4 border-ufcRed uppercase italic font-bold">
-                                <div class="flex items-center justify-between mb-1">
-                                    <span class="oswald-sharp text-[8px] lg:text-[10px] text-gray-500 font-black italic uppercase tracking-tighter">${escapeHtml(c.user)}</span>
-                                    ${battleBtn}
-                                </div>
-                                <p class="text-gray-300 font-light text-xs lg:text-sm italic tracking-tight">${escapeHtml(c.text)}</p>
-                            </div>`;
-            }).join('');
-
-            // 현재 로그인 유저 본인 포스트에는 faction 뱃지 표시
-            const authorFactionBadge = (typeof getFactionBadge === 'function' && p.author === getDisplayUsername() && currentFaction)
-                ? getFactionBadge(currentFaction) + ' '
-                : '';
-
-            return `
-            <div class="glass-card p-6 lg:p-10 rounded-[2rem] hover:border-ufcRed/50 transition-all duration-500 uppercase italic font-bold">
-                <div class="flex justify-between items-start mb-4 lg:mb-6">
-                    <div class="flex items-center space-x-3 lg:space-x-4">
-                        <span class="oswald-sharp text-[8px] lg:text-[10px] bg-white text-black px-2 lg:px-3 py-1 rounded-full font-black italic uppercase">${belt}</span>
-                        <span class="oswald-sharp text-sm lg:text-xl italic font-black text-gray-200 tracking-tighter uppercase">${authorFactionBadge}${author}</span>
-                        ${pickTag}
-                    </div>
-                    <span class="oswald-sharp text-[8px] lg:text-xs italic text-gray-600 tracking-widest uppercase">${date}</span>
-                </div>
-                <h4 class="oswald-sharp text-xl lg:text-3xl font-black italic mb-4 lg:mb-6 text-white tracking-tight uppercase tracking-tighter italic">${title}</h4>
-                <p class="text-gray-400 font-light leading-relaxed mb-6 lg:mb-8 border-l-2 border-white/5 pl-4 lg:pl-6 text-sm lg:text-lg italic uppercase">${content}</p>
-                <div class="flex items-center space-x-6 lg:space-x-10 border-t border-white/5 pt-6 lg:pt-8 text-xs uppercase italic oswald-sharp">
-                    <button onclick="likePost(${origIdx})" class="flex items-center space-x-2 transition group uppercase italic font-bold ${likedPostIds.has(p.dbId) ? 'text-orange-400 opacity-60 cursor-not-allowed' : 'text-ufcRed'}">
-                        <span class="group-hover:scale-125 transition font-black tracking-widest">${likedPostIds.has(p.dbId) ? '✅ Recommended' : '🔥 Recommend'}</span> <span>${p.likes}</span>
-                    </button>
-                    <button onclick="toggleComArea(${origIdx})" class="text-gray-500 hover:text-white transition font-bold tracking-widest uppercase italic font-bold">💬 Discussion ${p.comments.length}</button>
-                </div>
-                <div id="com-area-${origIdx}" class="hidden mt-6 lg:mt-8 space-y-4 lg:space-y-5 pt-6 lg:pt-8 border-t border-white/5">
-                    <div id="com-list-${origIdx}" class="space-y-4 uppercase italic font-bold">${commentsHtml}</div>
-                    <div class="flex space-x-3 mt-6 uppercase italic font-bold">
-                        <input type="text" id="com-in-${origIdx}" class="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 lg:px-5 py-2 lg:py-3 text-xs lg:text-sm focus:outline-none focus:border-ufcRed font-light" placeholder="의견을 남겨주세요...">
-                        <button onclick="postCom(${origIdx})" class="oswald-sharp bg-ufcRed text-white px-6 lg:px-8 py-2 lg:py-3 rounded-xl text-[10px] lg:text-xs font-black uppercase italic italic tracking-widest">SEND</button>
-                    </div>
-                </div>
-            </div>`;
-        }).join('');
+        renderPosts(filtered);
     }
 
     function likePost(i) {

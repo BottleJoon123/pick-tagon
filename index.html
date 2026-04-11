@@ -410,6 +410,174 @@ textarea, select {
 }
 @keyframes faction-pop { 0%{transform:scale(0.92);opacity:0} 100%{transform:scale(1);opacity:1} }
 .faction-card { animation: faction-pop 0.25s ease-out both; }
+
+/* ── Community Dense Hybrid UI ── */
+.matchup-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 10px;
+}
+.matchup-card {
+    background: #111;
+    border: 1px solid #1e1e1e;
+    border-radius: 10px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    user-select: none;
+}
+.matchup-card:hover { border-color: rgba(232,0,13,0.45); box-shadow: 0 0 18px rgba(232,0,13,0.07); }
+.matchup-tag {
+    font-family: 'Oswald', sans-serif;
+    font-size: 8px; font-weight: 900; font-style: italic;
+    padding: 2px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.08em;
+    display: inline-block;
+}
+.matchup-tag-main  { background: #e8000d; color: #fff; }
+.matchup-tag-co    { background: transparent; border: 1px solid #444; color: #888; }
+.matchup-tag-bout  { background: transparent; border: 1px solid #2a2a2a; color: #555; }
+.matchup-names { display: flex; align-items: center; gap: 5px; margin: 9px 0 6px; }
+.matchup-fighter-name {
+    font-family: 'Oswald', sans-serif; font-weight: 900; font-style: italic;
+    font-size: 12px; text-transform: uppercase; color: #ddd; flex: 1; line-height: 1.15;
+}
+.matchup-fighter-name.right { text-align: right; }
+.matchup-vs-label {
+    font-family: 'Oswald', sans-serif; font-size: 9px; font-weight: 900;
+    color: #e8000d; flex-shrink: 0; padding: 0 5px; font-style: italic;
+}
+.matchup-bar-wrap { height: 3px; background: #1e1e1e; border-radius: 2px; overflow: hidden; margin: 6px 0 5px; }
+.matchup-bar-fill { height: 100%; background: linear-gradient(90deg, #e8000d, #ff3333); border-radius: 2px; transition: width 0.6s ease; }
+.matchup-pct-row {
+    display: flex; justify-content: space-between;
+    font-family: 'Oswald', sans-serif; font-size: 8px; font-weight: 900; font-style: italic;
+    color: #3a3a3a; margin-bottom: 9px;
+}
+.matchup-pct-row .pct-hot { color: #e8000d; }
+.matchup-card-foot { display: flex; align-items: center; justify-content: space-between; }
+.matchup-weight-lbl {
+    font-family: 'Oswald', sans-serif; font-size: 7px; color: #333;
+    text-transform: uppercase; letter-spacing: 0.07em; font-style: italic;
+}
+.matchup-go-btn {
+    font-family: 'Oswald', sans-serif; font-size: 8px; font-weight: 900; font-style: italic;
+    text-transform: uppercase; background: transparent;
+    border: 1px solid rgba(232,0,13,0.35); color: #e8000d;
+    padding: 3px 9px; border-radius: 5px; cursor: pointer;
+    transition: background 0.15s; letter-spacing: 0.07em;
+}
+.matchup-go-btn:hover { background: rgba(232,0,13,0.1); }
+.matchup-go-btn.picked { background: rgba(232,0,13,0.12); border-color: #e8000d; color: #fff; }
+
+/* Post list — dense table */
+.post-list-container {
+    border: 1px solid #181818;
+    border-radius: 10px;
+    overflow: hidden;
+}
+.post-list-head {
+    display: grid;
+    grid-template-columns: 76px 1fr 120px 88px 68px;
+    padding: 9px 18px;
+    background: #0d0d0d;
+    border-bottom: 1px solid #181818;
+    font-family: 'Oswald', sans-serif;
+    font-size: 7px; font-weight: 900; font-style: italic;
+    text-transform: uppercase; letter-spacing: 0.12em; color: #333;
+}
+.post-row {
+    display: grid;
+    grid-template-columns: 76px 1fr 120px 88px 68px;
+    align-items: center;
+    padding: 11px 18px;
+    border-bottom: 1px solid #111;
+    cursor: pointer;
+    transition: background 0.12s;
+}
+.post-row:last-child { border-bottom: none; }
+.post-row:hover { background: rgba(255,255,255,0.015); }
+.post-row.is-expanded { background: rgba(232,0,13,0.03); border-bottom: none; }
+.post-type-tag {
+    font-family: 'Oswald', sans-serif; font-size: 8px; font-weight: 900; font-style: italic;
+    padding: 3px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em;
+    display: inline-block;
+}
+.post-type-tag.pick { background: rgba(232,0,13,0.1); border: 1px solid rgba(232,0,13,0.22); color: #e8000d; }
+.post-type-tag.post { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: #666; }
+.post-row-title {
+    font-family: 'Oswald', sans-serif; font-weight: 900; font-style: italic; font-size: 12px;
+    color: #e0e0e0; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-bottom: 2px;
+}
+.post-row-author {
+    font-family: 'Oswald', sans-serif; font-size: 8px; color: #3a3a3a;
+    text-transform: uppercase; letter-spacing: 0.05em; font-style: italic;
+}
+.post-row-stats {
+    display: flex; gap: 8px; font-family: 'Oswald', sans-serif;
+    font-size: 10px; color: #444; font-style: italic; font-weight: 900;
+}
+.post-row-stats .stat-hot { color: #e8000d; }
+.post-row-date {
+    font-family: 'Oswald', sans-serif; font-size: 8px; color: #2e2e2e;
+    text-transform: uppercase; letter-spacing: 0.05em; font-style: italic;
+}
+.post-row-act { display: flex; gap: 5px; justify-content: flex-end; }
+.post-act-btn {
+    font-family: 'Oswald', sans-serif; font-size: 8px; font-weight: 900; font-style: italic;
+    text-transform: uppercase; background: transparent; border: 1px solid #1e1e1e;
+    color: #3a3a3a; padding: 4px 8px; border-radius: 5px; cursor: pointer;
+    transition: all 0.12s; letter-spacing: 0.05em;
+}
+.post-act-btn:hover { border-color: #e8000d; color: #e8000d; }
+.post-act-btn.liked { border-color: rgba(232,0,13,0.4); color: rgba(232,0,13,0.65); }
+.post-expand {
+    display: none; padding: 14px 18px 18px;
+    background: rgba(0,0,0,0.35); border-bottom: 1px solid #111;
+}
+.post-expand.open { display: block; }
+.post-expand-body {
+    font-size: 12px; color: #666; font-style: italic; line-height: 1.65;
+    border-left: 2px solid #1e1e1e; padding-left: 12px; margin-bottom: 14px;
+    font-family: 'Inter', sans-serif; text-transform: uppercase;
+    white-space: pre-wrap; word-break: break-word;
+}
+.post-comment-block {
+    background: rgba(0,0,0,0.45); border-left: 3px solid #e8000d;
+    border-radius: 7px; padding: 9px 12px; margin-bottom: 7px;
+}
+.post-comment-nick {
+    font-family: 'Oswald', sans-serif; font-size: 8px; color: #444;
+    font-weight: 900; font-style: italic; text-transform: uppercase; margin-bottom: 4px;
+    display: flex; align-items: center; justify-content: space-between;
+}
+.post-comment-txt { font-size: 11px; color: #777; font-style: italic; font-family: 'Inter', sans-serif; }
+.post-com-input-row { display: flex; gap: 7px; margin-top: 10px; }
+.post-com-input {
+    flex: 1; background: rgba(0,0,0,0.5); border: 1px solid #1e1e1e;
+    border-radius: 7px; padding: 7px 11px; color: #eee; font-size: 12px;
+    font-family: 'Inter', sans-serif; outline: none; transition: border-color 0.12s;
+}
+.post-com-input:focus { border-color: #e8000d; }
+.post-com-send {
+    font-family: 'Oswald', sans-serif; font-size: 8px; font-weight: 900; font-style: italic;
+    text-transform: uppercase; background: #e8000d; border: none; color: #fff;
+    padding: 7px 13px; border-radius: 7px; cursor: pointer; letter-spacing: 0.07em;
+}
+@media (max-width: 768px) {
+    .matchup-grid { grid-template-columns: 1fr 1fr; gap: 7px; }
+    .matchup-fighter-name { font-size: 10px; }
+    .post-list-head { grid-template-columns: 68px 1fr 90px; }
+    .post-list-head .plh-date, .post-list-head .plh-act { display: none; }
+    .post-row { grid-template-columns: 68px 1fr 90px; }
+    .post-row-date, .post-row-act { display: none; }
+    .post-row-title { font-size: 11px; }
+}
+@media (max-width: 480px) {
+    .matchup-grid { grid-template-columns: 1fr; }
+    .post-list-head { grid-template-columns: 62px 1fr 78px; }
+    .post-row { grid-template-columns: 62px 1fr 78px; }
+}
 </style>
 </head>
 <body class="antialiased font-roboto">
@@ -858,6 +1026,9 @@ textarea, select {
             </div>
         </div>
 
+        <!-- ── Matchup Board ── -->
+        <div id="matchup-board" class="matchup-grid mb-8"></div>
+
         <!-- 필터 / 정렬 컨트롤 바 -->
         <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
             <!-- 타입 필터 -->
@@ -911,7 +1082,7 @@ textarea, select {
             </button>
         </div>
 
-        <div id="community-feed" class="space-y-6 lg:space-y-10 uppercase italic font-bold"></div>
+        <div id="post-list" class="post-list-container"></div>
     </section>
 
     <!-- [SECTION: OCTAGON BATTLE ROOM] -->
@@ -2294,7 +2465,13 @@ textarea, select {
 
     /* [커뮤니티 인터랙션 로직] */
 
-    function toggleComArea(i) { document.getElementById('com-area-' + i).classList.toggle('hidden'); }
+    function toggleComArea(i) {
+        // support both old (com-area) and new (post-expand) UIs
+        var newEl = document.getElementById('post-expand-' + i);
+        if (newEl) { togglePostExpand(i); return; }
+        var oldEl = document.getElementById('com-area-' + i);
+        if (oldEl) oldEl.classList.toggle('hidden');
+    }
 
 async function postCom(i) {
     const input = document.getElementById(`com-in-${i}`);
@@ -2309,7 +2486,9 @@ async function postCom(i) {
     await addCommentToDB(posts[i].dbId, nick, text.slice(0, 300));
     save();
     renderFeed();
-    document.getElementById(`com-area-${i}`).classList.remove('hidden');
+    // re-open expand area after re-render
+    var expandEl = document.getElementById('post-expand-' + i);
+    if (expandEl) expandEl.classList.add('open');
     }
 
 // [버그수정] 이중 INSERT 제거, dbId 즉시 캡처
