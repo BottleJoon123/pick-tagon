@@ -5,6 +5,261 @@
            admin.js (getActiveFights), utils.js (escapeHtml)
 ============================== */
 
+// ── Dot Form Helper ──────────────────────────────────────────────
+function renderDotForm(recent) {
+    if (!recent || !recent.length) return '';
+    return recent.slice(0, 5).map(r =>
+        `<div class="w-2 h-2 rounded-full flex-shrink-0 ${r.r === 'W' ? 'bg-green-500' : 'bg-red-500'}"></div>`
+    ).join('');
+}
+
+// ── Section Header ────────────────────────────────────────────────
+function renderSectionHeader(fight, idx) {
+    const sectionColors = {
+        '메인 카드': 'border-ufcRed text-ufcRed',
+        '프렐림': 'border-yellow-500 text-yellow-500',
+        '얼리 프렐림': 'border-gray-500 text-gray-500'
+    };
+    const c = sectionColors[fight.sectionLabel] || 'border-white/30 text-gray-400';
+    return `<div class="flex items-center gap-4 mb-4 ${idx > 0 ? 'mt-10' : ''}">
+        <div class="border-l-4 ${c} pl-3">
+            <div class="oswald-sharp text-xs font-black italic uppercase tracking-[0.25em]">${fight.sectionLabel}</div>
+            ${fight.sectionTime ? `<div class="oswald-sharp text-[10px] text-gray-600 italic">${fight.sectionTime}</div>` : ''}
+        </div>
+        <div class="flex-1 h-px bg-white/5"></div>
+    </div>`;
+}
+
+// ── Tale of the Tape (Stats Overlay content) ──────────────────────
+function renderTaleOfTapeHTML(fight) {
+    return `
+    <div class="flex items-center justify-between mb-4">
+        <span class="oswald-sharp text-xs font-black italic uppercase text-ufcRed truncate max-w-[35%]">${fight.f1.name}</span>
+        <span class="oswald-sharp text-[9px] font-black italic uppercase tracking-widest text-gray-500 flex-shrink-0">TALE OF THE TAPE</span>
+        <span class="oswald-sharp text-xs font-black italic uppercase text-ufcBlue truncate max-w-[35%] text-right">${fight.f2.name}</span>
+    </div>
+    <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="bg-black/40 rounded-xl p-3 text-center border border-white/5">
+            <p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest mb-1">Record</p>
+            <p class="oswald-sharp text-sm font-black italic text-white">${fight.f1.record}</p>
+            <div class="flex justify-center gap-1 mt-2">${renderDotForm(fight.f1.recent)}</div>
+        </div>
+        <div class="bg-black/40 rounded-xl p-3 text-center border border-white/5">
+            <p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest mb-1">Record</p>
+            <p class="oswald-sharp text-sm font-black italic text-white">${fight.f2.record}</p>
+            <div class="flex justify-center gap-1 mt-2">${renderDotForm(fight.f2.recent)}</div>
+        </div>
+    </div>
+    ${renderStatBarsHTML(fight)}`;
+}
+
+// ── Hero Card (Main / Co-Main: idx 0 or 1) ───────────────────────
+function renderHeroCard(fight, idx) {
+    const isMain = idx === 0;
+    const tagColor = isMain ? 'bg-ufcRed text-white' : 'bg-white/10 text-white border border-white/20';
+    const glow = fight.leftBias > 0.65
+        ? 'shadow-[0_0_40px_rgba(210,10,10,0.25)]'
+        : fight.leftBias < 0.35
+        ? 'shadow-[0_0_40px_rgba(59,130,246,0.25)]'
+        : '';
+    const f1Last = fight.f1.name.split(' ').pop();
+    const f2Last = fight.f2.name.split(' ').pop();
+    const f1Img = fight.f1.imgUrl || '';
+    const f2Img = fight.f2.imgUrl || '';
+    const f1BgStyle = f1Img
+        ? `background-image:url('${f1Img}'); background-size:cover; background-position:center top;`
+        : 'background:linear-gradient(135deg,#1a0000,#0a0a0a);';
+    const f2BgStyle = f2Img
+        ? `background-image:url('${f2Img}'); background-size:cover; background-position:center top;`
+        : 'background:linear-gradient(225deg,#00001a,#0a0a0a);';
+
+    return `
+    <div id="card-${fight.id}" class="glass-card ${isMain ? 'rounded-[2.5rem] lg:rounded-[4rem]' : 'rounded-[2rem] lg:rounded-[3rem]'} overflow-hidden transition-all duration-500 ${glow}">
+        <!-- Card Header -->
+        <div class="flex items-center justify-between px-5 lg:px-10 py-3 lg:py-4 border-b border-white/10 bg-black/30">
+            <div class="flex items-center gap-3">
+                <span class="oswald-sharp text-[8px] lg:text-xs font-black italic uppercase tracking-widest px-3 py-1 rounded-full ${tagColor}">${fight.tag}</span>
+                <span class="oswald-sharp text-[8px] lg:text-xs text-gray-500 font-black italic tracking-widest uppercase">${fight.division}</span>
+            </div>
+            <div class="flex items-center gap-2 lg:gap-3">
+                <div id="live-total-${fight.id}" class="barlow text-[10px] font-bold italic text-gray-600 uppercase tracking-widest"></div>
+                <button onclick="toggleStatsOverlay('${fight.id}')"
+                    class="oswald-sharp text-[8px] lg:text-[10px] text-gray-400 hover:text-white transition font-black italic uppercase tracking-widest border border-white/15 px-2.5 py-1 rounded-full">ℹ️ STATS</button>
+                <button onclick="toggleAnalysis('${fight.id}')" id="analysis-btn-${fight.id}"
+                    class="oswald-sharp text-[8px] lg:text-xs text-gray-500 hover:text-ufcRed transition font-black italic uppercase tracking-widest flex items-center gap-1">
+                    <span id="analysis-btn-label-${fight.id}">▼ ANALYSIS</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Community Pick Bar -->
+        <div class="px-5 lg:px-10 py-2.5 bg-black/20 border-b border-white/5">
+            <div class="flex items-center justify-between mb-1.5">
+                <span id="live-pct-l-${fight.id}" class="barlow text-[10px] font-black italic text-red-400 uppercase">${f1Last} 0%</span>
+                <span class="barlow text-[9px] font-bold italic text-gray-700 uppercase tracking-widest">커뮤니티 픽</span>
+                <span id="live-pct-r-${fight.id}" class="barlow text-[10px] font-black italic text-blue-400 uppercase">${f2Last} 0%</span>
+            </div>
+            <div id="live-bar-${fight.id}" class="h-1.5 rounded-full overflow-hidden flex bg-white/5">
+                <div class="live-bar-left h-full rounded-l-full transition-all duration-700" style="width:50%; background:var(--red)"></div>
+                <div class="live-bar-right h-full rounded-r-full transition-all duration-700" style="width:50%; background:#2563eb"></div>
+            </div>
+        </div>
+
+        <!-- Hero Face-off Area -->
+        <div class="relative overflow-hidden" style="height:${isMain ? '300px' : '260px'}">
+            <!-- F1 Background -->
+            <div class="absolute inset-y-0 left-0 w-1/2"
+                style="${f1BgStyle} -webkit-mask-image:linear-gradient(to right,rgba(0,0,0,0.95) 30%,transparent 100%); mask-image:linear-gradient(to right,rgba(0,0,0,0.95) 30%,transparent 100%);"></div>
+            <!-- F2 Background -->
+            <div class="absolute inset-y-0 right-0 w-1/2"
+                style="${f2BgStyle} -webkit-mask-image:linear-gradient(to left,rgba(0,0,0,0.95) 30%,transparent 100%); mask-image:linear-gradient(to left,rgba(0,0,0,0.95) 30%,transparent 100%);"></div>
+            <!-- Bottom Fade -->
+            <div class="absolute inset-x-0 bottom-0 h-2/3 pointer-events-none" style="background:linear-gradient(to top,#0a0a0a 0%,transparent 100%);"></div>
+            <!-- VS Center -->
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                <div class="bg-ufcRed flex items-center justify-center" style="padding: 0.5rem 0.625rem;">
+                    <span class="oswald-sharp ${isMain ? 'text-5xl lg:text-7xl' : 'text-4xl lg:text-5xl'} font-black italic leading-none tracking-tighter">VS</span>
+                </div>
+            </div>
+            <!-- F1 Info (bottom-left) -->
+            <div class="absolute bottom-0 left-0 w-[48%] p-4 lg:p-6 z-20">
+                <div class="flex gap-1 mb-1.5">${renderDotForm(fight.f1.recent)}</div>
+                <h4 onclick="openFighterProfile(${JSON.stringify(fight.f1).replace(/\"/g, '&quot;')})"
+                    class="oswald-sharp ${isMain ? 'text-xl lg:text-3xl' : 'text-lg lg:text-2xl'} font-black italic uppercase tracking-tighter leading-tight text-white cursor-pointer hover:text-ufcRed transition mb-1">${fight.f1.name}</h4>
+                <p class="oswald-sharp text-[9px] text-ufcRed italic font-bold tracking-widest mb-3">ODDS ${fight.f1.odds} &nbsp;·&nbsp; +${Math.round(fight.f1.odds * 100)}P</p>
+                <button id="bet-btn-f1-${fight.id}" onclick="openBetSlip('${fight.id}', 'left', '${fight.f1.name} vs ${fight.f2.name}', '${fight.f1.name}', ${fight.f1.odds})"
+                    class="oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest px-4 py-2 bg-ufcRed text-white rounded-xl hover:brightness-110 transition-all">
+                    BET ${f1Last.toUpperCase()}
+                </button>
+            </div>
+            <!-- F2 Info (bottom-right) -->
+            <div class="absolute bottom-0 right-0 w-[48%] p-4 lg:p-6 z-20 text-right">
+                <div class="flex gap-1 mb-1.5 justify-end">${renderDotForm(fight.f2.recent)}</div>
+                <h4 onclick="openFighterProfile(${JSON.stringify(fight.f2).replace(/\"/g, '&quot;')})"
+                    class="oswald-sharp ${isMain ? 'text-xl lg:text-3xl' : 'text-lg lg:text-2xl'} font-black italic uppercase tracking-tighter leading-tight text-white cursor-pointer hover:text-ufcBlue transition mb-1">${fight.f2.name}</h4>
+                <p class="oswald-sharp text-[9px] text-ufcBlue italic font-bold tracking-widest mb-3">ODDS ${fight.f2.odds} &nbsp;·&nbsp; +${Math.round(fight.f2.odds * 100)}P</p>
+                <button id="bet-btn-f2-${fight.id}" onclick="openBetSlip('${fight.id}', 'right', '${fight.f1.name} vs ${fight.f2.name}', '${fight.f2.name}', ${fight.f2.odds})"
+                    class="oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest px-4 py-2 bg-ufcBlue text-white rounded-xl hover:brightness-110 transition-all">
+                    BET ${f2Last.toUpperCase()}
+                </button>
+            </div>
+            <!-- Stats Overlay (Tale of the Tape) -->
+            <div id="stats-overlay-${fight.id}" class="absolute inset-0 bg-black/92 backdrop-blur-sm z-30 hidden overflow-y-auto p-5 lg:p-8">
+                <button onclick="toggleStatsOverlay('${fight.id}')"
+                    class="absolute top-3 right-3 oswald-sharp text-[9px] text-gray-400 hover:text-white border border-white/20 px-3 py-1 rounded-full transition">✕ CLOSE</button>
+                ${renderTaleOfTapeHTML(fight)}
+            </div>
+        </div>
+
+        <!-- Analysis Section (collapsible, 4 tabs) -->
+        <div id="analysis-${fight.id}" class="hidden border-t border-white/10 bg-black/20">
+            <div class="flex border-b border-white/10 bg-black/30">
+                <button onclick="switchAnalysisTab('${fight.id}','radar')" id="atab-radar-${fight.id}"
+                    class="oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest px-4 lg:px-6 py-3 text-ufcRed border-b-2 border-ufcRed transition">차트</button>
+                <button onclick="switchAnalysisTab('${fight.id}','stats')" id="atab-stats-${fight.id}"
+                    class="oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest px-4 lg:px-6 py-3 text-gray-500 border-b-2 border-transparent hover:text-gray-300 transition">스탯</button>
+                <button onclick="switchAnalysisTab('${fight.id}','insight')" id="atab-insight-${fight.id}"
+                    class="oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest px-4 lg:px-6 py-3 text-gray-500 border-b-2 border-transparent hover:text-gray-300 transition">분석</button>
+                <button onclick="switchAnalysisTab('${fight.id}','recent')" id="atab-recent-${fight.id}"
+                    class="oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest px-4 lg:px-6 py-3 text-gray-500 border-b-2 border-transparent hover:text-gray-300 transition">최근전적</button>
+            </div>
+            <div id="atab-content-radar-${fight.id}" class="p-6 lg:p-10">
+                <div class="text-center mb-4">
+                    <span class="oswald-sharp text-gray-500 text-[10px] lg:text-sm tracking-[0.3em] font-black italic uppercase">Fighter Stat Comparison</span>
+                </div>
+                <div class="relative mx-auto w-full max-w-md" style="height:260px">
+                    <canvas id="radar-${fight.id}"></canvas>
+                </div>
+                <div class="flex justify-center gap-6 mt-4">
+                    <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-ufcRed"></div><span class="oswald-sharp text-[10px] text-gray-400 italic uppercase">${f1Last}</span></div>
+                    <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-ufcBlue"></div><span class="oswald-sharp text-[10px] text-gray-400 italic uppercase">${f2Last}</span></div>
+                </div>
+            </div>
+            <div id="atab-content-stats-${fight.id}" class="hidden p-6 lg:p-10">${renderStatBarsHTML(fight)}</div>
+            <div id="atab-content-insight-${fight.id}" class="hidden p-6 lg:p-10">${renderInsightHTML(fight)}</div>
+            <div id="atab-content-recent-${fight.id}" class="hidden p-6 lg:p-10">${renderRecentHTML(fight)}</div>
+        </div>
+
+        <!-- Settled Badge -->
+        <div id="settled-${fight.id}" class="hidden border-t border-white/10 py-4 lg:py-6 text-center">
+            <span id="settled-text-${fight.id}" class="oswald-sharp text-sm lg:text-xl font-black italic uppercase tracking-widest"></span>
+        </div>
+    </div>`;
+}
+
+// ── Compact Strip Row (Prelims: idx >= 2) ─────────────────────────
+function renderStripRow(fight) {
+    const glow = fight.leftBias > 0.65
+        ? 'border-ufcRed/20 shadow-[0_0_20px_rgba(210,10,10,0.1)]'
+        : fight.leftBias < 0.35
+        ? 'border-ufcBlue/20 shadow-[0_0_20px_rgba(59,130,246,0.1)]'
+        : 'border-white/[0.06]';
+    const f1Last = fight.f1.name.split(' ').pop();
+    const f2Last = fight.f2.name.split(' ').pop();
+    const divShort = fight.division.replace(' CHAMPIONSHIP', '').replace("WOMEN'S", 'W').trim();
+
+    return `
+    <div id="card-${fight.id}" class="glass-card rounded-2xl overflow-hidden transition-all duration-300 border ${glow}">
+        <!-- Thin community pick bar at top -->
+        <div id="live-bar-${fight.id}" class="h-0.5 flex w-full bg-white/5">
+            <div class="live-bar-left h-full transition-all duration-700" style="width:50%; background:var(--red)"></div>
+            <div class="live-bar-right h-full transition-all duration-700" style="width:50%; background:#2563eb"></div>
+        </div>
+        <!-- Main strip row -->
+        <div class="flex items-center gap-2 lg:gap-4 px-3 lg:px-5 py-3 lg:py-3.5">
+            <!-- Tag + Division label -->
+            <div class="hidden sm:flex flex-col items-start gap-0.5 min-w-[56px] flex-shrink-0">
+                <span class="oswald-sharp text-[7px] font-black italic uppercase tracking-widest px-2 py-0.5 rounded-full bg-black/50 text-gray-500 border border-white/10 truncate">${fight.tag}</span>
+                <span class="oswald-sharp text-[7px] text-gray-700 italic truncate max-w-[60px]">${divShort}</span>
+            </div>
+            <!-- Fighter 1 -->
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-1.5">
+                    <span class="oswald-sharp text-xs lg:text-sm font-black italic uppercase text-white truncate">${fight.f1.name}</span>
+                    <div class="flex gap-0.5 flex-shrink-0">${renderDotForm(fight.f1.recent)}</div>
+                </div>
+                <div class="flex items-center gap-1.5 mt-0.5">
+                    <span class="oswald-sharp text-[9px] text-ufcRed italic font-bold">×${fight.f1.odds}</span>
+                    <span id="live-pct-l-${fight.id}" class="oswald-sharp text-[8px] text-gray-600 italic"></span>
+                </div>
+            </div>
+            <!-- VS -->
+            <div class="flex-shrink-0 px-1">
+                <span class="oswald-sharp text-[10px] font-black italic text-gray-700">VS</span>
+            </div>
+            <!-- Fighter 2 -->
+            <div class="flex-1 min-w-0 text-right">
+                <div class="flex items-center justify-end gap-1.5">
+                    <div class="flex gap-0.5 flex-shrink-0">${renderDotForm(fight.f2.recent)}</div>
+                    <span class="oswald-sharp text-xs lg:text-sm font-black italic uppercase text-white truncate">${fight.f2.name}</span>
+                </div>
+                <div class="flex items-center justify-end gap-1.5 mt-0.5">
+                    <span id="live-pct-r-${fight.id}" class="oswald-sharp text-[8px] text-gray-600 italic"></span>
+                    <span class="oswald-sharp text-[9px] text-ufcBlue italic font-bold">×${fight.f2.odds}</span>
+                </div>
+            </div>
+            <!-- Bet Buttons -->
+            <div class="flex-shrink-0 flex gap-1.5">
+                <button id="bet-btn-f1-${fight.id}" onclick="openBetSlip('${fight.id}', 'left', '${fight.f1.name} vs ${fight.f2.name}', '${fight.f1.name}', ${fight.f1.odds})"
+                    class="oswald-sharp text-[9px] lg:text-[10px] font-black italic uppercase tracking-widest px-3 py-2 bg-ufcRed/80 hover:bg-ufcRed text-white rounded-lg transition-all whitespace-nowrap">
+                    ${f1Last.toUpperCase()}
+                </button>
+                <button id="bet-btn-f2-${fight.id}" onclick="openBetSlip('${fight.id}', 'right', '${fight.f1.name} vs ${fight.f2.name}', '${fight.f2.name}', ${fight.f2.odds})"
+                    class="oswald-sharp text-[9px] lg:text-[10px] font-black italic uppercase tracking-widest px-3 py-2 bg-ufcBlue/80 hover:bg-ufcBlue text-white rounded-lg transition-all whitespace-nowrap">
+                    ${f2Last.toUpperCase()}
+                </button>
+                <!-- live-total hidden for strip (not displayed) -->
+                <div id="live-total-${fight.id}" class="hidden"></div>
+            </div>
+        </div>
+        <!-- Settled Badge (compact) -->
+        <div id="settled-${fight.id}" class="hidden border-t border-white/10 py-2 px-4 text-center bg-black/20">
+            <span id="settled-text-${fight.id}" class="oswald-sharp text-xs font-black italic uppercase tracking-widest"></span>
+        </div>
+    </div>`;
+}
+
+// ── Main Render Function ──────────────────────────────────────────
 function renderFightCards() {
     const container = document.getElementById('fight-cards-container');
     if (!container) return;
@@ -12,168 +267,22 @@ function renderFightCards() {
     const fights = getActiveFights();
     let _lastSection = null;
     let _html = '';
+
     fights.forEach((fight, idx) => {
-        const isMain = idx === 0;
-        // 섹션 헤더 삽입
+        // Section header
         if (fight.sectionLabel && fight.sectionLabel !== _lastSection) {
             _lastSection = fight.sectionLabel;
-            const sectionColors = { '메인 카드': 'border-ufcRed text-ufcRed', '프렐림': 'border-yellow-500 text-yellow-500', '얼리 프렐림': 'border-gray-500 text-gray-500' };
-            const c = sectionColors[fight.sectionLabel] || 'border-white/30 text-gray-400';
-            _html += `<div class="flex items-center gap-4 mb-4 ${idx > 0 ? 'mt-10' : ''}">
-                <div class="border-l-4 ${c} pl-3">
-                    <div class="oswald-sharp text-xs font-black italic uppercase tracking-[0.25em]">${fight.sectionLabel}</div>
-                    ${fight.sectionTime ? `<div class="oswald-sharp text-[10px] text-gray-600 italic">${fight.sectionTime}</div>` : ''}
-                </div>
-                <div class="flex-1 h-px bg-white/5"></div>
-            </div>`;
+            _html += renderSectionHeader(fight, idx);
         }
-
-        const cardSize = isMain
-            ? 'rounded-[2.5rem] lg:rounded-[4rem]'
-            : 'rounded-[2rem] lg:rounded-[3rem]';
-        const tagColor = isMain
-            ? 'bg-ufcRed text-white'
-            : idx === 1
-            ? 'bg-white/10 text-white border border-white/20'
-            : 'bg-black/40 text-gray-400 border border-white/10';
-
-        _html += `
-        <div id="card-${fight.id}" class="glass-card ${cardSize} overflow-hidden transition-all duration-500">
-            <!-- Card Header -->
-            <div class="flex items-center justify-between px-6 lg:px-12 py-4 lg:py-6 border-b border-white/10 bg-black/30">
-                <div class="flex items-center gap-3 lg:gap-4">
-                    <span class="oswald-sharp text-[8px] lg:text-xs font-black italic uppercase tracking-widest px-3 py-1 rounded-full ${tagColor}">${fight.tag}</span>
-                    <span class="oswald-sharp text-[8px] lg:text-xs text-gray-500 font-black italic tracking-widest uppercase">${fight.division}</span>
-                </div>
-                <div class="flex items-center gap-3">
-                    <!-- 라이브 픽 카운터 -->
-                    <div id="live-total-${fight.id}" class="barlow text-[10px] font-bold italic text-gray-600 uppercase tracking-widest"></div>
-                    <button onclick="toggleAnalysis('${fight.id}')" id="analysis-btn-${fight.id}" class="oswald-sharp text-[8px] lg:text-xs text-gray-500 hover:text-ufcRed transition font-black italic uppercase tracking-widest flex items-center gap-2">
-                        <span id="analysis-btn-label-${fight.id}">▼ ANALYSIS</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- 실시간 커뮤니티 픽 바 -->
-            <div class="px-6 lg:px-12 py-3 bg-black/20 border-b border-white/5">
-                <div class="flex items-center justify-between mb-1.5">
-                    <span id="live-pct-l-${fight.id}" class="barlow text-[10px] font-black italic text-red-400 uppercase">${fight.f1.name.split(' ').pop()} 0%</span>
-                    <span class="barlow text-[9px] font-bold italic text-gray-700 uppercase tracking-widest">커뮤니티 픽 현황</span>
-                    <span id="live-pct-r-${fight.id}" class="barlow text-[10px] font-black italic text-blue-400 uppercase">${fight.f2.name.split(' ').pop()} 0%</span>
-                </div>
-                <div id="live-bar-${fight.id}" class="h-1.5 rounded-full overflow-hidden flex bg-white/5">
-                    <div class="live-bar-left h-full rounded-l-full transition-all duration-700" style="width:50%; background:var(--red)"></div>
-                    <div class="live-bar-right h-full rounded-r-full transition-all duration-700" style="width:50%; background:#2563eb"></div>
-                </div>
-            </div>
-
-            <!-- Fighters Row -->
-            <div class="flex flex-col ${isMain ? 'lg:flex-row' : 'lg:flex-row'} items-stretch">
-                <!-- Fighter 1 -->
-                <div class="flex-1 ${isMain ? 'p-8 lg:p-16' : 'p-6 lg:p-10'} text-center border-b lg:border-b-0 lg:border-r border-white/10">
-                    <span class="oswald-sharp text-ufcRed font-black text-[10px] lg:text-sm italic tracking-widest uppercase">${fight.f1.rank} · ODDS ${fight.f1.odds}</span>
-                    <h4 onclick="openFighterProfile(${JSON.stringify(fight.f1).replace(/\"/g, '&quot;')})" class="oswald-sharp ${isMain ? 'text-2xl lg:text-5xl' : 'text-xl lg:text-3xl'} font-black italic my-3 lg:my-6 uppercase tracking-tighter leading-tight cursor-pointer hover:text-ufcRed transition group-hover:text-ufcRed">${fight.f1.name} <span class="text-[10px] lg:text-sm text-gray-600 font-normal not-italic align-middle">↗</span></h4>
-                    <div class="grid grid-cols-3 gap-2 mb-4 lg:mb-6">
-                        <div class="bg-black/40 p-2 lg:p-4 rounded-xl border border-white/5">
-                            <p class="text-gray-400 oswald-sharp text-[7px] lg:text-[10px] uppercase tracking-widest">Record</p>
-                            <p class="oswald-sharp text-sm lg:text-xl font-bold italic">${fight.f1.record}</p>
-                        </div>
-                        <div class="bg-black/40 p-2 lg:p-4 rounded-xl border border-white/5">
-                            <p class="text-gray-400 oswald-sharp text-[7px] lg:text-[10px] uppercase tracking-widest">Height</p>
-                            <p class="oswald-sharp text-sm lg:text-xl font-bold italic">${fight.f1.height}</p>
-                        </div>
-                        <div class="bg-black/40 p-2 lg:p-4 rounded-xl border border-white/5">
-                            <p class="text-gray-400 oswald-sharp text-[7px] lg:text-[10px] uppercase tracking-widest">Reach</p>
-                            <p class="oswald-sharp text-sm lg:text-xl font-bold italic">${fight.f1.reach}</p>
-                        </div>
-                    </div>
-                    <p class="text-ufcRed oswald-sharp text-[10px] lg:text-xs italic font-bold tracking-widest mb-3 lg:mb-5 uppercase">PROFIT: ${Math.round(fight.f1.odds * 100)}P ON SUCCESS</p>
-                    <button id="bet-btn-f1-${fight.id}" onclick="openBetSlip('${fight.id}', 'left', '${fight.f1.name} vs ${fight.f2.name}', '${fight.f1.name}', ${fight.f1.odds})"
-                        class="oswald-sharp w-full py-3 lg:py-5 bg-white text-black font-black ${isMain ? 'text-lg lg:text-2xl' : 'text-sm lg:text-xl'} rounded-xl hover:shadow-[0_0_20px_rgba(210,10,10,0.5)] transition-all italic tracking-widest uppercase">
-                        BET ${fight.f1.name.split(' ')[fight.f1.name.split(' ').length - 1].toUpperCase()}
-                    </button>
-                </div>
-
-                <!-- VS Divider -->
-                <div class="bg-ufcRed flex items-center justify-center py-3 lg:py-0 ${isMain ? 'lg:px-10' : 'lg:px-6'}">
-                    <span class="oswald-sharp ${isMain ? 'text-3xl lg:text-7xl' : 'text-2xl lg:text-4xl'} font-black italic tracking-tighter">VS</span>
-                </div>
-
-                <!-- Fighter 2 -->
-                <div class="flex-1 ${isMain ? 'p-8 lg:p-16' : 'p-6 lg:p-10'} text-center bg-white/[0.01]">
-                    <span class="oswald-sharp text-ufcBlue font-black text-[10px] lg:text-sm italic tracking-widest uppercase">${fight.f2.rank} · ODDS ${fight.f2.odds}</span>
-                    <h4 onclick="openFighterProfile(${JSON.stringify(fight.f2).replace(/\"/g, '&quot;')})" class="oswald-sharp ${isMain ? 'text-2xl lg:text-5xl' : 'text-xl lg:text-3xl'} font-black italic my-3 lg:my-6 uppercase tracking-tighter leading-tight cursor-pointer hover:text-ufcBlue transition">${fight.f2.name} <span class="text-[10px] lg:text-sm text-gray-600 font-normal not-italic align-middle">↗</span></h4>
-                    <div class="grid grid-cols-3 gap-2 mb-4 lg:mb-6">
-                        <div class="bg-black/40 p-2 lg:p-4 rounded-xl border border-white/5">
-                            <p class="text-gray-400 oswald-sharp text-[7px] lg:text-[10px] uppercase tracking-widest">Record</p>
-                            <p class="oswald-sharp text-sm lg:text-xl font-bold italic">${fight.f2.record}</p>
-                        </div>
-                        <div class="bg-black/40 p-2 lg:p-4 rounded-xl border border-white/5">
-                            <p class="text-gray-400 oswald-sharp text-[7px] lg:text-[10px] uppercase tracking-widest">Height</p>
-                            <p class="oswald-sharp text-sm lg:text-xl font-bold italic">${fight.f2.height}</p>
-                        </div>
-                        <div class="bg-black/40 p-2 lg:p-4 rounded-xl border border-white/5">
-                            <p class="text-gray-400 oswald-sharp text-[7px] lg:text-[10px] uppercase tracking-widest">Reach</p>
-                            <p class="oswald-sharp text-sm lg:text-xl font-bold italic">${fight.f2.reach}</p>
-                        </div>
-                    </div>
-                    <p class="text-ufcBlue oswald-sharp text-[10px] lg:text-xs italic font-bold tracking-widest mb-3 lg:mb-5 uppercase">PROFIT: ${Math.round(fight.f2.odds * 100)}P ON SUCCESS</p>
-                    <button id="bet-btn-f2-${fight.id}" onclick="openBetSlip('${fight.id}', 'right', '${fight.f1.name} vs ${fight.f2.name}', '${fight.f2.name}', ${fight.f2.odds})"
-                        class="oswald-sharp w-full py-3 lg:py-5 bg-white text-black font-black ${isMain ? 'text-lg lg:text-2xl' : 'text-sm lg:text-xl'} rounded-xl hover:shadow-[0_0_20px_rgba(59,130,246,0.5)] transition-all italic tracking-widest uppercase">
-                        BET ${fight.f2.name.split(' ')[fight.f2.name.split(' ').length - 1].toUpperCase()}
-                    </button>
-                </div>
-            </div>
-
-            <!-- Analysis Section (collapsible, 4 tabs) -->
-            <div id="analysis-${fight.id}" class="hidden border-t border-white/10 bg-black/20">
-                <!-- Tab Nav -->
-                <div class="flex border-b border-white/10 bg-black/30">
-                    <button onclick="switchAnalysisTab('${fight.id}','radar')" id="atab-radar-${fight.id}"
-                        class="oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest px-4 lg:px-6 py-3 text-ufcRed border-b-2 border-ufcRed transition">차트</button>
-                    <button onclick="switchAnalysisTab('${fight.id}','stats')" id="atab-stats-${fight.id}"
-                        class="oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest px-4 lg:px-6 py-3 text-gray-500 border-b-2 border-transparent hover:text-gray-300 transition">스탯</button>
-                    <button onclick="switchAnalysisTab('${fight.id}','insight')" id="atab-insight-${fight.id}"
-                        class="oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest px-4 lg:px-6 py-3 text-gray-500 border-b-2 border-transparent hover:text-gray-300 transition">분석</button>
-                    <button onclick="switchAnalysisTab('${fight.id}','recent')" id="atab-recent-${fight.id}"
-                        class="oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest px-4 lg:px-6 py-3 text-gray-500 border-b-2 border-transparent hover:text-gray-300 transition">최근전적</button>
-                </div>
-                <!-- 차트 Tab -->
-                <div id="atab-content-radar-${fight.id}" class="p-6 lg:p-10">
-                    <div class="text-center mb-4">
-                        <span class="oswald-sharp text-gray-500 text-[10px] lg:text-sm tracking-[0.3em] font-black italic uppercase">Fighter Stat Comparison</span>
-                    </div>
-                    <div class="relative mx-auto w-full max-w-md" style="height:260px">
-                        <canvas id="radar-${fight.id}"></canvas>
-                    </div>
-                    <div class="flex justify-center gap-6 mt-4">
-                        <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-ufcRed"></div><span class="oswald-sharp text-[10px] text-gray-400 italic uppercase">${fight.f1.name.split(' ').pop()}</span></div>
-                        <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-ufcBlue"></div><span class="oswald-sharp text-[10px] text-gray-400 italic uppercase">${fight.f2.name.split(' ').pop()}</span></div>
-                    </div>
-                </div>
-                <!-- 스탯 Tab -->
-                <div id="atab-content-stats-${fight.id}" class="hidden p-6 lg:p-10">
-                    ${renderStatBarsHTML(fight)}
-                </div>
-                <!-- 분석 Tab -->
-                <div id="atab-content-insight-${fight.id}" class="hidden p-6 lg:p-10">
-                    ${renderInsightHTML(fight)}
-                </div>
-                <!-- 최근전적 Tab -->
-                <div id="atab-content-recent-${fight.id}" class="hidden p-6 lg:p-10">
-                    ${renderRecentHTML(fight)}
-                </div>
-            </div>
-
-            <!-- Settled Fight Result Badge -->
-            <div id="settled-${fight.id}" class="hidden border-t border-white/10 py-4 lg:py-6 text-center">
-                <span id="settled-text-${fight.id}" class="oswald-sharp text-sm lg:text-xl font-black italic uppercase tracking-widest"></span>
-            </div>
-        </div>`;
+        // Layout: Hero for idx 0/1, Strip for the rest
+        if (idx === 0 || idx === 1) {
+            _html += renderHeroCard(fight, idx);
+        } else {
+            _html += renderStripRow(fight, idx);
+        }
     });
-    container.innerHTML = _html;
 
-    // Restore vote result UI for any pending bets
+    container.innerHTML = _html;
     updateAllFightCards();
     updateEventTotalPicks();
 }
@@ -266,13 +375,16 @@ function switchAnalysisTab(fightId, tab) {
 function toggleAnalysis(fightId) {
     const panel = document.getElementById(`analysis-${fightId}`);
     const btnLabel = document.getElementById(`analysis-btn-label-${fightId}`);
+    if (!panel) return;
     const isHidden = panel.classList.contains('hidden');
     panel.classList.toggle('hidden');
-    btnLabel.textContent = isHidden ? '▲ ANALYSIS' : '▼ ANALYSIS';
-    if (isHidden) {
-        // 탭 초기화: 차트 탭 활성
-        switchAnalysisTab(fightId, 'radar');
-    }
+    if (btnLabel) btnLabel.textContent = isHidden ? '▲ ANALYSIS' : '▼ ANALYSIS';
+    if (isHidden) switchAnalysisTab(fightId, 'radar');
+}
+
+function toggleStatsOverlay(fightId) {
+    const overlay = document.getElementById(`stats-overlay-${fightId}`);
+    if (overlay) overlay.classList.toggle('hidden');
 }
 
 function updateEventTotalPicks() {
@@ -290,18 +402,9 @@ function updateAllFightCards() {
         const settledDiv = document.getElementById(`settled-${fight.id}`);
         const settledText = document.getElementById(`settled-text-${fight.id}`);
 
-        if (btn1) {
-            btn1.disabled = false;
-            btn1.classList.remove('opacity-40', 'cursor-not-allowed');
-        }
-        if (btn2) {
-            btn2.disabled = false;
-            btn2.classList.remove('opacity-40', 'cursor-not-allowed');
-        }
-        if (settledDiv) {
-            settledDiv.classList.add('hidden');
-            settledDiv.style.background = '';
-        }
+        if (btn1) { btn1.disabled = false; btn1.classList.remove('opacity-40', 'cursor-not-allowed'); }
+        if (btn2) { btn2.disabled = false; btn2.classList.remove('opacity-40', 'cursor-not-allowed'); }
+        if (settledDiv) { settledDiv.classList.add('hidden'); settledDiv.style.background = ''; }
 
         if (pending) {
             if (btn1) { btn1.disabled = true; btn1.classList.add('opacity-40', 'cursor-not-allowed'); }
@@ -328,7 +431,7 @@ function updateAllFightCards() {
     });
 }
 
-/* [📊 ADVANCED DATA & ODDS SYSTEM: Radar Chart] */
+/* [📊 Radar Chart] */
 function initRadarChart(fightId) {
     const fight = getActiveFights().find(f => f.id === fightId);
     if (!fight) return;
