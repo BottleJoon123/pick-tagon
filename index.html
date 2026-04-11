@@ -412,171 +412,194 @@ textarea, select {
 .faction-card { animation: faction-pop 0.25s ease-out both; }
 
 /* ── Community Dense Hybrid UI ── */
+
+/* Matchup Board */
 .matchup-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 8px;
 }
 .matchup-card {
     background: #111;
     border: 1px solid #1e1e1e;
-    border-radius: 10px;
-    padding: 14px 16px;
+    border-radius: 8px;
+    padding: 12px 14px;
     cursor: pointer;
     transition: border-color 0.2s, box-shadow 0.2s;
     user-select: none;
 }
-.matchup-card:hover { border-color: rgba(232,0,13,0.45); box-shadow: 0 0 18px rgba(232,0,13,0.07); }
+.matchup-card:hover { border-color: rgba(232,0,13,0.5); box-shadow: 0 0 16px rgba(232,0,13,0.07); }
 .matchup-tag {
     font-family: 'Oswald', sans-serif;
-    font-size: 8px; font-weight: 900; font-style: italic;
-    padding: 2px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.08em;
+    font-size: 9px; font-weight: 900; font-style: italic;
+    padding: 2px 7px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.07em;
     display: inline-block;
 }
 .matchup-tag-main  { background: #e8000d; color: #fff; }
-.matchup-tag-co    { background: transparent; border: 1px solid #444; color: #888; }
-.matchup-tag-bout  { background: transparent; border: 1px solid #2a2a2a; color: #555; }
-.matchup-names { display: flex; align-items: center; gap: 5px; margin: 9px 0 6px; }
+.matchup-tag-co    { background: transparent; border: 1px solid #3a3a3a; color: #777; }
+.matchup-tag-bout  { background: transparent; border: 1px solid #242424; color: #444; }
+.matchup-names { display: flex; align-items: center; gap: 4px; margin: 8px 0 5px; }
 .matchup-fighter-name {
     font-family: 'Oswald', sans-serif; font-weight: 900; font-style: italic;
-    font-size: 12px; text-transform: uppercase; color: #ddd; flex: 1; line-height: 1.15;
+    font-size: 13px; text-transform: uppercase; color: #ddd; flex: 1; line-height: 1.15;
 }
 .matchup-fighter-name.right { text-align: right; }
 .matchup-vs-label {
-    font-family: 'Oswald', sans-serif; font-size: 9px; font-weight: 900;
-    color: #e8000d; flex-shrink: 0; padding: 0 5px; font-style: italic;
+    font-family: 'Oswald', sans-serif; font-size: 10px; font-weight: 900;
+    color: #e8000d; flex-shrink: 0; padding: 0 4px; font-style: italic;
 }
-.matchup-bar-wrap { height: 3px; background: #1e1e1e; border-radius: 2px; overflow: hidden; margin: 6px 0 5px; }
+.matchup-bar-wrap { height: 3px; background: #1c1c1c; border-radius: 2px; overflow: hidden; margin: 5px 0 4px; }
 .matchup-bar-fill { height: 100%; background: linear-gradient(90deg, #e8000d, #ff3333); border-radius: 2px; transition: width 0.6s ease; }
 .matchup-pct-row {
     display: flex; justify-content: space-between;
-    font-family: 'Oswald', sans-serif; font-size: 8px; font-weight: 900; font-style: italic;
-    color: #3a3a3a; margin-bottom: 9px;
+    font-family: 'Oswald', sans-serif; font-size: 9px; font-weight: 900; font-style: italic;
+    color: #3a3a3a; margin-bottom: 8px;
 }
 .matchup-pct-row .pct-hot { color: #e8000d; }
 .matchup-card-foot { display: flex; align-items: center; justify-content: space-between; }
 .matchup-weight-lbl {
-    font-family: 'Oswald', sans-serif; font-size: 7px; color: #333;
-    text-transform: uppercase; letter-spacing: 0.07em; font-style: italic;
+    font-family: 'Oswald', sans-serif; font-size: 8px; color: #333;
+    text-transform: uppercase; letter-spacing: 0.06em; font-style: italic;
 }
 .matchup-go-btn {
-    font-family: 'Oswald', sans-serif; font-size: 8px; font-weight: 900; font-style: italic;
+    font-family: 'Oswald', sans-serif; font-size: 9px; font-weight: 900; font-style: italic;
     text-transform: uppercase; background: transparent;
     border: 1px solid rgba(232,0,13,0.35); color: #e8000d;
-    padding: 3px 9px; border-radius: 5px; cursor: pointer;
-    transition: background 0.15s; letter-spacing: 0.07em;
+    padding: 4px 10px; border-radius: 4px; cursor: pointer;
+    transition: background 0.15s; letter-spacing: 0.06em;
 }
 .matchup-go-btn:hover { background: rgba(232,0,13,0.1); }
-.matchup-go-btn.picked { background: rgba(232,0,13,0.12); border-color: #e8000d; color: #fff; }
+.matchup-go-btn.picked { background: rgba(232,0,13,0.15); border-color: #e8000d; color: #fff; }
 
 /* Post list — dense table */
 .post-list-container {
-    border: 1px solid #181818;
-    border-radius: 10px;
+    border: 1px solid #1a1a1a;
+    border-radius: 8px;
     overflow: hidden;
 }
 .post-list-head {
     display: grid;
-    grid-template-columns: 76px 1fr 120px 88px 68px;
-    padding: 9px 18px;
+    grid-template-columns: 70px 1fr 100px 80px 72px;
+    padding: 8px 16px;
     background: #0d0d0d;
-    border-bottom: 1px solid #181818;
+    border-bottom: 1px solid #1a1a1a;
     font-family: 'Oswald', sans-serif;
-    font-size: 7px; font-weight: 900; font-style: italic;
-    text-transform: uppercase; letter-spacing: 0.12em; color: #333;
+    font-size: 8px; font-weight: 900; font-style: italic;
+    text-transform: uppercase; letter-spacing: 0.1em; color: #333;
 }
 .post-row {
     display: grid;
-    grid-template-columns: 76px 1fr 120px 88px 68px;
+    grid-template-columns: 70px 1fr 100px 80px 72px;
     align-items: center;
-    padding: 11px 18px;
+    padding: 10px 16px;
     border-bottom: 1px solid #111;
     cursor: pointer;
-    transition: background 0.12s;
+    transition: background 0.1s;
+    min-height: 48px;
 }
 .post-row:last-child { border-bottom: none; }
-.post-row:hover { background: rgba(255,255,255,0.015); }
+.post-row:hover { background: rgba(255,255,255,0.02); }
 .post-row.is-expanded { background: rgba(232,0,13,0.03); border-bottom: none; }
 .post-type-tag {
-    font-family: 'Oswald', sans-serif; font-size: 8px; font-weight: 900; font-style: italic;
-    padding: 3px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em;
-    display: inline-block;
+    font-family: 'Oswald', sans-serif; font-size: 9px; font-weight: 900; font-style: italic;
+    padding: 3px 7px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.04em;
+    display: inline-block; white-space: nowrap;
 }
-.post-type-tag.pick { background: rgba(232,0,13,0.1); border: 1px solid rgba(232,0,13,0.22); color: #e8000d; }
-.post-type-tag.post { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: #666; }
+.post-type-tag.pick { background: rgba(232,0,13,0.1); border: 1px solid rgba(232,0,13,0.2); color: #e8000d; }
+.post-type-tag.post { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: #555; }
 .post-row-title {
-    font-family: 'Oswald', sans-serif; font-weight: 900; font-style: italic; font-size: 12px;
-    color: #e0e0e0; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    margin-bottom: 2px;
+    font-family: 'Oswald', sans-serif; font-weight: 900; font-style: italic; font-size: 13px;
+    color: #ddd; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    line-height: 1.2; margin-bottom: 3px;
 }
 .post-row-author {
-    font-family: 'Oswald', sans-serif; font-size: 8px; color: #3a3a3a;
-    text-transform: uppercase; letter-spacing: 0.05em; font-style: italic;
+    font-family: 'Inter', sans-serif; font-size: 10px; color: #444;
+    letter-spacing: 0; font-style: normal; font-weight: 400;
 }
 .post-row-stats {
-    display: flex; gap: 8px; font-family: 'Oswald', sans-serif;
-    font-size: 10px; color: #444; font-style: italic; font-weight: 900;
+    display: flex; gap: 10px; font-family: 'Inter', sans-serif;
+    font-size: 11px; color: #444; font-weight: 500;
 }
-.post-row-stats .stat-hot { color: #e8000d; }
+.post-row-stats .stat-hot { color: #c8000a; }
 .post-row-date {
-    font-family: 'Oswald', sans-serif; font-size: 8px; color: #2e2e2e;
-    text-transform: uppercase; letter-spacing: 0.05em; font-style: italic;
+    font-family: 'Inter', sans-serif; font-size: 10px; color: #2e2e2e; font-weight: 400;
 }
-.post-row-act { display: flex; gap: 5px; justify-content: flex-end; }
+.post-row-act { display: flex; gap: 4px; justify-content: flex-end; }
 .post-act-btn {
-    font-family: 'Oswald', sans-serif; font-size: 8px; font-weight: 900; font-style: italic;
+    font-family: 'Oswald', sans-serif; font-size: 9px; font-weight: 900; font-style: italic;
     text-transform: uppercase; background: transparent; border: 1px solid #1e1e1e;
-    color: #3a3a3a; padding: 4px 8px; border-radius: 5px; cursor: pointer;
-    transition: all 0.12s; letter-spacing: 0.05em;
+    color: #3a3a3a; padding: 4px 9px; border-radius: 4px; cursor: pointer;
+    transition: all 0.1s; letter-spacing: 0.04em; white-space: nowrap;
 }
-.post-act-btn:hover { border-color: #e8000d; color: #e8000d; }
-.post-act-btn.liked { border-color: rgba(232,0,13,0.4); color: rgba(232,0,13,0.65); }
+.post-act-btn:hover { border-color: rgba(232,0,13,0.5); color: #e8000d; }
+.post-act-btn.liked { border-color: rgba(232,0,13,0.35); color: rgba(232,0,13,0.6); }
+
+/* Post expand — inline detail */
 .post-expand {
-    display: none; padding: 14px 18px 18px;
-    background: rgba(0,0,0,0.35); border-bottom: 1px solid #111;
+    display: none; padding: 14px 16px 16px 86px;
+    background: rgba(0,0,0,0.3); border-bottom: 1px solid #111;
 }
 .post-expand.open { display: block; }
 .post-expand-body {
-    font-size: 12px; color: #666; font-style: italic; line-height: 1.65;
-    border-left: 2px solid #1e1e1e; padding-left: 12px; margin-bottom: 14px;
-    font-family: 'Inter', sans-serif; text-transform: uppercase;
+    font-size: 13px; color: #666; line-height: 1.7;
+    border-left: 2px solid #1e1e1e; padding-left: 12px; margin-bottom: 12px;
+    font-family: 'Inter', sans-serif;
     white-space: pre-wrap; word-break: break-word;
 }
 .post-comment-block {
-    background: rgba(0,0,0,0.45); border-left: 3px solid #e8000d;
-    border-radius: 7px; padding: 9px 12px; margin-bottom: 7px;
+    background: rgba(0,0,0,0.4); border-left: 2px solid #e8000d;
+    border-radius: 6px; padding: 8px 12px; margin-bottom: 6px;
 }
 .post-comment-nick {
-    font-family: 'Oswald', sans-serif; font-size: 8px; color: #444;
-    font-weight: 900; font-style: italic; text-transform: uppercase; margin-bottom: 4px;
+    font-family: 'Inter', sans-serif; font-size: 10px; color: #555;
+    font-weight: 600; margin-bottom: 3px;
     display: flex; align-items: center; justify-content: space-between;
 }
-.post-comment-txt { font-size: 11px; color: #777; font-style: italic; font-family: 'Inter', sans-serif; }
-.post-com-input-row { display: flex; gap: 7px; margin-top: 10px; }
+.post-comment-txt { font-size: 12px; color: #777; font-family: 'Inter', sans-serif; line-height: 1.5; }
+.post-com-input-row { display: flex; gap: 6px; margin-top: 10px; }
 .post-com-input {
-    flex: 1; background: rgba(0,0,0,0.5); border: 1px solid #1e1e1e;
-    border-radius: 7px; padding: 7px 11px; color: #eee; font-size: 12px;
+    flex: 1; background: rgba(0,0,0,0.45); border: 1px solid #1e1e1e;
+    border-radius: 6px; padding: 7px 11px; color: #ddd; font-size: 12px;
     font-family: 'Inter', sans-serif; outline: none; transition: border-color 0.12s;
 }
 .post-com-input:focus { border-color: #e8000d; }
 .post-com-send {
-    font-family: 'Oswald', sans-serif; font-size: 8px; font-weight: 900; font-style: italic;
+    font-family: 'Oswald', sans-serif; font-size: 9px; font-weight: 900; font-style: italic;
     text-transform: uppercase; background: #e8000d; border: none; color: #fff;
-    padding: 7px 13px; border-radius: 7px; cursor: pointer; letter-spacing: 0.07em;
+    padding: 7px 14px; border-radius: 6px; cursor: pointer; letter-spacing: 0.06em;
+    white-space: nowrap;
 }
+
+/* Community filter bar */
+.comm-filter-bar {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    padding: 8px 0; margin-bottom: 10px;
+}
+.comm-filter-btn {
+    font-family: 'Oswald', sans-serif; font-size: 10px; font-weight: 900; font-style: italic;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 5px 12px; border-radius: 5px; border: 1px solid #222;
+    background: transparent; color: #555; cursor: pointer; transition: all 0.12s;
+}
+.comm-filter-btn:hover { color: #ccc; border-color: #444; }
+.comm-filter-btn.active { background: rgba(232,0,13,0.12); border-color: rgba(232,0,13,0.4); color: #fff; }
+.comm-filter-sep {
+    width: 1px; height: 14px; background: #222; flex-shrink: 0;
+}
+
 @media (max-width: 768px) {
-    .matchup-grid { grid-template-columns: 1fr 1fr; gap: 7px; }
-    .matchup-fighter-name { font-size: 10px; }
-    .post-list-head { grid-template-columns: 68px 1fr 90px; }
+    .matchup-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+    .matchup-fighter-name { font-size: 11px; }
+    .post-list-head { grid-template-columns: 65px 1fr 85px; }
     .post-list-head .plh-date, .post-list-head .plh-act { display: none; }
-    .post-row { grid-template-columns: 68px 1fr 90px; }
+    .post-row { grid-template-columns: 65px 1fr 85px; padding: 9px 12px; }
     .post-row-date, .post-row-act { display: none; }
-    .post-row-title { font-size: 11px; }
+    .post-expand { padding: 12px 12px 14px; }
 }
 @media (max-width: 480px) {
     .matchup-grid { grid-template-columns: 1fr; }
-    .post-list-head { grid-template-columns: 62px 1fr 78px; }
-    .post-row { grid-template-columns: 62px 1fr 78px; }
+    .post-list-head { grid-template-columns: 60px 1fr 75px; }
+    .post-row { grid-template-columns: 60px 1fr 75px; }
 }
 </style>
 </head>
@@ -992,94 +1015,70 @@ textarea, select {
     </section>
 
     <!-- [SECTION: COMMUNITY] -->
-    <section id="community" class="section-animate max-w-7xl mx-auto px-4 lg:px-6 pt-6 pb-16 lg:pt-8 lg:pb-20 uppercase italic font-bold">
-        <div class="flex justify-between items-end mb-6 lg:mb-10 uppercase italic font-bold">
-            <div class="border-l-8 lg:border-l-[10px] border-ufcRed pl-4 lg:pl-8 uppercase italic font-bold">
-                <h3 class="oswald-sharp text-3xl lg:text-5xl font-black italic tracking-tighter uppercase uppercase italic font-bold">Community</h3>
-                <p class="text-gray-500 oswald-sharp uppercase tracking-widest mt-1 lg:mt-2 italic text-[10px] lg:text-sm uppercase italic font-bold">격투기 팬들의 뜨거운 설전과 분석</p>
+    <section id="community" class="section-animate max-w-5xl mx-auto px-4 lg:px-6 pt-5 pb-16">
+
+        <!-- 헤더 -->
+        <div class="flex items-center justify-between mb-4">
+            <div class="border-l-4 border-ufcRed pl-3">
+                <h3 class="oswald-sharp text-2xl lg:text-3xl font-black italic tracking-tight uppercase text-white leading-none">Community</h3>
+                <p class="text-gray-600 text-[10px] mt-0.5">격투기 팬들의 뜨거운 설전과 분석</p>
             </div>
-           <button onclick="toggleMyBattlePanel()"
-                class="oswald-sharp border border-ufcRed/40 text-ufcRed hover:bg-ufcRed/10 font-black px-5 lg:px-8 py-3 lg:py-4 rounded-xl italic transition-all text-sm lg:text-base uppercase">
-                ⚡ 내 배틀
-            </button> <button onclick="toggleWriter()" class="oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black px-6 lg:px-12 py-3 lg:py-4 rounded-xl italic transition-all text-sm lg:text-base uppercase italic font-bold uppercase">글쓰기</button>
+            <div class="flex items-center gap-2">
+                <button onclick="toggleMyBattlePanel()"
+                    class="oswald-sharp border border-ufcRed/30 text-ufcRed hover:bg-ufcRed/10 font-black px-3 py-2 rounded-lg italic transition-all text-xs uppercase tracking-wider">
+                    ⚡ 내 배틀
+                </button>
+                <button onclick="toggleWriter()"
+                    class="oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black px-4 py-2 rounded-lg italic transition-all text-xs uppercase tracking-wider">
+                    ✍ 글쓰기
+                </button>
+            </div>
         </div>
 
-<!-- 내 배틀 패널 -->
-        <div id="my-battle-panel" class="hidden mb-8 glass-card p-5 lg:p-8 rounded-[2rem] border border-ufcRed/20">
-            <div class="flex items-center justify-between mb-4">
-                <div class="flex items-center gap-3">
-                    <span class="text-xl">⚡</span>
-                    <h4 class="oswald-sharp text-base font-black italic text-white uppercase tracking-tighter">내 배틀</h4>
-                    <span id="my-battle-count" class="oswald-sharp text-[9px] bg-ufcRed/15 border border-ufcRed/30 text-ufcRed px-2 py-0.5 rounded-lg font-black italic uppercase">0</span>
+        <!-- 내 배틀 패널 -->
+        <div id="my-battle-panel" class="hidden mb-4 glass-card p-4 rounded-xl border border-ufcRed/20">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                    <span>⚡</span>
+                    <h4 class="oswald-sharp text-sm font-black italic text-white uppercase">내 배틀</h4>
+                    <span id="my-battle-count" class="oswald-sharp text-[9px] bg-ufcRed/15 border border-ufcRed/30 text-ufcRed px-2 py-0.5 rounded font-black italic uppercase">0</span>
                 </div>
-                <button onclick="toggleMyBattlePanel()" class="oswald-sharp text-[10px] text-gray-500 hover:text-white border border-white/10 px-3 py-1.5 rounded-xl italic uppercase tracking-widest transition">접기</button>
+                <button onclick="toggleMyBattlePanel()" class="oswald-sharp text-[10px] text-gray-500 hover:text-white border border-white/10 px-3 py-1 rounded-lg italic uppercase transition">접기</button>
             </div>
-            <div id="my-battle-list" class="space-y-3"></div>
+            <div id="my-battle-list" class="space-y-2"></div>
         </div>
 
-        <div id="write-panel" class="hidden mb-12 lg:mb-16 glass-card p-6 lg:p-12 rounded-[2rem] lg:rounded-[3rem] uppercase italic font-bold">
-            <input type="text" id="post-tit" class="w-full bg-black/40 border border-white/10 rounded-xl lg:rounded-2xl p-4 lg:p-5 text-white mb-4 lg:mb-6 focus:outline-none focus:border-ufcRed font-bold text-lg lg:text-xl" placeholder="분석 리포트 제목">
-            <textarea id="post-con" rows="4" class="w-full bg-black/40 border border-white/10 rounded-xl lg:rounded-2xl p-4 lg:p-5 text-white mb-4 lg:mb-6 focus:outline-none focus:border-ufcRed font-light text-sm lg:text-base" placeholder="옥타곤의 승자를 예측하는 분석을 남겨주세요"></textarea>
-            <div class="flex justify-end space-x-4 lg:space-x-6 uppercase italic font-bold">
-                <button onclick="toggleWriter()" class="oswald-sharp text-gray-500 hover:text-white transition italic uppercase font-bold text-sm lg:text-base uppercase italic font-bold">Cancel</button>
-                <button onclick="publishPost()" class="oswald-sharp bg-white text-black font-black px-10 lg:px-16 py-3 lg:py-4 rounded-xl italic transition-all uppercase text-sm lg:text-base uppercase italic font-bold">Publish</button>
+        <!-- 글쓰기 패널 -->
+        <div id="write-panel" class="hidden mb-4 glass-card p-4 lg:p-6 rounded-xl">
+            <input type="text" id="post-tit"
+                class="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-white mb-3 focus:outline-none focus:border-ufcRed text-sm"
+                placeholder="분석 리포트 제목">
+            <textarea id="post-con" rows="3"
+                class="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-white mb-3 focus:outline-none focus:border-ufcRed font-light text-sm resize-none"
+                placeholder="옥타곤의 승자를 예측하는 분석을 남겨주세요"></textarea>
+            <div class="flex justify-end gap-3">
+                <button onclick="toggleWriter()" class="oswald-sharp text-gray-500 hover:text-white transition italic uppercase text-xs">Cancel</button>
+                <button onclick="publishPost()" class="oswald-sharp bg-white text-black font-black px-6 py-2 rounded-lg italic transition-all uppercase text-xs">Publish</button>
             </div>
         </div>
 
         <!-- ── Matchup Board ── -->
-        <div id="matchup-board" class="matchup-grid mb-8"></div>
+        <div id="matchup-board" class="matchup-grid mb-5"></div>
 
-        <!-- 필터 / 정렬 컨트롤 바 -->
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-            <!-- 타입 필터 -->
-            <div class="flex gap-2">
-                <button onclick="setCommunityFilter('all')" id="cf-all"
-                    class="oswald-sharp px-4 py-2 rounded-xl font-black italic text-[10px] uppercase tracking-widest border bg-ufcRed/15 border-ufcRed/50 text-white transition-all">
-                    전체
-                </button>
-                <button onclick="setCommunityFilter('post')" id="cf-post"
-                    class="oswald-sharp px-4 py-2 rounded-xl font-black italic text-[10px] uppercase tracking-widest border border-white/10 text-gray-500 hover:text-white transition-all">
-                    ✍️ 분석글
-                </button>
-                <button onclick="setCommunityFilter('pick')" id="cf-pick"
-                    class="oswald-sharp px-4 py-2 rounded-xl font-black italic text-[10px] uppercase tracking-widest border border-white/10 text-gray-500 hover:text-white transition-all">
-                    🎯 픽 공유
-                </button>
-            </div>
-            <!-- 정렬 -->
-            <div class="flex gap-2">
-                <button onclick="setCommunitySort('latest')" id="cs-latest"
-                    class="oswald-sharp px-3 py-2 rounded-xl font-black italic text-[10px] uppercase tracking-widest border bg-white/10 border-white/20 text-white transition-all">
-                    🕐 최신순
-                </button>
-                <button onclick="setCommunitySort('recommend')" id="cs-recommend"
-                    class="oswald-sharp px-3 py-2 rounded-xl font-black italic text-[10px] uppercase tracking-widest border border-white/10 text-gray-500 hover:text-white transition-all">
-                    🔥 추천순
-                </button>
-                <button onclick="setCommunitySort('hot')" id="cs-hot"
-                    class="oswald-sharp px-3 py-2 rounded-xl font-black italic text-[10px] uppercase tracking-widest border border-white/10 text-gray-500 hover:text-white transition-all">
-                    📊 인기순
-                </button>
-            </div>
-        </div>
-        <!-- 시간 필터 -->
-        <div class="flex gap-2 mb-6">
-            <button onclick="setCommunityTime('all')" id="ct-all"
-                class="oswald-sharp px-3 py-1.5 rounded-lg font-black italic text-[9px] uppercase tracking-widest border bg-white/8 border-white/15 text-white transition-all">
-                전체
-            </button>
-            <button onclick="setCommunityTime('day')" id="ct-day"
-                class="oswald-sharp px-3 py-1.5 rounded-lg font-black italic text-[9px] uppercase tracking-widest border border-white/10 text-gray-500 hover:text-white transition-all">
-                일간
-            </button>
-            <button onclick="setCommunityTime('week')" id="ct-week"
-                class="oswald-sharp px-3 py-1.5 rounded-lg font-black italic text-[9px] uppercase tracking-widest border border-white/10 text-gray-500 hover:text-white transition-all">
-                주간
-            </button>
-            <button onclick="setCommunityTime('month')" id="ct-month"
-                class="oswald-sharp px-3 py-1.5 rounded-lg font-black italic text-[9px] uppercase tracking-widest border border-white/10 text-gray-500 hover:text-white transition-all">
-                월간
-            </button>
+        <!-- 통합 필터 바 (타입 | 정렬 | 시간) -->
+        <div class="comm-filter-bar">
+            <button onclick="setCommunityFilter('all')"    id="cf-all"    class="comm-filter-btn active">전체</button>
+            <button onclick="setCommunityFilter('post')"   id="cf-post"   class="comm-filter-btn">✍ 분석</button>
+            <button onclick="setCommunityFilter('pick')"   id="cf-pick"   class="comm-filter-btn">🎯 픽</button>
+            <div class="comm-filter-sep"></div>
+            <button onclick="setCommunitySort('latest')"   id="cs-latest"    class="comm-filter-btn active">최신</button>
+            <button onclick="setCommunitySort('recommend')" id="cs-recommend" class="comm-filter-btn">추천</button>
+            <button onclick="setCommunitySort('hot')"      id="cs-hot"       class="comm-filter-btn">인기</button>
+            <div class="comm-filter-sep"></div>
+            <button onclick="setCommunityTime('all')"      id="ct-all"   class="comm-filter-btn active">전체</button>
+            <button onclick="setCommunityTime('day')"      id="ct-day"   class="comm-filter-btn">일간</button>
+            <button onclick="setCommunityTime('week')"     id="ct-week"  class="comm-filter-btn">주간</button>
+            <button onclick="setCommunityTime('month')"    id="ct-month" class="comm-filter-btn">월간</button>
         </div>
 
         <div id="post-list" class="post-list-container"></div>

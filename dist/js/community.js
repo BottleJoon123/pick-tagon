@@ -7,45 +7,30 @@
            index.html 내 함수들 (likePostInDB, toggleComArea, postCom, requestBattle, getActiveFights, navigateTo)
 ============================== */
 
+    function _setFilterActive(prefix, keys, active) {
+        keys.forEach(function(k) {
+            var btn = document.getElementById(prefix + k);
+            if (!btn) return;
+            if (k === active) btn.classList.add('active');
+            else btn.classList.remove('active');
+        });
+    }
+
     function setCommunityFilter(f) {
         communityFilter = f;
-        ['all','post','pick'].forEach(function(k) {
-            var btn = document.getElementById('cf-' + k);
-            if (!btn) return;
-            if (k === f) {
-                btn.className = btn.className.replace('border-white/10 text-gray-500', 'bg-ufcRed/15 border-ufcRed/50 text-white');
-            } else {
-                btn.className = btn.className.replace('bg-ufcRed/15 border-ufcRed/50 text-white', 'border-white/10 text-gray-500');
-            }
-        });
+        _setFilterActive('cf-', ['all','post','pick'], f);
         renderFeed();
     }
 
     function setCommunitySort(s) {
         communitySortMode = s;
-        ['latest','recommend','hot'].forEach(function(k) {
-            var btn = document.getElementById('cs-' + k);
-            if (!btn) return;
-            if (k === s) {
-                btn.className = btn.className.replace('border-white/10 text-gray-500', 'bg-white/10 border-white/20 text-white');
-            } else {
-                btn.className = btn.className.replace('bg-white/10 border-white/20 text-white', 'border-white/10 text-gray-500');
-            }
-        });
+        _setFilterActive('cs-', ['latest','recommend','hot'], s);
         renderFeed();
     }
 
     function setCommunityTime(t) {
         communityTimeFilter = t;
-        ['all','day','week','month'].forEach(function(k) {
-            var btn = document.getElementById('ct-' + k);
-            if (!btn) return;
-            if (k === t) {
-                btn.className = btn.className.replace('border-white/10 text-gray-500', 'bg-white/8 border-white/15 text-white');
-            } else {
-                btn.className = btn.className.replace('bg-white/8 border-white/15 text-white', 'border-white/10 text-gray-500');
-            }
-        });
+        _setFilterActive('ct-', ['all','day','week','month'], t);
         renderFeed();
     }
 
