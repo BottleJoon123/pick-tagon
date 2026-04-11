@@ -7,6 +7,33 @@
            index.html 내 함수들 (likePostInDB, toggleComArea, postCom, requestBattle, getActiveFights, navigateTo)
 ============================== */
 
+    /* ── Category helpers ── */
+    var CAT_PREFIXES = {
+        analysis: '[분석]',
+        fighter:  '[파이터]',
+        live:     '[라이브]',
+        news:     '[뉴스]',
+        humor:    '[유머]'
+    };
+
+    function _getPostCategory(title) {
+        if (!title) return '';
+        for (var k in CAT_PREFIXES) {
+            if (title.indexOf(CAT_PREFIXES[k]) === 0) return k;
+        }
+        return '';
+    }
+
+    function _stripCatPrefix(title) {
+        if (!title) return '';
+        for (var k in CAT_PREFIXES) {
+            var p = CAT_PREFIXES[k];
+            if (title.indexOf(p + ' ') === 0) return title.slice(p.length + 1);
+            if (title.indexOf(p) === 0)        return title.slice(p.length);
+        }
+        return title;
+    }
+
     function _setFilterActive(prefix, keys, active) {
         keys.forEach(function(k) {
             var btn = document.getElementById(prefix + k);
@@ -18,19 +45,17 @@
 
     function setCommunityFilter(f) {
         communityFilter = f;
-        _setFilterActive('cf-', ['all','post','pick'], f);
+        _setFilterActive('cf-', ['all','analysis','fighter','live','news','humor'], f);
         renderFeed();
     }
 
     function setCommunitySort(s) {
         communitySortMode = s;
-        _setFilterActive('cs-', ['latest','recommend','hot'], s);
         renderFeed();
     }
 
     function setCommunityTime(t) {
         communityTimeFilter = t;
-        _setFilterActive('ct-', ['all','day','week','month'], t);
         renderFeed();
     }
 
@@ -77,6 +102,11 @@
             var div = escapeHtml(fight.weight || fight.division || '');
             var fid = escapeHtml(fight.id);
 
+            // Two-color bar gradient: left=red, right=blue
+            var barGradient = 'linear-gradient(90deg,#e8000d ' + leftPct + '%,#2563eb ' + leftPct + '%)';
+            var leftColor  = leftPct >= rightPct ? '#e8000d' : '#666';
+            var rightColor = rightPct > leftPct  ? '#2563eb' : '#666';
+
             return `
             <div class="matchup-card ${tagCls === 'matchup-tag-main' ? 'card-main' : ''}" onclick="navigateTo('matchups'); setTimeout(function(){ var el=document.getElementById('card-${fid}'); if(el) el.scrollIntoView({behavior:'smooth',block:'center'}); },350);">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
@@ -89,12 +119,12 @@
                     <div class="matchup-fighter-name right">${f2}</div>
                 </div>
                 <div class="matchup-bar-wrap">
-                    <div class="matchup-bar-fill" style="width:${leftPct}%"></div>
+                    <div class="matchup-bar-fill" style="background:${barGradient}"></div>
                 </div>
                 <div class="matchup-pct-row">
-                    <span class="${leftPct >= rightPct ? 'pct-hot' : ''}">${leftPct}%</span>
+                    <span style="color:${leftColor};font-weight:900;">${leftPct}%</span>
                     <span style="font-size:7px;color:#2a2a2a;letter-spacing:.05em;">커뮤니티 픽</span>
-                    <span class="${rightPct > leftPct ? 'pct-hot' : ''}">${rightPct}%</span>
+                    <span style="color:${rightColor};font-weight:900;">${rightPct}%</span>
                 </div>
                 <div class="matchup-card-foot">
                     <span class="matchup-weight-lbl">${div}</span>
@@ -136,7 +166,7 @@
         <div class="post-list-head">
             <div>Type</div>
             <div>Title / Author</div>
-            <div>Stats</div>
+            <div class="plh-stats">Stats</div>
             <div class="plh-date">Date</div>
             <div class="plh-act">Action</div>
         </div>`;
@@ -146,12 +176,29 @@
             var belt    = escapeHtml(p.belt || 'White Belt');
             var author  = escapeHtml(p.author || 'UNKNOWN');
             var date    = escapeHtml(p.date || '');
-            var title   = escapeHtml(p.title || '');
+            var rawTitle = p.title || '';
+            var title   = escapeHtml(_stripCatPrefix(rawTitle));
             var content = escapeHtml(p.content || '');
-            var tagCls  = p.isPickShare ? 'pick' : 'post';
-            var tagLbl  = p.isPickShare ? '🎯 픽' : '✍️ 분석';
             var isLiked = likedPostIds.has(p.dbId);
             var cntCom  = (p.comments || []).length;
+
+            // Category tag
+            var cat = _getPostCategory(rawTitle);
+            var catDisplay = {
+                analysis: { cls: 'cat-analysis', lbl: '🔥 분석' },
+                fighter:  { cls: 'cat-fighter',  lbl: '🗣️ 파이터' },
+                live:     { cls: 'cat-live',      lbl: '🔴 라이브' },
+                news:     { cls: 'cat-news',      lbl: '📰 뉴스' },
+                humor:    { cls: 'cat-humor',     lbl: '😂 유머' }
+            };
+            var tagCls, tagLbl;
+            if (p.isPickShare) {
+                tagCls = 'pick'; tagLbl = '🎯 픽';
+            } else if (catDisplay[cat]) {
+                tagCls = catDisplay[cat].cls; tagLbl = catDisplay[cat].lbl;
+            } else {
+                tagCls = 'post'; tagLbl = '✍️ 분석';
+            }
 
             // Faction badge for own posts
             var factionBadge = (typeof getFactionBadge === 'function'
@@ -159,6 +206,15 @@
                 && typeof currentFaction !== 'undefined'
                 && currentFaction)
                 ? getFactionBadge(currentFaction) + ' '
+                : '';
+
+            // Octagon battle button for post author
+            var isSelfAuthor = p.author === getDisplayUsername();
+            var authorBattleBtn = (!isSelfAuthor && currentUser)
+                ? `<button onclick="event.stopPropagation(); requestBattle('${escapeHtml(p.author).replace(/'/g,"\\'")}', event)"
+                       style="font-family:'Oswald',sans-serif;font-size:8px;font-weight:900;font-style:italic;text-transform:uppercase;background:transparent;border:1px solid #222;color:#444;padding:2px 7px;border-radius:5px;cursor:pointer;letter-spacing:.05em;transition:color .12s,border-color .12s;"
+                       onmouseover="this.style.color='#e8000d';this.style.borderColor='rgba(232,0,13,.4)'"
+                       onmouseout="this.style.color='#444';this.style.borderColor='#222'">⚡ 옥타곤</button>`
                 : '';
 
             // Comments HTML
@@ -186,6 +242,11 @@
                 <div style="min-width:0;">
                     <div class="post-row-title">${title}</div>
                     <div class="post-row-author">${factionBadge}${author} · ${belt}</div>
+                    <div class="post-row-mobile-meta">
+                        <span>${date}</span>
+                        <span>🔥 ${p.likes || 0}</span>
+                        <span>💬 ${cntCom}</span>
+                    </div>
                 </div>
                 <div class="post-row-stats">
                     <span class="${(p.likes || 0) > 0 ? 'stat-hot' : ''}">🔥 ${p.likes || 0}</span>
@@ -195,11 +256,15 @@
                 <div class="post-row-act">
                     <button onclick="event.stopPropagation(); likePost(${origIdx});"
                         class="post-act-btn ${isLiked ? 'liked' : ''}" title="${isLiked ? '이미 추천함' : '추천'}">
-                        ${isLiked ? '✓' : '↑'} ${p.likes || 0}
+                        ${isLiked ? '✅ 추천' : '🔥 추천'}
                     </button>
                 </div>
             </div>
             <div class="post-expand" id="post-expand-${origIdx}">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #1a1a1a;">
+                    <span style="font-family:'Inter',sans-serif;font-size:11px;color:#888;">✍️ ${author} · ${belt}</span>
+                    ${authorBattleBtn}
+                </div>
                 <p class="post-expand-body">${content}</p>
                 <div id="post-com-list-${origIdx}">${commentsHtml}</div>
                 <div class="post-com-input-row">
@@ -233,11 +298,10 @@
             renderMatchups(getActiveFights());
         }
 
-        // 2. Filter by type
+        // 2. Filter by category
         var filtered = posts.filter(function(p) {
-            if (communityFilter === 'pick') return !!p.isPickShare;
-            if (communityFilter === 'post') return !p.isPickShare;
-            return true;
+            if (communityFilter === 'all') return true;
+            return _getPostCategory(p.title) === communityFilter;
         });
 
         // 3. Time filter

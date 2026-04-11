@@ -454,7 +454,7 @@ textarea, select {
     color: #e8000d; flex-shrink: 0; padding: 0 6px; font-style: italic;
 }
 .matchup-bar-wrap { height: 5px; background: #1e1e1e; border-radius: 3px; overflow: hidden; margin: 8px 0 6px; }
-.matchup-bar-fill { height: 100%; background: linear-gradient(90deg, #e8000d, #ff4444); border-radius: 3px; transition: width 0.6s ease; }
+.matchup-bar-fill { height: 100%; width: 100%; border-radius: 3px; transition: background 0.6s ease; }
 .matchup-pct-row {
     display: flex; justify-content: space-between;
     font-family: 'Oswald', sans-serif; font-size: 11px; font-weight: 900; font-style: italic;
@@ -510,8 +510,13 @@ textarea, select {
     padding: 3px 7px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.04em;
     display: inline-block; white-space: nowrap;
 }
-.post-type-tag.pick { background: rgba(232,0,13,0.1); border: 1px solid rgba(232,0,13,0.2); color: #e8000d; }
-.post-type-tag.post { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #999; }
+.post-type-tag.pick         { background: rgba(232,0,13,0.1);   border: 1px solid rgba(232,0,13,0.2);   color: #e8000d; }
+.post-type-tag.post         { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #999; }
+.post-type-tag.cat-analysis { background: rgba(232,0,13,0.1);   border: 1px solid rgba(232,0,13,0.2);   color: #e8000d; }
+.post-type-tag.cat-fighter  { background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.25); color: #a78bfa; }
+.post-type-tag.cat-live     { background: rgba(220,38,38,0.12); border: 1px solid rgba(220,38,38,0.3);  color: #fca5a5; }
+.post-type-tag.cat-news     { background: rgba(37,99,235,0.1);  border: 1px solid rgba(37,99,235,0.25); color: #60a5fa; }
+.post-type-tag.cat-humor    { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25);color: #fcd34d; }
 .post-row-title {
     font-family: 'Oswald', sans-serif; font-weight: 900; font-style: italic; font-size: 13px;
     color: #e8e8e8; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -591,20 +596,37 @@ textarea, select {
 .comm-filter-sep {
     width: 1px; height: 14px; background: #222; flex-shrink: 0;
 }
+.comm-dropdown {
+    font-family: 'Oswald', sans-serif; font-size: 10px; font-weight: 900; font-style: italic;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 5px 8px; border-radius: 5px; border: 1px solid #222;
+    background: #0d0d0d; color: #888; cursor: pointer; transition: all 0.12s; outline: none;
+    appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23555'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 7px center; padding-right: 20px;
+}
+.comm-dropdown:hover, .comm-dropdown:focus { border-color: #444; color: #ccc; }
+/* Mobile meta row – shown only on mobile */
+.post-row-mobile-meta {
+    display: none; gap: 8px; align-items: center;
+    font-family: 'Inter', sans-serif; font-size: 10px; color: #666; margin-top: 3px;
+}
 
 @media (max-width: 768px) {
     .matchup-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
     .matchup-fighter-name { font-size: 11px; }
-    .post-list-head { grid-template-columns: 65px 1fr 85px; }
-    .post-list-head .plh-date, .post-list-head .plh-act { display: none; }
-    .post-row { grid-template-columns: 65px 1fr 85px; padding: 9px 12px; }
-    .post-row-date, .post-row-act { display: none; }
+    .post-list-head { grid-template-columns: 65px 1fr auto; }
+    .post-list-head .plh-stats, .post-list-head .plh-date { display: none; }
+    .post-row { grid-template-columns: 65px 1fr auto; padding: 9px 12px; }
+    .post-row-stats, .post-row-date { display: none; }
+    .post-row-mobile-meta { display: flex; }
     .post-expand { padding: 12px 12px 14px; }
+    .comm-filter-bar { gap: 4px; }
 }
 @media (max-width: 480px) {
     .matchup-grid { grid-template-columns: 1fr; }
-    .post-list-head { grid-template-columns: 60px 1fr 75px; }
-    .post-row { grid-template-columns: 60px 1fr 75px; }
+    .post-list-head { grid-template-columns: 60px 1fr auto; }
+    .post-row { grid-template-columns: 60px 1fr auto; }
 }
 </style>
 </head>
@@ -1055,9 +1077,20 @@ textarea, select {
 
         <!-- 글쓰기 패널 -->
         <div id="write-panel" class="hidden mb-4 glass-card p-4 lg:p-6 rounded-xl">
-            <input type="text" id="post-tit"
-                class="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-white mb-3 focus:outline-none focus:border-ufcRed text-sm"
-                placeholder="분석 리포트 제목">
+            <div class="flex gap-2 mb-3 flex-wrap">
+                <select id="post-cat" class="comm-dropdown" style="min-width:110px;">
+                    <option value="">카테고리</option>
+                    <option value="analysis">🔥 분석</option>
+                    <option value="fighter">🗣️ 파이터</option>
+                    <option value="live">🔴 라이브</option>
+                    <option value="news">📰 뉴스</option>
+                    <option value="humor">😂 유머</option>
+                </select>
+                <input type="text" id="post-tit"
+                    class="flex-1 bg-black/40 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-ufcRed text-sm"
+                    style="min-width:180px;"
+                    placeholder="제목을 입력하세요">
+            </div>
             <textarea id="post-con" rows="3"
                 class="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-white mb-3 focus:outline-none focus:border-ufcRed font-light text-sm resize-none"
                 placeholder="옥타곤의 승자를 예측하는 분석을 남겨주세요"></textarea>
@@ -1070,20 +1103,26 @@ textarea, select {
         <!-- ── Matchup Board ── -->
         <div id="matchup-board" class="matchup-grid mb-5"></div>
 
-        <!-- 통합 필터 바 (타입 | 정렬 | 시간) -->
+        <!-- 통합 필터 바 (카테고리 | 정렬 드롭다운 | 시간 드롭다운) -->
         <div class="comm-filter-bar">
-            <button onclick="setCommunityFilter('all')"    id="cf-all"    class="comm-filter-btn active">전체</button>
-            <button onclick="setCommunityFilter('post')"   id="cf-post"   class="comm-filter-btn">✍ 분석</button>
-            <button onclick="setCommunityFilter('pick')"   id="cf-pick"   class="comm-filter-btn">🎯 픽</button>
-            <div class="comm-filter-sep"></div>
-            <button onclick="setCommunitySort('latest')"   id="cs-latest"    class="comm-filter-btn active">최신</button>
-            <button onclick="setCommunitySort('recommend')" id="cs-recommend" class="comm-filter-btn">추천</button>
-            <button onclick="setCommunitySort('hot')"      id="cs-hot"       class="comm-filter-btn">인기</button>
-            <div class="comm-filter-sep"></div>
-            <button onclick="setCommunityTime('all')"      id="ct-all"   class="comm-filter-btn active">전체</button>
-            <button onclick="setCommunityTime('day')"      id="ct-day"   class="comm-filter-btn">일간</button>
-            <button onclick="setCommunityTime('week')"     id="ct-week"  class="comm-filter-btn">주간</button>
-            <button onclick="setCommunityTime('month')"    id="ct-month" class="comm-filter-btn">월간</button>
+            <button onclick="setCommunityFilter('all')"      id="cf-all"      class="comm-filter-btn active">전체</button>
+            <button onclick="setCommunityFilter('analysis')" id="cf-analysis" class="comm-filter-btn">🔥 분석</button>
+            <button onclick="setCommunityFilter('fighter')"  id="cf-fighter"  class="comm-filter-btn">🗣️ 파이터</button>
+            <button onclick="setCommunityFilter('live')"     id="cf-live"     class="comm-filter-btn">🔴 라이브</button>
+            <button onclick="setCommunityFilter('news')"     id="cf-news"     class="comm-filter-btn">📰 뉴스</button>
+            <button onclick="setCommunityFilter('humor')"    id="cf-humor"    class="comm-filter-btn">😂 유머</button>
+            <div style="flex:1"></div>
+            <select id="sort-select" onchange="setCommunitySort(this.value)" class="comm-dropdown">
+                <option value="latest">최신순</option>
+                <option value="recommend">추천순</option>
+                <option value="hot">인기순</option>
+            </select>
+            <select id="time-select" onchange="setCommunityTime(this.value)" class="comm-dropdown">
+                <option value="all">전체</option>
+                <option value="day">일간</option>
+                <option value="week">주간</option>
+                <option value="month">월간</option>
+            </select>
         </div>
 
         <div id="post-list" class="post-list-container"></div>
@@ -2505,11 +2544,18 @@ async function publishPost() {
 
     const bName = state.points <= 1000 ? "White Belt" : (state.points <= 2000 ? "Blue Belt" : (state.points <= 5000 ? "Purple Belt" : (state.points <= 10000 ? "Brown Belt" : "Black Belt")));
 
+    // 카테고리 prefix 처리
+    const catEl = document.getElementById('post-cat');
+    const catVal = catEl ? catEl.value : '';
+    const catPrefixMap = { analysis: '[분석]', fighter: '[파이터]', live: '[라이브]', news: '[뉴스]', humor: '[유머]' };
+    const catPrefix = catVal && catPrefixMap[catVal] ? catPrefixMap[catVal] + ' ' : '';
+    const titleFinal = (catPrefix + t).slice(0, 120);
+
     // DB에 단 한 번만 INSERT → dbId 즉시 확보
     const res = await sb.from('posts').insert({
         user_id: currentUser.id,
         nickname: getDisplayUsername(),
-        title: t.slice(0, 120),
+        title: titleFinal,
         content: c.slice(0, 2000),
         is_pick_share: false,
         likes: 0,
@@ -2523,7 +2569,7 @@ async function publishPost() {
         id: res.data.id,
         dbId: res.data.id,
         author: getDisplayUsername(),
-        title: t.slice(0, 120),
+        title: titleFinal,
         content: c.slice(0, 2000),
         likes: 0,
         date: new Date().toISOString().slice(0,10).replace(/-/g, "."),
@@ -2535,6 +2581,7 @@ async function publishPost() {
     posts.unshift(newPost);
     document.getElementById('post-tit').value = "";
     document.getElementById('post-con').value = "";
+    if (catEl) catEl.value = "";
     toggleWriter();
     save();
     renderFeed();
