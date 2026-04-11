@@ -1140,98 +1140,116 @@ textarea, select {
     </section>
 
     <!-- [SECTION: PROFILE] -->
-    <section id="profile" class="section-animate max-w-7xl mx-auto px-4 lg:px-6 pt-6 pb-16 lg:pt-8 lg:pb-20 uppercase italic font-bold">
-        <div class="mb-5 lg:mb-8 border-l-8 lg:border-l-[10px] border-ufcRed pl-4 lg:pl-8 flex items-end justify-between flex-wrap gap-4">
-            <div>
-                <h3 class="oswald-sharp text-3xl lg:text-5xl font-black italic tracking-tighter uppercase">Dashboard</h3>
-                <p class="text-gray-500 oswald-sharp uppercase tracking-widest mt-1 lg:mt-2 italic text-[10px] lg:text-sm">개인 성과 및 데이터 이력</p>
+    <section id="profile" class="section-animate max-w-5xl mx-auto px-4 lg:px-6 pt-6 pb-16 lg:pb-20">
+
+        <!-- 헤더 타이틀 -->
+        <div class="border-l-4 border-ufcRed pl-3 mb-5">
+            <h3 class="oswald-sharp text-2xl lg:text-3xl font-black italic tracking-tight uppercase text-white leading-none">Dashboard</h3>
+            <p class="text-gray-600 text-[10px] mt-0.5 oswald-sharp italic uppercase tracking-widest">내 픽 통계 및 커뮤니티 랭크</p>
+        </div>
+
+        <!-- 프로필 아이덴티티 카드 -->
+        <div class="glass-card rounded-2xl p-5 lg:p-7 border border-white/5 mb-5 flex items-center gap-4 flex-wrap">
+            <!-- 아바타 -->
+            <div class="w-14 h-14 lg:w-16 lg:h-16 rounded-xl bg-gradient-to-br from-ufcRed/20 to-black border border-ufcRed/20 flex items-center justify-center flex-shrink-0">
+                <span class="oswald-sharp text-2xl font-black italic text-ufcRed select-none">⚡</span>
             </div>
-            <div class="flex items-center gap-3 glass-card px-4 py-2 rounded-2xl border border-white/10">
-                <div>
-                    <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-widest italic">내 닉네임</p>
-                    <p id="profile-nickname-display" class="oswald-sharp text-base font-black italic text-white uppercase tracking-tight"></p>
+            <!-- 닉네임 + 팩션 + 벨트 -->
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap mb-1">
+                    <p id="profile-nickname-display" class="oswald-sharp text-lg lg:text-xl font-black italic text-white uppercase tracking-tight leading-none"></p>
+                    <div id="profile-faction-display" class="flex items-center gap-1"></div>
                 </div>
-                    <div id="profile-faction-display" class="flex items-center gap-2 mt-1"></div>
-                <div class="flex items-center gap-2 mt-2">
-                    <button onclick="openNicknameModal()" class="oswald-sharp text-[10px] border border-white/20 text-gray-400 hover:text-white hover:border-white/40 px-3 py-1.5 rounded-xl italic uppercase tracking-widest transition">닉네임변경</button>
-                    <button onclick="logoutUser()" id="logout-btn" class="oswald-sharp text-[10px] border border-red-900/40 text-red-600 hover:text-red-400 hover:border-red-500/40 px-3 py-1.5 rounded-xl italic uppercase tracking-widest transition hidden">로그아웃</button>
+                <p class="oswald-sharp text-[10px] text-gray-600 italic uppercase tracking-widest">픽태곤 커뮤니티 멤버</p>
             </div>
-        </div>
-        
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 lg:gap-8 mb-12 lg:mb-20 uppercase italic font-bold">
-            <div class="glass-card p-6 lg:p-10 flex flex-col justify-between h-36 lg:h-52 rounded-2xl lg:rounded-[2rem] uppercase italic font-bold">
-                <span class="text-gray-500 oswald-sharp text-[8px] lg:text-xs tracking-widest italic font-bold uppercase uppercase italic font-bold">Balance</span>
-                <h4 id="prof-pts" class="oswald-sharp text-2xl lg:text-5xl text-gold font-black italic tracking-tighter leading-none uppercase italic font-bold">1,000 P</h4>
-            </div>
-            <div class="glass-card p-6 lg:p-10 flex flex-col justify-between h-36 lg:h-52 rounded-2xl lg:rounded-[2rem] uppercase italic font-bold">
-                <span class="text-gray-500 oswald-sharp text-[8px] lg:text-xs tracking-widest italic font-bold uppercase uppercase italic font-bold uppercase italic font-bold uppercase italic font-bold">Forecasts</span>
-                <h4 id="prof-tot" class="oswald-sharp text-2xl lg:text-5xl font-black italic tracking-tighter text-white leading-none uppercase italic font-bold uppercase">0 회</h4>
-            </div>
-            <div class="glass-card p-6 lg:p-10 flex flex-col justify-between h-36 lg:h-52 rounded-2xl lg:rounded-[2rem] uppercase italic font-bold">
-                <span class="text-gray-500 oswald-sharp text-[8px] lg:text-xs tracking-widest italic font-bold uppercase uppercase italic font-bold uppercase italic font-bold uppercase italic font-bold uppercase italic font-bold">Accuracy</span>
-                <h4 id="prof-acc" class="oswald-sharp text-2xl lg:text-5xl font-black italic tracking-tighter text-ufcRed leading-none uppercase italic font-bold uppercase">0 %</h4>
-            </div>
-            <div id="belt-box" class="bg-white text-black p-6 lg:p-10 rounded-2xl lg:rounded-[2rem] flex flex-col justify-between h-36 lg:h-52 transition-all duration-700 shadow-2xl uppercase italic font-bold">
-                <span class="text-gray-700 oswald-sharp text-[8px] lg:text-[10px] tracking-widest font-black uppercase italic tracking-[0.3em] uppercase italic font-bold uppercase italic font-bold uppercase italic font-bold">Belt Rank</span>
-                <h4 id="belt-name" class="oswald-sharp text-xl lg:text-4xl font-black italic uppercase leading-none tracking-tighter uppercase italic font-bold">White Belt</h4>
+            <!-- 액션 버튼 -->
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <button onclick="openNicknameModal()"
+                    class="oswald-sharp text-[10px] border border-white/15 text-gray-500 hover:text-white hover:border-white/35 px-3 py-1.5 rounded-lg italic uppercase tracking-widest transition">
+                    닉네임 변경
+                </button>
+                <button onclick="logoutUser()" id="logout-btn"
+                    class="oswald-sharp text-[10px] border border-red-900/35 text-red-700 hover:text-red-400 hover:border-red-500/40 px-3 py-1.5 rounded-lg italic uppercase tracking-widest transition hidden">
+                    로그아웃
+                </button>
             </div>
         </div>
 
-        <div class="mb-6 lg:mb-10 flex items-center justify-between px-2 uppercase italic font-bold">
-            <h4 class="oswald-sharp uppercase italic font-black text-xl lg:text-3xl tracking-tighter uppercase italic font-bold">Recent Fight History</h4>
-            <div class="h-px bg-white/10 flex-grow ml-4 lg:ml-8 uppercase italic font-bold"></div>
+        <!-- 4 핵심 지표 카드 -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+            <div class="glass-card p-5 lg:p-7 flex flex-col justify-between h-28 lg:h-36 rounded-2xl border border-white/5">
+                <span class="oswald-sharp text-[9px] tracking-[.2em] italic font-black uppercase text-gray-500">Balance</span>
+                <h4 id="prof-pts" class="oswald-sharp text-2xl lg:text-3xl text-yellow-400 font-black italic tracking-tighter leading-none">1,000 P</h4>
+            </div>
+            <div class="glass-card p-5 lg:p-7 flex flex-col justify-between h-28 lg:h-36 rounded-2xl border border-white/5">
+                <span class="oswald-sharp text-[9px] tracking-[.2em] italic font-black uppercase text-gray-500">Forecasts</span>
+                <h4 id="prof-tot" class="oswald-sharp text-2xl lg:text-3xl font-black italic tracking-tighter text-white leading-none">0 회</h4>
+            </div>
+            <div class="glass-card p-5 lg:p-7 flex flex-col justify-between h-28 lg:h-36 rounded-2xl border border-white/5">
+                <span class="oswald-sharp text-[9px] tracking-[.2em] italic font-black uppercase text-gray-500">Accuracy</span>
+                <h4 id="prof-acc" class="oswald-sharp text-2xl lg:text-3xl font-black italic tracking-tighter text-ufcRed leading-none">0 %</h4>
+            </div>
+            <div id="belt-box" class="bg-white text-black p-5 lg:p-7 rounded-2xl flex flex-col justify-between h-28 lg:h-36 transition-all duration-700 shadow-2xl">
+                <span class="text-gray-600 oswald-sharp text-[9px] tracking-[.2em] font-black uppercase italic">Belt Rank</span>
+                <h4 id="belt-name" class="oswald-sharp text-xl lg:text-2xl font-black italic uppercase leading-none tracking-tighter">White Belt</h4>
+            </div>
         </div>
-        <div id="history-card-list" class="space-y-3 lg:space-y-4 px-2 lg:px-0 uppercase italic font-bold"></div>
 
-        <!-- ====== 심화 통계 섹션 ====== -->
-        <div class="mt-16 lg:mt-24 space-y-6 lg:space-y-8">
+        <!-- 최근 파이트 히스토리 -->
+        <div class="flex items-center gap-4 mb-4">
+            <h4 class="oswald-sharp uppercase italic font-black text-base lg:text-xl tracking-tighter text-white flex-shrink-0">Recent Fight History</h4>
+            <div class="h-px bg-white/8 flex-grow"></div>
+        </div>
+        <div id="history-card-list" class="space-y-2.5 mb-8"></div>
 
-            <!-- 나만의 분석 리포트 카드 -->
-            <div id="profile-report-card" class="glass-card rounded-[2rem] p-7 lg:p-12 border border-ufcRed/20"
-                style="background:linear-gradient(135deg,rgba(210,10,10,0.07) 0%,rgba(0,0,0,0) 60%)">
-                <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+        <!-- ── 심화 통계 ── -->
+        <div class="space-y-5">
+
+            <!-- 나만의 분석 리포트 -->
+            <div id="profile-report-card" class="glass-card rounded-2xl p-6 lg:p-8 border border-ufcRed/15"
+                style="background:linear-gradient(135deg,rgba(210,10,10,0.06) 0%,rgba(0,0,0,0) 55%)">
+                <div class="flex items-center justify-between mb-5 flex-wrap gap-3">
                     <div>
-                        <p class="oswald-sharp text-[9px] text-ufcRed uppercase tracking-[0.3em] font-black italic mb-1">MY ANALYST REPORT</p>
-                        <h4 class="oswald-sharp text-2xl lg:text-3xl font-black italic text-white uppercase tracking-tighter">나만의 분석 리포트</h4>
+                        <p class="oswald-sharp text-[9px] text-ufcRed uppercase tracking-[.3em] font-black italic mb-1">MY ANALYST REPORT</p>
+                        <h4 class="oswald-sharp text-xl lg:text-2xl font-black italic text-white uppercase tracking-tighter">나만의 분석 리포트</h4>
                     </div>
                     <div id="profile-streak-badge"></div>
                 </div>
-                <div id="profile-report-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-4"></div>
-                <div id="profile-analyst-type" class="mt-6 p-4 rounded-2xl bg-black/30 border border-white/5"></div>
+                <div id="profile-report-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-3"></div>
+                <div id="profile-analyst-type" class="mt-4 p-4 rounded-xl bg-black/30 border border-white/5"></div>
             </div>
 
             <!-- 체급별 적중률 + 최근 폼 -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- 체급별 적중률 -->
-                <div class="glass-card rounded-[2rem] p-6 lg:p-10">
-                    <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[0.3em] font-black italic mb-6">체급별 예측 적중률</p>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="glass-card rounded-2xl p-5 lg:p-7">
+                    <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[.3em] font-black italic mb-4">체급별 예측 적중률</p>
                     <div id="profile-division-stats" class="space-y-3"></div>
                 </div>
-                <!-- 최근 폼 -->
-                <div class="glass-card rounded-[2rem] p-6 lg:p-10">
-                    <div class="flex items-center justify-between mb-6">
-                        <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[0.3em] font-black italic">최근 폼 (최근 10경기)</p>
+                <div class="glass-card rounded-2xl p-5 lg:p-7">
+                    <div class="flex items-center justify-between mb-4">
+                        <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[.3em] font-black italic">최근 폼 (최근 10경기)</p>
                         <p id="profile-streak-text" class="oswald-sharp text-xs font-black italic text-gray-500 uppercase"></p>
                     </div>
-                    <div id="profile-form-chart" class="flex items-end gap-1.5 h-24 mb-4"></div>
+                    <div id="profile-form-chart" class="flex items-end gap-1.5 h-20 mb-3"></div>
                     <div class="flex gap-4">
-                        <div class="flex items-center gap-2"><div class="w-3 h-3 rounded bg-ufcRed"></div><span class="oswald-sharp text-[10px] text-gray-500 italic uppercase">WIN</span></div>
-                        <div class="flex items-center gap-2"><div class="w-3 h-3 rounded bg-white/10"></div><span class="oswald-sharp text-[10px] text-gray-500 italic uppercase">LOSE</span></div>
+                        <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded bg-ufcRed"></div><span class="oswald-sharp text-[9px] text-gray-500 italic uppercase">WIN</span></div>
+                        <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded bg-white/10"></div><span class="oswald-sharp text-[9px] text-gray-500 italic uppercase">LOSE</span></div>
                     </div>
                 </div>
             </div>
 
             <!-- 방식별 적중률 + 보너스 현황 -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="glass-card rounded-[2rem] p-6 lg:p-10">
-                    <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[0.3em] font-black italic mb-6">방식별 예측 적중률</p>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="glass-card rounded-2xl p-5 lg:p-7">
+                    <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[.3em] font-black italic mb-4">방식별 예측 적중률</p>
                     <div id="profile-method-stats" class="space-y-4"></div>
                 </div>
-                <div class="glass-card rounded-[2rem] p-6 lg:p-10">
-                    <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[0.3em] font-black italic mb-6">보너스 획득 현황</p>
-                    <div id="profile-bonus-summary" class="grid grid-cols-3 gap-4"></div>
+                <div class="glass-card rounded-2xl p-5 lg:p-7">
+                    <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[.3em] font-black italic mb-4">보너스 획득 현황</p>
+                    <div id="profile-bonus-summary" class="grid grid-cols-3 gap-3"></div>
                 </div>
             </div>
+
         </div>
     </section>
 
@@ -2226,20 +2244,21 @@ textarea, select {
         const bBox = document.getElementById('belt-box');
         const bName = document.getElementById('belt-name');
         if(bBox && bName) {
+            var _bp = "p-5 lg:p-7 rounded-2xl flex flex-col justify-between h-28 lg:h-36 transition-all duration-700 shadow-2xl";
             if(state.points <= 1000) {
-                bBox.className="bg-white text-black p-6 lg:p-10 rounded-2xl lg:rounded-[2rem] flex flex-col justify-between h-36 lg:h-52 transition-all shadow-2xl";
+                bBox.className="bg-white text-black " + _bp;
                 bName.innerText="White Belt";
             } else if(state.points <= 2000) {
-                bBox.className="bg-blue-600 text-white p-6 lg:p-10 rounded-2xl lg:rounded-[2rem] flex flex-col justify-between h-36 lg:h-52 transition-all shadow-2xl shadow-blue-900/40";
+                bBox.className="bg-blue-600 text-white " + _bp + " shadow-blue-900/40";
                 bName.innerText="Blue Belt";
             } else if(state.points <= 5000) {
-                bBox.className="bg-purple-700 text-white p-6 lg:p-10 rounded-2xl lg:rounded-[2rem] flex flex-col justify-between h-36 lg:h-52 transition-all shadow-2xl shadow-purple-900/40 border border-purple-500/30";
+                bBox.className="bg-purple-700 text-white " + _bp + " shadow-purple-900/40 border border-purple-500/30";
                 bName.innerText="Purple Belt";
             } else if(state.points <= 10000) {
-                bBox.className="bg-yellow-800 text-white p-6 lg:p-10 rounded-2xl lg:rounded-[2rem] flex flex-col justify-between h-36 lg:h-52 transition-all shadow-2xl shadow-yellow-900/40 border border-yellow-600/30";
+                bBox.className="bg-yellow-800 text-white " + _bp + " shadow-yellow-900/40 border border-yellow-600/30";
                 bName.innerText="Brown Belt";
             } else {
-                bBox.className="bg-ufcRed text-white p-6 lg:p-10 rounded-2xl lg:rounded-[2rem] flex flex-col justify-between h-36 lg:h-52 transition-all shadow-2xl shadow-red-900/40 border border-ufcRed/30";
+                bBox.className="bg-ufcRed text-white " + _bp + " shadow-red-900/40 border border-ufcRed/30";
                 bName.innerText="Black Belt";
             }
         }

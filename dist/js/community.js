@@ -200,12 +200,11 @@
                 tagCls = 'post'; tagLbl = '✍️ 분석';
             }
 
-            // Faction badge for own posts
-            var factionBadge = (typeof getFactionBadge === 'function'
-                && p.author === getDisplayUsername()
-                && typeof currentFaction !== 'undefined'
-                && currentFaction)
-                ? getFactionBadge(currentFaction) + ' '
+            // Faction badge — 모든 유저 (p.faction = DB에서 JOIN한 faction 객체)
+            var factionSrc = p.faction
+                || (p.author === getDisplayUsername() && typeof currentFaction !== 'undefined' ? currentFaction : null);
+            var factionBadge = (typeof getFactionBadge === 'function' && factionSrc)
+                ? getFactionBadge(factionSrc) + ' '
                 : '';
 
             // Octagon battle button for post author
