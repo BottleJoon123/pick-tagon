@@ -2363,6 +2363,7 @@ textarea, select {
 <script src="/js/fights-render.js"></script>
 <script src="/js/h2h.js"></script>
 <script src="/js/news-admin.js"></script>
+<script src="/js/home.js"></script>
 <script>
     /* ==============================
        FIGHT CARD DATA
@@ -2421,7 +2422,7 @@ textarea, select {
             mobNav.classList.add('active', 'text-ufcRed');
             mobNav.classList.remove('text-gray-500');
         }
-        if(id === 'home') { renderHomeNews(); }
+        if(id === 'home') { renderHomeNews(); initHome(); }
         if(id === 'octagon') {
             window.scrollTo(0, 0);
             // 활성 배틀이 없으면 기본 대기 화면 유지
@@ -4388,42 +4389,9 @@ async function addCommentToDB(postDbId, userNick, text) {
         refreshUI();
         navigateTo('home');
         initSupabase();
-        startCountdown();
-        setTimeout(animateHomeStats, 400);
+        setTimeout(initHome, 400);
     };
 
-    function startCountdown() {
-        // UFC 313 날짜: 2026-03-28 (임시)
-        const eventDate = new Date('2026-04-12T06:00:00Z');
-        function update() {
-            const now = new Date();
-            const diff = eventDate - now;
-            if (diff <= 0) {
-                ['cd-d','cd-h','cd-m','cd-s'].forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) el.textContent = '00';
-                });
-                return;
-            }
-            const d = Math.floor(diff / 86400000);
-            const h = Math.floor((diff % 86400000) / 3600000);
-            const m = Math.floor((diff % 3600000) / 60000);
-            const s = Math.floor((diff % 60000) / 1000);
-            const fmt = n => String(n).padStart(2,'0');
-            const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = fmt(val); };
-            setEl('cd-d', d); setEl('cd-h', h); setEl('cd-m', m); setEl('cd-s', s);
-        }
-        update();
-        setInterval(update, 1000);
-    }
-
-    function animateHomeStats() {
-        const fights = getActiveFights();
-        const totalFights = archiveDB.reduce((s, e) => s + (e.fights || []).length, fights.length);
-        animateCount('stat-fights', totalFights);
-        animateCount('stat-picks', state.total);
-        animateCount('stat-pts', state.points);
-    }
 
     /* ============================================================
        OCTAGON BATTLE SYSTEM
@@ -5466,19 +5434,6 @@ async function addCommentToDB(postDbId, userNick, text) {
         navigateTo('community');
     }
 
-    function animateCount(id, target) {
-        const el = document.getElementById(id);
-        if (!el) return;
-        const duration = 1200;
-        const start = performance.now();
-        function step(now) {
-            const progress = Math.min((now - start) / duration, 1);
-            const ease = 1 - Math.pow(1 - progress, 3);
-            el.textContent = Math.round(ease * target).toLocaleString();
-            if (progress < 1) requestAnimationFrame(step);
-        }
-        requestAnimationFrame(step);
-    }
 
     /* ==============================
        FACTION SYSTEM
