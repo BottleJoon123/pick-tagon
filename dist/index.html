@@ -752,7 +752,7 @@ textarea, select {
 
 <!-- Desktop Navigation -->
 <nav class="hidden lg:flex sticky top-0 z-50 py-4" style="background:rgba(8,8,8,0.85);backdrop-filter:blur(24px);border-bottom:1px solid rgba(255,255,255,0.05)">
-    <div class="max-w-7xl mx-auto px-8 w-full flex justify-between items-center">
+    <div class="max-w-[1440px] mx-auto px-8 w-full flex justify-between items-center">
         <h1 class="barlow text-3xl font-black italic cursor-pointer tracking-tight" style="color:var(--red)" onclick="navigateTo('home')">PICK-TAGON</h1>
         <div class="flex items-center gap-8">
             <ul class="flex items-center gap-6 barlow text-sm font-bold italic tracking-wide uppercase">
@@ -824,7 +824,7 @@ textarea, select {
     <!-- [SECTION: HOME] -->
     <section id="home" class="section-animate active">
         <!-- Hero Content -->
-        <div class="relative z-10 px-5 lg:px-16 pt-10 lg:pt-20 pb-12 lg:pb-20 max-w-7xl mx-auto w-full">
+        <div class="relative z-10 px-5 lg:px-16 pt-10 lg:pt-20 pb-12 lg:pb-20 max-w-[1440px] mx-auto w-full">
             <!-- Watermark -->
             <div aria-hidden="true" class="absolute inset-x-0 top-1/2 -z-10 -translate-y-1/2 text-center text-[12vw] font-black italic whitespace-nowrap select-none opacity-5 pointer-events-none text-white">PREDICT</div>
 
@@ -892,49 +892,35 @@ textarea, select {
         <!-- Ticker tape -->
         <style>
           @keyframes ticker-scroll {
-            from { transform: translateX(0); }
-            to { transform: translateX(-50%); }
+            from { transform: translateX(100vw); }
+            to   { transform: translateX(-100%); }
           }
-          #home-ticker .ticker-scroll {
-            width: max-content;
-            animation: ticker-scroll 32s linear infinite;
+          .animate-ticker {
+            display: inline-flex;
+            white-space: nowrap;
+            animation: ticker-scroll 38s linear infinite;
           }
+          .animate-ticker:hover { animation-play-state: paused; }
         </style>
         <div id="home-ticker" class="py-2 mt-4 overflow-hidden border-y border-white/10 relative z-10" style="background:rgba(0,0,0,0.7)">
-            <div class="ticker-scroll flex whitespace-nowrap">
-                <div class="flex items-center shrink-0">
-                    <span class="barlow font-bold italic tracking-widest text-[11px] uppercase text-gray-400">UFC 327 · 마카체프 vs 포이리에 · 타이틀전</span>
-                    <span class="mx-4 text-[11px] font-bold italic" style="color:var(--red)">✦</span>
-                    <span class="barlow font-bold italic tracking-widest text-[11px] uppercase text-gray-400">UFC 랭킹 업데이트 · 페레이라 P4P 3위</span>
-                    <span class="mx-4 text-[11px] font-bold italic" style="color:var(--red)">✦</span>
-                    <span class="barlow font-bold italic tracking-widest text-[11px] uppercase text-gray-400">두 플레시 미들급 타이틀 방어 성공</span>
-                    <span class="mx-4 text-[11px] font-bold italic" style="color:var(--red)">✦</span>
-                    <span class="barlow font-bold italic tracking-widest text-[11px] uppercase text-gray-400">UFC 314 · 볼카노프스키 복귀전 예정</span>
-                    <span class="mx-4 text-[11px] font-bold italic" style="color:var(--red)">✦</span>
-                    <span class="barlow font-bold italic tracking-widest text-[11px] uppercase text-gray-400">에드워즈 런던 복귀전 발표</span>
-                    <span class="mx-4 text-[11px] font-bold italic" style="color:var(--red)">✦</span>
-                    <span class="barlow font-bold italic tracking-widest text-[11px] uppercase text-gray-400">아스피날 인터림 챔피언 방어</span>
-                    <span class="mx-4 text-[11px] font-bold italic" style="color:var(--red)">✦</span>
-                </div>
-                <div class="flex items-center shrink-0" aria-hidden="true">
-                    <span class="barlow font-bold italic tracking-widest text-[11px] uppercase text-gray-400">UFC 327 · 마카체프 vs 포이리에 · 타이틀전</span>
-                    <span class="mx-4 text-[11px] font-bold italic" style="color:var(--red)">✦</span>
-                    <span class="barlow font-bold italic tracking-widest text-[11px] uppercase text-gray-400">UFC 랭킹 업데이트 · 페레이라 P4P 3위</span>
-                    <span class="mx-4 text-[11px] font-bold italic" style="color:var(--red)">✦</span>
-                    <span class="barlow font-bold italic tracking-widest text-[11px] uppercase text-gray-400">두 플레시 미들급 타이틀 방어 성공</span>
-                    <span class="mx-4 text-[11px] font-bold italic" style="color:var(--red)">✦</span>
-                    <span class="barlow font-bold italic tracking-widest text-[11px] uppercase text-gray-400">UFC 314 · 볼카노프스키 복귀전 예정</span>
-                    <span class="mx-4 text-[11px] font-bold italic" style="color:var(--red)">✦</span>
-                    <span class="barlow font-bold italic tracking-widest text-[11px] uppercase text-gray-400">에드워즈 런던 복귀전 발표</span>
-                    <span class="mx-4 text-[11px] font-bold italic" style="color:var(--red)">✦</span>
-                    <span class="barlow font-bold italic tracking-widest text-[11px] uppercase text-gray-400">아스피날 인터림 챔피언 방어</span>
-                    <span class="mx-4 text-[11px] font-bold italic" style="color:var(--red)">✦</span>
-                </div>
+            <div class="animate-ticker flex items-center gap-0">
+                <span class="barlow font-bold italic tracking-widest text-[11px] uppercase text-gray-400">UFC 327 · 마카체프 vs 포이리에 · 타이틀전</span>
+                <span class="mx-4 text-[11px] font-bold italic" style="color:var(--red)">✦</span>
+                <span class="barlow font-bold italic tracking-widest text-[11px] uppercase text-gray-400">UFC 랭킹 업데이트 · 페레이라 P4P 3위</span>
+                <span class="mx-4 text-[11px] font-bold italic" style="color:var(--red)">✦</span>
+                <span class="barlow font-bold italic tracking-widest text-[11px] uppercase text-gray-400">두 플레시 미들급 타이틀 방어 성공</span>
+                <span class="mx-4 text-[11px] font-bold italic" style="color:var(--red)">✦</span>
+                <span class="barlow font-bold italic tracking-widest text-[11px] uppercase text-gray-400">UFC 314 · 볼카노프스키 복귀전 예정</span>
+                <span class="mx-4 text-[11px] font-bold italic" style="color:var(--red)">✦</span>
+                <span class="barlow font-bold italic tracking-widest text-[11px] uppercase text-gray-400">에드워즈 런던 복귀전 발표</span>
+                <span class="mx-4 text-[11px] font-bold italic" style="color:var(--red)">✦</span>
+                <span class="barlow font-bold italic tracking-widest text-[11px] uppercase text-gray-400">아스피날 인터림 챔피언 방어</span>
+                <span class="mx-4 text-[11px] font-bold italic" style="color:var(--red)">✦</span>
             </div>
         </div>
 
         <!-- News grid -->
-        <div class="relative z-10 px-5 lg:px-16 py-10 lg:py-14 max-w-7xl mx-auto w-full">
+        <div class="relative z-10 px-5 lg:px-16 py-10 lg:py-14 max-w-[1440px] mx-auto w-full">
             <div class="flex items-center justify-between mb-7">
                 <div class="flex items-center gap-3">
                     <div class="w-1 h-6 rounded-full" style="background:var(--red)"></div>
@@ -949,7 +935,7 @@ textarea, select {
     </section>
 
     <!-- [SECTION: UFC RANKINGS] -->
-    <section id="ufc-rankings" class="section-animate max-w-7xl mx-auto px-4 lg:px-6 pt-6 pb-12 lg:pt-8 lg:pb-20">
+    <section id="ufc-rankings" class="section-animate max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-12 lg:pt-8 lg:pb-20">
         <!-- Header -->
         <div class="mb-6 lg:mb-10 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
             <div class="border-l-8 lg:border-l-[12px] border-ufcRed pl-4 lg:pl-8">
@@ -979,7 +965,7 @@ textarea, select {
     </section>
 
     <!-- [SECTION: MATCHUPS] - Multi-Fight Card System -->
-    <section id="matchups" class="section-animate max-w-7xl mx-auto px-4 lg:px-6 pt-6 pb-12 lg:pt-8 lg:pb-20">
+    <section id="matchups" class="section-animate max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-12 lg:pt-8 lg:pb-20">
         <!-- Event Header -->
         <div class="mb-6 lg:mb-10">
             <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
@@ -1068,7 +1054,7 @@ textarea, select {
     </button>
 
     <!-- [SECTION: RANKINGS] -->
-    <section id="rankings" class="section-animate max-w-7xl mx-auto px-4 lg:px-6 pt-6 pb-12 lg:pt-8 lg:pb-20">
+    <section id="rankings" class="section-animate max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-12 lg:pt-8 lg:pb-20">
         <div class="mb-6 lg:mb-10 border-l-8 lg:border-l-[12px] border-ufcRed pl-4 lg:pl-8">
             <h3 class="oswald-sharp text-3xl lg:text-6xl font-black italic tracking-tighter uppercase">World Leaderboard</h3>
             <p class="text-gray-500 oswald-sharp uppercase tracking-widest mt-1 lg:mt-2 italic text-[10px] lg:text-sm">글로벌 파이터 IQ 랭킹 시즌 4</p>
@@ -1180,7 +1166,7 @@ textarea, select {
     </section>
 
     <!-- [SECTION: MMA NEWS] -->
-    <section id="mma-news" class="section-animate max-w-7xl mx-auto px-4 lg:px-6 pt-6 pb-12 lg:pt-8 lg:pb-20">
+    <section id="mma-news" class="section-animate max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-12 lg:pt-8 lg:pb-20">
         <div class="mb-5 lg:mb-8 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
             <div class="border-l-8 lg:border-l-[12px] border-ufcRed pl-4 lg:pl-8">
                 <p class="oswald-sharp text-ufcRed text-[10px] tracking-[0.3em] font-black italic uppercase mb-1">AI POWERED</p>
@@ -1417,7 +1403,7 @@ textarea, select {
     </section>
 
     <!-- [SECTION: ARCHIVE] -->
-    <section id="archive" class="section-animate max-w-7xl mx-auto px-4 lg:px-6 pt-6 pb-12 lg:pt-8 lg:pb-20">
+    <section id="archive" class="section-animate max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-12 lg:pt-8 lg:pb-20">
         <!-- Header -->
         <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-6 lg:mb-10">
             <div class="border-l-8 lg:border-l-[12px] border-ufcRed pl-4 lg:pl-8">
@@ -1467,7 +1453,7 @@ textarea, select {
     </section>
 
     <!-- [SECTION: ADMIN] -->
-    <section id="admin" class="section-animate max-w-7xl mx-auto px-4 lg:px-6 pt-6 pb-12 lg:pt-8 lg:pb-20">
+    <section id="admin" class="section-animate max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-12 lg:pt-8 lg:pb-20">
         <!-- Admin Header -->
         <div class="flex items-end justify-between mb-6 lg:mb-10">
             <div class="border-l-8 lg:border-l-[12px] border-ufcRed pl-4 lg:pl-8">
