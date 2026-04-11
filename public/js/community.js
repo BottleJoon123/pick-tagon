@@ -78,7 +78,7 @@
             var fid = escapeHtml(fight.id);
 
             return `
-            <div class="matchup-card" onclick="navigateTo('matchups'); setTimeout(function(){ var el=document.getElementById('card-${fid}'); if(el) el.scrollIntoView({behavior:'smooth',block:'center'}); },350);">
+            <div class="matchup-card ${tagCls === 'matchup-tag-main' ? 'card-main' : ''}" onclick="navigateTo('matchups'); setTimeout(function(){ var el=document.getElementById('card-${fid}'); if(el) el.scrollIntoView({behavior:'smooth',block:'center'}); },350);">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
                     <span class="matchup-tag ${tagCls}">${escapeHtml(fight.tag || 'BOUT')}</span>
                     ${hasPick ? `<span style="font-family:'Oswald',sans-serif;font-size:8px;font-style:italic;font-weight:900;color:#e8000d;text-transform:uppercase;letter-spacing:.06em;">✓ PICKED</span>` : ''}

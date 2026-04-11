@@ -413,59 +413,64 @@ textarea, select {
 
 /* ── Community Dense Hybrid UI ── */
 
-/* Matchup Board */
+/* Matchup Board — 세로 스택 */
 .matchup-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    display: flex;
+    flex-direction: column;
     gap: 8px;
 }
 .matchup-card {
-    background: #111;
-    border: 1px solid #1e1e1e;
-    border-radius: 8px;
-    padding: 12px 14px;
+    background: #131313;
+    border: 1px solid #242424;
+    border-radius: 10px;
+    padding: 18px 20px;
     cursor: pointer;
     transition: border-color 0.2s, box-shadow 0.2s;
     user-select: none;
 }
-.matchup-card:hover { border-color: rgba(232,0,13,0.5); box-shadow: 0 0 16px rgba(232,0,13,0.07); }
+.matchup-card:hover { border-color: rgba(232,0,13,0.55); box-shadow: 0 0 20px rgba(232,0,13,0.08); }
+/* MAIN EVENT 카드 강조 */
+.matchup-card.card-main {
+    border-color: rgba(232,0,13,0.25);
+    background: linear-gradient(135deg, #161212 0%, #131313 100%);
+}
 .matchup-tag {
     font-family: 'Oswald', sans-serif;
-    font-size: 9px; font-weight: 900; font-style: italic;
-    padding: 2px 7px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.07em;
+    font-size: 10px; font-weight: 900; font-style: italic;
+    padding: 3px 9px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.07em;
     display: inline-block;
 }
 .matchup-tag-main  { background: #e8000d; color: #fff; }
-.matchup-tag-co    { background: transparent; border: 1px solid #3a3a3a; color: #777; }
-.matchup-tag-bout  { background: transparent; border: 1px solid #242424; color: #444; }
-.matchup-names { display: flex; align-items: center; gap: 4px; margin: 8px 0 5px; }
+.matchup-tag-co    { background: transparent; border: 1px solid #444; color: #999; }
+.matchup-tag-bout  { background: transparent; border: 1px solid #2a2a2a; color: #555; }
+.matchup-names { display: flex; align-items: center; gap: 8px; margin: 12px 0 8px; }
 .matchup-fighter-name {
     font-family: 'Oswald', sans-serif; font-weight: 900; font-style: italic;
-    font-size: 13px; text-transform: uppercase; color: #ddd; flex: 1; line-height: 1.15;
+    font-size: 18px; text-transform: uppercase; color: #eeeeee; flex: 1; line-height: 1.1;
 }
 .matchup-fighter-name.right { text-align: right; }
 .matchup-vs-label {
-    font-family: 'Oswald', sans-serif; font-size: 10px; font-weight: 900;
-    color: #e8000d; flex-shrink: 0; padding: 0 4px; font-style: italic;
+    font-family: 'Oswald', sans-serif; font-size: 13px; font-weight: 900;
+    color: #e8000d; flex-shrink: 0; padding: 0 6px; font-style: italic;
 }
-.matchup-bar-wrap { height: 3px; background: #1c1c1c; border-radius: 2px; overflow: hidden; margin: 5px 0 4px; }
-.matchup-bar-fill { height: 100%; background: linear-gradient(90deg, #e8000d, #ff3333); border-radius: 2px; transition: width 0.6s ease; }
+.matchup-bar-wrap { height: 5px; background: #1e1e1e; border-radius: 3px; overflow: hidden; margin: 8px 0 6px; }
+.matchup-bar-fill { height: 100%; background: linear-gradient(90deg, #e8000d, #ff4444); border-radius: 3px; transition: width 0.6s ease; }
 .matchup-pct-row {
     display: flex; justify-content: space-between;
-    font-family: 'Oswald', sans-serif; font-size: 9px; font-weight: 900; font-style: italic;
-    color: #3a3a3a; margin-bottom: 8px;
+    font-family: 'Oswald', sans-serif; font-size: 11px; font-weight: 900; font-style: italic;
+    color: #666; margin-bottom: 12px;
 }
 .matchup-pct-row .pct-hot { color: #e8000d; }
 .matchup-card-foot { display: flex; align-items: center; justify-content: space-between; }
 .matchup-weight-lbl {
-    font-family: 'Oswald', sans-serif; font-size: 8px; color: #333;
-    text-transform: uppercase; letter-spacing: 0.06em; font-style: italic;
+    font-family: 'Inter', sans-serif; font-size: 10px; color: #666;
+    text-transform: uppercase; letter-spacing: 0.06em;
 }
 .matchup-go-btn {
-    font-family: 'Oswald', sans-serif; font-size: 9px; font-weight: 900; font-style: italic;
+    font-family: 'Oswald', sans-serif; font-size: 10px; font-weight: 900; font-style: italic;
     text-transform: uppercase; background: transparent;
-    border: 1px solid rgba(232,0,13,0.35); color: #e8000d;
-    padding: 4px 10px; border-radius: 4px; cursor: pointer;
+    border: 1px solid rgba(232,0,13,0.4); color: #e8000d;
+    padding: 5px 14px; border-radius: 5px; cursor: pointer;
     transition: background 0.15s; letter-spacing: 0.06em;
 }
 .matchup-go-btn:hover { background: rgba(232,0,13,0.1); }
@@ -485,7 +490,7 @@ textarea, select {
     border-bottom: 1px solid #1a1a1a;
     font-family: 'Oswald', sans-serif;
     font-size: 8px; font-weight: 900; font-style: italic;
-    text-transform: uppercase; letter-spacing: 0.1em; color: #333;
+    text-transform: uppercase; letter-spacing: 0.1em; color: #666;
 }
 .post-row {
     display: grid;
@@ -506,33 +511,33 @@ textarea, select {
     display: inline-block; white-space: nowrap;
 }
 .post-type-tag.pick { background: rgba(232,0,13,0.1); border: 1px solid rgba(232,0,13,0.2); color: #e8000d; }
-.post-type-tag.post { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: #555; }
+.post-type-tag.post { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #999; }
 .post-row-title {
     font-family: 'Oswald', sans-serif; font-weight: 900; font-style: italic; font-size: 13px;
-    color: #ddd; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    color: #e8e8e8; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     line-height: 1.2; margin-bottom: 3px;
 }
 .post-row-author {
-    font-family: 'Inter', sans-serif; font-size: 10px; color: #444;
+    font-family: 'Inter', sans-serif; font-size: 10px; color: #888;
     letter-spacing: 0; font-style: normal; font-weight: 400;
 }
 .post-row-stats {
     display: flex; gap: 10px; font-family: 'Inter', sans-serif;
-    font-size: 11px; color: #444; font-weight: 500;
+    font-size: 11px; color: #888; font-weight: 500;
 }
-.post-row-stats .stat-hot { color: #c8000a; }
+.post-row-stats .stat-hot { color: #e8000d; }
 .post-row-date {
-    font-family: 'Inter', sans-serif; font-size: 10px; color: #2e2e2e; font-weight: 400;
+    font-family: 'Inter', sans-serif; font-size: 10px; color: #777; font-weight: 400;
 }
 .post-row-act { display: flex; gap: 4px; justify-content: flex-end; }
 .post-act-btn {
     font-family: 'Oswald', sans-serif; font-size: 9px; font-weight: 900; font-style: italic;
-    text-transform: uppercase; background: transparent; border: 1px solid #1e1e1e;
-    color: #3a3a3a; padding: 4px 9px; border-radius: 4px; cursor: pointer;
+    text-transform: uppercase; background: transparent; border: 1px solid #2a2a2a;
+    color: #888; padding: 4px 9px; border-radius: 4px; cursor: pointer;
     transition: all 0.1s; letter-spacing: 0.04em; white-space: nowrap;
 }
 .post-act-btn:hover { border-color: rgba(232,0,13,0.5); color: #e8000d; }
-.post-act-btn.liked { border-color: rgba(232,0,13,0.35); color: rgba(232,0,13,0.6); }
+.post-act-btn.liked { border-color: rgba(232,0,13,0.4); color: #e8000d; }
 
 /* Post expand — inline detail */
 .post-expand {
@@ -541,21 +546,21 @@ textarea, select {
 }
 .post-expand.open { display: block; }
 .post-expand-body {
-    font-size: 13px; color: #666; line-height: 1.7;
-    border-left: 2px solid #1e1e1e; padding-left: 12px; margin-bottom: 12px;
+    font-size: 13px; color: #aaa; line-height: 1.7;
+    border-left: 2px solid #252525; padding-left: 12px; margin-bottom: 12px;
     font-family: 'Inter', sans-serif;
     white-space: pre-wrap; word-break: break-word;
 }
 .post-comment-block {
-    background: rgba(0,0,0,0.4); border-left: 2px solid #e8000d;
+    background: rgba(0,0,0,0.35); border-left: 2px solid #e8000d;
     border-radius: 6px; padding: 8px 12px; margin-bottom: 6px;
 }
 .post-comment-nick {
-    font-family: 'Inter', sans-serif; font-size: 10px; color: #555;
+    font-family: 'Inter', sans-serif; font-size: 11px; color: #999;
     font-weight: 600; margin-bottom: 3px;
     display: flex; align-items: center; justify-content: space-between;
 }
-.post-comment-txt { font-size: 12px; color: #777; font-family: 'Inter', sans-serif; line-height: 1.5; }
+.post-comment-txt { font-size: 12px; color: #bbb; font-family: 'Inter', sans-serif; line-height: 1.5; }
 .post-com-input-row { display: flex; gap: 6px; margin-top: 10px; }
 .post-com-input {
     flex: 1; background: rgba(0,0,0,0.45); border: 1px solid #1e1e1e;
