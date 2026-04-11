@@ -267,12 +267,23 @@ function openFighterModal(fighterId) {
         document.getElementById('fm-division').value = f.division;
         document.getElementById('fm-image').value = f.image_url || '';
         buildStatsSliders(f.stats);
+        // performance stats
+        ['slpm','strAcc','tdAvg','subAvg','koRate','subRate','decRate'].forEach(function(k) {
+            var el = document.getElementById('fm-' + k);
+            if (el) el.value = (f[k] !== undefined && f[k] !== null) ? f[k] : '';
+        });
+        buildRecentFightsList(f.recent || []);
     } else {
         title.textContent = '파이터 추가';
         ['fm-name','fm-name-en','fm-country','fm-rank','fm-height','fm-reach','fm-odds','fm-image'].forEach(id => document.getElementById(id).value = '');
         ['fm-wins','fm-losses','fm-draws'].forEach(id => document.getElementById(id).value = '0');
         document.getElementById('fm-style').value = 'all-around';
         buildStatsSliders(null);
+        ['slpm','strAcc','tdAvg','subAvg','koRate','subRate','decRate'].forEach(function(k) {
+            var el = document.getElementById('fm-' + k);
+            if (el) el.value = '';
+        });
+        buildRecentFightsList([]);
     }
 }
 
@@ -291,6 +302,12 @@ function saveFighter() {
     const record = draws > 0 ? `${wins}W ${losses}L ${draws}D` : `${wins}W ${losses}L`;
 
     const stats = STAT_LABELS.map((_, i) => parseInt(document.getElementById(`stat-range-${i}`).value));
+    const perfKeys = ['slpm','strAcc','tdAvg','subAvg','koRate','subRate','decRate'];
+    const perfStats = {};
+    perfKeys.forEach(function(k) {
+        var el = document.getElementById('fm-' + k);
+        if (el && el.value !== '') perfStats[k] = parseFloat(el.value);
+    });
     const data = {
         id: editingFighterId || ('f_' + Date.now()),
         name,
@@ -304,7 +321,9 @@ function saveFighter() {
         odds: parseFloat(document.getElementById('fm-odds').value) || 1.50,
         division: document.getElementById('fm-division').value,
         image_url: document.getElementById('fm-image').value.trim(),
-        stats
+        stats,
+        ...perfStats,
+        recent: getRecentFightsFromUI()
     };
 
     if (editingFighterId) {
@@ -327,6 +346,10 @@ function saveFighter() {
             height: data.height, reach: data.reach,
             odds: data.odds, image_url: data.image_url,
             stats: data.stats,
+            slpm: data.slpm, str_acc: data.strAcc,
+            td_avg: data.tdAvg, sub_avg: data.subAvg,
+            ko_rate: data.koRate, sub_rate: data.subRate, dec_rate: data.decRate,
+            recent: data.recent,
             updated_at: new Date().toISOString()
         }, { onConflict: 'id' }).then(function(res) {
             if (res.error) console.warn('파이터 DB 저장 실패:', res.error.message);
@@ -349,6 +372,53 @@ function deleteFighter(fighterId) {
     saveAdmin();
     renderAdminFighterList();
     showToast(`🗑 ${f.name} 삭제됨`);
+}
+
+// ----- RECENT FIGHTS MANAGER -----
+function buildRecentFightsList(recentArr) {
+    var list = document.getElementById('recent-fights-list');
+    if (!list) return;
+    list.innerHTML = '';
+    (recentArr || []).slice(0, 5).forEach(function(r) {
+        list.appendChild(_makeRecentFightRow(r));
+    });
+}
+
+function addRecentFightRow(data) {
+    var list = document.getElementById('recent-fights-list');
+    if (!list) return;
+    if (list.children.length >= 5) { showToast('⚠ 최대 5경기까지 입력 가능합니다'); return; }
+    list.appendChild(_makeRecentFightRow(data || {}));
+}
+
+function _makeRecentFightRow(r) {
+    var row = document.createElement('div');
+    row.className = 'recent-fight-row flex items-center gap-2 p-2 rounded-xl border border-white/10';
+    row.style.background = 'rgba(0,0,0,0.4)';
+    row.innerHTML = `
+        <select class="rf-result bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-white text-xs focus:outline-none focus:border-ufcRed flex-shrink-0 w-14">
+            <option value="W" ${r.r==='W'?'selected':''}>W</option>
+            <option value="L" ${r.r==='L'?'selected':''}>L</option>
+        </select>
+        <input class="rf-opp flex-1 min-w-0 bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-white text-xs focus:outline-none focus:border-ufcRed" placeholder="상대선수" value="${r.opp||''}">
+        <input class="rf-method w-20 bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-white text-xs focus:outline-none focus:border-ufcRed" placeholder="방식" value="${r.method||''}">
+        <input class="rf-event w-20 bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-white text-xs focus:outline-none focus:border-ufcRed" placeholder="이벤트" value="${r.event||''}">
+        <button onclick="this.closest('.recent-fight-row').remove()" class="flex-shrink-0 text-gray-600 hover:text-ufcRed transition text-base leading-none">✕</button>
+    `;
+    return row;
+}
+
+function getRecentFightsFromUI() {
+    var rows = document.querySelectorAll('#recent-fights-list .recent-fight-row');
+    var result = [];
+    rows.forEach(function(row) {
+        var r = row.querySelector('.rf-result') ? row.querySelector('.rf-result').value : 'W';
+        var opp = row.querySelector('.rf-opp') ? row.querySelector('.rf-opp').value.trim() : '';
+        var method = row.querySelector('.rf-method') ? row.querySelector('.rf-method').value.trim() : '';
+        var event = row.querySelector('.rf-event') ? row.querySelector('.rf-event').value.trim() : '';
+        if (opp) result.push({ r, opp, method, event });
+    });
+    return result;
 }
 
 // ----- FIGHT CARDS -----

@@ -117,8 +117,13 @@ function renderHeroCard(fight, idx) {
             <div class="absolute inset-x-0 bottom-0 h-2/3 pointer-events-none" style="background:linear-gradient(to top,#0a0a0a 0%,transparent 100%);"></div>
             <!-- VS Center -->
             <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                <div class="bg-ufcRed flex items-center justify-center" style="padding: 0.5rem 0.625rem;">
-                    <span class="oswald-sharp ${isMain ? 'text-5xl lg:text-7xl' : 'text-4xl lg:text-5xl'} font-black italic leading-none tracking-tighter">VS</span>
+                <div class="flex flex-col items-center">
+                    <div style="width:1px; height:${isMain ? '64px' : '52px'}; background:linear-gradient(to bottom, transparent, rgba(210,10,10,0.7));"></div>
+                    <div class="${isMain ? 'w-14 h-14' : 'w-11 h-11'} rounded-full flex items-center justify-center flex-shrink-0"
+                        style="background:rgba(8,8,8,0.92); border:1.5px solid rgba(210,10,10,0.55); box-shadow:0 0 28px rgba(210,10,10,0.4), inset 0 0 12px rgba(210,10,10,0.1);">
+                        <span class="oswald-sharp ${isMain ? 'text-xl' : 'text-base'} font-black italic text-white leading-none tracking-tighter">VS</span>
+                    </div>
+                    <div style="width:1px; height:${isMain ? '64px' : '52px'}; background:linear-gradient(to top, transparent, rgba(210,10,10,0.7));"></div>
                 </div>
             </div>
             <!-- F1 Info (bottom-left) -->
@@ -280,8 +285,8 @@ function renderFightCards() {
             _lastSection = fight.sectionLabel;
             _html += renderSectionHeader(fight, idx);
         }
-        // Layout: Hero for idx 0/1, Strip for the rest
-        if (idx === 0 || idx === 1) {
+        // Layout: Hero for 메인 카드, Strip for prelims
+        if (fight.sectionLabel === '메인 카드') {
             _html += renderHeroCard(fight, idx);
         } else {
             _html += renderStripRow(fight, idx);
