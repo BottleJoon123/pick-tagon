@@ -33,19 +33,19 @@ function renderSectionHeader(fight, idx) {
 // ── Tale of the Tape (Stats Overlay content) ──────────────────────
 function renderTaleOfTapeHTML(fight) {
     return `
-    <div class="flex items-center justify-between mb-4">
-        <span class="oswald-sharp text-xs font-black italic uppercase text-ufcRed truncate max-w-[35%]">${fight.f1.name}</span>
-        <span class="oswald-sharp text-[9px] font-black italic uppercase tracking-widest text-gray-500 flex-shrink-0">TALE OF THE TAPE</span>
-        <span class="oswald-sharp text-xs font-black italic uppercase text-ufcBlue truncate max-w-[35%] text-right">${fight.f2.name}</span>
+    <div class="flex items-center justify-between mb-4 pt-2">
+        <span class="oswald-sharp text-xs font-black italic uppercase text-ufcRed truncate max-w-[38%]">${fight.f1.name}</span>
+        <span class="oswald-sharp text-[8px] font-black italic uppercase tracking-widest text-gray-400 flex-shrink-0 px-2">TALE OF THE TAPE</span>
+        <span class="oswald-sharp text-xs font-black italic uppercase text-ufcBlue truncate max-w-[38%] text-right">${fight.f2.name}</span>
     </div>
-    <div class="grid grid-cols-2 gap-3 mb-4">
-        <div class="bg-black/40 rounded-xl p-3 text-center border border-white/5">
-            <p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest mb-1">Record</p>
+    <div class="grid grid-cols-2 gap-2 mb-4">
+        <div class="rounded-xl p-3 text-center" style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1)">
+            <p class="oswald-sharp text-[8px] text-gray-400 uppercase tracking-widest mb-1">Record</p>
             <p class="oswald-sharp text-sm font-black italic text-white">${fight.f1.record}</p>
             <div class="flex justify-center gap-1 mt-2">${renderDotForm(fight.f1.recent)}</div>
         </div>
-        <div class="bg-black/40 rounded-xl p-3 text-center border border-white/5">
-            <p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest mb-1">Record</p>
+        <div class="rounded-xl p-3 text-center" style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1)">
+            <p class="oswald-sharp text-[8px] text-gray-400 uppercase tracking-widest mb-1">Record</p>
             <p class="oswald-sharp text-sm font-black italic text-white">${fight.f2.record}</p>
             <div class="flex justify-center gap-1 mt-2">${renderDotForm(fight.f2.recent)}</div>
         </div>
@@ -143,10 +143,16 @@ function renderHeroCard(fight, idx) {
                     BET ${f2Last.toUpperCase()}
                 </button>
             </div>
-            <!-- Stats Overlay (Tale of the Tape) -->
-            <div id="stats-overlay-${fight.id}" class="absolute inset-0 bg-black/92 backdrop-blur-sm z-30 hidden overflow-y-auto p-5 lg:p-8">
+        </div>
+
+        <!-- Stats Overlay (Tale of the Tape) — covers entire card -->
+        <div id="stats-overlay-${fight.id}" class="hidden relative z-40 border-t border-white/10" style="background:#0d0d0d;">
+            <div class="flex items-center justify-between px-5 py-3 border-b border-white/10">
+                <span class="oswald-sharp text-[9px] font-black italic uppercase tracking-widest text-gray-400">📊 TALE OF THE TAPE</span>
                 <button onclick="toggleStatsOverlay('${fight.id}')"
-                    class="absolute top-3 right-3 oswald-sharp text-[9px] text-gray-400 hover:text-white border border-white/20 px-3 py-1 rounded-full transition">✕ CLOSE</button>
+                    class="oswald-sharp text-[9px] text-gray-400 hover:text-white border border-white/20 px-3 py-1.5 rounded-full transition">✕ CLOSE</button>
+            </div>
+            <div class="p-5 lg:p-8">
                 ${renderTaleOfTapeHTML(fight)}
             </div>
         </div>
@@ -295,7 +301,7 @@ function renderStatBarsHTML(fight) {
         const mx = Math.max(v1, v2, 0.01);
         const p1 = Math.round(v1 / mx * 100), p2 = Math.round(v2 / mx * 100);
         return `<div class="mb-5">
-            <div class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest text-center mb-2">${label}</div>
+            <div class="oswald-sharp text-[10px] text-gray-400 uppercase tracking-widest text-center mb-2">${label}</div>
             <div class="flex items-center gap-3">
                 <span class="oswald-sharp text-sm font-black italic text-ufcRed w-12 text-right">${fmt(v1)}</span>
                 <div class="flex-1 flex gap-1">

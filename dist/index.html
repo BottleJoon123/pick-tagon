@@ -1762,6 +1762,32 @@ textarea, select {
             <label class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic block mb-2">시뮬레이션 승률 — 파이터1 우세 (0.0 ~ 1.0)</label>
             <input id="fc-bias" type="number" step="0.01" min="0" max="1" placeholder="0.65" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-ufcRed">
         </div>
+        <!-- 파이터 사진 URL (Hero 카드에 표시) -->
+        <div class="grid grid-cols-2 gap-3 mt-4">
+            <div>
+                <label class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic block mb-2">파이터1 사진 URL</label>
+                <input id="fc-f1-img" type="text" placeholder="https://..." class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-ufcRed text-xs">
+            </div>
+            <div>
+                <label class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic block mb-2">파이터2 사진 URL</label>
+                <input id="fc-f2-img" type="text" placeholder="https://..." class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-ufcRed text-xs">
+            </div>
+        </div>
+        <!-- 섹션 레이블 -->
+        <div class="grid grid-cols-2 gap-3 mt-4">
+            <div>
+                <label class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic block mb-2">섹션 레이블</label>
+                <select id="fc-section-label" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-ufcRed">
+                    <option value="메인 카드">메인 카드</option>
+                    <option value="프렐림">프렐림</option>
+                    <option value="얼리 프렐림">얼리 프렐림</option>
+                </select>
+            </div>
+            <div>
+                <label class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic block mb-2">섹션 시간</label>
+                <input id="fc-section-time" type="text" placeholder="예: 오전 10:00 KST" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-ufcRed text-xs">
+            </div>
+        </div>
         <input type="hidden" id="fc-edit-id">
         <div class="flex gap-3 mt-8">
             <button onclick="closeFightCardModal()" class="flex-1 oswald-sharp border border-white/10 text-gray-500 hover:text-white font-black py-3 rounded-xl italic uppercase text-sm tracking-widest transition">Cancel</button>
@@ -4076,16 +4102,6 @@ async function publishPost() {
         if (lEl) lEl.textContent = fight.f1.name.split(' ').pop() + ' ' + pct0 + '%';
         if (rEl) rEl.textContent = fight.f2.name.split(' ').pop() + ' ' + pct1 + '%';
         if (tEl) tEl.textContent = total + '명 참여';
-
-        // 투표 후 결과 바도 업데이트
-        var pctLeftEl = document.getElementById('pct-left-' + fightId);
-        var pctRightEl = document.getElementById('pct-right-' + fightId);
-        var barLeftEl = document.getElementById('bar-left-' + fightId);
-        var barRightEl = document.getElementById('bar-right-' + fightId);
-        if (pctLeftEl) pctLeftEl.textContent = fight.f1.name.split(' ').pop() + ' ' + pct0 + '%';
-        if (pctRightEl) pctRightEl.textContent = fight.f2.name.split(' ').pop() + ' ' + pct1 + '%';
-        if (barLeftEl) { setTimeout(function() { barLeftEl.style.width = pct0 + '%'; }, 100); }
-        if (barRightEl) { setTimeout(function() { barRightEl.style.width = pct1 + '%'; }, 100); }
     }
 
     function loadRealRankings() {
@@ -4139,112 +4155,33 @@ async function addCommentToDB(postDbId, userNick, text) {
        REALTIME 실시간 연동
     ============================== */
     var realtimeChannel = null;
-    var livePicks = {}; // { fightId: { left: N, right: N, total: N } }
+    var _pickReloadTimer = null; // debounce timer for realtime reloads
 
     function startRealtimeSubscription() {
         if (!sb) return;
-
         // 기존 채널 제거 (중복 방지)
-        if (realtimeChannel) {
-            sb.removeChannel(realtimeChannel);
-            realtimeChannel = null;
-        }
-        livePicks = {};
+        if (realtimeChannel) { sb.removeChannel(realtimeChannel); realtimeChannel = null; }
 
-        // 초기 픽 카운트 먼저 로드
-        loadInitialPickCounts();
-
-        // Realtime 구독
-        realtimeChannel = sb.channel('picks-live-' + Date.now())
+        // event_picks INSERT/UPDATE 구독 → 디바운스 후 전체 집계 새로고침
+        realtimeChannel = sb.channel('event-picks-live-' + Date.now())
             .on('postgres_changes', {
-                event: 'INSERT',
+                event: '*',
                 schema: 'public',
-                table: 'picks'
-            }, function(payload) {
-                console.log('🔴 Realtime pick received:', payload.new);
-                var newPick = payload.new;
-                if (!newPick) return;
-                updateLivePicks(newPick.fight_id, newPick.pick_name);
+                table: 'event_picks'
+            }, function() {
+                clearTimeout(_pickReloadTimer);
+                _pickReloadTimer = setTimeout(function() { loadAllEventPickCounts(); }, 600);
             })
             .subscribe(function(status) {
-                console.log('Realtime status:', status);
-                if (status === 'SUBSCRIBED') {
-                    showToast('🔴 실시간 연결됨');
-                }
                 if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
                     console.warn('Realtime error:', status);
                 }
             });
     }
 
-    function loadInitialPickCounts() {
-        if (!sb) return;
-        var fights = getActiveFights();
-        fights.forEach(function(fight) {
-            sb.from('picks')
-                .select('pick_name, fight_id')
-                .eq('fight_id', fight.id)
-                .then(function(res) {
-                    if (!res.data) return;
-                    res.data.forEach(function(p) {
-                        updateLivePicks(p.fight_id, p.pick_name, false);
-                    });
-                    refreshLivePickUI(fight.id, fight);
-                });
-        });
-    }
-
-    function updateLivePicks(fightId, pickName, doRefreshUI) {
-        if (!livePicks[fightId]) livePicks[fightId] = { left: 0, right: 0, total: 0 };
-        var fight = getActiveFights().find(function(f) { return f.id === fightId; });
-        if (!fight) return;
-
-        var isLeft = pickName && (
-            pickName.includes(fight.f1.name) ||
-            fight.f1.name.toLowerCase().includes((pickName || '').toLowerCase().split(' ').pop())
-        );
-        if (isLeft) livePicks[fightId].left++;
-        else livePicks[fightId].right++;
-        livePicks[fightId].total++;
-
-        if (doRefreshUI !== false) {
-            refreshLivePickUI(fightId, fight);
-            // 다른 사람 픽 알림 (내 픽이 아닐 때만)
-            if (!state.pendings[fightId] && !state.settled[fightId]) {
-                var name = isLeft ? fight.f1.name.split(' ').pop() : fight.f2.name.split(' ').pop();
-                showToast('👤 누군가 ' + name + ' 픽!');
-            }
-        }
-    }
-
-    function refreshLivePickUI(fightId, fight) {
-        var data = livePicks[fightId];
-        if (!data || data.total === 0) return;
-
-        var lPct = Math.round(data.left / data.total * 100);
-        var rPct = 100 - lPct;
-
-        // 라이브 바 업데이트
-        var liveBarEl = document.getElementById('live-bar-' + fightId);
-        var livePctLEl = document.getElementById('live-pct-l-' + fightId);
-        var livePctREl = document.getElementById('live-pct-r-' + fightId);
-        var liveTotalEl = document.getElementById('live-total-' + fightId);
-
-        if (liveBarEl) {
-            liveBarEl.querySelector('.live-bar-left').style.width = lPct + '%';
-            liveBarEl.querySelector('.live-bar-right').style.width = rPct + '%';
-        }
-        if (livePctLEl) livePctLEl.textContent = lPct + '%';
-        if (livePctREl) livePctREl.textContent = rPct + '%';
-        if (liveTotalEl) liveTotalEl.textContent = data.total + '명 픽';
-    }
-
     function stopRealtimeSubscription() {
-        if (realtimeChannel) {
-            sb.removeChannel(realtimeChannel);
-            realtimeChannel = null;
-        }
-        livePicks = {};
+        if (realtimeChannel) { sb.removeChannel(realtimeChannel); realtimeChannel = null; }
+        clearTimeout(_pickReloadTimer);
     }
 
     window.onload = function() {

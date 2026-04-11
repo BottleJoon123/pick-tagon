@@ -366,12 +366,14 @@ function autoFillFighter(corner) {
     const selId = corner === 'f1' ? 'fc-f1-select' : 'fc-f2-select';
     const nameId = corner === 'f1' ? 'fc-f1-name' : 'fc-f2-name';
     const oddsId = corner === 'f1' ? 'fc-f1-odds' : 'fc-f2-odds';
+    const imgId  = corner === 'f1' ? 'fc-f1-img'  : 'fc-f2-img';
     const fighterId = document.getElementById(selId).value;
     if (!fighterId) return;
     const f = fighterDB.find(x => x.id === fighterId);
     if (!f) return;
     document.getElementById(nameId).value = f.name;
     document.getElementById(oddsId).value = f.odds;
+    if (f.image_url) document.getElementById(imgId).value = f.image_url;
 }
 
 function renderAdminFightCardList() {
@@ -444,10 +446,15 @@ function openFightCardModal(fightId) {
         document.getElementById('fc-f2-name').value = fight.f2.name;
         document.getElementById('fc-f2-odds').value = fight.f2.odds;
         document.getElementById('fc-bias').value = fight.leftBias;
+        document.getElementById('fc-f1-img').value = fight.f1.imgUrl || fight.f1.image_url || '';
+        document.getElementById('fc-f2-img').value = fight.f2.imgUrl || fight.f2.image_url || '';
+        document.getElementById('fc-section-label').value = fight.sectionLabel || '메인 카드';
+        document.getElementById('fc-section-time').value = fight.sectionTime || '';
         document.getElementById('fc-edit-id').value = fightId;
     } else {
         title.textContent = '경기 추가';
-        ['fc-f1-name','fc-f1-odds','fc-f2-name','fc-f2-odds','fc-bias'].forEach(id => document.getElementById(id).value = '');
+        ['fc-f1-name','fc-f1-odds','fc-f2-name','fc-f2-odds','fc-bias','fc-f1-img','fc-f2-img','fc-section-time'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('fc-section-label').value = '메인 카드';
         document.getElementById('fc-edit-id').value = '';
     }
 }
@@ -481,10 +488,16 @@ function saveFightCard() {
     const f1 = getFighterDataForCard('f1');
     const f2 = getFighterDataForCard('f2');
 
+    // 이미지 URL은 개별 파이터 객체에 주입
+    f1.imgUrl = document.getElementById('fc-f1-img').value.trim() || f1.image_url || '';
+    f2.imgUrl = document.getElementById('fc-f2-img').value.trim() || f2.image_url || '';
+
     const newFight = {
         id: editingFightCardId || ('fc_' + Date.now()),
         tag: document.getElementById('fc-tag').value,
         division: document.getElementById('fc-division').value,
+        sectionLabel: document.getElementById('fc-section-label').value || '메인 카드',
+        sectionTime: document.getElementById('fc-section-time').value.trim(),
         f1, f2,
         leftBias: parseFloat(document.getElementById('fc-bias').value) || 0.55
     };
