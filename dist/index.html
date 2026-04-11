@@ -825,26 +825,18 @@ textarea, select {
     <section id="home" class="section-animate active">
         <!-- Hero Content -->
         <div class="relative z-10 px-5 lg:px-16 pt-10 lg:pt-20 pb-12 lg:pb-20 max-w-7xl mx-auto w-full">
-            <!-- Live badge -->
-            <div class="flex items-center gap-2 mb-6 hero-sub">
-                <span class="pulse-dot"></span>
-                <span class="barlow text-xs font-bold italic tracking-[0.2em] text-red-400 uppercase">Live Event · UFC 313</span>
-            </div>
+            <!-- Watermark -->
+            <div aria-hidden="true" class="absolute inset-x-0 top-1/2 -z-10 -translate-y-1/2 text-center text-[12vw] font-black italic whitespace-nowrap select-none opacity-5 pointer-events-none text-white">PREDICT</div>
 
-            <!-- Main headline -->
-            <div class="mb-6">
-                <div class="hero-line">
-                    <span class="barlow text-[clamp(3.5rem,12vw,9rem)] font-black italic leading-[0.88] text-white tracking-tight">당신의 예측,</span>
-                </div>
-                <div class="hero-line">
-                    <span class="barlow text-[clamp(3.5rem,12vw,9rem)] font-black italic leading-[0.88] tracking-tight" style="color:var(--red);">역사가 된다</span>
-                </div>
+            <!-- Premium Headline -->
+            <div class="flex flex-col gap-4 lg:gap-5 mb-8">
+                <p class="barlow text-xs uppercase tracking-[0.3em] text-gray-500 hero-sub">LIVE EVENT · UFC 327</p>
+                <h1 class="oswald-sharp text-[clamp(3.2rem,10vw,8rem)] font-black italic uppercase leading-[0.9] tracking-tight text-white hero-line">
+                    <span class="block">PREDICT. COMPETE.</span>
+                    <span class="block" style="background:linear-gradient(to right,#ef4444,#f87171); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">WIN.</span>
+                </h1>
+                <p class="barlow text-sm lg:text-base font-light text-gray-400 max-w-lg hero-sub">UFC 데이터 기반 정밀 예측 시스템 — 승부를 지배하라.</p>
             </div>
-
-            <!-- Subtext -->
-            <p class="hero-sub text-gray-400 text-sm lg:text-lg max-w-xl mb-8 font-light leading-relaxed">
-                UFC 데이터 기반의 정밀 예측 시스템 — 승부를 분석하고, 순위를 올려라.
-            </p>
 
             <!-- CTA + Face-off row -->
             <div class="hero-cta flex flex-col xl:flex-row items-start xl:items-center gap-8 xl:gap-12">
