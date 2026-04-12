@@ -17,11 +17,34 @@
     }
 
     // ---- PUBLIC RENDER ----
+    function _mapNewsCacheItems(data) {
+        return data.map(function(n) {
+            var d = new Date(n.published_at);
+            return {
+                title: n.title,
+                url: n.url,
+                thumbnail_url: n.image_url || '',
+                source: n.source || '',
+                date: d.getFullYear() + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0')
+            };
+        });
+    }
+
     function renderHomeNews() {
         var grid = document.getElementById('home-news-grid');
         if (!grid) return;
 
-        // 스켈레톤 즉시 표시
+        // 캐시-퍼스트: cachedNews 이미 있으면 즉시 렌더 (Supabase 재요청 불필요)
+        if (cachedNews && cachedNews.length > 0 && typeof renderNewsCards === 'function') {
+            var cached = cachedNews.slice(0, 6).map(function(n) {
+                return { title: n.title, url: n.url, thumbnail_url: n.image_url || '', source: n.source || '', date: n.date || '' };
+            });
+            grid.innerHTML = renderNewsCards(cached);
+            grid.dataset.loaded = '1';
+            return;
+        }
+
+        // 캐시 없을 때만 스켈레톤 + Supabase 쿼리
         if (typeof renderNewsSkeleton === 'function') {
             grid.innerHTML = renderNewsSkeleton(3);
         }
@@ -33,39 +56,15 @@
                 .limit(6)
                 .then(function(res) {
                     if (res.data && res.data.length > 0) {
-                        var items = res.data.map(function(n) {
-                            var d = new Date(n.published_at);
-                            return {
-                                title: n.title,
-                                url: n.url,
-                                thumbnail_url: n.image_url || '',
-                                source: n.source || '',
-                                date: d.getFullYear() + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0')
-                            };
-                        });
-                        // renderNewsCards 우선, 없으면 구 방식 fallback
+                        var items = _mapNewsCacheItems(res.data);
                         if (typeof renderNewsCards === 'function') {
                             grid.innerHTML = renderNewsCards(items);
                             grid.dataset.loaded = '1';
-                        } else {
-                            renderHomeNewsFromRSS(items);
                         }
                     } else {
                         grid.innerHTML = '<div class="col-span-3 glass-card rounded-[2rem] p-12 text-center text-gray-600 oswald-sharp text-xs italic uppercase tracking-widest">등록된 뉴스가 없습니다</div>';
                     }
                 });
-        } else {
-            if (cachedNews && cachedNews.length > 0) {
-                var items = cachedNews.slice(0, 6).map(function(n) {
-                    return { title: n.title, url: n.url, thumbnail_url: n.image_url || '', source: n.source || '', date: n.date || '' };
-                });
-                if (typeof renderNewsCards === 'function') {
-                    grid.innerHTML = renderNewsCards(items);
-                    grid.dataset.loaded = '1';
-                } else {
-                    renderHomeNewsFromRSS(cachedNews.slice(0, 6));
-                }
-            }
         }
     }
 

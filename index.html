@@ -3877,15 +3877,20 @@ async function publishPost() {
                 var cardClick = (n.url && n.url.startsWith('http'))
                     ? 'onclick="window.open(\'' + n.url + '\',\'_blank\')"'
                     : 'onclick="openNewsDetail(' + realIdx + ')"';
+                var newsImg = n.image_url || 'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600';
                 return '<div class="glass-card rounded-[1.5rem] overflow-hidden hover:border-ufcRed/30 transition-all duration-500 cursor-pointer" ' + cardClick + '>' +
-                    '<div class="h-1 w-full ' + bar + '"></div>' +
-                    '<div class="p-5 lg:p-7">' +
-                    '<div class="flex items-center justify-between mb-3">' +
-                    '<span class="oswald-sharp text-[9px] px-2 py-1 rounded-lg font-black italic uppercase border border-white/10 ' + badge + '">' + lbl + (i < 2 ? ' ?뵦' : '') + '</span>' +
+                    '<div class="relative overflow-hidden" style="height:150px">' +
+                    '<img src="' + newsImg + '" class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" onerror="this.src=\'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600\'">' +
+                    '<div class="absolute inset-0 pointer-events-none" style="background:linear-gradient(to top,rgba(0,0,0,0.65) 0%,transparent 60%)"></div>' +
+                    '<div class="absolute top-0 left-0 right-0 h-1 ' + bar + '"></div>' +
+                    '<span class="absolute top-3 left-3 oswald-sharp text-[9px] px-2 py-1 rounded-lg font-black italic uppercase border border-white/10 ' + badge + '">' + lbl + (i < 2 ? ' 🔥' : '') + '</span>' +
+                    '</div>' +
+                    '<div class="p-4 lg:p-5">' +
+                    '<div class="flex items-center justify-between mb-2">' +
                     '<span class="oswald-sharp text-[9px] text-gray-600 italic">' + (n.date || '') + '</span>' +
                     '</div>' +
                     '<h4 class="oswald-sharp text-sm lg:text-base font-black italic text-white uppercase tracking-tight leading-snug mb-3">' + escapeHtml(n.title) + '</h4>' +
-                    '<div class="flex items-center justify-between mt-3">' +
+                    '<div class="flex items-center justify-between mt-2">' +
                     (n.source ? '<p class="oswald-sharp text-[9px] text-gray-600 italic uppercase">출처: ' + escapeHtml(n.source) + '</p>' : '<span></span>') +
                     '<span class="oswald-sharp text-[9px] text-ufcRed/60 italic uppercase">원문 →</span>' +
                     '</div>' +

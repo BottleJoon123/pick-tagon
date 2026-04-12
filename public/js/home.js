@@ -116,33 +116,29 @@ function renderNewsSkeleton(count) {
     </div>`;
 }
 
+var _NEWS_FALLBACK_IMG = 'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600';
+
 function renderNewsCards(newsItems) {
     if (!newsItems || !newsItems.length) return '<p class="col-span-3 text-center text-gray-600 oswald-sharp text-xs italic uppercase">등록된 뉴스가 없습니다</p>';
-    return `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
-        ${newsItems.map(function(item) {
-            var title = item.title || '', url = item.url || '#', thumbnail_url = item.thumbnail_url || '', source = item.source || '', date = item.date || '';
+    return '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">' +
+        newsItems.map(function(item) {
+            var title = item.title || '', url = item.url || '#', source = item.source || '', date = item.date || '';
+            var imgSrc = item.thumbnail_url || _NEWS_FALLBACK_IMG;
             var safeTitle = String(title).replace(/</g,'&lt;');
             var safeSource = String(source).replace(/</g,'&lt;');
-            var imgHeader = thumbnail_url
-                ? `<div class="relative overflow-hidden" style="height:200px">
-                    <img src="${thumbnail_url}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.closest('.news-img-wrap').innerHTML=fallbackHeader">
-                    <div class="absolute inset-0 pointer-events-none" style="background:linear-gradient(to top,rgba(0,0,0,0.6) 0%,transparent 60%)"></div>
-                    ${safeSource ? `<div class="absolute top-3 left-3 barlow text-[10px] font-bold italic tracking-widest uppercase px-2 py-1 rounded" style="background:rgba(210,10,10,0.9);color:#fff">${safeSource}</div>` : ''}
-                   </div>`
-                : `<div class="flex items-end px-5 pb-4" style="height:110px;background:linear-gradient(135deg,rgba(210,10,10,0.18) 0%,rgba(20,20,30,0.9) 100%)">
-                    ${safeSource ? `<span class="barlow text-[10px] font-bold italic tracking-widest uppercase px-2 py-1 rounded" style="background:rgba(210,10,10,0.85);color:#fff">${safeSource}</span>` : ''}
-                   </div>`;
-            return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="block group news-img-wrap">
-                <div class="glass-card rounded-2xl overflow-hidden border border-white/[0.06] hover:border-white/20 transition-all duration-300 hover:scale-[1.02]">
-                    ${imgHeader}
-                    <div class="p-5">
-                        <div class="oswald-sharp text-base font-black italic uppercase text-white line-clamp-2 group-hover:text-ufcRed transition leading-snug">${safeTitle}</div>
-                        <div class="barlow text-[10px] text-gray-500 italic mt-2">${date}</div>
-                    </div>
-                </div>
-            </a>`;
-        }).join('')}
-    </div>`;
+            return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="block group">' +
+                '<div class="glass-card rounded-2xl overflow-hidden border border-white/[0.06] hover:border-white/20 transition-all duration-300 hover:scale-[1.02]">' +
+                '<div class="relative overflow-hidden" style="height:170px">' +
+                '<img src="' + imgSrc + '" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.src=\'' + _NEWS_FALLBACK_IMG + '\'">' +
+                '<div class="absolute inset-0 pointer-events-none" style="background:linear-gradient(to top,rgba(0,0,0,0.55) 0%,transparent 55%)"></div>' +
+                (safeSource ? '<div class="absolute top-3 left-3 barlow text-[10px] font-bold italic tracking-widest uppercase px-2 py-1 rounded" style="background:rgba(210,10,10,0.9);color:#fff">' + safeSource + '</div>' : '') +
+                '</div>' +
+                '<div class="p-4">' +
+                '<div class="oswald-sharp text-sm lg:text-base font-black italic uppercase text-white line-clamp-2 group-hover:text-ufcRed transition leading-snug">' + safeTitle + '</div>' +
+                '<div class="barlow text-[10px] text-gray-500 italic mt-2">' + date + '</div>' +
+                '</div></div></a>';
+        }).join('') +
+    '</div>';
 }
 
 // ── Entry Point ───────────────────────────────────────────────────

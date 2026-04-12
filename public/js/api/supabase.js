@@ -117,7 +117,7 @@ function loadPostsFromDB() {
                     newsFetched = true;
                 }
                 renderNewsGrid();
-                renderHomeNewsFromRSS(cachedNews.slice(0, 6));
+                if (typeof renderHomeNews === 'function') renderHomeNews();
             });
     }
 
