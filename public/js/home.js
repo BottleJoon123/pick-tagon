@@ -50,6 +50,10 @@ async function initHomeData() {
             dateEl.textContent = isNaN(d.getTime()) ? '' :
                 d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric', weekday: 'short' }).toUpperCase();
         }
+        var redEl = document.getElementById('hero-red-name');
+        var blueEl = document.getElementById('hero-blue-name');
+        if (redEl && matchup.red_fighter_name) redEl.textContent = matchup.red_fighter_name;
+        if (blueEl && matchup.blue_fighter_name) blueEl.textContent = matchup.blue_fighter_name;
         startCountdown(event.event_date);
         renderFaceOffGlow(Number(matchup.left_bias) || 0.5);
     } catch(e) {
