@@ -58,9 +58,15 @@ async function initHomeData() {
         var blueImg = document.getElementById('hero-blue-img');
         if (redImg && matchup.red_image_url) {
             redImg.style.backgroundImage = 'linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.85) 100%), url(' + matchup.red_image_url + ')';
+            redImg.style.backgroundSize = 'cover, cover';
+            redImg.style.backgroundPosition = 'top center, top center';
+            redImg.style.backgroundRepeat = 'no-repeat, no-repeat';
         }
         if (blueImg && matchup.blue_image_url) {
             blueImg.style.backgroundImage = 'linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.85) 100%), url(' + matchup.blue_image_url + ')';
+            blueImg.style.backgroundSize = 'cover, cover';
+            blueImg.style.backgroundPosition = 'top center, top center';
+            blueImg.style.backgroundRepeat = 'no-repeat, no-repeat';
         }
         startCountdown(event.event_date);
         renderFaceOffGlow(Number(matchup.left_bias) || 0.5);
