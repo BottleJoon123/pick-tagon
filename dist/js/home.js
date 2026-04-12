@@ -124,11 +124,7 @@ async function initHome() {
         // else static HTML already in place
     });
 
-    // News skeleton while loading
-    var grid = document.getElementById('home-news-grid');
-    if (grid && !grid.dataset.loaded) {
-        grid.innerHTML = renderNewsSkeleton(3);
-    }
+    // 뉴스 스켈레톤은 renderHomeNews() 내부에서 처리
 }
 
 // ── Countdown ────────────────────────────────────────────────────

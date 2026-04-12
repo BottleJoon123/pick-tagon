@@ -18,8 +18,14 @@
 
     // ---- PUBLIC RENDER ----
     function renderHomeNews() {
-        // 항상 Supabase news_cache에서 최신 뉴스를 가져옴
         var grid = document.getElementById('home-news-grid');
+        if (!grid) return;
+
+        // 스켈레톤 즉시 표시
+        if (typeof renderNewsSkeleton === 'function') {
+            grid.innerHTML = renderNewsSkeleton(3);
+        }
+
         if (sb) {
             sb.from('news_cache')
                 .select('*')
@@ -30,23 +36,35 @@
                         var items = res.data.map(function(n) {
                             var d = new Date(n.published_at);
                             return {
-                                title: n.title, summary: n.summary,
-                                url: n.url, image_url: n.image_url,
-                                category: n.category, source: n.source,
+                                title: n.title,
+                                url: n.url,
+                                thumbnail_url: n.image_url || '',
+                                source: n.source || '',
                                 date: d.getFullYear() + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0')
                             };
                         });
-                        renderHomeNewsFromRSS(items);
+                        // renderNewsCards 우선, 없으면 구 방식 fallback
+                        if (typeof renderNewsCards === 'function') {
+                            grid.innerHTML = renderNewsCards(items);
+                            grid.dataset.loaded = '1';
+                        } else {
+                            renderHomeNewsFromRSS(items);
+                        }
                     } else {
-                        if (grid) grid.innerHTML = '<div class="col-span-3 glass-card rounded-[2rem] p-12 text-center text-gray-600 oswald-sharp text-xs italic uppercase tracking-widest">등록된 뉴스가 없습니다</div>';
+                        grid.innerHTML = '<div class="col-span-3 glass-card rounded-[2rem] p-12 text-center text-gray-600 oswald-sharp text-xs italic uppercase tracking-widest">등록된 뉴스가 없습니다</div>';
                     }
                 });
         } else {
-            // Supabase 초기화 전 — cachedNews가 있으면 사용, 없으면 로딩 표시
-            if (cachedNews.length > 0) {
-                renderHomeNewsFromRSS(cachedNews.slice(0, 6));
-            } else {
-                if (grid) grid.innerHTML = '<div class="col-span-3 glass-card rounded-[2rem] p-12 text-center text-gray-500 oswald-sharp text-xs italic uppercase tracking-widest">뉴스 로딩 중...</div>';
+            if (cachedNews && cachedNews.length > 0) {
+                var items = cachedNews.slice(0, 6).map(function(n) {
+                    return { title: n.title, url: n.url, thumbnail_url: n.image_url || '', source: n.source || '', date: n.date || '' };
+                });
+                if (typeof renderNewsCards === 'function') {
+                    grid.innerHTML = renderNewsCards(items);
+                    grid.dataset.loaded = '1';
+                } else {
+                    renderHomeNewsFromRSS(cachedNews.slice(0, 6));
+                }
             }
         }
     }
