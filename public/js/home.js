@@ -118,12 +118,24 @@ function renderNewsSkeleton(count) {
 
 var _NEWS_FALLBACK_IMG = 'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600';
 
+var _NEWS_CATEGORY_IMGS = {
+    'ufc':     'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600',
+    'result':  'https://images.unsplash.com/photo-1555072956-7758afb20e8f?auto=format&fit=crop&q=80&w=600',
+    'fighter': 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&q=80&w=600',
+    'event':   'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&q=80&w=600',
+    'ranking': 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=600'
+};
+
+function getNewsCategoryImg(category) {
+    return _NEWS_CATEGORY_IMGS[category] || _NEWS_FALLBACK_IMG;
+}
+
 function renderNewsCards(newsItems) {
     if (!newsItems || !newsItems.length) return '<p class="col-span-3 text-center text-gray-600 oswald-sharp text-xs italic uppercase">등록된 뉴스가 없습니다</p>';
     return '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">' +
         newsItems.map(function(item) {
             var title = item.title || '', url = item.url || '#', source = item.source || '', date = item.date || '';
-            var imgSrc = item.thumbnail_url || _NEWS_FALLBACK_IMG;
+            var imgSrc = item.thumbnail_url || getNewsCategoryImg(item.category);
             var safeTitle = String(title).replace(/</g,'&lt;');
             var safeSource = String(source).replace(/</g,'&lt;');
             return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="block group">' +

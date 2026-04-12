@@ -94,7 +94,8 @@
             var tagColor = TAG_COLORS[n.category] || 'bg-ufcRed';
             var tagLabel = TAG_LABELS[n.category] || 'UFC';
             var imgSrc = n.image_url ||
-                'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600';
+                (typeof getNewsCategoryImg === 'function' ? getNewsCategoryImg(n.category) :
+                'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600');
             var clickAttr = n.url ? 'onclick="window.open(\'' + n.url + '\',\'_blank\')" style="cursor:pointer"' : '';
             return '<div class="glass-card rounded-[1.5rem] overflow-hidden group hover:border-ufcRed/30 transition-all duration-500" ' + clickAttr + '>' +
                 '<div class="h-36 lg:h-44 bg-gray-900 relative overflow-hidden">' +

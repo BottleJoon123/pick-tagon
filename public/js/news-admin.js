@@ -24,6 +24,7 @@
                 title: n.title,
                 url: n.url,
                 thumbnail_url: n.image_url || '',
+                category: n.category || 'ufc',
                 source: n.source || '',
                 date: d.getFullYear() + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0')
             };
@@ -37,7 +38,7 @@
         // 캐시-퍼스트: cachedNews 이미 있으면 즉시 렌더 (Supabase 재요청 불필요)
         if (cachedNews && cachedNews.length > 0 && typeof renderNewsCards === 'function') {
             var cached = cachedNews.slice(0, 6).map(function(n) {
-                return { title: n.title, url: n.url, thumbnail_url: n.image_url || '', source: n.source || '', date: n.date || '' };
+                return { title: n.title, url: n.url, thumbnail_url: n.image_url || '', category: n.category || 'ufc', source: n.source || '', date: n.date || '' };
             });
             grid.innerHTML = renderNewsCards(cached);
             grid.dataset.loaded = '1';
