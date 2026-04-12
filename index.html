@@ -4007,7 +4007,7 @@ async function publishPost() {
         var searchQuery = document.getElementById('news-search-input')
             ? document.getElementById('news-search-input').value.trim() : '';
 
-        // 이미 불러온 뉴스가 있고 검색어가 있다면 필터링만 수행
+        // 검색어 있고 캐시 있으면 필터링만
         if (searchQuery && cachedNews.length > 0) {
             renderNewsGrid();
             return;
@@ -4016,8 +4016,12 @@ async function publishPost() {
         grid.innerHTML = '';
         loading.classList.remove('hidden');
 
-        // Edge Function을 깨우지 않고, 바로 DB에서 최신 뉴스를 읽어옵니다.
-        loadNewsFromDB();
+        // Edge Function 호출 (12h 쿨다운 내장 — 캐시 신선하면 즉시 반환)
+        // 응답 후 DB에서 최신 뉴스 로드
+        var edgeUrl = 'https://rnnrimzrypayvnmznpin.supabase.co/functions/v1/fetch-mma-news';
+        fetch(edgeUrl, { method: 'GET' })
+            .then(function() { loadNewsFromDB(); })
+            .catch(function() { loadNewsFromDB(); });
     }
 
     // ── Gemini API 번역 ──
