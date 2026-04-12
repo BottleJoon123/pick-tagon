@@ -54,6 +54,14 @@ async function initHomeData() {
         var blueEl = document.getElementById('hero-blue-name');
         if (redEl && matchup.red_fighter_name) redEl.textContent = matchup.red_fighter_name;
         if (blueEl && matchup.blue_fighter_name) blueEl.textContent = matchup.blue_fighter_name;
+        var redImg = document.getElementById('hero-red-img');
+        var blueImg = document.getElementById('hero-blue-img');
+        if (redImg && matchup.red_image_url) {
+            redImg.style.backgroundImage = 'linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.85) 100%), url(' + matchup.red_image_url + ')';
+        }
+        if (blueImg && matchup.blue_image_url) {
+            blueImg.style.backgroundImage = 'linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.85) 100%), url(' + matchup.blue_image_url + ')';
+        }
         startCountdown(event.event_date);
         renderFaceOffGlow(Number(matchup.left_bias) || 0.5);
     } catch(e) {
@@ -100,14 +108,18 @@ function renderNewsSkeleton(count) {
 
 function renderNewsCards(newsItems) {
     if (!newsItems || !newsItems.length) return '<p class="col-span-3 text-center text-gray-600 oswald-sharp text-xs italic uppercase">등록된 뉴스가 없습니다</p>';
-    return `<div class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-5">
+    return `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
         ${newsItems.map(({ title, url, thumbnail_url, source, date }) => `
         <a href="${url}" target="_blank" rel="noopener noreferrer" class="block group">
-            <div class="glass-card rounded-2xl overflow-hidden hover:border-white/20 transition border border-white/[0.06]">
-                <img src="${thumbnail_url || ''}" class="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.style.display='none'">
-                <div class="p-4">
-                    <div class="oswald-sharp text-sm font-black italic uppercase text-white line-clamp-2 group-hover:text-ufcRed transition">${title}</div>
-                    <div class="barlow text-[9px] text-gray-600 italic mt-2">${source || ''} ${date ? '· ' + date : ''}</div>
+            <div class="glass-card rounded-2xl overflow-hidden hover:border-white/20 transition-all duration-300 border border-white/[0.06] hover:scale-[1.02]">
+                <div class="relative overflow-hidden">
+                    <img src="${thumbnail_url || ''}" class="w-full object-cover group-hover:scale-105 transition-transform duration-500" style="height:200px" onerror="this.parentElement.style.display='none'">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none"></div>
+                    ${source ? `<div class="absolute top-3 left-3 barlow text-[10px] font-bold italic tracking-widest uppercase px-2 py-1 rounded" style="background:rgba(210,10,10,0.85);color:#fff">${String(source).replace(/</g,'&lt;')}</div>` : ''}
+                </div>
+                <div class="p-5">
+                    <div class="oswald-sharp text-base font-black italic uppercase text-white line-clamp-2 group-hover:text-ufcRed transition leading-snug">${title}</div>
+                    <div class="barlow text-[10px] text-gray-500 italic mt-2">${date || ''}</div>
                 </div>
             </div>
         </a>`).join('')}
