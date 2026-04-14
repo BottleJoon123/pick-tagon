@@ -673,11 +673,11 @@ function renderPendingEventsList(events) {
                 ${ev.source_url ? `<a href="${escapeHtml(ev.source_url)}" target="_blank" rel="noopener noreferrer" class="text-gray-600 text-[10px] hover:text-gray-400 transition-colors truncate block mt-0.5">${escapeHtml(ev.source_url)}</a>` : ''}
             </div>
             <div class="flex gap-2 shrink-0">
-                <button onclick="approveEvent(${JSON.stringify(ev.id)}, ${JSON.stringify(ev.title)}, ${JSON.stringify(ev.event_date || '')}, ${JSON.stringify(ev.source_url || '')})"
+                <button onclick="approveEvent('${ev.id}', ${JSON.stringify(ev.title).replace(/"/g,'&quot;')}, ${JSON.stringify(ev.event_date || '').replace(/"/g,'&quot;')}, ${JSON.stringify(ev.source_url || '').replace(/"/g,'&quot;')})"
                     class="oswald-sharp bg-ufcRed text-white font-black italic uppercase text-[11px] px-4 py-2 rounded-xl tracking-widest hover:shadow-[0_0_16px_rgba(232,0,13,0.5)] transition-all">
                     APPROVE
                 </button>
-                <button onclick="rejectPendingEvent(${JSON.stringify(ev.id)})"
+                <button onclick="rejectPendingEvent('${ev.id}')"
                     class="oswald-sharp bg-zinc-800 text-gray-400 font-black italic uppercase text-[11px] px-4 py-2 rounded-xl tracking-widest hover:bg-zinc-700 hover:text-white transition-all">
                     REJECT
                 </button>
@@ -769,7 +769,7 @@ function renderApprovedEventsList(events) {
                     <p class="oswald-sharp text-emerald-400 italic text-xs mt-1 tracking-widest">${dateLabel}</p>
                 </div>
                 <div class="flex gap-2 shrink-0">
-                    <button onclick="crawlMatchups(${JSON.stringify(ev.id)}, ${JSON.stringify(ev.source_url || '')})"
+                    <button onclick="crawlMatchups('${ev.id}', ${JSON.stringify(ev.source_url || '').replace(/"/g,'&quot;')})"
                         ${hasUrl ? '' : 'disabled'}
                         class="oswald-sharp font-black italic uppercase text-[11px] px-4 py-2 rounded-xl tracking-widest transition-all
                                ${hasUrl
@@ -783,7 +783,7 @@ function renderApprovedEventsList(events) {
             <div class="mt-3 flex gap-2 items-center">
                 <input type="text" id="url-input-${ev.id}" placeholder="Sherdog URL 직접 입력 (예: https://www.sherdog.com/events/...)"
                     class="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-emerald-500 placeholder-gray-700">
-                <button onclick="crawlMatchupsWithInput(${JSON.stringify(ev.id)})"
+                <button onclick="crawlMatchupsWithInput('${ev.id}')"
                     class="oswald-sharp bg-emerald-600 text-white font-black italic uppercase text-[11px] px-4 py-2 rounded-xl tracking-widest hover:bg-emerald-500 transition-all shrink-0">
                     GO
                 </button>
