@@ -89,7 +89,7 @@ function switchAdminTab(tab) {
     document.getElementById(`admin-tab-${tab}`).classList.remove('text-gray-500');
     if (tab === 'season') renderSeasonAdminPanel();
     if (tab === 'settings') { loadGeminiKeyToUI(); }
-    if (tab === 'ufc') { fetchPendingEvents(); }
+    if (tab === 'ufc') { fetchPendingEvents(); fetchApprovedEvents(); }
 }
 
 // ── Gemini API Key 관리 (어드민 설정 탭) ──
@@ -672,7 +672,7 @@ function renderPendingEventsList(events) {
                 ${ev.source_url ? `<a href="${escapeHtml(ev.source_url)}" target="_blank" rel="noopener noreferrer" class="text-gray-600 text-[10px] hover:text-gray-400 transition-colors truncate block mt-0.5">${escapeHtml(ev.source_url)}</a>` : ''}
             </div>
             <div class="flex gap-2 shrink-0">
-                <button onclick="approveEvent(${JSON.stringify(ev.id)}, ${JSON.stringify(ev.title)}, ${JSON.stringify(ev.event_date || '')})"
+                <button onclick="approveEvent(${JSON.stringify(ev.id)}, ${JSON.stringify(ev.title)}, ${JSON.stringify(ev.event_date || '')}, ${JSON.stringify(ev.source_url || '')})"
                     class="oswald-sharp bg-ufcRed text-white font-black italic uppercase text-[11px] px-4 py-2 rounded-xl tracking-widest hover:shadow-[0_0_16px_rgba(232,0,13,0.5)] transition-all">
                     APPROVE
                 </button>
@@ -685,14 +685,14 @@ function renderPendingEventsList(events) {
     `).join('');
 }
 
-async function approveEvent(id, title, dateStr) {
+async function approveEvent(id, title, dateStr, sourceUrl) {
     if (!confirm(`"${title}" 이벤트를 승인할까요?`)) return;
 
     // events 테이블 INSERT (pending_events.event_date는 'YYYY-MM-DD' TEXT)
     const eventDate = dateStr ? new Date(dateStr + 'T00:00:00Z').toISOString() : null;
     const { error: insertErr } = await sb
         .from('events')
-        .insert({ title, event_date: eventDate, status: 'upcoming' });
+        .insert({ title, event_date: eventDate, status: 'upcoming', source_url: sourceUrl || null });
 
     if (insertErr) {
         showToast('❌ events INSERT 실패: ' + insertErr.message);
@@ -712,6 +712,111 @@ async function approveEvent(id, title, dateStr) {
 
     showToast('✅ 이벤트 승인 완료: ' + title);
     fetchPendingEvents();
+    fetchApprovedEvents();
+}
+
+// ── 승인된 이벤트 + 대진표 크롤링 ───────────────────────────────────
+
+async function fetchApprovedEvents() {
+    const container = document.getElementById('ufc-approved-list');
+    if (!container) return;
+
+    container.innerHTML = '<p class="oswald-sharp text-gray-600 italic text-sm uppercase tracking-widest animate-pulse py-6 text-center">Loading...</p>';
+
+    const { data, error } = await sb
+        .from('events')
+        .select('id, title, event_date, source_url, status')
+        .eq('status', 'upcoming')
+        .order('event_date', { ascending: true });
+
+    if (error) {
+        container.innerHTML = `<p class="text-red-400 text-sm py-4">오류: ${escapeHtml(error.message)}</p>`;
+        return;
+    }
+
+    renderApprovedEventsList(data || []);
+}
+
+function renderApprovedEventsList(events) {
+    const container = document.getElementById('ufc-approved-list');
+    if (!container) return;
+
+    const countEl = document.getElementById('ufc-approved-count');
+    if (countEl) countEl.textContent = events.length;
+
+    if (!events.length) {
+        container.innerHTML = `
+            <div class="text-center py-10">
+                <p class="oswald-sharp text-gray-700 italic text-base uppercase tracking-widest">승인된 이벤트 없음</p>
+                <p class="text-gray-700 text-xs mt-1">대기열에서 이벤트를 승인하세요</p>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = events.map(ev => {
+        const dateLabel = ev.event_date
+            ? new Date(ev.event_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
+            : '날짜 미정';
+        const hasUrl = !!ev.source_url;
+
+        return `
+        <div class="glass-card rounded-2xl px-5 py-4 border border-white/5 hover:border-emerald-500/20 transition-all" id="approved-row-${ev.id}">
+            <div class="flex items-center gap-4">
+                <div class="flex-1 min-w-0">
+                    <p class="oswald-sharp text-white font-black italic uppercase text-sm leading-tight">${escapeHtml(ev.title)}</p>
+                    <p class="oswald-sharp text-emerald-400 italic text-xs mt-1 tracking-widest">${dateLabel}</p>
+                </div>
+                <div class="flex gap-2 shrink-0">
+                    <button onclick="crawlMatchups(${JSON.stringify(ev.id)}, ${JSON.stringify(ev.source_url || '')})"
+                        ${hasUrl ? '' : 'disabled'}
+                        class="oswald-sharp font-black italic uppercase text-[11px] px-4 py-2 rounded-xl tracking-widest transition-all
+                               ${hasUrl
+                                   ? 'bg-emerald-600 text-white hover:bg-emerald-500 hover:shadow-[0_0_14px_rgba(52,211,153,0.4)]'
+                                   : 'bg-zinc-800 text-gray-600 cursor-not-allowed'}">
+                        대진표 크롤링
+                    </button>
+                </div>
+            </div>
+            ${!hasUrl ? `
+            <div class="mt-3 flex gap-2 items-center">
+                <input type="text" id="url-input-${ev.id}" placeholder="Sherdog URL 직접 입력 (예: https://www.sherdog.com/events/...)"
+                    class="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-emerald-500 placeholder-gray-700">
+                <button onclick="crawlMatchupsWithInput(${JSON.stringify(ev.id)})"
+                    class="oswald-sharp bg-emerald-600 text-white font-black italic uppercase text-[11px] px-4 py-2 rounded-xl tracking-widest hover:bg-emerald-500 transition-all shrink-0">
+                    GO
+                </button>
+            </div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+async function crawlMatchups(eventId, sourceUrl) {
+    if (!sourceUrl) { showToast('⚠ source_url이 없습니다'); return; }
+
+    const btn = document.querySelector(`#approved-row-${eventId} button`);
+    if (btn) { btn.disabled = true; btn.textContent = '크롤링 중...'; }
+
+    try {
+        const { data, error } = await sb.functions.invoke('scrape-matchups', {
+            body: { event_id: eventId, source_url: sourceUrl },
+        });
+
+        if (error) throw new Error(error.message);
+        if (!data.success) throw new Error(data.error || '파싱 실패');
+
+        showToast(`✅ ${data.inserted}개의 매치업이 로드되었습니다!`);
+        fetchApprovedEvents();
+    } catch (e) {
+        showToast('❌ 크롤링 실패: ' + e.message);
+        if (btn) { btn.disabled = false; btn.textContent = '대진표 크롤링'; }
+    }
+}
+
+async function crawlMatchupsWithInput(eventId) {
+    const input = document.getElementById(`url-input-${eventId}`);
+    const sourceUrl = input ? input.value.trim() : '';
+    if (!sourceUrl) { showToast('⚠ URL을 입력해주세요'); return; }
+    await crawlMatchups(eventId, sourceUrl);
 }
 
 async function rejectPendingEvent(id) {

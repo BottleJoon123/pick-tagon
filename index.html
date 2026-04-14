@@ -1637,9 +1637,23 @@ textarea, select {
                         </button>
                     </div>
                 </div>
-                <!-- 리스트 컨테이너 -->
+                <!-- 대기열 리스트 -->
                 <div id="ufc-queue-list" class="space-y-3">
                     <p class="oswald-sharp text-gray-700 italic text-sm uppercase tracking-widest text-center py-8">탭을 열면 자동으로 로드됩니다</p>
+                </div>
+
+                <!-- 구분선 -->
+                <div class="border-t border-white/5 pt-6 mt-2">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h5 class="oswald-sharp text-base font-black italic uppercase text-emerald-400 tracking-widest">승인된 이벤트 (Upcoming)</h5>
+                            <p class="text-gray-600 text-xs mt-0.5">대진표 크롤링 버튼으로 <span class="text-emerald-500 italic">matchups</span> 테이블에 저장합니다</p>
+                        </div>
+                        <span class="oswald-sharp text-gray-600 italic text-xs uppercase tracking-widest">총 <span id="ufc-approved-count" class="text-white font-black">–</span>건</span>
+                    </div>
+                    <div id="ufc-approved-list" class="space-y-3">
+                        <p class="oswald-sharp text-gray-700 italic text-sm uppercase tracking-widest text-center py-6">로딩 대기 중...</p>
+                    </div>
                 </div>
             </div>
         </div>
