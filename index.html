@@ -1474,6 +1474,7 @@ textarea, select {
             <button onclick="switchAdminTab('news')" id="admin-tab-news" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">📰 뉴스 관리</button>
             <button onclick="switchAdminTab('season')" id="admin-tab-season" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">🏆 시즌 관리</button>
             <button onclick="switchAdminTab('event')" id="admin-tab-event" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">🏟 이벤트 정보</button>
+            <button onclick="switchAdminTab('ufc')" id="admin-tab-ufc" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">🕷 UFC 대기열</button>
             <button onclick="switchAdminTab('settings')" id="admin-tab-settings" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">⚙ 설정</button>
         </div>
 
@@ -1615,6 +1616,30 @@ textarea, select {
                         <p class="text-gray-400 text-xs mt-1">API 키 불필요 — UFC.com 공식 랭킹을 실시간으로 가져옵니다.<br>
                         UFC 랭킹 페이지의 "🔄 UFC 랭킹 자동 갱신" 버튼을 눌러 바로 갱신하세요.</p>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: UFC 이벤트 대기열 -->
+        <div id="admin-panel-ufc" class="hidden">
+            <div class="glass-card rounded-[2rem] p-6 lg:p-10 space-y-5 bg-zinc-900/60">
+                <!-- 헤더 -->
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h4 class="oswald-sharp text-xl font-black italic uppercase text-white tracking-widest">UFC 이벤트 대기열</h4>
+                        <p class="text-gray-500 text-xs mt-1">크롤러가 수집한 이벤트 · 승인 시 <span class="text-ufcRed italic">events</span> 테이블에 등록됩니다</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="oswald-sharp text-gray-600 italic text-xs uppercase tracking-widest">대기 <span id="ufc-queue-count" class="text-white font-black">–</span>건</span>
+                        <button onclick="fetchPendingEvents()"
+                            class="oswald-sharp bg-zinc-800 text-gray-300 font-black italic uppercase text-xs px-4 py-2 rounded-xl tracking-widest hover:bg-zinc-700 hover:text-white transition-all">
+                            ↺ 새로고침
+                        </button>
+                    </div>
+                </div>
+                <!-- 리스트 컨테이너 -->
+                <div id="ufc-queue-list" class="space-y-3">
+                    <p class="oswald-sharp text-gray-700 italic text-sm uppercase tracking-widest text-center py-8">탭을 열면 자동으로 로드됩니다</p>
                 </div>
             </div>
         </div>

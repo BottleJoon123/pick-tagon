@@ -79,7 +79,7 @@ function logoutAdmin() {
 
 // ----- ADMIN TAB -----
 function switchAdminTab(tab) {
-    ['fighters', 'fights', 'archive', 'news', 'season', 'event', 'settings'].forEach(t => {
+    ['fighters', 'fights', 'archive', 'news', 'season', 'event', 'ufc', 'settings'].forEach(t => {
         document.getElementById(`admin-panel-${t}`).classList.add('hidden');
         document.getElementById(`admin-tab-${t}`).classList.remove('active-tab', 'text-ufcRed');
         document.getElementById(`admin-tab-${t}`).classList.add('text-gray-500');
@@ -89,6 +89,7 @@ function switchAdminTab(tab) {
     document.getElementById(`admin-tab-${tab}`).classList.remove('text-gray-500');
     if (tab === 'season') renderSeasonAdminPanel();
     if (tab === 'settings') { loadGeminiKeyToUI(); }
+    if (tab === 'ufc') { fetchPendingEvents(); }
 }
 
 // ── Gemini API Key 관리 (어드민 설정 탭) ──
@@ -623,4 +624,105 @@ function applyEventInfo() {
     const dateEl = document.getElementById('event-date-label');
     if (nameEl) nameEl.textContent = eventInfo.name;
     if (dateEl) dateEl.textContent = eventInfo.date;
+}
+
+// ── UFC 이벤트 대기열 관리 ──────────────────────────────────────────
+
+async function fetchPendingEvents() {
+    const container = document.getElementById('ufc-queue-list');
+    if (!container) return;
+
+    container.innerHTML = '<p class="oswald-sharp text-gray-600 italic text-sm uppercase tracking-widest animate-pulse py-8 text-center">Loading...</p>';
+
+    const { data, error } = await sb
+        .from('pending_events')
+        .select('*')
+        .eq('status', 'pending')
+        .order('event_date', { ascending: true });
+
+    if (error) {
+        container.innerHTML = `<p class="text-red-400 text-sm py-4">오류: ${escapeHtml(error.message)}</p>`;
+        return;
+    }
+
+    renderPendingEventsList(data || []);
+}
+
+function renderPendingEventsList(events) {
+    const container = document.getElementById('ufc-queue-list');
+    if (!container) return;
+
+    const countEl = document.getElementById('ufc-queue-count');
+    if (countEl) countEl.textContent = events.length;
+
+    if (!events.length) {
+        container.innerHTML = `
+            <div class="text-center py-16">
+                <p class="oswald-sharp text-gray-600 italic text-xl uppercase tracking-widest">대기 중인 이벤트 없음</p>
+                <p class="text-gray-700 text-xs mt-2">크롤러 실행 후 다시 확인하세요</p>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = events.map(ev => `
+        <div class="glass-card rounded-2xl px-5 py-4 flex items-center gap-4 border border-white/5 hover:border-ufcRed/20 transition-all">
+            <div class="flex-1 min-w-0">
+                <p class="oswald-sharp text-white font-black italic uppercase text-sm lg:text-base leading-tight">${escapeHtml(ev.title)}</p>
+                <p class="oswald-sharp text-ufcRed italic text-xs mt-1 tracking-widest">${ev.event_date || '날짜 미정'}</p>
+                ${ev.source_url ? `<a href="${escapeHtml(ev.source_url)}" target="_blank" rel="noopener noreferrer" class="text-gray-600 text-[10px] hover:text-gray-400 transition-colors truncate block mt-0.5">${escapeHtml(ev.source_url)}</a>` : ''}
+            </div>
+            <div class="flex gap-2 shrink-0">
+                <button onclick="approveEvent(${JSON.stringify(ev.id)}, ${JSON.stringify(ev.title)}, ${JSON.stringify(ev.event_date || '')})"
+                    class="oswald-sharp bg-ufcRed text-white font-black italic uppercase text-[11px] px-4 py-2 rounded-xl tracking-widest hover:shadow-[0_0_16px_rgba(232,0,13,0.5)] transition-all">
+                    APPROVE
+                </button>
+                <button onclick="rejectPendingEvent(${JSON.stringify(ev.id)})"
+                    class="oswald-sharp bg-zinc-800 text-gray-400 font-black italic uppercase text-[11px] px-4 py-2 rounded-xl tracking-widest hover:bg-zinc-700 hover:text-white transition-all">
+                    REJECT
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function approveEvent(id, title, dateStr) {
+    if (!confirm(`"${title}" 이벤트를 승인할까요?`)) return;
+
+    // events 테이블 INSERT (pending_events.event_date는 'YYYY-MM-DD' TEXT)
+    const eventDate = dateStr ? new Date(dateStr + 'T00:00:00Z').toISOString() : null;
+    const { error: insertErr } = await sb
+        .from('events')
+        .insert({ title, event_date: eventDate, status: 'upcoming' });
+
+    if (insertErr) {
+        showToast('❌ events INSERT 실패: ' + insertErr.message);
+        return;
+    }
+
+    // pending_events status → 'approved'
+    const { error: updateErr } = await sb
+        .from('pending_events')
+        .update({ status: 'approved' })
+        .eq('id', id);
+
+    if (updateErr) {
+        showToast('⚠ pending UPDATE 실패: ' + updateErr.message);
+        return;
+    }
+
+    showToast('✅ 이벤트 승인 완료: ' + title);
+    fetchPendingEvents();
+}
+
+async function rejectPendingEvent(id) {
+    if (!confirm('이 이벤트를 거절(Reject) 처리할까요?')) return;
+
+    const { error } = await sb
+        .from('pending_events')
+        .update({ status: 'rejected' })
+        .eq('id', id);
+
+    if (error) { showToast('❌ 거절 처리 실패: ' + error.message); return; }
+    showToast('🗑 이벤트 거절 처리 완료');
+    fetchPendingEvents();
 }
