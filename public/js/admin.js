@@ -28,6 +28,7 @@ function saveAdmin() {
 }
 
 function getActiveFights() {
+    if (typeof _dbMatchups !== 'undefined' && _dbMatchups.length > 0) return _dbMatchups;
     return customFights.length > 0 ? customFights : FIGHTS;
 }
 

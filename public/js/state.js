@@ -78,6 +78,9 @@ var seasonData = {
 // 파이트 카드 Chart 인스턴스 { fightId: Chart }
 var fightCharts = {};
 
+// DB에서 로드한 매치업 (static FIGHTS보다 우선, customFights보다 우선)
+var _dbMatchups = [];
+
 // 뉴스 어드민 (Supabase가 source-of-truth)
 var NEWS_SEED = []; // 하드코딩 제거 — Supabase news_cache가 유일한 소스
 
