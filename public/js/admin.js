@@ -687,13 +687,14 @@ function renderPendingEventsList(events) {
 }
 
 async function approveEvent(id, title, dateStr, sourceUrl) {
-    if (!confirm(`"${title}" 이벤트를 승인할까요?`)) return;
+    const cleanTitle = (title || '').replace(/\s+/g, ' ').trim();
+    if (!confirm(`"${cleanTitle}" 이벤트를 승인할까요?`)) return;
 
     // events 테이블 INSERT (pending_events.event_date는 'YYYY-MM-DD' TEXT)
     const eventDate = dateStr ? new Date(dateStr + 'T00:00:00Z').toISOString() : null;
     const { error: insertErr } = await sb
         .from('events')
-        .insert({ title, event_date: eventDate, status: 'upcoming', source_url: sourceUrl || null });
+        .insert({ title: cleanTitle, event_date: eventDate, status: 'upcoming', source_url: sourceUrl || null });
 
     if (insertErr) {
         showToast('❌ events INSERT 실패: ' + insertErr.message);
@@ -816,8 +817,27 @@ async function crawlMatchups(eventId, sourceUrl) {
 async function crawlMatchupsWithInput(eventId) {
     const input = document.getElementById(`url-input-${eventId}`);
     const sourceUrl = input ? input.value.trim() : '';
+    console.log('[crawlMatchupsWithInput] eventId:', eventId, 'sourceUrl:', sourceUrl);
     if (!sourceUrl) { showToast('⚠ URL을 입력해주세요'); return; }
     await crawlMatchups(eventId, sourceUrl);
+}
+
+async function runUfcCrawler() {
+    const btn = document.getElementById('btn-run-crawler');
+    if (btn) { btn.disabled = true; btn.textContent = '실행 중...'; }
+    try {
+        const { data, error } = await sb.functions.invoke('ufc-crawler', { body: {} });
+        console.log('[runUfcCrawler] data:', data, 'error:', error);
+        if (error) throw new Error(error.message);
+        const count = data?.inserted ?? data?.count ?? '?';
+        showToast(`✅ 크롤러 완료 — ${count}개 이벤트 수집`);
+        fetchPendingEvents();
+    } catch (e) {
+        console.error('[runUfcCrawler]', e);
+        showToast('❌ 크롤러 실패: ' + e.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '🕷 크롤러 실행'; }
+    }
 }
 
 async function rejectPendingEvent(id) {
