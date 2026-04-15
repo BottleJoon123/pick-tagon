@@ -117,7 +117,7 @@ function loadPostsFromDB() {
                     newsFetched = true;
                 }
                 renderNewsGrid();
-                renderHomeNewsFromRSS(cachedNews.slice(0, 6));
+                if (typeof renderHomeNews === 'function') renderHomeNews();
             });
     }
 
@@ -257,3 +257,49 @@ function loadPostsFromDB() {
             }
         });
     }
+
+// ── DB 매치업 패칭 (Matchups 탭 진입 시 호출) ─────────────────────────
+async function fetchUpcomingMatchups() {
+    if (typeof sb === 'undefined' || !sb) return;
+    try {
+        var evRes = await sb.from('events')
+            .select('id, title, event_date')
+            .eq('status', 'upcoming')
+            .order('event_date', { ascending: true })
+            .limit(1);
+        if (evRes.error || !evRes.data || !evRes.data.length) return;
+        var event = evRes.data[0];
+
+        var mRes = await sb.from('matchups')
+            .select('*')
+            .eq('event_id', event.id)
+            .order('is_main_event', { ascending: false });
+        if (mRes.error || !mRes.data || !mRes.data.length) return;
+
+        var mainIdx = 0;
+        _dbMatchups = mRes.data.map(function(m, i) {
+            var isMain = m.is_main_event === true;
+            var tag = isMain
+                ? (mainIdx++ === 0 ? 'MAIN EVENT' : 'CO-MAIN EVENT')
+                : 'PRELIMS';
+            return {
+                id: m.id,
+                section: isMain ? 'main' : 'prelim',
+                sectionLabel: isMain ? '메인 카드' : '프렐림',
+                sectionTime: '',
+                tag: tag,
+                division: '',
+                rounds: isMain ? 5 : 3,
+                leftBias: Number(m.left_bias) || 0.5,
+                _eventTitle: event.title || '',
+                _fromDB: true,
+                f1: { name: m.red_fighter_name || '?', nameEn: '', record: '', odds: null, recent: [], stats: [], imgUrl: m.red_image_url || '' },
+                f2: { name: m.blue_fighter_name || '?', nameEn: '', record: '', odds: null, recent: [], stats: [], imgUrl: m.blue_image_url || '' },
+            };
+        });
+
+        if (typeof renderFightCards === 'function') renderFightCards();
+    } catch(e) {
+        console.warn('[fetchUpcomingMatchups]', e);
+    }
+}

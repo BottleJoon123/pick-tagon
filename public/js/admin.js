@@ -799,14 +799,30 @@ async function crawlMatchups(eventId, sourceUrl) {
     if (btn) { btn.disabled = true; btn.textContent = '크롤링 중...'; }
 
     try {
+        const sessionRes = await sb.auth.getSession();
+        const session = sessionRes && sessionRes.data ? sessionRes.data.session : null;
+        if (!session || !session.access_token) throw new Error('Admin session not ready. Please sign in again.');
+
         const { data, error } = await sb.functions.invoke('scrape-matchups', {
             body: { event_id: eventId, source_url: sourceUrl },
+            headers: { Authorization: `Bearer ${session.access_token}` },
         });
 
-        if (error) throw new Error(error.message);
+        if (error) {
+            let message = error.message;
+            if (error.context && typeof error.context.json === 'function') {
+                try {
+                    const payload = await error.context.json();
+                    if (payload && payload.error) message = payload.error;
+                } catch (_) {}
+            }
+            throw new Error(message);
+        }
         if (!data.success) throw new Error(data.error || '파싱 실패');
 
         showToast(`✅ ${data.inserted}개의 매치업이 로드되었습니다!`);
+        _dbMatchups = [];
+        if (typeof fetchUpcomingMatchups === 'function') fetchUpcomingMatchups();
         fetchApprovedEvents();
     } catch (e) {
         showToast('❌ 크롤링 실패: ' + e.message);
@@ -826,9 +842,25 @@ async function runUfcCrawler() {
     const btn = document.getElementById('btn-run-crawler');
     if (btn) { btn.disabled = true; btn.textContent = '실행 중...'; }
     try {
-        const { data, error } = await sb.functions.invoke('ufc-crawler', { body: {} });
+        const sessionRes = await sb.auth.getSession();
+        const session = sessionRes && sessionRes.data ? sessionRes.data.session : null;
+        if (!session || !session.access_token) throw new Error('Admin session not ready. Please sign in again.');
+
+        const { data, error } = await sb.functions.invoke('ufc-crawler', {
+            body: {},
+            headers: { Authorization: `Bearer ${session.access_token}` },
+        });
         console.log('[runUfcCrawler] data:', data, 'error:', error);
-        if (error) throw new Error(error.message);
+        if (error) {
+            let message = error.message;
+            if (error.context && typeof error.context.json === 'function') {
+                try {
+                    const payload = await error.context.json();
+                    if (payload && payload.error) message = payload.error;
+                } catch (_) {}
+            }
+            throw new Error(message);
+        }
         const count = data?.inserted ?? data?.count ?? '?';
         showToast(`✅ 크롤러 완료 — ${count}개 이벤트 수집`);
         fetchPendingEvents();

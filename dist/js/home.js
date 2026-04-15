@@ -50,6 +50,24 @@ async function initHomeData() {
             dateEl.textContent = isNaN(d.getTime()) ? '' :
                 d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric', weekday: 'short' }).toUpperCase();
         }
+        var redEl = document.getElementById('hero-red-name');
+        var blueEl = document.getElementById('hero-blue-name');
+        if (redEl && matchup.red_fighter_name) redEl.textContent = matchup.red_fighter_name;
+        if (blueEl && matchup.blue_fighter_name) blueEl.textContent = matchup.blue_fighter_name;
+        var redImg = document.getElementById('hero-red-img');
+        var blueImg = document.getElementById('hero-blue-img');
+        if (redImg && matchup.red_image_url) {
+            redImg.style.backgroundImage = 'linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.85) 100%), url(' + matchup.red_image_url + ')';
+            redImg.style.backgroundSize = 'cover, cover';
+            redImg.style.backgroundPosition = 'top center, top center';
+            redImg.style.backgroundRepeat = 'no-repeat, no-repeat';
+        }
+        if (blueImg && matchup.blue_image_url) {
+            blueImg.style.backgroundImage = 'linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.85) 100%), url(' + matchup.blue_image_url + ')';
+            blueImg.style.backgroundSize = 'cover, cover';
+            blueImg.style.backgroundPosition = 'top center, top center';
+            blueImg.style.backgroundRepeat = 'no-repeat, no-repeat';
+        }
         startCountdown(event.event_date);
         renderFaceOffGlow(Number(matchup.left_bias) || 0.5);
     } catch(e) {
@@ -62,10 +80,14 @@ async function initHomeData() {
 async function fetchTickerKeywords() {
     if (typeof sb === 'undefined' || !sb) return [];
     try {
-        var result = await sb.from('news').select('keyword')
-            .order('created_at', { ascending: false }).limit(10);
+        var result = await sb.from('news_cache').select('title')
+            .order('published_at', { ascending: false }).limit(10);
         if (result.error) return [];
-        return (result.data || []).map(r => r && r.keyword).filter(k => k && String(k).trim());
+        return (result.data || []).map(function(r) {
+            if (!r || !r.title) return null;
+            // " - 출처명" 접미사 제거
+            return String(r.title).replace(/\s*[-–]\s*[^-–]+$/, '').trim();
+        }).filter(function(k) { return k && k.length > 0; });
     } catch(e) { return []; }
 }
 
@@ -94,20 +116,41 @@ function renderNewsSkeleton(count) {
     </div>`;
 }
 
+var _NEWS_FALLBACK_IMG = 'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600';
+
+var _NEWS_CATEGORY_IMGS = {
+    'ufc':     'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600',
+    'result':  'https://images.unsplash.com/photo-1555072956-7758afb20e8f?auto=format&fit=crop&q=80&w=600',
+    'fighter': 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&q=80&w=600',
+    'event':   'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&q=80&w=600',
+    'ranking': 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=600'
+};
+
+function getNewsCategoryImg(category) {
+    return _NEWS_CATEGORY_IMGS[category] || _NEWS_FALLBACK_IMG;
+}
+
 function renderNewsCards(newsItems) {
     if (!newsItems || !newsItems.length) return '<p class="col-span-3 text-center text-gray-600 oswald-sharp text-xs italic uppercase">등록된 뉴스가 없습니다</p>';
-    return `<div class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-5">
-        ${newsItems.map(({ title, url, thumbnail_url, source, date }) => `
-        <a href="${url}" target="_blank" rel="noopener noreferrer" class="block group">
-            <div class="glass-card rounded-2xl overflow-hidden hover:border-white/20 transition border border-white/[0.06]">
-                <img src="${thumbnail_url || ''}" class="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.style.display='none'">
-                <div class="p-4">
-                    <div class="oswald-sharp text-sm font-black italic uppercase text-white line-clamp-2 group-hover:text-ufcRed transition">${title}</div>
-                    <div class="barlow text-[9px] text-gray-600 italic mt-2">${source || ''} ${date ? '· ' + date : ''}</div>
-                </div>
-            </div>
-        </a>`).join('')}
-    </div>`;
+    return '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">' +
+        newsItems.map(function(item) {
+            var title = item.title || '', url = item.url || '#', source = item.source || '', date = item.date || '';
+            var imgSrc = item.thumbnail_url || getNewsCategoryImg(item.category);
+            var safeTitle = String(title).replace(/</g,'&lt;');
+            var safeSource = String(source).replace(/</g,'&lt;');
+            return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="block group">' +
+                '<div class="glass-card rounded-2xl overflow-hidden border border-white/[0.06] hover:border-white/20 transition-all duration-300 hover:scale-[1.02]">' +
+                '<div class="relative overflow-hidden" style="height:170px">' +
+                '<img src="' + imgSrc + '" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.src=\'' + _NEWS_FALLBACK_IMG + '\'">' +
+                '<div class="absolute inset-0 pointer-events-none" style="background:linear-gradient(to top,rgba(0,0,0,0.55) 0%,transparent 55%)"></div>' +
+                (safeSource ? '<div class="absolute top-3 left-3 barlow text-[10px] font-bold italic tracking-widest uppercase px-2 py-1 rounded" style="background:rgba(210,10,10,0.9);color:#fff">' + safeSource + '</div>' : '') +
+                '</div>' +
+                '<div class="p-4">' +
+                '<div class="oswald-sharp text-sm lg:text-base font-black italic uppercase text-white line-clamp-2 group-hover:text-ufcRed transition leading-snug">' + safeTitle + '</div>' +
+                '<div class="barlow text-[10px] text-gray-500 italic mt-2">' + date + '</div>' +
+                '</div></div></a>';
+        }).join('') +
+    '</div>';
 }
 
 // ── Entry Point ───────────────────────────────────────────────────

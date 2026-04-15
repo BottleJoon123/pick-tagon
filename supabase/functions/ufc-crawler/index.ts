@@ -33,6 +33,7 @@ const MONTH_MAP: Record<string, string> = {
 }
 
 const normalize = (v: string) => v.replace(/\s+/g, ' ').trim()
+const summarizeUpstreamBody = (v: string) => normalize(v).slice(0, 160)
 
 // ── 파싱 함수 (Codex 작성 + 통합) ────────────────────────────────
 function parseSherdogUFCEvents(html: string): UFCEvent[] {
@@ -107,18 +108,24 @@ Deno.serve(async (req) => {
   try {
     const res = await fetch(SHERDOG_URL, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,*/*;q=0.9',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://www.google.com/',
       },
-      signal: AbortSignal.timeout(12000),
+      signal: AbortSignal.timeout(20000),
     })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    if (!res.ok) {
+      const upstreamBody = summarizeUpstreamBody(await res.text())
+      const upstreamSummary = upstreamBody ? ` - ${upstreamBody}` : ''
+      throw new Error(`Sherdog responded with ${res.status} ${res.statusText}${upstreamSummary}`)
+    }
     html = await res.text()
   } catch (e: any) {
+    const isTimeout = e?.name === 'TimeoutError'
     return new Response(
-      JSON.stringify({ success: false, error: `Fetch failed: ${e.message}` }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      JSON.stringify({ success: false, error: isTimeout ? 'Sherdog fetch timed out after 20s' : `Sherdog fetch failed: ${e.message}` }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: isTimeout ? 504 : 502 }
     )
   }
 

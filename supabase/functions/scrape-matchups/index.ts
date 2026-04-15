@@ -13,6 +13,7 @@ const jsonHeaders = {
 }
 
 const INVALID_NAMES = new Set(['TBA', 'TBD'])
+const ALLOWED_HOSTS = new Set(['www.sherdog.com', 'sherdog.com'])
 
 interface ScrapeMatchupsRequest {
   event_id: string
@@ -90,19 +91,23 @@ function extractCardPairs($: cheerio.CheerioAPI): FighterPair[] {
 }
 
 function extractFallbackPairs($: cheerio.CheerioAPI): FighterPair[] {
-  const names = $('[itemprop="athlete"] [itemprop="name"]')
+  // 시도 1: itemprop="athlete" 하위 itemprop="name" (Sherdog 레거시)
+  let nodes = $('[itemprop="athlete"] [itemprop="name"]')
+  // 시도 2: itemprop="name" 단독 (athlete 조상 없이)
+  if (nodes.length === 0) nodes = $('[itemprop="name"]')
+  // 시도 3: Sherdog 파이터 프로필 링크 텍스트 (구조 변경에 가장 강건)
+  if (nodes.length === 0) nodes = $('a[href*="/fighter/"]')
+
+  const names = nodes
     .map((_index, element) => normalizeText($(element).text()))
     .get()
+    .filter(isValidFighterName)
 
   const pairs: FighterPair[] = []
-
   for (let index = 0; index + 1 < names.length; index += 2) {
     const pair = buildPair(names[index], names[index + 1])
-    if (pair) {
-      pairs.push(pair)
-    }
+    if (pair) pairs.push(pair)
   }
-
   return pairs
 }
 
@@ -196,18 +201,39 @@ Deno.serve(async (req) => {
       if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
         return jsonResponse({ success: false, error: 'source_url must be http or https' }, 400)
       }
+      if (!ALLOWED_HOSTS.has(parsedUrl.hostname)) {
+        return jsonResponse({ success: false, error: 'source_url hostname is not allowed' }, 400)
+      }
     } catch {
       return jsonResponse({ success: false, error: 'source_url must be a valid URL' }, 400)
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
-    if (!supabaseUrl || !serviceRoleKey) {
+    if (!supabaseUrl || !anonKey || !serviceRoleKey) {
       return jsonResponse(
         { success: false, error: 'Supabase environment variables are not configured' },
         500,
       )
+    }
+
+    const authorization = req.headers.get('Authorization') ?? ''
+
+    if (!authorization.startsWith('Bearer ')) {
+      return jsonResponse({ success: false, error: 'Unauthorized' }, 401)
+    }
+
+    const authSupabase = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authorization } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
+
+    const { data: authData, error: authError } = await authSupabase.auth.getUser()
+
+    if (authError || !authData.user) {
+      return jsonResponse({ success: false, error: 'Unauthorized' }, 401)
     }
 
     const html = await fetchSourceHtml(source_url)

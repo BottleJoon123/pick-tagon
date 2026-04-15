@@ -673,59 +673,82 @@ textarea, select {
     <!-- 헤더 -->
     <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 20px 12px;border-bottom:1px solid rgba(255,255,255,0.06)">
         <div>
-            <p class="oswald-sharp" style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.25em;font-style:italic;margin-bottom:2px">PICK CONFIRMATION</p>
+            <p id="bs-step-label" class="oswald-sharp" style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.25em;font-style:italic;margin-bottom:2px">FIGHTER SELECT</p>
             <p id="bs-match-title" class="oswald-sharp" style="font-size:15px;font-weight:900;font-style:italic;color:#eee;text-transform:uppercase;letter-spacing:-.01em;line-height:1.1"></p>
         </div>
         <button onclick="closeBetSlip()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#666;font-size:14px;cursor:pointer;transition:color .15s;flex-shrink:0" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#666'">✕</button>
     </div>
-    <!-- 선택한 파이터 + 배당 -->
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.06);background:rgba(232,0,13,0.04)">
-        <div>
-            <p class="oswald-sharp" style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.2em;font-style:italic;margin-bottom:4px">내 픽</p>
-            <p id="bs-pick-name" class="oswald-sharp" style="font-size:22px;font-weight:900;font-style:italic;color:#fff;text-transform:uppercase;letter-spacing:-.02em;line-height:1"></p>
-        </div>
-        <div style="text-align:right">
-            <p class="oswald-sharp" style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.2em;font-style:italic;margin-bottom:4px">기본 배당</p>
-            <p id="bs-payout" class="oswald-sharp" style="font-size:22px;font-weight:900;font-style:italic;color:#eab308;letter-spacing:-.02em;line-height:1"></p>
+
+    <!-- ── Step 1: 파이터 선택 ── -->
+    <div id="bs-pick-step" style="padding:20px">
+        <p class="oswald-sharp" style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:.25em;font-style:italic;margin-bottom:14px;text-align:center">누구를 응원하세요?</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <button id="bs-pick-f1"
+                class="oswald-sharp"
+                style="padding:18px 10px;border-radius:16px;background:rgba(232,0,13,0.12);border:1px solid rgba(232,0,13,0.25);color:#fff;font-weight:900;font-size:13px;font-style:italic;text-transform:uppercase;letter-spacing:.03em;cursor:pointer;transition:background .15s;line-height:1.3;word-break:break-word"
+                onmouseover="this.style.background='rgba(232,0,13,0.25)'" onmouseout="this.style.background='rgba(232,0,13,0.12)'">
+                —
+            </button>
+            <button id="bs-pick-f2"
+                class="oswald-sharp"
+                style="padding:18px 10px;border-radius:16px;background:rgba(37,99,235,0.12);border:1px solid rgba(37,99,235,0.25);color:#fff;font-weight:900;font-size:13px;font-style:italic;text-transform:uppercase;letter-spacing:.03em;cursor:pointer;transition:background .15s;line-height:1.3;word-break:break-word"
+                onmouseover="this.style.background='rgba(37,99,235,0.25)'" onmouseout="this.style.background='rgba(37,99,235,0.12)'">
+                —
+            </button>
         </div>
     </div>
-    <!-- 방식 선택 -->
-    <div style="padding:16px 20px 0">
-        <p class="oswald-sharp" style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:.25em;font-style:italic;margin-bottom:10px">🎯 승리 방식 예측 — 맞추면 보너스!</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
-            <button id="bs-mb-ko" onclick="selectMethod('KO/TKO')" class="bs-method-btn" style="font-size:12px;padding:12px 14px;border-radius:12px">
-                🥊 KO/TKO<br><span style="font-size:10px;color:#e8000d;font-style:normal;text-transform:none;letter-spacing:0;font-weight:400">+30% 보너스</span>
-            </button>
-            <button id="bs-mb-sub" onclick="selectMethod('SUB')" class="bs-method-btn" style="font-size:12px;padding:12px 14px;border-radius:12px">
-                🤼 서브미션<br><span style="font-size:10px;color:#a855f7;font-style:normal;text-transform:none;letter-spacing:0;font-weight:400">+50% 보너스</span>
-            </button>
-            <button id="bs-mb-ud" onclick="selectMethod('UD')" class="bs-method-btn" style="font-size:12px;padding:12px 14px;border-radius:12px">
-                📋 판정<br><span style="font-size:10px;color:#2563eb;font-style:normal;text-transform:none;letter-spacing:0;font-weight:400">기본 배당</span>
-            </button>
-            <button id="bs-mb-any" onclick="selectMethod('ANY')" class="bs-method-btn" style="font-size:12px;padding:12px 14px;border-radius:12px">
-                🎲 방식 무관<br><span style="font-size:10px;color:#555;font-style:normal;text-transform:none;letter-spacing:0;font-weight:400">선택 안 함</span>
+
+    <!-- ── Step 2: 픽 확인 ── -->
+    <div id="bs-confirm-step" class="hidden">
+        <!-- 선택한 파이터 + 배당 -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.06);background:rgba(232,0,13,0.04)">
+            <div>
+                <p class="oswald-sharp" style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.2em;font-style:italic;margin-bottom:4px">내 픽</p>
+                <p id="bs-pick-name" class="oswald-sharp" style="font-size:22px;font-weight:900;font-style:italic;color:#fff;text-transform:uppercase;letter-spacing:-.02em;line-height:1"></p>
+            </div>
+            <div style="text-align:right">
+                <p class="oswald-sharp" style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.2em;font-style:italic;margin-bottom:4px">기본 배당</p>
+                <p id="bs-payout" class="oswald-sharp" style="font-size:22px;font-weight:900;font-style:italic;color:#eab308;letter-spacing:-.02em;line-height:1"></p>
+            </div>
+        </div>
+        <!-- 방식 선택 -->
+        <div style="padding:16px 20px 0">
+            <p class="oswald-sharp" style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:.25em;font-style:italic;margin-bottom:10px">🎯 승리 방식 예측 — 맞추면 보너스!</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+                <button id="bs-mb-ko" onclick="selectMethod('KO/TKO')" class="bs-method-btn" style="font-size:12px;padding:12px 14px;border-radius:12px">
+                    🥊 KO/TKO<br><span style="font-size:10px;color:#e8000d;font-style:normal;text-transform:none;letter-spacing:0;font-weight:400">+30% 보너스</span>
+                </button>
+                <button id="bs-mb-sub" onclick="selectMethod('SUB')" class="bs-method-btn" style="font-size:12px;padding:12px 14px;border-radius:12px">
+                    🤼 서브미션<br><span style="font-size:10px;color:#a855f7;font-style:normal;text-transform:none;letter-spacing:0;font-weight:400">+50% 보너스</span>
+                </button>
+                <button id="bs-mb-ud" onclick="selectMethod('UD')" class="bs-method-btn" style="font-size:12px;padding:12px 14px;border-radius:12px">
+                    📋 판정<br><span style="font-size:10px;color:#2563eb;font-style:normal;text-transform:none;letter-spacing:0;font-weight:400">기본 배당</span>
+                </button>
+                <button id="bs-mb-any" onclick="selectMethod('ANY')" class="bs-method-btn" style="font-size:12px;padding:12px 14px;border-radius:12px">
+                    🎲 방식 무관<br><span style="font-size:10px;color:#555;font-style:normal;text-transform:none;letter-spacing:0;font-weight:400">선택 안 함</span>
+                </button>
+            </div>
+            <!-- 라운드 선택 -->
+            <p class="oswald-sharp" style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:.25em;font-style:italic;margin-bottom:10px">⏱ 라운드 예측 — 맞추면 +20%!</p>
+            <div style="display:flex;gap:7px;margin-bottom:18px">
+                <button id="bs-rb-1" onclick="selectRound(1)" class="bs-round-btn" style="flex:1;height:44px;border-radius:10px;font-size:13px">R1</button>
+                <button id="bs-rb-2" onclick="selectRound(2)" class="bs-round-btn" style="flex:1;height:44px;border-radius:10px;font-size:13px">R2</button>
+                <button id="bs-rb-3" onclick="selectRound(3)" class="bs-round-btn" style="flex:1;height:44px;border-radius:10px;font-size:13px">R3</button>
+                <button id="bs-rb-4" onclick="selectRound(4)" class="bs-round-btn" style="flex:1;height:44px;border-radius:10px;font-size:13px">R4</button>
+                <button id="bs-rb-5" onclick="selectRound(5)" class="bs-round-btn" style="flex:1;height:44px;border-radius:10px;font-size:13px">R5</button>
+                <button id="bs-rb-0" onclick="selectRound(0)" class="bs-round-btn" style="padding:0 12px;height:44px;border-radius:10px;font-size:11px">무관</button>
+            </div>
+        </div>
+        <!-- 상태 메시지 + 확인 버튼 -->
+        <div style="padding:0 20px 32px">
+            <p id="bs-status-msg" class="oswald-sharp" style="font-size:11px;color:#555;font-style:italic;text-align:center;min-height:18px;margin-bottom:10px"></p>
+            <button id="bs-confirm-btn" onclick="confirmBetSlip()"
+                class="oswald-sharp"
+                style="width:100%;padding:16px;background:#e8000d;color:#fff;font-weight:900;font-size:17px;font-style:italic;text-transform:uppercase;letter-spacing:.08em;border:none;border-radius:16px;cursor:pointer;transition:background .15s;box-shadow:0 8px 24px rgba(232,0,13,0.3)"
+                onmouseover="this.style.background='#c00'" onmouseout="this.style.background='#e8000d'">
+                ✓ CONFIRM PICK — 100P
             </button>
         </div>
-        <!-- 라운드 선택 -->
-        <p class="oswald-sharp" style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:.25em;font-style:italic;margin-bottom:10px">⏱ 라운드 예측 — 맞추면 +20%!</p>
-        <div style="display:flex;gap:7px;margin-bottom:18px">
-            <button id="bs-rb-1" onclick="selectRound(1)" class="bs-round-btn" style="flex:1;height:44px;border-radius:10px;font-size:13px">R1</button>
-            <button id="bs-rb-2" onclick="selectRound(2)" class="bs-round-btn" style="flex:1;height:44px;border-radius:10px;font-size:13px">R2</button>
-            <button id="bs-rb-3" onclick="selectRound(3)" class="bs-round-btn" style="flex:1;height:44px;border-radius:10px;font-size:13px">R3</button>
-            <button id="bs-rb-4" onclick="selectRound(4)" class="bs-round-btn" style="flex:1;height:44px;border-radius:10px;font-size:13px">R4</button>
-            <button id="bs-rb-5" onclick="selectRound(5)" class="bs-round-btn" style="flex:1;height:44px;border-radius:10px;font-size:13px">R5</button>
-            <button id="bs-rb-0" onclick="selectRound(0)" class="bs-round-btn" style="padding:0 12px;height:44px;border-radius:10px;font-size:11px">무관</button>
-        </div>
-    </div>
-    <!-- 상태 메시지 + 확인 버튼 -->
-    <div style="padding:0 20px 32px">
-        <p id="bs-status-msg" class="oswald-sharp" style="font-size:11px;color:#555;font-style:italic;text-align:center;min-height:18px;margin-bottom:10px"></p>
-        <button id="bs-confirm-btn" onclick="confirmBetSlip()"
-            class="oswald-sharp"
-            style="width:100%;padding:16px;background:#e8000d;color:#fff;font-weight:900;font-size:17px;font-style:italic;text-transform:uppercase;letter-spacing:.08em;border:none;border-radius:16px;cursor:pointer;transition:background .15s;box-shadow:0 8px 24px rgba(232,0,13,0.3)"
-            onmouseover="this.style.background='#c00'" onmouseout="this.style.background='#e8000d'">
-            ✓ CONFIRM PICK — 100P
-        </button>
     </div>
 </div>
 
@@ -871,17 +894,17 @@ textarea, select {
                         <div class="barlow text-[10px] font-bold italic tracking-[0.28em] text-white/40 uppercase mb-4">Main Event Face-off</div>
                         <div class="grid grid-cols-[1fr_auto_1fr] items-end gap-3 lg:gap-5">
                             <div class="flex flex-col items-center">
-                                <div class="h-40 lg:h-48 w-24 lg:w-28 rounded-[999px_999px_16px_16px] border border-red-400/25" style="background:linear-gradient(to bottom, rgba(210,10,10,0.3), rgba(40,40,50,0.6), rgba(0,0,0,0.95))"></div>
-                                <div class="oswald-sharp mt-3 text-sm lg:text-base font-black italic uppercase tracking-[0.2em] text-white/85">MAKHACHEV</div>
-                                <div class="barlow text-[9px] italic text-gray-600 mt-0.5">LW Champion</div>
+                                <div id="hero-red-img" class="h-40 lg:h-48 w-24 lg:w-28 rounded-[999px_999px_16px_16px] border border-red-400/25 bg-cover bg-top" style="background:linear-gradient(to bottom, rgba(210,10,10,0.3), rgba(40,40,50,0.6), rgba(0,0,0,0.95))"></div>
+                                <div id="hero-red-name" class="oswald-sharp mt-3 text-sm lg:text-base font-black italic uppercase tracking-[0.2em] text-white/85">MAKHACHEV</div>
+                                <div class="barlow text-[9px] italic text-gray-600 mt-0.5">Red Corner</div>
                             </div>
                             <div class="flex items-center justify-center pb-10">
                                 <div class="oswald-sharp rounded-full border border-white/15 px-3 py-2 text-base lg:text-lg font-black italic leading-none text-white" style="background:rgba(0,0,0,0.6); box-shadow:0 0 20px rgba(210,10,10,0.3)">VS</div>
                             </div>
                             <div class="flex flex-col items-center">
-                                <div class="h-40 lg:h-48 w-24 lg:w-28 rounded-[999px_999px_16px_16px] border border-blue-400/25" style="background:linear-gradient(to bottom, rgba(37,99,235,0.3), rgba(40,40,50,0.6), rgba(0,0,0,0.95))"></div>
-                                <div class="oswald-sharp mt-3 text-sm lg:text-base font-black italic uppercase tracking-[0.2em] text-white/85">POIRIER</div>
-                                <div class="barlow text-[9px] italic text-gray-600 mt-0.5">Top Contender</div>
+                                <div id="hero-blue-img" class="h-40 lg:h-48 w-24 lg:w-28 rounded-[999px_999px_16px_16px] border border-blue-400/25 bg-cover bg-top" style="background:linear-gradient(to bottom, rgba(37,99,235,0.3), rgba(40,40,50,0.6), rgba(0,0,0,0.95))"></div>
+                                <div id="hero-blue-name" class="oswald-sharp mt-3 text-sm lg:text-base font-black italic uppercase tracking-[0.2em] text-white/85">POIRIER</div>
+                                <div class="barlow text-[9px] italic text-gray-600 mt-0.5">Blue Corner</div>
                             </div>
                         </div>
                     </div>
@@ -928,7 +951,7 @@ textarea, select {
                 </div>
                 <button onclick="navigateTo('mma-news')" class="barlow text-xs font-bold italic tracking-widest text-gray-500 hover:text-white transition uppercase">전체보기 →</button>
             </div>
-            <div id="home-news-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-5 text-left">
+            <div id="home-news-grid" class="text-left">
                 <!-- rendered by renderHomeNews() -->
             </div>
         </div>
@@ -1474,6 +1497,7 @@ textarea, select {
             <button onclick="switchAdminTab('news')" id="admin-tab-news" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">📰 뉴스 관리</button>
             <button onclick="switchAdminTab('season')" id="admin-tab-season" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">🏆 시즌 관리</button>
             <button onclick="switchAdminTab('event')" id="admin-tab-event" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">🏟 이벤트 정보</button>
+            <button onclick="switchAdminTab('ufc')" id="admin-tab-ufc" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">🕷 UFC 대기열</button>
             <button onclick="switchAdminTab('settings')" id="admin-tab-settings" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">⚙ 설정</button>
         </div>
 
@@ -1614,6 +1638,48 @@ textarea, select {
                         <p class="oswald-sharp text-sm font-black italic uppercase tracking-widest text-green-400">UFC.com 공식 데이터 사용 중</p>
                         <p class="text-gray-400 text-xs mt-1">API 키 불필요 — UFC.com 공식 랭킹을 실시간으로 가져옵니다.<br>
                         UFC 랭킹 페이지의 "🔄 UFC 랭킹 자동 갱신" 버튼을 눌러 바로 갱신하세요.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: UFC 이벤트 대기열 -->
+        <div id="admin-panel-ufc" class="hidden">
+            <div class="glass-card rounded-[2rem] p-6 lg:p-10 space-y-5 bg-zinc-900/60">
+                <!-- 헤더 -->
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h4 class="oswald-sharp text-xl font-black italic uppercase text-white tracking-widest">UFC 이벤트 대기열</h4>
+                        <p class="text-gray-500 text-xs mt-1">크롤러가 수집한 이벤트 · 승인 시 <span class="text-ufcRed italic">events</span> 테이블에 등록됩니다</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="oswald-sharp text-gray-600 italic text-xs uppercase tracking-widest">대기 <span id="ufc-queue-count" class="text-white font-black">–</span>건</span>
+                        <button onclick="fetchPendingEvents()"
+                            class="oswald-sharp bg-zinc-800 text-gray-300 font-black italic uppercase text-xs px-4 py-2 rounded-xl tracking-widest hover:bg-zinc-700 hover:text-white transition-all">
+                            ↺ 새로고침
+                        </button>
+                        <button id="btn-run-crawler" onclick="runUfcCrawler()"
+                            class="oswald-sharp bg-ufcRed text-white font-black italic uppercase text-xs px-4 py-2 rounded-xl tracking-widest hover:shadow-[0_0_16px_rgba(232,0,13,0.5)] transition-all">
+                            🕷 크롤러 실행
+                        </button>
+                    </div>
+                </div>
+                <!-- 대기열 리스트 -->
+                <div id="ufc-queue-list" class="space-y-3">
+                    <p class="oswald-sharp text-gray-700 italic text-sm uppercase tracking-widest text-center py-8">탭을 열면 자동으로 로드됩니다</p>
+                </div>
+
+                <!-- 구분선 -->
+                <div class="border-t border-white/5 pt-6 mt-2">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h5 class="oswald-sharp text-base font-black italic uppercase text-emerald-400 tracking-widest">승인된 이벤트 (Upcoming)</h5>
+                            <p class="text-gray-600 text-xs mt-0.5">대진표 크롤링 버튼으로 <span class="text-emerald-500 italic">matchups</span> 테이블에 저장합니다</p>
+                        </div>
+                        <span class="oswald-sharp text-gray-600 italic text-xs uppercase tracking-widest">총 <span id="ufc-approved-count" class="text-white font-black">–</span>건</span>
+                    </div>
+                    <div id="ufc-approved-list" class="space-y-3">
+                        <p class="oswald-sharp text-gray-700 italic text-sm uppercase tracking-widest text-center py-6">로딩 대기 중...</p>
                     </div>
                 </div>
             </div>
@@ -2338,18 +2404,18 @@ textarea, select {
 <script src="/pick-tagon/js/state.js"></script>
 <script src="/pick-tagon/js/storage.js"></script>
 <script src="/pick-tagon/js/utils.js"></script>
-<script src="/pick-tagon/js/api/supabase.js"></script>
+<script src="/pick-tagon/js/api/supabase.js?v=3"></script>
 <script src="/pick-tagon/js/news.js"></script>
 <script src="/pick-tagon/js/youtube.js"></script>
-<script src="/pick-tagon/js/community.js"></script>
-<script src="/pick-tagon/js/admin.js"></script>
+<script src="/pick-tagon/js/community.js?v=3"></script>
+<script src="/pick-tagon/js/admin.js?v=3"></script>
 <script src="/pick-tagon/js/profile.js"></script>
-<script src="/pick-tagon/js/archive.js"></script>
+<script src="/pick-tagon/js/archive.js?v=3"></script>
 <script src="/pick-tagon/js/season.js"></script>
 <script src="/pick-tagon/js/fights-render.js"></script>
 <script src="/pick-tagon/js/h2h.js"></script>
-<script src="/pick-tagon/js/news-admin.js"></script>
-<script src="/pick-tagon/js/home.js"></script>
+<script src="/pick-tagon/js/news-admin.js?v=3"></script>
+<script src="/pick-tagon/js/home.js?v=3"></script>
 <script>
     /* ==============================
        FIGHT CARD DATA
@@ -2431,6 +2497,7 @@ textarea, select {
         }
         if(id === 'ufc-rankings') { renderUFCRankingTabs(); renderUFCRankings(); }
         if(id === 'matchups') {
+            if (typeof fetchUpcomingMatchups === 'function') fetchUpcomingMatchups();
             renderFightCards();
             applyEventInfo();
             renderEventLeaderboard();
@@ -3877,15 +3944,20 @@ async function publishPost() {
                 var cardClick = (n.url && n.url.startsWith('http'))
                     ? 'onclick="window.open(\'' + n.url + '\',\'_blank\')"'
                     : 'onclick="openNewsDetail(' + realIdx + ')"';
+                var newsImg = n.image_url || (typeof getNewsCategoryImg === 'function' ? getNewsCategoryImg(n.category) : 'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600');
                 return '<div class="glass-card rounded-[1.5rem] overflow-hidden hover:border-ufcRed/30 transition-all duration-500 cursor-pointer" ' + cardClick + '>' +
-                    '<div class="h-1 w-full ' + bar + '"></div>' +
-                    '<div class="p-5 lg:p-7">' +
-                    '<div class="flex items-center justify-between mb-3">' +
-                    '<span class="oswald-sharp text-[9px] px-2 py-1 rounded-lg font-black italic uppercase border border-white/10 ' + badge + '">' + lbl + (i < 2 ? ' ?뵦' : '') + '</span>' +
+                    '<div class="relative overflow-hidden" style="height:150px">' +
+                    '<img src="' + newsImg + '" class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" onerror="this.src=\'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600\'">' +
+                    '<div class="absolute inset-0 pointer-events-none" style="background:linear-gradient(to top,rgba(0,0,0,0.65) 0%,transparent 60%)"></div>' +
+                    '<div class="absolute top-0 left-0 right-0 h-1 ' + bar + '"></div>' +
+                    '<span class="absolute top-3 left-3 oswald-sharp text-[9px] px-2 py-1 rounded-lg font-black italic uppercase border border-white/10 ' + badge + '">' + lbl + (i < 2 ? ' 🔥' : '') + '</span>' +
+                    '</div>' +
+                    '<div class="p-4 lg:p-5">' +
+                    '<div class="flex items-center justify-between mb-2">' +
                     '<span class="oswald-sharp text-[9px] text-gray-600 italic">' + (n.date || '') + '</span>' +
                     '</div>' +
                     '<h4 class="oswald-sharp text-sm lg:text-base font-black italic text-white uppercase tracking-tight leading-snug mb-3">' + escapeHtml(n.title) + '</h4>' +
-                    '<div class="flex items-center justify-between mt-3">' +
+                    '<div class="flex items-center justify-between mt-2">' +
                     (n.source ? '<p class="oswald-sharp text-[9px] text-gray-600 italic uppercase">출처: ' + escapeHtml(n.source) + '</p>' : '<span></span>') +
                     '<span class="oswald-sharp text-[9px] text-ufcRed/60 italic uppercase">원문 →</span>' +
                     '</div>' +
@@ -4002,7 +4074,7 @@ async function publishPost() {
         var searchQuery = document.getElementById('news-search-input')
             ? document.getElementById('news-search-input').value.trim() : '';
 
-        // 이미 불러온 뉴스가 있고 검색어가 있다면 필터링만 수행
+        // 검색어 있고 캐시 있으면 필터링만
         if (searchQuery && cachedNews.length > 0) {
             renderNewsGrid();
             return;
@@ -4011,8 +4083,12 @@ async function publishPost() {
         grid.innerHTML = '';
         loading.classList.remove('hidden');
 
-        // Edge Function을 깨우지 않고, 바로 DB에서 최신 뉴스를 읽어옵니다.
-        loadNewsFromDB();
+        // Edge Function 호출 (12h 쿨다운 내장 — 캐시 신선하면 즉시 반환)
+        // 응답 후 DB에서 최신 뉴스 로드
+        var edgeUrl = 'https://rnnrimzrypayvnmznpin.supabase.co/functions/v1/fetch-mma-news';
+        fetch(edgeUrl, { method: 'GET' })
+            .then(function() { loadNewsFromDB(); })
+            .catch(function() { loadNewsFromDB(); });
     }
 
     // ── Gemini API 번역 ──

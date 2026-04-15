@@ -57,11 +57,10 @@ function renderTaleOfTapeHTML(fight) {
 function renderHeroCard(fight, idx) {
     const isMain = idx === 0;
     const tagColor = isMain ? 'bg-ufcRed text-white' : 'bg-white/10 text-white border border-white/20';
-    const glow = fight.leftBias > 0.65
-        ? 'shadow-[0_0_40px_rgba(210,10,10,0.25)]'
-        : fight.leftBias < 0.35
-        ? 'shadow-[0_0_40px_rgba(59,130,246,0.25)]'
-        : '';
+    const bias = fight.leftBias || 0.5;
+    const redA = (Math.max(0, bias - 0.5) * 2 * 0.5).toFixed(2);
+    const blueA = (Math.max(0, 0.5 - bias) * 2 * 0.5).toFixed(2);
+    const glowStyle = `box-shadow: 0 0 48px rgba(210,10,10,${redA}), 0 0 48px rgba(37,99,235,${blueA}); cursor:pointer;`;
     const f1Last = fight.f1.name.split(' ').pop();
     const f2Last = fight.f2.name.split(' ').pop();
     const f1Img = fight.f1.imgUrl || '';
@@ -74,7 +73,7 @@ function renderHeroCard(fight, idx) {
         : 'background:linear-gradient(225deg,#00001a,#0a0a0a);';
 
     return `
-    <div id="card-${fight.id}" class="glass-card ${isMain ? 'rounded-[2.5rem] lg:rounded-[4rem]' : 'rounded-[2rem] lg:rounded-[3rem]'} overflow-hidden transition-all duration-500 ${glow}">
+    <div id="card-${fight.id}" onclick="if (event.target.closest('button,[data-no-pick]')) return; openPickSlip(${JSON.stringify(fight.id)}, ${JSON.stringify(f1Last + ' vs ' + f2Last)}, ${JSON.stringify(fight.f1.name)}, ${fight.f1.odds || 1.9}, ${JSON.stringify(fight.f2.name)}, ${fight.f2.odds || 1.9})" class="glass-card ${isMain ? 'rounded-[2.5rem] lg:rounded-[4rem]' : 'rounded-[2rem] lg:rounded-[3rem]'} overflow-hidden transition-all duration-500" style="${glowStyle}">
         <!-- Card Header -->
         <div class="flex items-center justify-between px-5 lg:px-10 py-3 lg:py-4 border-b border-white/10 bg-black/30">
             <div class="flex items-center gap-3">
@@ -129,29 +128,21 @@ function renderHeroCard(fight, idx) {
             <!-- F1 Info (bottom-left) -->
             <div class="absolute bottom-0 left-0 w-[48%] p-4 lg:p-6 z-20">
                 <div class="flex gap-1 mb-1.5">${renderDotForm(fight.f1.recent)}</div>
-                <h4 onclick="openFighterProfile(${JSON.stringify(fight.f1).replace(/\"/g, '&quot;')})"
+                <h4 data-no-pick="1" onclick="openFighterProfile(${JSON.stringify(fight.f1).replace(/\"/g, '&quot;')})"
                     class="oswald-sharp ${isMain ? 'text-xl lg:text-3xl' : 'text-lg lg:text-2xl'} font-black italic uppercase tracking-tighter leading-tight text-white cursor-pointer hover:text-ufcRed transition mb-1">${fight.f1.name}</h4>
-                <p class="oswald-sharp text-[9px] text-ufcRed italic font-bold tracking-widest mb-3">ODDS ${fight.f1.odds} &nbsp;·&nbsp; +${Math.round(fight.f1.odds * 100)}P</p>
-                <button id="bet-btn-f1-${fight.id}" onclick="openBetSlip('${fight.id}', 'left', '${fight.f1.name} vs ${fight.f2.name}', '${fight.f1.name}', ${fight.f1.odds})"
-                    class="oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest px-4 py-2 bg-ufcRed text-white rounded-xl hover:brightness-110 transition-all">
-                    BET ${f1Last.toUpperCase()}
-                </button>
+                ${fight.f1.odds ? `<p class="oswald-sharp text-[9px] text-ufcRed italic font-bold tracking-widest mb-3">ODDS ${fight.f1.odds} &nbsp;·&nbsp; +${Math.round(fight.f1.odds * 100)}P</p>` : '<p class="oswald-sharp text-[9px] text-ufcRed italic font-bold tracking-widest mb-3">TAP TO PICK</p>'}
             </div>
             <!-- F2 Info (bottom-right) -->
             <div class="absolute bottom-0 right-0 w-[48%] p-4 lg:p-6 z-20 text-right">
                 <div class="flex gap-1 mb-1.5 justify-end">${renderDotForm(fight.f2.recent)}</div>
-                <h4 onclick="openFighterProfile(${JSON.stringify(fight.f2).replace(/\"/g, '&quot;')})"
+                <h4 data-no-pick="1" onclick="openFighterProfile(${JSON.stringify(fight.f2).replace(/\"/g, '&quot;')})"
                     class="oswald-sharp ${isMain ? 'text-xl lg:text-3xl' : 'text-lg lg:text-2xl'} font-black italic uppercase tracking-tighter leading-tight text-white cursor-pointer hover:text-ufcBlue transition mb-1">${fight.f2.name}</h4>
-                <p class="oswald-sharp text-[9px] text-ufcBlue italic font-bold tracking-widest mb-3">ODDS ${fight.f2.odds} &nbsp;·&nbsp; +${Math.round(fight.f2.odds * 100)}P</p>
-                <button id="bet-btn-f2-${fight.id}" onclick="openBetSlip('${fight.id}', 'right', '${fight.f1.name} vs ${fight.f2.name}', '${fight.f2.name}', ${fight.f2.odds})"
-                    class="oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest px-4 py-2 bg-ufcBlue text-white rounded-xl hover:brightness-110 transition-all">
-                    BET ${f2Last.toUpperCase()}
-                </button>
+                ${fight.f2.odds ? `<p class="oswald-sharp text-[9px] text-ufcBlue italic font-bold tracking-widest mb-3">ODDS ${fight.f2.odds} &nbsp;·&nbsp; +${Math.round(fight.f2.odds * 100)}P</p>` : '<p class="oswald-sharp text-[9px] text-ufcBlue italic font-bold tracking-widest mb-3">TAP TO PICK</p>'}
             </div>
         </div>
 
         <!-- Stats Overlay (Tale of the Tape) — covers entire card -->
-        <div id="stats-overlay-${fight.id}" class="hidden relative z-40 border-t border-white/10" style="background:#0d0d0d;">
+        <div id="stats-overlay-${fight.id}" data-no-pick="1" class="hidden relative z-40 border-t border-white/10" style="background:#0d0d0d;">
             <div class="flex items-center justify-between px-5 py-3 border-b border-white/10">
                 <span class="oswald-sharp text-[9px] font-black italic uppercase tracking-widest text-gray-400">📊 TALE OF THE TAPE</span>
                 <button onclick="toggleStatsOverlay('${fight.id}')"
@@ -163,7 +154,7 @@ function renderHeroCard(fight, idx) {
         </div>
 
         <!-- Analysis Section (collapsible, 4 tabs) -->
-        <div id="analysis-${fight.id}" class="hidden border-t border-white/10 bg-black/20">
+        <div id="analysis-${fight.id}" data-no-pick="1" class="hidden border-t border-white/10 bg-black/20">
             <div class="flex border-b border-white/10 bg-black/30">
                 <button onclick="switchAnalysisTab('${fight.id}','radar')" id="atab-radar-${fight.id}"
                     class="oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest px-4 lg:px-6 py-3 text-ufcRed border-b-2 border-ufcRed transition">차트</button>
@@ -210,7 +201,7 @@ function renderStripRow(fight) {
     const divShort = fight.division.replace(' CHAMPIONSHIP', '').replace("WOMEN'S", 'W').trim();
 
     return `
-    <div id="card-${fight.id}" class="glass-card rounded-2xl overflow-hidden transition-all duration-300 border ${glow}">
+    <div id="card-${fight.id}" onclick="openPickSlip(${JSON.stringify(fight.id)}, ${JSON.stringify(fight.f1.name + ' vs ' + fight.f2.name)}, ${JSON.stringify(fight.f1.name)}, ${fight.f1.odds || 1.9}, ${JSON.stringify(fight.f2.name)}, ${fight.f2.odds || 1.9})" class="glass-card rounded-2xl overflow-hidden transition-all duration-300 border ${glow} cursor-pointer">
         <!-- Thin community pick bar at top -->
         <div id="live-bar-${fight.id}" class="h-0.5 flex w-full bg-white/5">
             <div class="live-bar-left h-full transition-all duration-700" style="width:50%; background:var(--red)"></div>
@@ -230,7 +221,7 @@ function renderStripRow(fight) {
                     <div class="flex gap-0.5 flex-shrink-0">${renderDotForm(fight.f1.recent)}</div>
                 </div>
                 <div class="flex items-center gap-1.5 mt-0.5">
-                    <span class="oswald-sharp text-[9px] text-ufcRed italic font-bold">×${fight.f1.odds}</span>
+                    ${fight.f1.odds ? `<span class="oswald-sharp text-[9px] text-ufcRed italic font-bold">×${fight.f1.odds}</span>` : ''}
                     <span id="live-pct-l-${fight.id}" class="oswald-sharp text-[8px] text-gray-600 italic"></span>
                 </div>
             </div>
@@ -246,20 +237,10 @@ function renderStripRow(fight) {
                 </div>
                 <div class="flex items-center justify-end gap-1.5 mt-0.5">
                     <span id="live-pct-r-${fight.id}" class="oswald-sharp text-[8px] text-gray-600 italic"></span>
-                    <span class="oswald-sharp text-[9px] text-ufcBlue italic font-bold">×${fight.f2.odds}</span>
+                    ${fight.f2.odds ? `<span class="oswald-sharp text-[9px] text-ufcBlue italic font-bold">×${fight.f2.odds}</span>` : ''}
                 </div>
             </div>
-            <!-- Bet Buttons -->
-            <div class="flex-shrink-0 flex gap-1.5">
-                <button id="bet-btn-f1-${fight.id}" onclick="openBetSlip('${fight.id}', 'left', '${fight.f1.name} vs ${fight.f2.name}', '${fight.f1.name}', ${fight.f1.odds})"
-                    class="oswald-sharp text-[9px] lg:text-[10px] font-black italic uppercase tracking-widest px-3 py-2 bg-ufcRed/80 hover:bg-ufcRed text-white rounded-lg transition-all whitespace-nowrap">
-                    ${f1Last.toUpperCase()}
-                </button>
-                <button id="bet-btn-f2-${fight.id}" onclick="openBetSlip('${fight.id}', 'right', '${fight.f1.name} vs ${fight.f2.name}', '${fight.f2.name}', ${fight.f2.odds})"
-                    class="oswald-sharp text-[9px] lg:text-[10px] font-black italic uppercase tracking-widest px-3 py-2 bg-ufcBlue/80 hover:bg-ufcBlue text-white rounded-lg transition-all whitespace-nowrap">
-                    ${f2Last.toUpperCase()}
-                </button>
-                <!-- live-total hidden for strip (not displayed) -->
+            <div class="flex-shrink-0">
                 <div id="live-total-${fight.id}" class="hidden"></div>
             </div>
         </div>
@@ -276,6 +257,17 @@ function renderFightCards() {
     if (!container) return;
 
     const fights = getActiveFights();
+
+    // DB 데이터 없으면 skeleton 표시 후 fetch 트리거
+    if (!fights.length && typeof fetchUpcomingMatchups === 'function') {
+        container.innerHTML = `<div class="space-y-3">
+            ${Array(3).fill('<div class="glass-card rounded-2xl h-24 animate-pulse" style="background:rgba(255,255,255,0.03)"></div>').join('')}
+            <p class="oswald-sharp text-gray-700 italic text-xs uppercase tracking-widest text-center pt-2">대진표 로딩 중...</p>
+        </div>`;
+        fetchUpcomingMatchups();
+        return;
+    }
+
     let _lastSection = null;
     let _html = '';
 
@@ -493,4 +485,95 @@ function initRadarChart(fightId) {
             plugins: { legend: { display: false } }
         }
     });
+}
+
+function openPickSlip(fightId, match, f1Name, f1Odds, f2Name, f2Odds) {
+    const cost = typeof BET_COST !== 'undefined' ? BET_COST : 100;
+    if (!currentUser) {
+        showToast('⚠ 베팅은 로그인 후 가능합니다');
+        return;
+    }
+    if (typeof state !== 'undefined' && state.points < cost) {
+        showToast('⚠️ 포인트 부족 (' + cost + 'P 필요)');
+        return;
+    }
+    if (typeof state !== 'undefined' && state.pendings && state.pendings[fightId]) {
+        showToast('⚠️ 이미 이 경기에 예측을 등록했습니다');
+        return;
+    }
+    if (typeof state !== 'undefined' && state.settled && state.settled[fightId]) {
+        showToast('⚠️ 이미 결과가 확정된 경기입니다');
+        return;
+    }
+
+    const matchTitleEl = document.getElementById('bs-match-title');
+    const stepLabelEl = document.getElementById('bs-step-label');
+    const pickStepEl = document.getElementById('bs-pick-step');
+    const confirmStepEl = document.getElementById('bs-confirm-step');
+    const backdropEl = document.getElementById('bet-slip-backdrop');
+    const panelEl = document.getElementById('bet-slip-panel');
+    const leftPickBtn = document.getElementById('bs-pick-f1');
+    const rightPickBtn = document.getElementById('bs-pick-f2');
+    const safeF1Odds = Number(f1Odds) > 0 ? Number(f1Odds) : 2.0;
+    const safeF2Odds = Number(f2Odds) > 0 ? Number(f2Odds) : 2.0;
+
+    if (stepLabelEl) stepLabelEl.textContent = 'FIGHTER SELECT';
+    if (matchTitleEl) matchTitleEl.textContent = match;
+    if (pickStepEl) pickStepEl.classList.remove('hidden');
+    if (confirmStepEl) confirmStepEl.classList.add('hidden');
+
+    if (leftPickBtn) {
+        leftPickBtn.textContent = `${f1Name}  +${Math.round(100 * safeF1Odds)}P`;
+        leftPickBtn.onclick = function() {
+            selectPickFighter('left', fightId, match, f1Name, safeF1Odds);
+        };
+    }
+    if (rightPickBtn) {
+        rightPickBtn.textContent = `${f2Name}  +${Math.round(100 * safeF2Odds)}P`;
+        rightPickBtn.onclick = function() {
+            selectPickFighter('right', fightId, match, f2Name, safeF2Odds);
+        };
+    }
+
+    if (backdropEl) backdropEl.classList.add('bs-open');
+    requestAnimationFrame(function() {
+        if (panelEl) panelEl.classList.add('bs-open');
+    });
+}
+
+function selectPickFighter(side, fightId, match, name, odds) {
+    const safeOdds = Number(odds) > 0 ? Number(odds) : 2.0;
+    const pickStepEl = document.getElementById('bs-pick-step');
+    const confirmStepEl = document.getElementById('bs-confirm-step');
+    const matchTitleEl = document.getElementById('bs-match-title');
+    const pickNameEl = document.getElementById('bs-pick-name');
+    const payoutEl = document.getElementById('bs-payout');
+    const statusMsgEl = document.getElementById('bs-status-msg');
+    const confirmBtn = document.getElementById('bs-confirm-btn');
+
+    if (pickStepEl) pickStepEl.classList.add('hidden');
+    if (confirmStepEl) confirmStepEl.classList.remove('hidden');
+    const stepLabelEl2 = document.getElementById('bs-step-label');
+    if (stepLabelEl2) stepLabelEl2.textContent = 'PICK CONFIRMATION';
+    if (matchTitleEl) matchTitleEl.textContent = match;
+    if (pickNameEl) pickNameEl.textContent = name;
+    if (payoutEl) payoutEl.textContent = '+' + Math.round(100 * safeOdds) + 'P';
+    if (statusMsgEl) statusMsgEl.textContent = '';
+    if (confirmBtn) {
+        const cost = typeof BET_COST !== 'undefined' ? BET_COST : 100;
+        confirmBtn.textContent = '✓ CONFIRM PICK — ' + cost + 'P';
+        confirmBtn.disabled = false;
+    }
+
+    ['ko', 'sub', 'ud', 'any'].forEach(function(key) {
+        const btn = document.getElementById('bs-mb-' + key);
+        if (btn) btn.className = btn.className.replace(/\bbs-sel-\w+/g, '');
+    });
+    [0, 1, 2, 3, 4, 5].forEach(function(round) {
+        const btn = document.getElementById('bs-rb-' + round);
+        if (btn) btn.classList.remove('bs-sel');
+    });
+
+    window._activeBetSlip = { fightId, side, match, pick: name, odds: safeOdds, method: null, methodBonus: 0, round: null };
+    if (typeof activeBetSlip !== 'undefined') activeBetSlip = window._activeBetSlip;
 }
