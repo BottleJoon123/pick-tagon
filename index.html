@@ -1568,16 +1568,40 @@ textarea, select {
 
         <!-- TAB: FIGHTERS DB -->
         <div id="admin-panel-fighters">
-            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 mb-6">
-                <div class="flex items-center gap-3">
+            <div class="flex flex-col gap-3 mb-6">
+                <!-- Row 1: count + add button + scrape button -->
+                <div class="flex flex-wrap items-center justify-between gap-3">
                     <p class="text-gray-400 oswald-sharp text-xs lg:text-sm italic uppercase tracking-widest">등록된 파이터 <span id="fighter-count" class="text-white font-black">0</span>명</p>
+                    <div class="flex gap-2">
+                        <button onclick="renderAdminFighterList()" class="oswald-sharp border border-white/10 text-gray-400 hover:text-white font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">↻ 새로고침</button>
+                        <button onclick="scrapeFighterStats()" id="fighter-scrape-btn" class="oswald-sharp border border-blue-500/30 text-blue-400 hover:text-blue-300 hover:border-blue-400 font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">🕷 스탯 크롤링</button>
+                        <button onclick="openFighterModal()" class="oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black px-6 lg:px-10 py-2 rounded-xl italic text-xs lg:text-sm uppercase tracking-widest transition-all">+ 파이터 추가</button>
+                    </div>
                 </div>
-                <div class="flex gap-3 w-full lg:w-auto">
+                <!-- Row 2: search + division filter -->
+                <div class="flex gap-2">
                     <input id="fighter-search-input" type="text" placeholder="🔍 파이터 검색..."
-                        class="flex-1 lg:w-56 bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white text-sm focus:outline-none focus:border-ufcRed placeholder-gray-600"
-                        oninput="renderAdminFighterList()">
-                    <button onclick="openFighterModal()" class="oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black px-6 lg:px-10 py-2 lg:py-3 rounded-xl italic text-xs lg:text-sm uppercase tracking-widest transition-all flex-shrink-0">+ 파이터 추가</button>
+                        class="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white text-sm focus:outline-none focus:border-ufcRed placeholder-gray-600"
+                        oninput="_renderFighterListFromCache()">
+                    <select id="fighter-div-filter" onchange="_renderFighterListFromCache()"
+                        class="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-ufcRed">
+                        <option value="">전체 체급</option>
+                        <option value="hw">헤비</option>
+                        <option value="lhw">라이트헤비</option>
+                        <option value="mw">미들</option>
+                        <option value="ww">웰터</option>
+                        <option value="lw">라이트</option>
+                        <option value="fw">페더</option>
+                        <option value="bw">밴텀</option>
+                        <option value="flw">플라이</option>
+                        <option value="wmw">여성 스트로</option>
+                        <option value="wfw">여성 플라이</option>
+                        <option value="wbw">여성 밴텀</option>
+                        <option value="wfe">여성 페더</option>
+                    </select>
                 </div>
+                <!-- Scrape log -->
+                <div id="fighter-scrape-log" class="hidden glass-card rounded-xl p-4 text-xs oswald-sharp italic text-gray-400 uppercase tracking-widest max-h-40 overflow-y-auto whitespace-pre-wrap"></div>
             </div>
             <div id="fighter-db-list" class="space-y-3"></div>
         </div>
@@ -1853,16 +1877,18 @@ textarea, select {
             <div>
                 <label class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic block mb-2">체급</label>
                 <select id="fm-division" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-ufcRed">
-                    <option value="HEAVYWEIGHT">헤비급</option>
-                    <option value="LIGHT HEAVYWEIGHT">라이트헤비급</option>
-                    <option value="MIDDLEWEIGHT">미들급</option>
-                    <option value="WELTERWEIGHT">웰터급</option>
-                    <option value="LIGHTWEIGHT">라이트급</option>
-                    <option value="FEATHERWEIGHT">페더급</option>
-                    <option value="BANTAMWEIGHT">밴텀급</option>
-                    <option value="FLYWEIGHT">플라이급</option>
-                    <option value="WOMEN'S STRAWWEIGHT">여자 스트로급</option>
-                    <option value="WOMEN'S FLYWEIGHT">여자 플라이급</option>
+                    <option value="hw">헤비웨이트</option>
+                    <option value="lhw">라이트헤비웨이트</option>
+                    <option value="mw">미들웨이트</option>
+                    <option value="ww">웰터웨이트</option>
+                    <option value="lw">라이트웨이트</option>
+                    <option value="fw">페더웨이트</option>
+                    <option value="bw">밴텀웨이트</option>
+                    <option value="flw">플라이웨이트</option>
+                    <option value="wmw">여성 스트로웨이트</option>
+                    <option value="wfw">여성 플라이웨이트</option>
+                    <option value="wbw">여성 밴텀웨이트</option>
+                    <option value="wfe">여성 페더웨이트</option>
                 </select>
             </div>
             <div class="lg:col-span-2">
@@ -2056,8 +2082,9 @@ textarea, select {
             <button onclick="closeFighterProfile()" class="absolute top-5 right-5 w-9 h-9 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/15 text-gray-400 hover:text-white transition text-lg">✕</button>
             <div class="flex items-start gap-5 lg:gap-8">
                 <!-- Avatar Ring -->
-                <div id="fp-avatar" class="w-16 h-16 lg:w-24 lg:h-24 rounded-2xl lg:rounded-3xl flex-shrink-0 flex items-center justify-center border-2 border-ufcRed/40 bg-ufcRed/10">
-                    <span id="fp-initials" class="oswald-sharp text-2xl lg:text-4xl font-black italic text-ufcRed"></span>
+                <div id="fp-avatar" class="w-16 h-16 lg:w-24 lg:h-24 rounded-2xl lg:rounded-3xl flex-shrink-0 overflow-hidden border-2 border-ufcRed/40 bg-ufcRed/10 relative">
+                    <img id="fp-avatar-img" src="" alt="" class="hidden w-full h-full object-cover object-top">
+                    <span id="fp-initials" class="absolute inset-0 flex items-center justify-center oswald-sharp text-2xl lg:text-4xl font-black italic text-ufcRed"></span>
                 </div>
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-3 mb-2 flex-wrap">
@@ -2476,18 +2503,18 @@ textarea, select {
 <script src="/js/state.js"></script>
 <script src="/js/storage.js"></script>
 <script src="/js/utils.js"></script>
-<script src="/js/api/supabase.js?v=5"></script>
+<script src="/js/api/supabase.js?v=6"></script>
 <script src="/js/news.js"></script>
 <script src="/js/youtube.js"></script>
-<script src="/js/community.js?v=5"></script>
-<script src="/js/admin.js?v=5"></script>
+<script src="/js/community.js?v=6"></script>
+<script src="/js/admin.js?v=6"></script>
 <script src="/js/profile.js"></script>
-<script src="/js/archive.js?v=5"></script>
+<script src="/js/archive.js?v=6"></script>
 <script src="/js/season.js"></script>
 <script src="/js/fights-render.js"></script>
 <script src="/js/h2h.js"></script>
-<script src="/js/news-admin.js?v=5"></script>
-<script src="/js/home.js?v=5"></script>
+<script src="/js/news-admin.js?v=6"></script>
+<script src="/js/home.js?v=6"></script>
 <script>
     /* ==============================
        FIGHT CARD DATA
@@ -3322,9 +3349,20 @@ async function publishPost() {
         const modal = document.getElementById('fighter-profile-modal');
         modal.classList.remove('hidden');
 
-        // Initials
-        const initials = fighter.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-        document.getElementById('fp-initials').textContent = initials;
+        // Avatar: image or initials fallback
+        const avatarImg = document.getElementById('fp-avatar-img');
+        const initialsEl = document.getElementById('fp-initials');
+        if (fighter.image_url) {
+            avatarImg.src = fighter.image_url;
+            avatarImg.classList.remove('hidden');
+            initialsEl.classList.add('hidden');
+            avatarImg.onerror = function() { avatarImg.classList.add('hidden'); initialsEl.classList.remove('hidden'); };
+        } else {
+            avatarImg.classList.add('hidden');
+            initialsEl.classList.remove('hidden');
+        }
+        const initials = (fighter.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+        initialsEl.textContent = initials;
 
         // Basic info
         document.getElementById('fp-name').textContent = fighter.name;

@@ -527,6 +527,30 @@ const DIVISION_LABEL = {
     wfw: '여성 플라이웨이트', wbw: '여성 밴텀웨이트', wfe: '여성 페더웨이트',
 };
 
+// Maps a DB fighters row → openFighterProfile() expected shape
+function _buildFighterForProfile(f) {
+    const record = (f.wins || f.losses || f.draws)
+        ? `${f.wins || 0}-${f.losses || 0}${f.draws ? '-' + f.draws : ''}`
+        : null;
+    const rankLabel = f.rank === 0 ? 'CHAMPION' : (f.rank ? `#${f.rank}` : 'UNRANKED');
+    const divLabel  = DIVISION_LABEL[f.division] || (f.division || '').toUpperCase();
+    const stats     = Array.isArray(f.stats) ? f.stats : [75, 75, 75, 75, 75];
+    return {
+        id: f.id,
+        name: f.name || f.name_en || '—',
+        name_en: f.name_en,
+        record: record || '—',
+        height: f.height || '—',
+        reach: f.reach || '—',
+        odds: f.odds || null,
+        rank: rankLabel,
+        division: divLabel,
+        style: f.style,
+        stats,
+        image_url: f.image_url || null,
+    };
+}
+
 async function fetchFighterArchive() {
     if (!sb) { setTimeout(fetchFighterArchive, 500); return; }
     if (_fightersFetching) return;
@@ -598,8 +622,9 @@ function renderFighterArchive() {
             'all-around': 'text-yellow-400 border-yellow-400/30 bg-yellow-400/5',
         };
 
+        const profileData = JSON.stringify(_buildFighterForProfile(f)).replace(/"/g, '&quot;');
         return `
-        <div class="glass-card rounded-2xl overflow-hidden hover:border-white/20 transition-all duration-300 flex flex-col">
+        <div class="glass-card rounded-2xl overflow-hidden hover:border-white/20 hover:border-ufcRed/30 transition-all duration-300 flex flex-col cursor-pointer" onclick="openFighterProfile('${profileData}')">
             <!-- 파이터 이미지 -->
             <div class="relative bg-gradient-to-b from-white/5 to-black/40 aspect-[3/4] flex items-end justify-center overflow-hidden">
                 ${f.image_url

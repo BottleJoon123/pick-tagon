@@ -88,6 +88,7 @@ function switchAdminTab(tab) {
     document.getElementById(`admin-panel-${tab}`).classList.remove('hidden');
     document.getElementById(`admin-tab-${tab}`).classList.add('active-tab');
     document.getElementById(`admin-tab-${tab}`).classList.remove('text-gray-500');
+    if (tab === 'fighters') renderAdminFighterList();
     if (tab === 'season') renderSeasonAdminPanel();
     if (tab === 'settings') { loadGeminiKeyToUI(); }
     if (tab === 'ufc') { fetchPendingEvents(); fetchApprovedEvents(); }
@@ -158,40 +159,52 @@ function autoSharePick(pick, match, payout, isUpset, fightId) {
 
 const STYLE_LABELS = { striker:'스트라이커 🥊', grappler:'그래플러 🤼', wrestler:'레슬러 💪', submission:'서브미션 🔒', 'all-around':'올라운더 ⭐' };
 const STYLE_COLORS = { striker:'text-red-400 border-red-400/30', grappler:'text-blue-400 border-blue-400/30', wrestler:'text-green-400 border-green-400/30', submission:'text-purple-400 border-purple-400/30', 'all-around':'text-yellow-400 border-yellow-400/30' };
+const ADMIN_DIV_LABEL = {
+    hw:'헤비웨이트', lhw:'라이트헤비웨이트', mw:'미들웨이트', ww:'웰터웨이트',
+    lw:'라이트웨이트', fw:'페더웨이트', bw:'밴텀웨이트', flw:'플라이웨이트',
+    wmw:'여성 스트로웨이트', wfw:'여성 플라이웨이트', wbw:'여성 밴텀웨이트', wfe:'여성 페더웨이트',
+};
 
 function renderAdminFighterList() {
     const list = document.getElementById('fighter-db-list');
     const count = document.getElementById('fighter-count');
     if (!list) return;
 
-    // Supabase fighters 테이블에서 동기화 (DB가 진실의 원천)
     if (sb) {
-        sb.from('fighters').select('*').order('name', { ascending: true })
-        .then(function(res) {
-            if (res.data && res.data.length > 0) {
-                res.data.forEach(function(f) {
-                    const existing = fighterDB.find(x => x.id === f.id);
-                    if (!existing) fighterDB.push(f);
-                    else Object.assign(existing, f);
-                });
-                saveAdmin();
-            }
-            _renderFighterListUI(list, count);
-        });
+        list.innerHTML = '<div class="glass-card p-6 text-center text-gray-600 oswald-sharp text-xs italic uppercase tracking-widest rounded-2xl animate-pulse">로딩 중...</div>';
+        // Always fetch fresh from Supabase — DB is source of truth
+        sb.from('fighters').select('*')
+            .order('division').order('rank', { ascending: true, nullsFirst: false })
+            .then(function(res) {
+                if (res.data) {
+                    fighterDB = res.data;
+                    saveAdmin();
+                }
+                _renderFighterListUI(list, count);
+            });
         return;
     }
     _renderFighterListUI(list, count);
 }
 
+// Called by search/filter inputs (no Supabase re-fetch, just re-render from cache)
+function _renderFighterListFromCache() {
+    const list = document.getElementById('fighter-db-list');
+    const count = document.getElementById('fighter-count');
+    if (list && count) _renderFighterListUI(list, count);
+}
+
 function _renderFighterListUI(list, count) {
-    const query = (document.getElementById('fighter-search-input')?.value || '').toLowerCase();
-    const filtered = fighterDB.filter(f =>
-        !query ||
-        f.name.toLowerCase().includes(query) ||
-        (f.name_en || '').toLowerCase().includes(query) ||
-        (f.division || '').toLowerCase().includes(query) ||
-        (f.rank || '').toLowerCase().includes(query)
-    );
+    const query  = (document.getElementById('fighter-search-input')?.value || '').toLowerCase();
+    const divFil = (document.getElementById('fighter-div-filter')?.value || '');
+
+    const filtered = fighterDB.filter(f => {
+        const nameOk = !query ||
+            (f.name || '').toLowerCase().includes(query) ||
+            (f.name_en || '').toLowerCase().includes(query);
+        const divOk = !divFil || f.division === divFil;
+        return nameOk && divOk;
+    });
     count.textContent = fighterDB.length;
 
     if (fighterDB.length === 0) {
@@ -204,21 +217,35 @@ function _renderFighterListUI(list, count) {
     }
 
     list.innerHTML = filtered.map(f => {
-        const styleCls = STYLE_COLORS[f.style] || STYLE_COLORS['all-around'];
+        const styleCls   = STYLE_COLORS[f.style] || STYLE_COLORS['all-around'];
         const styleLabel = STYLE_LABELS[f.style] || STYLE_LABELS['all-around'];
+        const record     = f.record || (
+            (f.wins !== undefined) ? `${f.wins}-${f.losses}${f.draws ? '-'+f.draws : ''}` : '—'
+        );
+        const rankLabel  = f.rank === 0 ? 'CHAMP' : (f.rank ? `#${f.rank}` : 'NR');
+        const divLabel   = ADMIN_DIV_LABEL[f.division] || (f.division || '—').toUpperCase();
+        const displayName = f.name || f.name_en || '—';
         const avatar = f.image_url
-            ? `<img src="${f.image_url}" class="w-10 h-10 lg:w-12 lg:h-12 rounded-full object-cover border border-ufcRed/30" onerror="this.style.display='none'">`
-            : `<div class="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-ufcRed/10 border border-ufcRed/30 flex items-center justify-center oswald-sharp text-ufcRed font-black italic text-xs lg:text-sm">${f.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div>`;
+            ? `<img src="${f.image_url}" class="w-10 h-10 lg:w-12 lg:h-12 rounded-full object-cover border border-ufcRed/30 flex-shrink-0" onerror="this.style.display='none'">`
+            : `<div class="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-ufcRed/10 border border-ufcRed/30 flex-shrink-0 flex items-center justify-center oswald-sharp text-ufcRed font-black italic text-xs">${(f.name_en || f.name || '?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div>`;
+
+        const profileData = JSON.stringify({
+            id: f.id, name: displayName, name_en: f.name_en,
+            record, height: f.height, reach: f.reach, odds: f.odds,
+            rank: rankLabel, division: divLabel, style: f.style,
+            stats: f.stats, image_url: f.image_url,
+        }).replace(/"/g,'&quot;');
+
         return `
         <div class="glass-card rounded-2xl p-4 lg:p-6 flex items-center justify-between hover:border-ufcRed/30 transition-all">
-            <div class="flex items-center gap-4 lg:gap-6 cursor-pointer group" onclick="openFighterProfile(${JSON.stringify(f).replace(/"/g,'&quot;')})">
+            <div class="flex items-center gap-4 lg:gap-6 cursor-pointer group" onclick="openFighterProfile('${profileData}')">
                 ${avatar}
                 <div>
                     <div class="flex items-center gap-2 mb-0.5">
-                        <p class="oswald-sharp font-black italic text-sm lg:text-xl text-white uppercase tracking-tighter group-hover:text-ufcRed transition">${f.name}</p>
+                        <p class="oswald-sharp font-black italic text-sm lg:text-xl text-white uppercase tracking-tighter group-hover:text-ufcRed transition">${escapeHtml(displayName)}</p>
                         <span class="oswald-sharp text-[8px] border ${styleCls} px-1.5 py-0.5 rounded-md font-black italic uppercase hidden lg:inline">${styleLabel}</span>
                     </div>
-                    <p class="oswald-sharp text-[10px] text-gray-500 italic uppercase tracking-widest">${f.division} · ${f.record} · ${f.rank}${f.country ? ' · ' + f.country : ''}</p>
+                    <p class="oswald-sharp text-[10px] text-gray-500 italic uppercase tracking-widest">${escapeHtml(divLabel)} · ${escapeHtml(record)} · ${rankLabel}${f.country ? ' · ' + escapeHtml(f.country) : ''}</p>
                 </div>
             </div>
             <div class="flex items-center gap-2 lg:gap-3">
@@ -261,7 +288,7 @@ function openFighterModal(fighterId) {
         document.getElementById('fm-wins').value = f.wins !== undefined ? f.wins : (wm ? wm[1] : 0);
         document.getElementById('fm-losses').value = f.losses !== undefined ? f.losses : (lm ? lm[1] : 0);
         document.getElementById('fm-draws').value = f.draws !== undefined ? f.draws : (dm ? dm[1] : 0);
-        document.getElementById('fm-rank').value = f.rank;
+        document.getElementById('fm-rank').value = (f.rank !== null && f.rank !== undefined) ? f.rank : '';
         document.getElementById('fm-style').value = f.style || 'all-around';
         document.getElementById('fm-height').value = f.height;
         document.getElementById('fm-reach').value = f.reach;
@@ -374,6 +401,49 @@ function deleteFighter(fighterId) {
     saveAdmin();
     renderAdminFighterList();
     showToast(`🗑 ${f.name} 삭제됨`);
+}
+
+// ----- FIGHTER STATS SCRAPER -----
+async function scrapeFighterStats() {
+    const btn = document.getElementById('fighter-scrape-btn');
+    const log = document.getElementById('fighter-scrape-log');
+    if (!sb) { showToast('⚠ Supabase 연결 필요'); return; }
+
+    const sessionRes = await sb.auth.getSession();
+    const session = sessionRes?.data?.session;
+    if (!session?.access_token) { showToast('⚠ 어드민 로그인 필요'); return; }
+
+    btn.textContent = '⏳ 크롤링 중...';
+    btn.disabled = true;
+    log.classList.remove('hidden');
+    log.textContent = '[ UFCStats 크롤링 시작 ]\n';
+
+    const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
+    let updated = 0, skipped = 0;
+
+    for (const letter of letters) {
+        log.textContent += `→ ${letter.toUpperCase()} 처리 중...\n`;
+        log.scrollTop = log.scrollHeight;
+        try {
+            const { data, error } = await sb.functions.invoke('scrape-fighter-records', {
+                body: { letter },
+                headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+            if (error) throw new Error(error.message);
+            updated += data.updated || 0;
+            skipped += data.skipped || 0;
+            log.textContent += `  ${data.updated || 0}명 업데이트, ${data.skipped || 0}명 스킵\n`;
+        } catch (e) {
+            log.textContent += `  오류: ${e.message}\n`;
+        }
+        await new Promise(r => setTimeout(r, 300)); // rate limit
+    }
+
+    log.textContent += `\n[ 완료 ] 총 ${updated}명 업데이트, ${skipped}명 스킵\n`;
+    btn.textContent = '🕷 스탯 크롤링';
+    btn.disabled = false;
+    showToast(`✅ 크롤링 완료 — ${updated}명 업데이트`);
+    renderAdminFighterList();
 }
 
 // ----- RECENT FIGHTS MANAGER -----
