@@ -1446,6 +1446,12 @@ textarea, select {
                     <option value="2024">2024</option>
                     <option value="2023">2023</option>
                 </select>
+                <select id="archive-status-filter" class="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed"
+                    onchange="renderArchive()">
+                    <option value="all">전체</option>
+                    <option value="upcoming">예정</option>
+                    <option value="past">지난 이벤트</option>
+                </select>
             </div>
         </div>
 
@@ -2160,7 +2166,7 @@ textarea, select {
             <h3 id="archive-modal-title" class="oswald-sharp text-2xl font-black italic text-white uppercase tracking-tighter">이벤트 추가</h3>
             <button onclick="closeArchiveEventModal()" class="text-gray-500 hover:text-white text-2xl transition">✕</button>
         </div>
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
             <div class="lg:col-span-1">
                 <label class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic block mb-2">이벤트명 *</label>
                 <input id="ae-name" type="text" placeholder="UFC 310" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-ufcRed oswald-sharp text-lg italic font-black uppercase">
@@ -2173,9 +2179,16 @@ textarea, select {
                 <label class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic block mb-2">장소</label>
                 <input id="ae-venue" type="text" placeholder="T-Mobile Arena, Las Vegas" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-ufcRed text-sm">
             </div>
+            <div>
+                <label class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic block mb-2">상태</label>
+                <select id="ae-status" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-ufcRed text-sm">
+                    <option value="past">지난 이벤트</option>
+                    <option value="upcoming">예정 이벤트</option>
+                </select>
+            </div>
         </div>
         <div class="mb-4 flex items-center justify-between">
-            <h4 class="oswald-sharp text-xs text-gray-400 uppercase tracking-widest italic">경기 결과 목록</h4>
+            <h4 class="oswald-sharp text-xs text-gray-400 uppercase tracking-widest italic">경기 목록</h4>
             <button onclick="addArchiveFightRow()" class="oswald-sharp text-[10px] border border-white/10 text-gray-400 hover:text-white hover:border-white/30 px-3 py-1 rounded-xl italic uppercase tracking-widest transition">+ 경기 추가</button>
         </div>
         <div id="archive-fight-rows" class="space-y-3 mb-6"></div>
@@ -2404,18 +2417,18 @@ textarea, select {
 <script src="/js/state.js"></script>
 <script src="/js/storage.js"></script>
 <script src="/js/utils.js"></script>
-<script src="/js/api/supabase.js?v=3"></script>
+<script src="/js/api/supabase.js?v=4"></script>
 <script src="/js/news.js"></script>
 <script src="/js/youtube.js"></script>
-<script src="/js/community.js?v=3"></script>
-<script src="/js/admin.js?v=3"></script>
+<script src="/js/community.js?v=4"></script>
+<script src="/js/admin.js?v=4"></script>
 <script src="/js/profile.js"></script>
-<script src="/js/archive.js?v=3"></script>
+<script src="/js/archive.js?v=4"></script>
 <script src="/js/season.js"></script>
 <script src="/js/fights-render.js"></script>
 <script src="/js/h2h.js"></script>
-<script src="/js/news-admin.js?v=3"></script>
-<script src="/js/home.js?v=3"></script>
+<script src="/js/news-admin.js?v=4"></script>
+<script src="/js/home.js?v=4"></script>
 <script>
     /* ==============================
        FIGHT CARD DATA
@@ -2506,7 +2519,7 @@ textarea, select {
             startRealtimeSubscription();
         }
         if(id === 'rankings') setTimeout(() => { renderLeaderboard(); renderHallOfFame(); }, 100);
-        if(id === 'archive') { renderArchive(); }
+        if(id === 'archive') { if (archiveDB.length === 0) fetchArchive(); else renderArchive(); }
         if(id === 'community') { if (currentUser) loadMyBattles(); }
         if(id === 'profile') { setTimeout(() => renderProfileStats(), 100); }
         if(id === 'admin') {
@@ -4442,7 +4455,7 @@ async function addCommentToDB(postDbId, userNick, text) {
         load();
         loadAdmin();
         loadEventInfo();
-        loadArchive();
+        fetchArchive();
         loadNews();
         loadSeason();
         loadUFCRankings();

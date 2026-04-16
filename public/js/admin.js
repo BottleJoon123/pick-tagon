@@ -712,6 +712,11 @@ async function approveEvent(id, title, dateStr, sourceUrl) {
         return;
     }
 
+    // archive_events에도 upcoming으로 추가 (archive.js 함수)
+    if (typeof approveToArchive === 'function') {
+        await approveToArchive(id, cleanTitle, dateStr, sourceUrl);
+    }
+
     showToast('✅ 이벤트 승인 완료: ' + title);
     fetchPendingEvents();
     fetchApprovedEvents();
