@@ -7,10 +7,19 @@
 var archiveDB = [];         // { id, name, event_date, venue, source_url, status, fights: [...] }
 var archiveFightRowCount = 0;
 var editingArchiveId = null;
+var _archiveFetching = false;   // in-flight guard
+var _archiveRetryTimer = null;  // retry timer ref
 
 // ── DB 로딩 ───────────────────────────────────────────────────────────
 async function fetchArchive() {
-    if (!sb) { console.warn('[fetchArchive] sb not ready, retrying in 500ms'); setTimeout(fetchArchive, 500); return; }
+    if (!sb) {
+        if (_archiveRetryTimer) return; // 이미 retry 예약됨
+        console.warn('[fetchArchive] sb not ready, retrying in 500ms');
+        _archiveRetryTimer = setTimeout(() => { _archiveRetryTimer = null; fetchArchive(); }, 500);
+        return;
+    }
+    if (_archiveFetching) return; // 중복 호출 방지
+    _archiveFetching = true;
     try {
         const { data: events, error: evErr } = await sb
             .from('archive_events')
@@ -50,6 +59,8 @@ async function fetchArchive() {
     } catch (e) {
         console.error('[fetchArchive]', e);
         showToast('⚠ 아카이브 로드 실패: ' + e.message);
+    } finally {
+        _archiveFetching = false;
     }
 }
 
@@ -239,14 +250,19 @@ function renderArchiveAdminList() {
 }
 
 function openArchiveEventModal(evId) {
+    // 수정 모드: 먼저 대상 확인 후 모달 열기 (Codex 지적: 모달 오픈 전 검증)
+    let ev = null;
+    if (evId) {
+        ev = archiveDB.find(e => e.id === evId);
+        if (!ev) { showToast('⚠ 이벤트를 찾을 수 없습니다'); return; }
+    }
+
     editingArchiveId = evId || null;
     archiveFightRowCount = 0;
     document.getElementById('archive-event-modal').classList.remove('hidden');
     document.getElementById('archive-fight-rows').innerHTML = '';
 
-    if (evId) {
-        const ev = archiveDB.find(e => e.id === evId);
-        if (!ev) return;
+    if (ev) {
         document.getElementById('archive-modal-title').textContent = '이벤트 수정';
         document.getElementById('ae-name').value = ev.name || '';
         document.getElementById('ae-date').value = ev.event_date || '';
@@ -276,6 +292,7 @@ function addArchiveFightRow(prefill) {
     const container = document.getElementById('archive-fight-rows');
     const row = document.createElement('div');
     row.id = `afr-${idx}`;
+    row.dataset.fightRow = idx;   // Codex 지적: fragile selector 대신 data-* 사용
     row.className = 'p-3 rounded-xl bg-black/30 border border-white/5 space-y-2';
 
     const safeVal = v => escapeHtml(v || '');
@@ -357,14 +374,15 @@ async function saveArchiveEvent() {
     const venue = (document.getElementById('ae-venue')?.value || '').trim() || null;
     const status = document.getElementById('ae-status')?.value || 'past';
 
-    // Collect fight rows
+    // Collect fight rows (Codex 지적: data-fight-row로 fragile selector 교체)
     const fights = [];
     let sortOrder = 0;
-    document.querySelectorAll('[id^="afr-"]:not([id*="-f1"]):not([id*="-f2"]):not([id*="-winner"]):not([id*="-method"]):not([id*="-round"]):not([id*="-tag"]):not([id*="-time"]):not([id*="-img"]):not([id*="-ko"])').forEach(row => {
-        const idx = row.id.replace('afr-', '');
+    document.querySelectorAll('[data-fight-row]').forEach(row => {
+        const idx = row.dataset.fightRow;
         const f1 = (document.getElementById(`afr-f1-${idx}`)?.value || '').trim();
         const f2 = (document.getElementById(`afr-f2-${idx}`)?.value || '').trim();
-        if (f1 || f2) {
+        // Codex 지적: 양쪽 파이터 모두 필수 — 한쪽만 있으면 저장 제외
+        if (f1 && f2) {
             fights.push({
                 tag: document.getElementById(`afr-tag-${idx}`)?.value || 'MAIN EVENT',
                 f1_name: f1 || null,
@@ -452,19 +470,15 @@ async function deleteArchiveEvent(evId) {
 // ── Pending → Archive 연동 ────────────────────────────────────────────
 // pending_events에서 approve 시 archive_events에도 추가
 async function approveToArchive(_pendingId, title, dateStr, sourceUrl) {
+    // Codex 지적: check-then-insert race condition → upsert(onConflict: 'name')으로 교체
     try {
-        const { data: existing } = await sb
+        const { error } = await sb
             .from('archive_events')
-            .select('id')
-            .eq('name', title)
-            .maybeSingle();
-
-        if (!existing) {
-            const { error } = await sb
-                .from('archive_events')
-                .insert({ name: title, event_date: dateStr || null, source_url: sourceUrl || null, status: 'upcoming' });
-            if (error) console.warn('[approveToArchive] archive insert failed:', error.message);
-        }
+            .upsert(
+                { name: title, event_date: dateStr || null, source_url: sourceUrl || null, status: 'upcoming' },
+                { onConflict: 'name', ignoreDuplicates: true }
+            );
+        if (error) console.warn('[approveToArchive] archive upsert failed:', error.message);
     } catch (e) {
         console.warn('[approveToArchive]', e);
     }
