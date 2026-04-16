@@ -10,6 +10,7 @@ var editingArchiveId = null;
 
 // ── DB 로딩 ───────────────────────────────────────────────────────────
 async function fetchArchive() {
+    if (!sb) { console.warn('[fetchArchive] sb not ready, retrying in 500ms'); setTimeout(fetchArchive, 500); return; }
     try {
         const { data: events, error: evErr } = await sb
             .from('archive_events')
@@ -450,7 +451,7 @@ async function deleteArchiveEvent(evId) {
 
 // ── Pending → Archive 연동 ────────────────────────────────────────────
 // pending_events에서 approve 시 archive_events에도 추가
-async function approveToArchive(pendingId, title, dateStr, sourceUrl) {
+async function approveToArchive(_pendingId, title, dateStr, sourceUrl) {
     try {
         const { data: existing } = await sb
             .from('archive_events')
