@@ -1428,13 +1428,31 @@ textarea, select {
     <!-- [SECTION: ARCHIVE] -->
     <section id="archive" class="section-animate max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-12 lg:pt-8 lg:pb-20">
         <!-- Header -->
-        <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-6 lg:mb-10">
+        <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-6 lg:mb-8">
             <div class="border-l-8 lg:border-l-[12px] border-ufcRed pl-4 lg:pl-8">
-                <h3 class="oswald-sharp text-3xl lg:text-6xl font-black italic tracking-tighter uppercase">Event Archive</h3>
-                <p class="text-gray-500 oswald-sharp uppercase tracking-widest mt-1 text-[10px] lg:text-sm italic">역대 UFC 이벤트 결과 기록</p>
+                <h3 class="oswald-sharp text-3xl lg:text-6xl font-black italic tracking-tighter uppercase">Archive</h3>
+                <p class="text-gray-500 oswald-sharp uppercase tracking-widest mt-1 text-[10px] lg:text-sm italic">UFC 이벤트 기록 & 파이터 정보</p>
             </div>
+        </div>
+
+        <!-- Sub-tab switcher -->
+        <div class="flex gap-2 mb-6 lg:mb-8 border-b border-white/5 pb-0">
+            <button id="archive-tab-events"
+                onclick="switchArchiveTab('events')"
+                class="oswald-sharp font-black italic uppercase tracking-widest text-sm lg:text-base px-5 py-3 border-b-2 border-ufcRed text-white transition-all">
+                이벤트
+            </button>
+            <button id="archive-tab-fighters"
+                onclick="switchArchiveTab('fighters')"
+                class="oswald-sharp font-black italic uppercase tracking-widest text-sm lg:text-base px-5 py-3 border-b-2 border-transparent text-gray-500 hover:text-gray-300 transition-all">
+                파이터
+            </button>
+        </div>
+
+        <!-- ══ 이벤트 패널 ══ -->
+        <div id="archive-events-panel">
             <!-- Search + Filter -->
-            <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+            <div class="flex flex-col sm:flex-row gap-3 w-full mb-6">
                 <input id="archive-search" type="text" placeholder="이벤트 검색..."
                     class="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed placeholder-gray-600 w-full lg:w-60"
                     oninput="renderArchive()">
@@ -1453,31 +1471,72 @@ textarea, select {
                     <option value="past">지난 이벤트</option>
                 </select>
             </div>
+
+            <!-- Stats Bar -->
+            <div class="grid grid-cols-3 gap-3 lg:gap-6 mb-6 lg:mb-10">
+                <div class="glass-card rounded-2xl p-4 lg:p-8 text-center">
+                    <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 tracking-widest italic uppercase mb-2">총 이벤트</p>
+                    <p id="archive-stat-events" class="oswald-sharp text-2xl lg:text-5xl font-black italic text-white">0</p>
+                </div>
+                <div class="glass-card rounded-2xl p-4 lg:p-8 text-center">
+                    <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 tracking-widest italic uppercase mb-2">총 경기</p>
+                    <p id="archive-stat-fights" class="oswald-sharp text-2xl lg:text-5xl font-black italic text-ufcRed">0</p>
+                </div>
+                <div class="glass-card rounded-2xl p-4 lg:p-8 text-center">
+                    <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 tracking-widest italic uppercase mb-2">KO/TKO 비율</p>
+                    <p id="archive-stat-ko" class="oswald-sharp text-2xl lg:text-5xl font-black italic text-white">0%</p>
+                </div>
+            </div>
+
+            <div id="archive-list" class="space-y-4 lg:space-y-6"></div>
+            <div id="archive-empty" class="hidden glass-card rounded-[2rem] p-16 text-center">
+                <p class="oswald-sharp text-gray-600 text-sm italic uppercase tracking-widest">등록된 아카이브가 없습니다</p>
+                <p class="text-gray-700 text-xs mt-2">어드민 패널 → 아카이브 탭에서 이벤트를 추가하세요</p>
+            </div>
         </div>
 
-        <!-- Stats Bar -->
-        <div class="grid grid-cols-3 gap-3 lg:gap-6 mb-6 lg:mb-10">
-            <div class="glass-card rounded-2xl p-4 lg:p-8 text-center">
-                <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 tracking-widest italic uppercase mb-2">총 이벤트</p>
-                <p id="archive-stat-events" class="oswald-sharp text-2xl lg:text-5xl font-black italic text-white">0</p>
+        <!-- ══ 파이터 패널 ══ -->
+        <div id="archive-fighters-panel" class="hidden">
+            <!-- Search + Filter -->
+            <div class="flex flex-col sm:flex-row gap-3 w-full mb-6">
+                <input id="fighter-archive-search" type="text" placeholder="파이터 검색..."
+                    class="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed placeholder-gray-600 w-full lg:w-60"
+                    oninput="renderFighterArchive()">
+                <select id="fighter-archive-division" class="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed"
+                    onchange="renderFighterArchive()">
+                    <option value="all">전체 체급</option>
+                    <option value="hw">헤비웨이트</option>
+                    <option value="lhw">라이트헤비웨이트</option>
+                    <option value="mw">미들웨이트</option>
+                    <option value="ww">웰터웨이트</option>
+                    <option value="lw">라이트웨이트</option>
+                    <option value="fw">페더웨이트</option>
+                    <option value="bw">밴텀웨이트</option>
+                    <option value="flw">플라이웨이트</option>
+                    <option value="wmw">여성 스트로웨이트</option>
+                    <option value="wfw">여성 플라이웨이트</option>
+                    <option value="wbw">여성 밴텀웨이트</option>
+                    <option value="wfw">여성 페더웨이트</option>
+                </select>
             </div>
-            <div class="glass-card rounded-2xl p-4 lg:p-8 text-center">
-                <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 tracking-widest italic uppercase mb-2">총 경기</p>
-                <p id="archive-stat-fights" class="oswald-sharp text-2xl lg:text-5xl font-black italic text-ufcRed">0</p>
-            </div>
-            <div class="glass-card rounded-2xl p-4 lg:p-8 text-center">
-                <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 tracking-widest italic uppercase mb-2">KO/TKO 비율</p>
-                <p id="archive-stat-ko" class="oswald-sharp text-2xl lg:text-5xl font-black italic text-white">0%</p>
-            </div>
-        </div>
 
-        <!-- Event Cards Grid -->
-        <div id="archive-list" class="space-y-4 lg:space-y-6"></div>
+            <!-- Fighter Stats Bar -->
+            <div class="grid grid-cols-2 gap-3 lg:gap-6 mb-6 lg:mb-8">
+                <div class="glass-card rounded-2xl p-4 lg:p-6 text-center">
+                    <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 tracking-widest italic uppercase mb-2">등록 파이터</p>
+                    <p id="fighter-stat-count" class="oswald-sharp text-2xl lg:text-4xl font-black italic text-white">0</p>
+                </div>
+                <div class="glass-card rounded-2xl p-4 lg:p-6 text-center">
+                    <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 tracking-widest italic uppercase mb-2">체급 수</p>
+                    <p id="fighter-stat-divisions" class="oswald-sharp text-2xl lg:text-4xl font-black italic text-ufcRed">0</p>
+                </div>
+            </div>
 
-        <!-- Empty State -->
-        <div id="archive-empty" class="hidden glass-card rounded-[2rem] p-16 text-center">
-            <p class="oswald-sharp text-gray-600 text-sm italic uppercase tracking-widest">등록된 아카이브가 없습니다</p>
-            <p class="text-gray-700 text-xs mt-2">어드민 패널 → 아카이브 탭에서 이벤트를 추가하세요</p>
+            <!-- Fighter Grid -->
+            <div id="fighter-archive-list" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 lg:gap-4"></div>
+            <div id="fighter-archive-empty" class="hidden glass-card rounded-[2rem] p-16 text-center">
+                <p class="oswald-sharp text-gray-600 text-sm italic uppercase tracking-widest">검색 결과가 없습니다</p>
+            </div>
         </div>
     </section>
 

@@ -10,6 +10,38 @@ var editingArchiveId = null;
 var _archiveFetching = false;   // in-flight guard
 var _archiveRetryTimer = null;  // retry timer ref
 
+var fighterArchiveDB = [];      // fighters table cache
+var _fightersFetching = false;
+var _currentArchiveTab = 'events'; // 'events' | 'fighters'
+
+// ── 서브탭 전환 ───────────────────────────────────────────────────────
+function switchArchiveTab(tab) {
+    _currentArchiveTab = tab;
+
+    const evPanel = document.getElementById('archive-events-panel');
+    const ftPanel = document.getElementById('archive-fighters-panel');
+    const evBtn   = document.getElementById('archive-tab-events');
+    const ftBtn   = document.getElementById('archive-tab-fighters');
+
+    if (tab === 'events') {
+        evPanel?.classList.remove('hidden');
+        ftPanel?.classList.add('hidden');
+        evBtn?.classList.replace('border-transparent', 'border-ufcRed');
+        evBtn?.classList.replace('text-gray-500', 'text-white');
+        ftBtn?.classList.replace('border-ufcRed', 'border-transparent');
+        ftBtn?.classList.replace('text-white', 'text-gray-500');
+        if (archiveDB.length === 0) fetchArchive(); else renderArchive();
+    } else {
+        ftPanel?.classList.remove('hidden');
+        evPanel?.classList.add('hidden');
+        ftBtn?.classList.replace('border-transparent', 'border-ufcRed');
+        ftBtn?.classList.replace('text-gray-500', 'text-white');
+        evBtn?.classList.replace('border-ufcRed', 'border-transparent');
+        evBtn?.classList.replace('text-white', 'text-gray-500');
+        if (fighterArchiveDB.length === 0) fetchFighterArchive(); else renderFighterArchive();
+    }
+}
+
 // ── DB 로딩 ───────────────────────────────────────────────────────────
 async function fetchArchive() {
     if (!sb) {
@@ -482,4 +514,125 @@ async function approveToArchive(_pendingId, title, dateStr, sourceUrl) {
     } catch (e) {
         console.warn('[approveToArchive]', e);
     }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  파이터 탭
+// ══════════════════════════════════════════════════════════════════════
+
+const DIVISION_LABEL = {
+    hw:  '헤비웨이트',   lhw: '라이트헤비웨이트', mw:  '미들웨이트',
+    ww:  '웰터웨이트',  lw:  '라이트웨이트',     fw:  '페더웨이트',
+    bw:  '밴텀웨이트',  flw: '플라이웨이트',     wmw: '여성 스트로웨이트',
+    wfw: '여성 플라이웨이트', wbw: '여성 밴텀웨이트', wfe: '여성 페더웨이트',
+};
+
+async function fetchFighterArchive() {
+    if (!sb) { setTimeout(fetchFighterArchive, 500); return; }
+    if (_fightersFetching) return;
+    _fightersFetching = true;
+
+    const listEl = document.getElementById('fighter-archive-list');
+    if (listEl) listEl.innerHTML = '<p class="col-span-full text-center oswald-sharp text-gray-600 italic text-sm uppercase tracking-widest animate-pulse py-16">Loading...</p>';
+
+    try {
+        const { data, error } = await sb
+            .from('fighters')
+            .select('id, name, name_en, division, wins, losses, draws, rank, height, reach, image_url, style')
+            .order('division', { ascending: true })
+            .order('rank', { ascending: true, nullsFirst: false });
+
+        if (error) throw error;
+        fighterArchiveDB = data || [];
+        renderFighterArchive();
+    } catch (e) {
+        console.error('[fetchFighterArchive]', e);
+        showToast('⚠ 파이터 데이터 로드 실패: ' + e.message);
+    } finally {
+        _fightersFetching = false;
+    }
+}
+
+function renderFighterArchive() {
+    const listEl  = document.getElementById('fighter-archive-list');
+    const emptyEl = document.getElementById('fighter-archive-empty');
+    if (!listEl) return;
+
+    const query   = (document.getElementById('fighter-archive-search')?.value || '').toLowerCase();
+    const divFilt = document.getElementById('fighter-archive-division')?.value || 'all';
+
+    const filtered = fighterArchiveDB.filter(f => {
+        const nameMatch = (f.name || '').toLowerCase().includes(query) ||
+                          (f.name_en || '').toLowerCase().includes(query);
+        const divMatch  = divFilt === 'all' || f.division === divFilt;
+        return nameMatch && divMatch;
+    });
+
+    // 통계
+    const divSet = new Set(fighterArchiveDB.map(f => f.division).filter(Boolean));
+    const statEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    statEl('fighter-stat-count', fighterArchiveDB.length);
+    statEl('fighter-stat-divisions', divSet.size);
+
+    if (filtered.length === 0) {
+        listEl.innerHTML = '';
+        emptyEl?.classList.remove('hidden');
+        return;
+    }
+    emptyEl?.classList.add('hidden');
+
+    listEl.innerHTML = filtered.map(f => {
+        const displayName = f.name || f.name_en || '—';
+        const engName     = (f.name !== f.name_en && f.name_en) ? f.name_en : '';
+        const record      = (f.wins || f.losses || f.draws)
+            ? `${f.wins || 0}-${f.losses || 0}${f.draws ? '-' + f.draws : ''}`
+            : null;
+        const rankLabel   = f.rank === 0 ? 'C' : (f.rank ? `#${f.rank}` : '—');
+        const divLabel    = DIVISION_LABEL[f.division] || (f.division || '').toUpperCase();
+
+        const STYLE_COLOR = {
+            striker:    'text-red-400 border-red-400/30 bg-red-400/5',
+            grappler:   'text-blue-400 border-blue-400/30 bg-blue-400/5',
+            wrestler:   'text-green-400 border-green-400/30 bg-green-400/5',
+            submission: 'text-purple-400 border-purple-400/30 bg-purple-400/5',
+            'all-around': 'text-yellow-400 border-yellow-400/30 bg-yellow-400/5',
+        };
+
+        return `
+        <div class="glass-card rounded-2xl overflow-hidden hover:border-white/20 transition-all duration-300 flex flex-col">
+            <!-- 파이터 이미지 -->
+            <div class="relative bg-gradient-to-b from-white/5 to-black/40 aspect-[3/4] flex items-end justify-center overflow-hidden">
+                ${f.image_url
+                    ? `<img src="${escapeHtml(f.image_url)}" alt="${escapeHtml(displayName)}"
+                           class="absolute inset-0 w-full h-full object-cover object-top"
+                           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+                    : ''}
+                <div class="absolute inset-0 ${f.image_url ? 'hidden' : 'flex'} items-center justify-center">
+                    <span class="oswald-sharp text-5xl lg:text-6xl font-black italic text-white/10 uppercase select-none">
+                        ${escapeHtml((f.name_en || f.name || '?')[0])}
+                    </span>
+                </div>
+                <!-- rank badge -->
+                <div class="absolute top-2 left-2">
+                    <span class="oswald-sharp text-[10px] font-black italic uppercase px-2 py-0.5 rounded-lg ${f.rank === 0 ? 'bg-yellow-500/20 border border-yellow-500/40 text-yellow-400' : 'bg-white/5 border border-white/10 text-gray-400'}">${rankLabel}</span>
+                </div>
+            </div>
+
+            <!-- 파이터 정보 -->
+            <div class="p-3 flex-1 flex flex-col gap-1">
+                <p class="oswald-sharp font-black italic text-white uppercase tracking-tighter text-sm lg:text-base leading-tight">${escapeHtml(displayName)}</p>
+                ${engName ? `<p class="oswald-sharp text-[9px] text-gray-500 italic uppercase tracking-widest truncate">${escapeHtml(engName)}</p>` : ''}
+                <p class="oswald-sharp text-[9px] text-ufcRed italic uppercase tracking-widest">${escapeHtml(divLabel)}</p>
+                <div class="flex items-center gap-2 mt-auto pt-2 border-t border-white/5 flex-wrap">
+                    ${record ? `<span class="oswald-sharp text-[9px] text-white font-black italic">${escapeHtml(record)}</span>` : ''}
+                    ${f.style ? `<span class="oswald-sharp text-[8px] border ${STYLE_COLOR[f.style] || 'text-gray-500 border-gray-500/30 bg-gray-500/5'} px-1.5 py-0.5 rounded-md italic uppercase">${escapeHtml(f.style)}</span>` : ''}
+                </div>
+                ${(f.height || f.reach) ? `
+                <div class="flex gap-2 text-[9px] text-gray-600 oswald-sharp italic uppercase">
+                    ${f.height ? `<span>키 ${escapeHtml(f.height)}</span>` : ''}
+                    ${f.reach  ? `<span>리치 ${escapeHtml(f.reach)}</span>` : ''}
+                </div>` : ''}
+            </div>
+        </div>`;
+    }).join('');
 }
