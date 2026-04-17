@@ -37,7 +37,7 @@ const normalize = (s: string) => s.replace(/\s+/g, ' ').trim()
 const slugify   = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 
 async function scrapePage(page: number): Promise<ScrapedFighter[]> {
-  const url = `https://kr.ufc.com/athletes/all?page=${page}`
+  const url = `https://kr.ufc.com/athletes/all?filters%5B0%5D=status%3A23&page=${page}`
   const res = await fetch(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36',
@@ -113,6 +113,7 @@ Deno.serve(async (req) => {
   const body = await req.json().catch(() => ({}))
   const startPage: number = typeof body.startPage === 'number' ? body.startPage : 0
   const batchSize: number = Math.min(typeof body.batchSize === 'number' ? body.batchSize : 10, 20)
+
 
   // Load existing fighters for name dedup (name_en → id)
   const { data: existing, error: fetchErr } = await supabase
@@ -227,7 +228,7 @@ Deno.serve(async (req) => {
       totalInserted,
       totalUpdated,
       hasMore,
-      errors: errors.slice(0, 5), // cap error list
+      errors: errors.slice(0, 5),
     }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
   )

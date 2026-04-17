@@ -9,15 +9,6 @@ const corsHeaders = {
 
 const UFCSTATS_BASE = 'http://www.ufcstats.com'
 
-// ── 파이터 이름 정규화 (공백·마침표·악센트 제거 후 소문자 비교용)
-const normName = (s: string) =>
-  (s || '')
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // 악센트 제거 (Jiří→Jiri)
-    .replace(/[.\-']/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase()
-
 interface ScrapedFighter {
   name: string
   wins: number
@@ -42,7 +33,6 @@ async function scrapeLetter(letter: string): Promise<ScrapedFighter[]> {
   const $ = cheerio.load(html)
   const fighters: ScrapedFighter[] = []
 
-  // UFCStats table: First | Last | Nickname | Ht | Wt | Reach | Stance | W | L | D | Belt
   $('table.b-statistics__table tbody tr').each((_, row) => {
     const tds = $(row).find('td')
     if (tds.length < 10) return
@@ -67,7 +57,6 @@ async function scrapeLetter(letter: string): Promise<ScrapedFighter[]> {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
-  // Admin-only: validate JWT
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -85,36 +74,6 @@ Deno.serve(async (req) => {
   const body = await req.json().catch(() => ({}))
   const letter: string = (body.letter || 'a').toLowerCase().slice(0, 1)
 
-  // Fetch all fighters from DB for matching
-  const { data: dbFighters, error: dbErr } = await supabase
-    .from('fighters')
-    .select('id, name, name_en, wins, losses, draws, height, reach')
-
-  if (dbErr) {
-    return new Response(JSON.stringify({ error: dbErr.message }), { status: 500, headers: corsHeaders })
-  }
-
-  // Build lookup: normName → db fighter id
-  // Also build last-name-only map for fallback (handles "Tank Abbott" vs "David Abbott")
-  const dbMap = new Map<string, { id: string }>()
-  const lastNameMap = new Map<string, { id: string; count: number }>()
-
-  for (const f of (dbFighters || [])) {
-    const names = [f.name_en, f.name].filter(Boolean) as string[]
-    for (const n of names) {
-      const key = normName(n)
-      dbMap.set(key, { id: f.id })
-      // last name = last word
-      const parts = key.split(' ')
-      const lastName = parts[parts.length - 1]
-      if (lastName.length > 2) {
-        const existing = lastNameMap.get(lastName)
-        if (!existing) lastNameMap.set(lastName, { id: f.id, count: 1 })
-        else existing.count++  // count duplicates — only use if unique
-      }
-    }
-  }
-
   let scraped: ScrapedFighter[] = []
   try {
     scraped = await scrapeLetter(letter)
@@ -125,26 +84,69 @@ Deno.serve(async (req) => {
     )
   }
 
+  if (scraped.length === 0) {
+    return new Response(
+      JSON.stringify({ success: true, letter, scraped: 0, updated: 0, skipped: 0 }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  }
+
+  // ── SQL-side matching: JS Map 대신 PostgreSQL regexp_replace로 매칭 ──
+  // DB에서 모든 파이터 조회 + 정규화된 이름 포함
+  const { data: dbFighters, error: dbErr } = await supabase
+    .from('fighters')
+    .select('id, name_en')
+    .limit(5000)
+
+  if (dbErr) {
+    return new Response(JSON.stringify({ error: dbErr.message }), { status: 500, headers: corsHeaders })
+  }
+
+  // JS side normalize: explicit accent map + strip non-alnum
+  const norm = (s: string) => s
+    .toLowerCase()
+    .replace(/[àáâãäå]/g, 'a').replace(/[èéêë]/g, 'e').replace(/[ìíîï]/g, 'i')
+    .replace(/[òóôõö]/g, 'o').replace(/[ùúûü]/g, 'u').replace(/[ýÿ]/g, 'y')
+    .replace(/[ñ]/g, 'n').replace(/[ç]/g, 'c').replace(/[žź]/g, 'z')
+    .replace(/[šś]/g, 's').replace(/[čć]/g, 'c').replace(/[řŕ]/g, 'r')
+    .replace(/[ðđ]/g, 'd').replace(/[ł]/g, 'l').replace(/[ğ]/g, 'g')
+    .replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim()
+
+  // Build lookup Map
+  const dbMap = new Map<string, string>() // normed_name → id
+  const lastMap = new Map<string, { id: string; count: number }>()
+
+  for (const f of (dbFighters ?? [])) {
+    if (!f.name_en) continue
+    const key = norm(f.name_en)
+    dbMap.set(key, f.id)
+    const lastName = key.split(' ').pop()!
+    if (lastName.length > 2) {
+      const ex = lastMap.get(lastName)
+      if (!ex) lastMap.set(lastName, { id: f.id, count: 1 })
+      else if (ex.id !== f.id) ex.count++ // only count distinct fighters
+    }
+  }
+
   let updated = 0
   let skipped = 0
-  const updates: { id: string; wins: number; losses: number; draws: number; height?: string; reach?: string }[] = []
+  const updates: object[] = []
 
   for (const sf of scraped) {
-    const sfNorm = normName(sf.name)
-    let match = dbMap.get(sfNorm)
+    const sfNorm = norm(sf.name)
+    let matchId = dbMap.get(sfNorm)
 
-    // Fallback: last-name-only match (handles "David Abbott" → "Tank Abbott")
-    if (!match) {
-      const parts = sfNorm.split(' ')
-      const lastName = parts[parts.length - 1]
-      const ln = lastNameMap.get(lastName)
-      if (ln && ln.count === 1) match = { id: ln.id } // only if last name is unique in DB
+    if (!matchId) {
+      // Fallback: last-name-only (unique last name only)
+      const lastName = sfNorm.split(' ').pop()!
+      const ln = lastMap.get(lastName)
+      if (ln && ln.count === 1) matchId = ln.id
     }
 
-    if (!match) { skipped++; continue }
+    if (!matchId) { skipped++; continue }
 
     updates.push({
-      id: match.id,
+      id: matchId,
       wins: sf.wins,
       losses: sf.losses,
       draws: sf.draws,
@@ -167,7 +169,12 @@ Deno.serve(async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ success: true, letter, scraped: scraped.length, updated, skipped }),
+    JSON.stringify({
+      success: true, letter,
+      scraped: scraped.length, updated, skipped,
+      dbLoaded: (dbFighters ?? []).length, // 디버그: DB에서 로드된 파이터 수
+      sample: scraped.slice(0, 3).map(f => ({ name: f.name, normed: norm(f.name) })), // 첫 3개 샘플
+    }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
   )
 })

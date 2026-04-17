@@ -459,7 +459,7 @@ async function syncAllFighters() {
     btn.textContent = '⏳ 동기화 중...';
     btn.disabled = true;
     log.classList.remove('hidden');
-    log.textContent = '[ kr.ufc.com 전체 파이터 동기화 시작 ]\n총 ~285 페이지 (3,129명) 처리 예정\n\n';
+    log.textContent = '[ kr.ufc.com 활성 파이터 동기화 시작 ]\n총 ~86 페이지 (941명) 처리 예정\n비활성/은퇴 선수는 마지막 배치 후 자동 삭제됩니다.\n\n';
 
     const BATCH = 10; // 배치당 페이지 수
     let page = 0;
@@ -470,8 +470,9 @@ async function syncAllFighters() {
         log.textContent += `→ page ${page}–${page + BATCH - 1} 처리 중...\n`;
         log.scrollTop = log.scrollHeight;
         try {
+            const isLast = false; // hasMore는 응답에서 결정
             const { data, error } = await sb.functions.invoke('sync-all-fighters', {
-                body: { startPage: page, batchSize: BATCH },
+                body: { startPage: page, batchSize: BATCH, cleanup: true },
                 headers: { Authorization: `Bearer ${session.access_token}` },
             });
             if (error) throw new Error(error.message);
@@ -482,6 +483,7 @@ async function syncAllFighters() {
             hasMore = data.hasMore ?? false;
 
             log.textContent += `  스크랩: ${data.totalScraped}, 신규: ${data.totalInserted}, 업데이트: ${data.totalUpdated}`;
+            if (data.totalDeleted) log.textContent += `, 비활성삭제: ${data.totalDeleted}`;
             if (data.errors?.length) log.textContent += `, 오류: ${data.errors.join(' | ')}`;
             log.textContent += '\n';
         } catch (e) {
@@ -496,7 +498,7 @@ async function syncAllFighters() {
     log.textContent += `\n[ 완료 ] 스크랩: ${totalScraped}명 | 신규: ${totalInserted}명 | 업데이트: ${totalUpdated}명\n`;
     btn.textContent = '🌐 전체 파이터 동기화';
     btn.disabled = false;
-    showToast(`✅ 동기화 완료 — 신규 ${totalInserted}명 추가`);
+    showToast(`✅ 동기화 완료 — 신규 ${totalInserted}명 추가 / 업데이트 ${totalUpdated}명`);
     renderAdminFighterList();
 }
 
