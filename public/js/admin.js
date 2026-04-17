@@ -446,6 +446,60 @@ async function scrapeFighterStats() {
     renderAdminFighterList();
 }
 
+// ----- SYNC ALL FIGHTERS (kr.ufc.com) -----
+async function syncAllFighters() {
+    const btn = document.getElementById('btn-sync-all-fighters');
+    const log = document.getElementById('fighter-scrape-log');
+    if (!sb) { showToast('⚠ Supabase 연결 필요'); return; }
+
+    const sessionRes = await sb.auth.getSession();
+    const session = sessionRes?.data?.session;
+    if (!session?.access_token) { showToast('⚠ 어드민 로그인 필요'); return; }
+
+    btn.textContent = '⏳ 동기화 중...';
+    btn.disabled = true;
+    log.classList.remove('hidden');
+    log.textContent = '[ kr.ufc.com 전체 파이터 동기화 시작 ]\n총 ~285 페이지 (3,129명) 처리 예정\n\n';
+
+    const BATCH = 10; // 배치당 페이지 수
+    let page = 0;
+    let totalInserted = 0, totalUpdated = 0, totalScraped = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+        log.textContent += `→ page ${page}–${page + BATCH - 1} 처리 중...\n`;
+        log.scrollTop = log.scrollHeight;
+        try {
+            const { data, error } = await sb.functions.invoke('sync-all-fighters', {
+                body: { startPage: page, batchSize: BATCH },
+                headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+            if (error) throw new Error(error.message);
+
+            totalInserted += data.totalInserted || 0;
+            totalUpdated  += data.totalUpdated  || 0;
+            totalScraped  += data.totalScraped  || 0;
+            hasMore = data.hasMore ?? false;
+
+            log.textContent += `  스크랩: ${data.totalScraped}, 신규: ${data.totalInserted}, 업데이트: ${data.totalUpdated}`;
+            if (data.errors?.length) log.textContent += `, 오류: ${data.errors.join(' | ')}`;
+            log.textContent += '\n';
+        } catch (e) {
+            log.textContent += `  오류: ${e.message}\n`;
+            hasMore = false;
+        }
+        log.scrollTop = log.scrollHeight;
+        page += BATCH;
+        if (hasMore) await new Promise(r => setTimeout(r, 500));
+    }
+
+    log.textContent += `\n[ 완료 ] 스크랩: ${totalScraped}명 | 신규: ${totalInserted}명 | 업데이트: ${totalUpdated}명\n`;
+    btn.textContent = '🌐 전체 파이터 동기화';
+    btn.disabled = false;
+    showToast(`✅ 동기화 완료 — 신규 ${totalInserted}명 추가`);
+    renderAdminFighterList();
+}
+
 // ----- RECENT FIGHTS MANAGER -----
 function buildRecentFightsList(recentArr) {
     var list = document.getElementById('recent-fights-list');
