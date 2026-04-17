@@ -9,8 +9,14 @@ const corsHeaders = {
 
 const UFCSTATS_BASE = 'http://www.ufcstats.com'
 
-// ── 파이터 이름 정규화 (공백·마침표 제거 후 소문자 비교용)
-const normName = (s: string) => (s || '').replace(/[.\-']/g, '').replace(/\s+/g, ' ').trim().toLowerCase()
+// ── 파이터 이름 정규화 (공백·마침표·악센트 제거 후 소문자 비교용)
+const normName = (s: string) =>
+  (s || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // 악센트 제거 (Jiří→Jiri)
+    .replace(/[.\-']/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
 
 interface ScrapedFighter {
   name: string
@@ -89,10 +95,24 @@ Deno.serve(async (req) => {
   }
 
   // Build lookup: normName → db fighter id
+  // Also build last-name-only map for fallback (handles "Tank Abbott" vs "David Abbott")
   const dbMap = new Map<string, { id: string }>()
+  const lastNameMap = new Map<string, { id: string; count: number }>()
+
   for (const f of (dbFighters || [])) {
-    if (f.name_en) dbMap.set(normName(f.name_en), { id: f.id })
-    if (f.name && f.name !== f.name_en) dbMap.set(normName(f.name), { id: f.id })
+    const names = [f.name_en, f.name].filter(Boolean) as string[]
+    for (const n of names) {
+      const key = normName(n)
+      dbMap.set(key, { id: f.id })
+      // last name = last word
+      const parts = key.split(' ')
+      const lastName = parts[parts.length - 1]
+      if (lastName.length > 2) {
+        const existing = lastNameMap.get(lastName)
+        if (!existing) lastNameMap.set(lastName, { id: f.id, count: 1 })
+        else existing.count++  // count duplicates — only use if unique
+      }
+    }
   }
 
   let scraped: ScrapedFighter[] = []
@@ -110,7 +130,17 @@ Deno.serve(async (req) => {
   const updates: { id: string; wins: number; losses: number; draws: number; height?: string; reach?: string }[] = []
 
   for (const sf of scraped) {
-    const match = dbMap.get(normName(sf.name))
+    const sfNorm = normName(sf.name)
+    let match = dbMap.get(sfNorm)
+
+    // Fallback: last-name-only match (handles "David Abbott" → "Tank Abbott")
+    if (!match) {
+      const parts = sfNorm.split(' ')
+      const lastName = parts[parts.length - 1]
+      const ln = lastNameMap.get(lastName)
+      if (ln && ln.count === 1) match = { id: ln.id } // only if last name is unique in DB
+    }
+
     if (!match) { skipped++; continue }
 
     updates.push({

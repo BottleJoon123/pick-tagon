@@ -564,7 +564,8 @@ async function fetchFighterArchive() {
             .from('fighters')
             .select('id, name, name_en, division, wins, losses, draws, rank, height, reach, image_url, style')
             .order('division', { ascending: true })
-            .order('rank', { ascending: true, nullsFirst: false });
+            .order('rank', { ascending: true, nullsFirst: false })
+            .limit(5000);
 
         if (error) throw error;
         fighterArchiveDB = data || [];
