@@ -482,7 +482,13 @@ async function purgeInactiveFighters(dryRun = false) {
             body: { dryRun },
             headers: { Authorization: `Bearer ${session.access_token}` },
         });
-        if (error) throw new Error(error.message);
+        if (error) {
+            let message = error.message;
+            if (error.context && typeof error.context.json === 'function') {
+                try { const p = await error.context.json(); if (p?.error) message = p.error; } catch (_) {}
+            }
+            throw new Error(message);
+        }
 
         if (dryRun) {
             log.textContent += `✅ 드라이런 완료\n활성 파이터: ${data.collected}명\n삭제 예정: ${data.wouldDelete}명\n\n실제 삭제하려면 "비활성 삭제 실행" 버튼을 누르세요.`;

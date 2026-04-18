@@ -14,7 +14,7 @@ async function scrapePageSlugs(page: number): Promise<string[]> {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36',
       'Accept': 'text/html,application/xhtml+xml',
     },
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(20000),
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
 
@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders })
   }
 
-  // Admin check — only admins may trigger a destructive purge
+  // Admin check
   const { data: userRow } = await supabase
     .from('users')
     .select('is_admin')
@@ -61,10 +61,12 @@ Deno.serve(async (req) => {
 
   const body = await req.json().catch(() => ({}))
   const dryRun: boolean = body.dryRun === true
+  // strict=true → abort on any scrape error (for actual delete)
+  // strict=false → tolerate page failures, proceed if ≥700 collected (for dry run)
+  const strict: boolean = !dryRun
 
-  // Scrape all pages in parallel batches of 4
-  // Abort immediately on ANY scrape error — partial data must never trigger delete
   const allSlugs = new Set<string>()
+  const scrapeErrors: string[] = []
   let page = 0
   const MAX_PAGES = 60
 
@@ -72,31 +74,32 @@ Deno.serve(async (req) => {
     const batchPages = [page, page + 1, page + 2, page + 3]
     const results = await Promise.allSettled(batchPages.map(p => scrapePageSlugs(p)))
 
-    // Any failure → abort entirely
+    let batchTotal = 0
     for (let i = 0; i < results.length; i++) {
-      if (results[i].status === 'rejected') {
-        const err = (results[i] as PromiseRejectedResult).reason?.message
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: `Scrape error on page ${batchPages[i]}: ${err}. Purge aborted — no data was deleted.`,
-            collected: allSlugs.size,
-          }),
-          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
+      const r = results[i]
+      if (r.status === 'rejected') {
+        const errMsg = `page ${batchPages[i]}: ${(r as PromiseRejectedResult).reason?.message}`
+        if (strict) {
+          // Hard abort for actual delete — partial roster must never trigger delete
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: `Scrape failed (${errMsg}). Purge aborted — no data deleted.`,
+              collected: allSlugs.size,
+            }),
+            { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+        scrapeErrors.push(errMsg)
+      } else {
+        const slugs = (r as PromiseFulfilledResult<string[]>).value
+        batchTotal += slugs.length
+        for (const s of slugs) allSlugs.add(s)
       }
     }
 
-    // Collect slugs from this batch
-    let batchTotal = 0
-    for (const r of results) {
-      const slugs = (r as PromiseFulfilledResult<string[]>).value
-      batchTotal += slugs.length
-      for (const s of slugs) allSlugs.add(s)
-    }
-
-    // End of pagination: entire batch returned no fighters
-    if (batchTotal === 0) break
+    // End of pagination: entire successful batch returned no fighters
+    if (batchTotal === 0 && results.every(r => r.status === 'fulfilled')) break
 
     page += 4
   }
@@ -107,15 +110,15 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: `Aborted: only ${activeIds.length} active slugs collected — expected ≥700. Scrape may be incomplete.`,
+        error: `Aborted: only ${activeIds.length} active slugs collected — expected ≥700. ${scrapeErrors.length ? 'Scrape errors: ' + scrapeErrors.slice(0,3).join(', ') : 'Site may be blocking requests.'}`,
         collected: activeIds.length,
+        scrapeErrors,
       }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
 
   if (dryRun) {
-    // Use RPC for safe server-side count
     const { data: wouldDelete, error: dryErr } = await supabase.rpc('purge_inactive_fighters_dry_run', {
       active_ids: activeIds,
     })
@@ -125,13 +128,14 @@ Deno.serve(async (req) => {
         dryRun: true,
         collected: activeIds.length,
         wouldDelete: dryErr ? null : (wouldDelete ?? 0),
+        scrapeErrors,
         error: dryErr?.message,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
 
-  // Execute purge via RPC (has its own ≥700 guardrail)
+  // Actual delete — RPC has its own ≥700 guardrail
   const { data: deleted, error: rpcErr } = await supabase.rpc('purge_inactive_fighters', {
     active_ids: activeIds,
   })
