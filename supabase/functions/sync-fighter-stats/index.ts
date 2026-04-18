@@ -7,8 +7,9 @@ const corsHeaders = {
 }
 
 // ESPN Public API — 인증 불필요, JSON 응답
-const ESPN_API  = 'https://site.api.espn.com/apis/site/v2/sports/mma/ufc'
-const ESPN_WEB  = 'https://site.web.api.espn.com/apis/common/v3/sports/mma/ufc'
+const ESPN_SEARCH = 'https://site.web.api.espn.com/apis/common/v3/search'
+const ESPN_WEB    = 'https://site.web.api.espn.com/apis/common/v3/sports/mma/ufc'
+const ESPN_CORE   = 'https://sports.core.api.espn.com/v2/sports/mma/leagues/ufc'
 const FETCH_TIMEOUT_MS = 12000
 const BATCH_SIZE       = 15
 const SHRINKAGE_K      = 8
@@ -100,12 +101,24 @@ async function fetchJson(url: string): Promise<unknown> {
 }
 
 async function lookupEspnId(nameEn: string): Promise<string | null> {
-  const url = `${ESPN_API}/athletes?search=${encodeURIComponent(nameEn)}&limit=5`
+  // ESPN 통합 검색 — type=player로 선수만 필터
+  const url  = `${ESPN_SEARCH}?region=us&lang=en&query=${encodeURIComponent(nameEn)}&limit=5&mode=prefix&type=player`
   const json = await fetchJson(url) as Record<string, unknown>
-  const items = (json?.athletes ?? json?.items ?? []) as Array<Record<string, unknown>>
+  const items = (
+    (json?.results as Array<Record<string, unknown>>)?.[0]?.items ??
+    (json?.items as Array<Record<string, unknown>>) ??
+    []
+  ) as Array<Record<string, unknown>>
   if (!items.length) return null
   const target = nameEn.toLowerCase()
-  const match  = items.find(a => ((a.fullName ?? a.displayName ?? '') as string).toLowerCase() === target) ?? items[0]
+  // MMA/UFC 선수로 좁히기
+  const mmaMatch = items.find(a => {
+    const sport = ((a.sport ?? a.sportName ?? '') as string).toLowerCase()
+    return sport.includes('mma') || sport.includes('ufc')
+  })
+  const match = mmaMatch ?? items.find(a =>
+    ((a.displayName ?? a.name ?? '') as string).toLowerCase() === target
+  ) ?? items[0]
   return (match?.id as string) ?? null
 }
 
@@ -133,38 +146,52 @@ function extractStat(categories: Array<Record<string, unknown>>, catName: string
   return null
 }
 
-async function fetchEspnAthleteStats(espnId: string): Promise<EspnStats> {
-  // 1. 개요 (신체 정보)
-  const overview = await fetchJson(`${ESPN_WEB}/athletes/${espnId}/overview`) as Record<string, unknown>
-  const athlete  = (overview?.athlete ?? {}) as Record<string, unknown>
+function extractStatByLabel(labels: string[], values: unknown[], keyword: string): number | null {
+  for (let i = 0; i < labels.length; i++) {
+    if (labels[i]?.toLowerCase().includes(keyword.toLowerCase())) {
+      const v = parseFloat(String(values[i] ?? ''))
+      return Number.isFinite(v) ? round2(v) : null
+    }
+  }
+  return null
+}
 
-  const rawHeight = athlete.displayHeight as string ?? null
-  const rawWeight = athlete.displayWeight as string ?? null
-  const rawReach  = null  // ESPN은 reach 없는 경우 많음
+async function fetchEspnAthleteStats(espnId: string): Promise<EspnStats> {
+  // 1. Core athlete (신체 정보 + record)
+  const core    = await fetchJson(`${ESPN_CORE}/athletes/${espnId}`) as Record<string, unknown>
+  const rawHeight = (core?.displayHeight ?? core?.height) as string ?? null
+  const rawWeight = (core?.displayWeight ?? core?.weight) as string ?? null
+  const rawReach  = null  // ESPN에 reach 없음
 
   const heightCm = parseHeightCm(rawHeight)
   const weightKg = parseWeightKg(rawWeight)
-  const reachCm  = parseReachCm(rawReach)
+  const reachCm  = null
 
-  // 2. 커리어 스탯
-  const statsData = await fetchJson(`${ESPN_WEB}/athletes/${espnId}/stats`) as Record<string, unknown>
-  const categories = (statsData?.stats?.categories ?? statsData?.categories ?? []) as Array<Record<string, unknown>>
+  // 2. Overview (커리어 스탯 레이블+값 배열)
+  const overview  = await fetchJson(`${ESPN_WEB}/athletes/${espnId}/overview?region=us&lang=en&contentorigin=espn`) as Record<string, unknown>
+  // stats는 중첩 구조: statistics.splits[].stats[] + labels[]
+  const statsRoot = (overview?.statistics ?? overview?.stats ?? {}) as Record<string, unknown>
+  const splits    = (statsRoot?.splits ?? []) as Array<Record<string, unknown>>
+  const labels: string[] = (statsRoot?.labels ?? splits[0]?.labels ?? []) as string[]
+  const values: unknown[] = (splits[0]?.stats ?? splits[0]?.values ?? []) as unknown[]
 
-  const slpm   = extractStat(categories, 'striking', 'slpm') ?? extractStat(categories, 'striking', 'per min')
-  const sapm   = extractStat(categories, 'striking', 'sapm') ?? extractStat(categories, 'striking', 'absorbed')
-  const strAcc = extractStat(categories, 'striking', 'acc')
-  const strDef = extractStat(categories, 'striking', 'def')
-  const tdAvg  = extractStat(categories, 'takedown', 'avg') ?? extractStat(categories, 'grappling', 'td avg')
-  const tdAcc  = extractStat(categories, 'takedown', 'acc') ?? extractStat(categories, 'grappling', 'td acc')
-  const tdDef  = extractStat(categories, 'takedown', 'def') ?? extractStat(categories, 'grappling', 'td def')
-  const subAvg = extractStat(categories, 'submission', 'avg') ?? extractStat(categories, 'grappling', 'sub')
+  // ESPN 레이블: "SIG STR LPM", "SIG STR ACC", "SIG STR DEF", "SIG STR SAPM",
+  //              "TD AVG", "TD ACC", "TD DEF", "SUB AVG"
+  const slpm   = extractStatByLabel(labels, values, 'slpm') ?? extractStatByLabel(labels, values, 'str lpm')
+  const sapm   = extractStatByLabel(labels, values, 'sapm') ?? extractStatByLabel(labels, values, 'absorbed')
+  const strAcc = extractStatByLabel(labels, values, 'str acc') ?? extractStatByLabel(labels, values, 'sig str acc')
+  const strDef = extractStatByLabel(labels, values, 'str def') ?? extractStatByLabel(labels, values, 'sig str def')
+  const tdAvg  = extractStatByLabel(labels, values, 'td avg')
+  const tdAcc  = extractStatByLabel(labels, values, 'td acc')
+  const tdDef  = extractStatByLabel(labels, values, 'td def')
+  const subAvg = extractStatByLabel(labels, values, 'sub avg')
 
-  // 3. 승리 방법 (wins 분석)
-  const record    = (statsData?.stats?.wins ?? overview?.stats?.wins) as Record<string, unknown> | undefined
-  const totalWins = parseFloat(String(record?.total ?? athlete.wins ?? 0))
-  const koWins    = parseFloat(String(record?.byKnockout ?? record?.ko ?? 0))
-  const subWins   = parseFloat(String(record?.bySubmission ?? record?.sub ?? 0))
-  const decWins   = parseFloat(String(record?.byDecision ?? record?.dec ?? 0))
+  // 3. 승리 방법 (core athlete의 record)
+  const record    = (core?.record ?? overview?.record ?? {}) as Record<string, unknown>
+  const totalWins = parseFloat(String(record?.wins ?? core?.wins ?? 0))
+  const koWins    = parseFloat(String(record?.knockout ?? record?.ko ?? 0))
+  const subWins   = parseFloat(String(record?.submission ?? record?.sub ?? 0))
+  const decWins   = parseFloat(String(record?.decision ?? record?.dec ?? 0))
 
   const koRate  = totalWins > 0 ? round2((koWins  / totalWins) * 100) : null
   const subRate = totalWins > 0 ? round2((subWins / totalWins) * 100) : null
