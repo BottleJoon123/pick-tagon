@@ -17,6 +17,13 @@ async function fetchMainEvent(sb) {
         .eq('event_id', event.id).eq('is_main_event', true).limit(1);
     if (matchupResult.error) { console.warn('matchups fetch failed:', matchupResult.error.message); return null; }
     var matchup = matchupResult.data && matchupResult.data[0];
+    // is_main_event 플래그가 없으면 sort_order=1 메인카드 첫 경기를 폴백으로 사용
+    if (!matchup) {
+        var fallbackResult = await sb.from('matchups').select('*')
+            .eq('event_id', event.id).eq('card_segment', 'main')
+            .order('sort_order', { ascending: true }).limit(1);
+        matchup = fallbackResult.data && fallbackResult.data[0];
+    }
     if (!matchup) return null;
 
     return { event, matchup };

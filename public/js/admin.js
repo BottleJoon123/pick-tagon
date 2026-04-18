@@ -766,6 +766,8 @@ var _builderState = {
     editingMatchupId: null,
     redFighter: null,
     blueFighter: null,
+    redPhotoOverride: '',
+    bluePhotoOverride: '',
     weightClass: '',
     cardSegment: 'main',
     sortOrder: 1,
@@ -859,6 +861,29 @@ function renderBuilderWorkspace() {
                 <p class="oswald-sharp text-blue-400 italic text-[10px] uppercase tracking-widest mb-1">🔵 BLUE CORNER</p>
                 <p id="builder-blue-name" class="oswald-sharp text-white font-black italic text-sm uppercase">—</p>
                 <p id="builder-blue-record" class="text-gray-500 text-[10px] mt-0.5"></p>
+            </div>
+        </div>
+        <!-- Fighter Photos -->
+        <div class="grid grid-cols-2 gap-2 mb-4">
+            <div>
+                <p class="oswald-sharp text-[9px] text-red-500/60 italic uppercase tracking-widest mb-1">🔴 사진 URL</p>
+                <div class="flex gap-1">
+                    <input id="builder-red-photo" type="text" placeholder="이미지 URL (자동입력됨)"
+                        oninput="_builderState.redPhotoOverride=this.value.trim()"
+                        class="flex-1 min-w-0 bg-black/40 border border-red-500/20 rounded-xl px-3 py-2 text-white text-[10px] focus:outline-none focus:border-red-500/60 placeholder-gray-700 transition-colors">
+                    <button onclick="previewBuilderPhoto('red')" title="미리보기"
+                        class="shrink-0 border border-white/10 text-gray-500 hover:text-white px-2 py-1.5 rounded-xl text-xs transition-all">👁</button>
+                </div>
+            </div>
+            <div>
+                <p class="oswald-sharp text-[9px] text-blue-500/60 italic uppercase tracking-widest mb-1">🔵 사진 URL</p>
+                <div class="flex gap-1">
+                    <input id="builder-blue-photo" type="text" placeholder="이미지 URL (자동입력됨)"
+                        oninput="_builderState.bluePhotoOverride=this.value.trim()"
+                        class="flex-1 min-w-0 bg-black/40 border border-blue-500/20 rounded-xl px-3 py-2 text-white text-[10px] focus:outline-none focus:border-blue-500/60 placeholder-gray-700 transition-colors">
+                    <button onclick="previewBuilderPhoto('blue')" title="미리보기"
+                        class="shrink-0 border border-white/10 text-gray-500 hover:text-white px-2 py-1.5 rounded-xl text-xs transition-all">👁</button>
+                </div>
             </div>
         </div>
         <!-- Bout Meta -->
@@ -963,6 +988,19 @@ function setBuilderCorner(corner, fighterJson) {
     const recordEl = document.getElementById(`builder-${corner}-record`);
     if (nameEl) nameEl.textContent = f.name || f.name_en;
     if (recordEl) recordEl.textContent = `${f.wins||0}-${f.losses||0}-${f.draws||0}`;
+    // 파이터 DB 이미지 자동입력 (기존 값 없을 때만)
+    const photoEl = document.getElementById(`builder-${corner}-photo`);
+    if (photoEl && f.image_url) {
+        photoEl.value = f.image_url;
+        _builderState[corner + 'PhotoOverride'] = f.image_url;
+    }
+}
+
+function previewBuilderPhoto(corner) {
+    const url = _builderState[corner + 'PhotoOverride'];
+    if (!url) { showToast('⚠ 사진 URL을 먼저 입력하세요'); return; }
+    const win = window.open('', '_blank', 'width=400,height=500');
+    if (win) win.document.write(`<body style="margin:0;background:#111"><img src="${url}" style="width:100%;height:100%;object-fit:contain"></body>`);
 }
 
 function clearBuilderCorner(corner) {
@@ -977,11 +1015,14 @@ function resetBuilderForm() {
     _builderState.editingMatchupId = null;
     _builderState.redFighter = null;
     _builderState.blueFighter = null;
+    _builderState.redPhotoOverride = '';
+    _builderState.bluePhotoOverride = '';
     _builderState.weightClass = '';
     _builderState.cardSegment = 'main';
     _builderState.sortOrder = 1;
     ['builder-red-name','builder-blue-name'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '—'; });
     ['builder-red-record','builder-blue-record'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
+    ['builder-red-photo','builder-blue-photo'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     ['builder-fighter-search','builder-search-results'].forEach(id => { const el = document.getElementById(id); if (el) el.value !== undefined ? el.value = '' : el.innerHTML = ''; });
 }
 
@@ -997,8 +1038,8 @@ async function saveBuilderMatchup() {
         blue_fighter_id: blueFighter.id,
         red_fighter_name: redFighter.name || redFighter.name_en,
         blue_fighter_name: blueFighter.name || blueFighter.name_en,
-        red_image_url: redFighter.image_url || null,
-        blue_image_url: blueFighter.image_url || null,
+        red_image_url: _builderState.redPhotoOverride || redFighter.image_url || null,
+        blue_image_url: _builderState.bluePhotoOverride || blueFighter.image_url || null,
         weight_class: weightClass || null,
         card_segment: cardSegment,
         sort_order: sortOrder,
@@ -1102,6 +1143,13 @@ function editBuilderMatchup(id) {
     _builderState.cardSegment = m.card_segment || 'main';
     _builderState.sortOrder = m.sort_order || 1;
     _builderState.weightClass = m.weight_class || '';
+    // 사진 URL 복원
+    _builderState.redPhotoOverride = m.red_image_url || '';
+    _builderState.bluePhotoOverride = m.blue_image_url || '';
+    const rPhotoEl = document.getElementById('builder-red-photo');
+    const bPhotoEl = document.getElementById('builder-blue-photo');
+    if (rPhotoEl) rPhotoEl.value = m.red_image_url || '';
+    if (bPhotoEl) bPhotoEl.value = m.blue_image_url || '';
     showToast('✏ 수정 모드');
 }
 

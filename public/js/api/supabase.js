@@ -280,6 +280,7 @@ async function fetchUpcomingMatchups() {
             .limit(1);
         if (evRes.error || !evRes.data || !evRes.data.length) {
             if (typeof renderEventSidebar === 'function') renderEventSidebar();
+            if (typeof renderFightCards === 'function') renderFightCards();
             return;
         }
         var event = evRes.data[0];
@@ -304,23 +305,31 @@ async function fetchUpcomingMatchups() {
             .order('sort_order', { ascending: true });
         if (mRes.error || !mRes.data || !mRes.data.length) {
             if (typeof renderEventSidebar === 'function') renderEventSidebar();
+            if (typeof renderFightCards === 'function') renderFightCards();
             return;
         }
 
-        var mainIdx = 0;
+        // 메인카드 순서별 태그 부여 (sort_order 기준)
+        // sort_order=1 main → MAIN EVENT, sort_order=2 main → CO-MAIN EVENT, 나머지 main → '' (빈 태그), prelim → PRELIMS
+        var mainCardRank = 0;
         _dbMatchups = mRes.data.map(function(m) {
-            var isMain = m.is_main_event === true || m.card_segment === 'main';
-            var tag = isMain
-                ? (mainIdx++ === 0 ? 'MAIN EVENT' : 'CO-MAIN EVENT')
-                : 'PRELIMS';
+            var isMainCard = m.card_segment === 'main';
+            var tag = '';
+            if (isMainCard) {
+                mainCardRank++;
+                if (mainCardRank === 1) tag = 'MAIN EVENT';
+                else if (mainCardRank === 2) tag = 'CO-MAIN EVENT';
+            } else {
+                tag = 'PRELIMS';
+            }
             return {
                 id: m.id,
-                section: isMain ? 'main' : 'prelim',
-                sectionLabel: isMain ? '메인 카드' : '프렐림',
+                section: isMainCard ? 'main' : 'prelim',
+                sectionLabel: isMainCard ? '메인 카드' : '프렐림',
                 sectionTime: '',
                 tag: tag,
                 division: m.weight_class || '',
-                rounds: isMain ? 5 : 3,
+                rounds: isMainCard ? 5 : 3,
                 leftBias: Number(m.left_bias) || 0.5,
                 _eventTitle: event.title || '',
                 _fromDB: true,
