@@ -80,14 +80,16 @@ function logoutAdmin() {
 
 // ----- ADMIN TAB -----
 function switchAdminTab(tab) {
-    ['fighters', 'fights', 'archive', 'news', 'season', 'event', 'ufc', 'settings'].forEach(t => {
-        document.getElementById(`admin-panel-${t}`).classList.add('hidden');
-        document.getElementById(`admin-tab-${t}`).classList.remove('active-tab', 'text-ufcRed');
-        document.getElementById(`admin-tab-${t}`).classList.add('text-gray-500');
+    ['fighters', 'archive', 'news', 'season', 'event', 'ufc', 'settings'].forEach(t => {
+        const panel = document.getElementById(`admin-panel-${t}`);
+        const tabEl = document.getElementById(`admin-tab-${t}`);
+        if (panel) panel.classList.add('hidden');
+        if (tabEl) { tabEl.classList.remove('active-tab', 'text-ufcRed'); tabEl.classList.add('text-gray-500'); }
     });
-    document.getElementById(`admin-panel-${tab}`).classList.remove('hidden');
-    document.getElementById(`admin-tab-${tab}`).classList.add('active-tab');
-    document.getElementById(`admin-tab-${tab}`).classList.remove('text-gray-500');
+    const activePanel = document.getElementById(`admin-panel-${tab}`);
+    const activeTab = document.getElementById(`admin-tab-${tab}`);
+    if (activePanel) activePanel.classList.remove('hidden');
+    if (activeTab) { activeTab.classList.add('active-tab'); activeTab.classList.remove('text-gray-500'); }
     if (tab === 'fighters') renderAdminFighterList();
     if (tab === 'season') renderSeasonAdminPanel();
     if (tab === 'settings') { loadGeminiKeyToUI(); }
@@ -935,21 +937,23 @@ async function runBuilderSearch(query) {
         return;
     }
 
-    resultsEl.innerHTML = hits.map(f => `
-        <div class="flex items-center gap-3 px-3 py-2 rounded-xl border border-white/5 bg-black/30 hover:border-white/20 transition-all">
+    resultsEl.innerHTML = hits.map(f => {
+        const safeJson = escapeHtml(JSON.stringify(f));
+        return `
+        <div class="flex items-center gap-3 px-3 py-2 rounded-xl border border-white/5 bg-black/30 hover:border-white/20 transition-all" data-fighter-json="${safeJson}">
             ${f.image_url ? `<img src="${escapeHtml(f.image_url)}" class="w-8 h-8 rounded-full object-cover object-top bg-zinc-800 shrink-0">` : '<div class="w-8 h-8 rounded-full bg-zinc-800 shrink-0"></div>'}
             <div class="flex-1 min-w-0">
                 <p class="oswald-sharp text-white font-black italic text-xs uppercase truncate">${escapeHtml(f.name || f.name_en)}</p>
                 <p class="text-gray-500 text-[10px]">${f.wins || 0}-${f.losses || 0}-${f.draws || 0}</p>
             </div>
             <div class="flex gap-1 shrink-0">
-                <button onclick="setBuilderCorner('red', ${JSON.stringify(JSON.stringify(f)).slice(1,-1)})"
+                <button onclick="setBuilderCorner('red', this.closest('[data-fighter-json]').dataset.fighterJson)"
                     class="oswald-sharp bg-red-900/60 hover:bg-red-700 text-red-300 hover:text-white font-black italic text-[10px] px-2 py-1 rounded-lg tracking-widest transition-all">RED</button>
-                <button onclick="setBuilderCorner('blue', ${JSON.stringify(JSON.stringify(f)).slice(1,-1)})"
+                <button onclick="setBuilderCorner('blue', this.closest('[data-fighter-json]').dataset.fighterJson)"
                     class="oswald-sharp bg-blue-900/60 hover:bg-blue-700 text-blue-300 hover:text-white font-black italic text-[10px] px-2 py-1 rounded-lg tracking-widest transition-all">BLUE</button>
             </div>
-        </div>
-    `).join('');
+        </div>`;
+    }).join('');
 }
 
 function setBuilderCorner(corner, fighterJson) {
@@ -1036,6 +1040,7 @@ function renderBuilderMatchupList() {
                 <span class="text-blue-400">${escapeHtml(m.blue_fighter_name||'?')}</span>
             </p>
             <div class="flex gap-1 shrink-0">
+                <button onclick="adminSetBuilderResult('${m.id}')" class="text-gray-500 hover:text-yellow-400 text-[10px] px-2 py-1 rounded-lg hover:bg-yellow-500/10 transition-all" title="결과 입력">🏆</button>
                 <button onclick="editBuilderMatchup('${m.id}')" class="text-gray-500 hover:text-white text-[10px] px-2 py-1 rounded-lg hover:bg-white/10 transition-all">✏</button>
                 <button onclick="deleteBuilderMatchup('${m.id}')" class="text-gray-500 hover:text-red-400 text-[10px] px-2 py-1 rounded-lg hover:bg-red-500/10 transition-all">🗑</button>
             </div>
@@ -1049,6 +1054,30 @@ async function deleteBuilderMatchup(id) {
     if (error) { showToast('❌ 삭제 실패: ' + error.message); return; }
     showToast('🗑 삭제 완료');
     await fetchBuilderMatchups();
+}
+
+function adminSetBuilderResult(matchupId) {
+    // 현재 활성 경기(_dbMatchups)에 있으면 기존 adminSetResult 사용
+    const fromActive = getActiveFights().find(f => f.id === matchupId);
+    if (fromActive) { adminSetResult(matchupId); return; }
+    // 빌더 matchup 직접 처리
+    const m = _builderMatchups.find(x => x.id === matchupId);
+    if (!m) { showToast('⚠ 경기 정보를 찾을 수 없습니다'); return; }
+    const red = escapeHtml(m.red_fighter_name || '?');
+    const blue = escapeHtml(m.blue_fighter_name || '?');
+    const modalId = document.getElementById('result-modal-fight-id');
+    const modalTitle = document.getElementById('result-modal-title');
+    const modalWinner = document.getElementById('result-winner-select');
+    const modal = document.getElementById('result-modal');
+    if (!modal) { showToast('⚠ 결과 모달을 찾을 수 없습니다'); return; }
+    if (modalId) modalId.value = matchupId;
+    if (modalTitle) modalTitle.textContent = `${red} vs ${blue}`;
+    if (modalWinner) modalWinner.innerHTML = `
+        <option value="">-- 승자 선택 --</option>
+        <option value="${red}">${red} (레드)</option>
+        <option value="${blue}">${blue} (블루)</option>
+    `;
+    modal.classList.remove('hidden');
 }
 
 function editBuilderMatchup(id) {

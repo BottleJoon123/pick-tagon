@@ -1555,14 +1555,12 @@ textarea, select {
         </div>
 
         <!-- Tab Bar -->
-        <div class="flex gap-2 mb-5 lg:mb-8 border-b border-white/10 pb-4">
+        <div class="flex gap-2 mb-5 lg:mb-8 border-b border-white/10 pb-4 flex-wrap">
             <button onclick="switchAdminTab('fighters')" id="admin-tab-fighters" class="oswald-sharp admin-tab active-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all">🥊 파이터 DB</button>
-            <button onclick="switchAdminTab('fights')" id="admin-tab-fights" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">📋 경기 카드</button>
+            <button onclick="switchAdminTab('ufc')" id="admin-tab-ufc" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">📋 대진표 관리</button>
             <button onclick="switchAdminTab('archive')" id="admin-tab-archive" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">📊 아카이브</button>
             <button onclick="switchAdminTab('news')" id="admin-tab-news" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">📰 뉴스 관리</button>
             <button onclick="switchAdminTab('season')" id="admin-tab-season" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">🏆 시즌 관리</button>
-            <button onclick="switchAdminTab('event')" id="admin-tab-event" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">🏟 이벤트 정보</button>
-            <button onclick="switchAdminTab('ufc')" id="admin-tab-ufc" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">📋 대진표 관리</button>
             <button onclick="switchAdminTab('settings')" id="admin-tab-settings" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">⚙ 설정</button>
         </div>
 
@@ -2572,10 +2570,23 @@ textarea, select {
     /* ==============================
        FIGHT CARD RENDERING
     ============================== */
-    function navigateTo(id) {
+    var _currentPage = 'home';
+
+    function navigateTo(id, fromPopState) {
+        var el = document.getElementById(id);
+        if (!el) return;
+
+        // history API
+        if (!fromPopState) {
+            if (_currentPage !== id) {
+                history.pushState({ page: id }, '', '#' + id);
+            }
+        }
+        _currentPage = id;
+
         document.querySelectorAll('.section-animate').forEach(s => s.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-        
+        el.classList.add('active');
+
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
         const desktopNav = document.getElementById('nav-' + id);
         if(desktopNav) desktopNav.classList.add('active');
@@ -2592,7 +2603,6 @@ textarea, select {
         if(id === 'home') { renderHomeNews(); initHome(); }
         if(id === 'octagon') {
             window.scrollTo(0, 0);
-            // 활성 배틀이 없으면 기본 대기 화면 유지
         }
         if(id === 'mma-news') {
             renderNewsCatTabs();
@@ -2617,7 +2627,6 @@ textarea, select {
             applyEventInfo();
             renderEventLeaderboard();
             renderEventSidebar();
-            // 실시간 구독 시작
             startRealtimeSubscription();
         }
         if(id === 'rankings') setTimeout(() => { renderLeaderboard(); renderHallOfFame(); }, 100);
@@ -2626,50 +2635,90 @@ textarea, select {
         if(id === 'profile') { setTimeout(() => renderProfileStats(), 100); }
         if(id === 'admin') {
             renderAdminFighterList();
-            renderAdminFightCardList();
             renderArchiveAdminList();
             renderNewsAdminList();
             renderSeasonAdminPanel();
-            loadEventInfoInputs();
+            fetchEventsForBuilder();
         }
         window.scrollTo({top: 0, behavior: 'smooth'});
         refreshUI();
     }
 
+    // 뒤로/앞으로 버튼 처리
+    window.addEventListener('popstate', function(e) {
+        var page = (e.state && e.state.page) || 'home';
+        navigateTo(page, true);
+    });
+
     // ── Event Sidebar ──────────────────────────────────────────────
+    var _sidebarEventsCache = [];
+
     function renderEventSidebarHTML() {
-        const currentName = (typeof eventInfo !== 'undefined' && eventInfo.name) ? eventInfo.name : 'UFC 이벤트';
-        const currentDate = (typeof eventInfo !== 'undefined' && eventInfo.date) ? eventInfo.date : '';
-        const past = (typeof archiveDB !== 'undefined' ? archiveDB : []).slice().reverse().slice(0, 8);
+        const today = new Date().toISOString().slice(0, 10);
+        const allEvents = _sidebarEventsCache;
+
+        // Supabase events 기반 분류
+        const upcoming = allEvents.filter(e => e.status === 'upcoming' || (e.event_date && e.event_date.slice(0, 10) >= today));
+        const currentEvent = upcoming[0]; // 가장 빠른 upcoming
 
         let html = '';
-        // Current event — highlighted
-        html += `<div class="px-4 py-3 border-b border-white/[0.06]" style="background:rgba(210,10,10,0.07)">
-            <div class="flex items-center gap-2 mb-1">
-                <span class="w-1.5 h-1.5 rounded-full bg-ufcRed flex-shrink-0" style="box-shadow:0 0 6px rgba(210,10,10,0.8)"></span>
-                <span class="oswald-sharp text-[8px] font-black italic uppercase tracking-widest text-ufcRed">진행 중</span>
-            </div>
-            <p class="oswald-sharp text-sm font-black italic uppercase text-white leading-tight">${currentName}</p>
-            <p class="oswald-sharp text-[9px] text-gray-500 italic mt-0.5">${currentDate}</p>
-        </div>`;
 
+        // 현재(진행 중) 이벤트
+        if (currentEvent) {
+            const dateLabel = currentEvent.event_date ? new Date(currentEvent.event_date).toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric'}) : '';
+            html += `<div class="px-4 py-3 border-b border-white/[0.06]" style="background:rgba(210,10,10,0.07)">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-ufcRed flex-shrink-0" style="box-shadow:0 0 6px rgba(210,10,10,0.8)"></span>
+                    <span class="oswald-sharp text-[8px] font-black italic uppercase tracking-widest text-ufcRed">진행 중 / 예정</span>
+                </div>
+                <p class="oswald-sharp text-sm font-black italic uppercase text-white leading-tight">${escapeHtml(currentEvent.title)}</p>
+                <p class="oswald-sharp text-[9px] text-gray-500 italic mt-0.5">${dateLabel}</p>
+            </div>`;
+        } else {
+            // DB 이벤트 없으면 localStorage fallback
+            const n = (typeof eventInfo !== 'undefined' && eventInfo.name) ? eventInfo.name : 'UFC 이벤트';
+            const d = (typeof eventInfo !== 'undefined' && eventInfo.date) ? eventInfo.date : '';
+            html += `<div class="px-4 py-3 border-b border-white/[0.06]" style="background:rgba(210,10,10,0.07)">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-ufcRed flex-shrink-0" style="box-shadow:0 0 6px rgba(210,10,10,0.8)"></span>
+                    <span class="oswald-sharp text-[8px] font-black italic uppercase tracking-widest text-ufcRed">진행 중</span>
+                </div>
+                <p class="oswald-sharp text-sm font-black italic uppercase text-white leading-tight">${n}</p>
+                <p class="oswald-sharp text-[9px] text-gray-500 italic mt-0.5">${d}</p>
+            </div>`;
+        }
+
+        // 예정된 이벤트 (현재 제외, 나머지 upcoming)
+        const futureEvents = upcoming.slice(1);
+        if (futureEvents.length > 0) {
+            html += `<div class="px-4 pt-3 pb-1"><span class="oswald-sharp text-[8px] text-blue-400 uppercase tracking-widest italic">예정된 이벤트</span></div>`;
+            futureEvents.forEach(function(ev) {
+                const dateLabel = ev.event_date ? new Date(ev.event_date).toLocaleDateString('ko-KR', {month:'short',day:'numeric'}) : '날짜 미정';
+                html += `<div class="px-4 py-2 border-b border-white/[0.04] hover:bg-white/[0.03] transition">
+                    <p class="oswald-sharp text-xs font-black italic uppercase text-gray-300 leading-tight">${escapeHtml(ev.title)}</p>
+                    <p class="oswald-sharp text-[9px] text-blue-500/70 italic mt-0.5">${dateLabel}</p>
+                </div>`;
+            });
+        }
+
+        // 지난 이벤트 (archiveDB)
+        const past = (typeof archiveDB !== 'undefined' ? archiveDB : []).slice().reverse().slice(0, 8);
         if (past.length > 0) {
             html += `<div class="px-4 pt-3 pb-1"><span class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest italic">지난 이벤트</span></div>`;
             past.forEach(function(ev) {
-                const mainFight = (ev.fights && ev.fights[0])
-                    ? `${ev.fights[0].f1} vs ${ev.fights[0].f2}`
-                    : '';
+                const mainFight = (ev.fights && ev.fights[0]) ? `${ev.fights[0].f1} vs ${ev.fights[0].f2}` : '';
                 const winner = (ev.fights && ev.fights[0] && ev.fights[0].winner) ? ev.fights[0].winner : '';
                 html += `<div class="px-4 py-2.5 border-b border-white/[0.04] hover:bg-white/[0.03] transition cursor-pointer" onclick="navigateTo('archive')">
-                    <p class="oswald-sharp text-xs font-black italic uppercase text-gray-300 leading-tight">${ev.name}</p>
+                    <p class="oswald-sharp text-xs font-black italic uppercase text-gray-400 leading-tight">${ev.name}</p>
                     <p class="oswald-sharp text-[9px] text-gray-600 italic mt-0.5">${ev.date || ''}</p>
                     ${mainFight ? `<p class="oswald-sharp text-[8px] text-gray-700 italic mt-1 truncate">메인: ${mainFight}</p>` : ''}
                     ${winner ? `<p class="oswald-sharp text-[8px] text-ufcRed italic">승자: ${winner}</p>` : ''}
                 </div>`;
             });
-        } else {
+        } else if (!currentEvent) {
             html += `<div class="px-4 py-4 text-center oswald-sharp text-[9px] text-gray-700 italic uppercase tracking-widest">이벤트 기록 없음</div>`;
         }
+
         return html;
     }
 
@@ -4574,7 +4623,13 @@ async function addCommentToDB(postDbId, userNick, text) {
         applyEventInfo();
         updateNicknameDisplay();
         refreshUI();
-        navigateTo('home');
+        // hash 기반 초기 페이지 복원 (뒤로가기 지원)
+        var validPages = ['home','matchups','ufc-rankings','rankings','mma-news','community','archive','profile','admin'];
+        var hashPage = window.location.hash.replace('#', '');
+        var initPage = validPages.indexOf(hashPage) !== -1 ? hashPage : 'home';
+        history.replaceState({ page: initPage }, '', '#' + initPage);
+        _currentPage = initPage;
+        navigateTo(initPage, true);
         initSupabase();
         fetchArchive();
         setTimeout(initHome, 400);

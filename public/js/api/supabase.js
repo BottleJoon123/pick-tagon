@@ -262,23 +262,54 @@ function loadPostsFromDB() {
 async function fetchUpcomingMatchups() {
     if (typeof sb === 'undefined' || !sb) return;
     try {
+        // 전체 이벤트 로드 (sidebar + matchups 헤더용)
+        var allEvRes = await sb.from('events')
+            .select('id, title, event_date, status')
+            .order('event_date', { ascending: true });
+        if (!allEvRes.error && allEvRes.data) {
+            if (typeof _sidebarEventsCache !== 'undefined') {
+                _sidebarEventsCache = allEvRes.data;
+            }
+        }
+
+        // 현재 upcoming 이벤트 (가장 빠른 것)
         var evRes = await sb.from('events')
             .select('id, title, event_date')
             .eq('status', 'upcoming')
             .order('event_date', { ascending: true })
             .limit(1);
-        if (evRes.error || !evRes.data || !evRes.data.length) return;
+        if (evRes.error || !evRes.data || !evRes.data.length) {
+            if (typeof renderEventSidebar === 'function') renderEventSidebar();
+            return;
+        }
         var event = evRes.data[0];
+
+        // 이벤트 헤더 DB에서 자동 반영
+        if (event.title) {
+            var nameEl = document.getElementById('event-name-label');
+            if (nameEl) nameEl.textContent = event.title;
+        }
+        if (event.event_date) {
+            var dateEl = document.getElementById('event-date-label');
+            if (dateEl) {
+                var d = new Date(event.event_date);
+                var formatted = d.toLocaleDateString('ko-KR', {year:'numeric', month:'long', day:'numeric', weekday:'short'}).toUpperCase();
+                dateEl.textContent = formatted;
+            }
+        }
 
         var mRes = await sb.from('matchups')
             .select('*')
             .eq('event_id', event.id)
-            .order('is_main_event', { ascending: false });
-        if (mRes.error || !mRes.data || !mRes.data.length) return;
+            .order('sort_order', { ascending: true });
+        if (mRes.error || !mRes.data || !mRes.data.length) {
+            if (typeof renderEventSidebar === 'function') renderEventSidebar();
+            return;
+        }
 
         var mainIdx = 0;
-        _dbMatchups = mRes.data.map(function(m, i) {
-            var isMain = m.is_main_event === true;
+        _dbMatchups = mRes.data.map(function(m) {
+            var isMain = m.is_main_event === true || m.card_segment === 'main';
             var tag = isMain
                 ? (mainIdx++ === 0 ? 'MAIN EVENT' : 'CO-MAIN EVENT')
                 : 'PRELIMS';
@@ -288,7 +319,7 @@ async function fetchUpcomingMatchups() {
                 sectionLabel: isMain ? '메인 카드' : '프렐림',
                 sectionTime: '',
                 tag: tag,
-                division: '',
+                division: m.weight_class || '',
                 rounds: isMain ? 5 : 3,
                 leftBias: Number(m.left_bias) || 0.5,
                 _eventTitle: event.title || '',
@@ -299,6 +330,7 @@ async function fetchUpcomingMatchups() {
         });
 
         if (typeof renderFightCards === 'function') renderFightCards();
+        if (typeof renderEventSidebar === 'function') renderEventSidebar();
     } catch(e) {
         console.warn('[fetchUpcomingMatchups]', e);
     }
