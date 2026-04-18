@@ -4723,8 +4723,8 @@ async function addCommentToDB(postDbId, userNick, text) {
         var initPage = validPages.indexOf(hashPage) !== -1 ? hashPage : 'home';
         history.replaceState({ page: initPage }, '', '#' + initPage);
         _currentPage = initPage;
-        navigateTo(initPage, true);
         initSupabase();
+        navigateTo(initPage, true);
         fetchArchive();
         setTimeout(initHome, 400);
     };

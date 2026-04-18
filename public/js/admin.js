@@ -518,23 +518,46 @@ async function syncFighterStats(options = {}) {
     const session = sessionRes?.data?.session;
     if (!session?.access_token) { showToast('⚠ 어드민 로그인 필요'); return; }
 
-    if (btn) { btn.textContent = '⏳ 스탯 동기화 중...'; btn.disabled = true; }
-    if (log) { log.classList.remove('hidden'); log.textContent = '[ 파이터 스탯 동기화 시작 ] kr.ufc.com 스크래핑...\n'; }
+    if (btn) { btn.textContent = '⏳ 동기화 중...'; btn.disabled = true; }
+    if (log) { log.classList.remove('hidden'); log.textContent = '[ 파이터 스탯 동기화 시작 ] ufcstats.com 스크래핑...\n'; }
+
+    let totalUpdated = 0, totalErrors = 0, offset = 0;
+    const isSingle = !!options.slug;
 
     try {
-        const body = options.slug ? { slug: options.slug } : { syncAll: true, division: options.division || undefined };
-        const { data, error } = await sb.functions.invoke('sync-fighter-stats', {
-            body,
-            headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        if (error) {
-            let msg = error.message;
-            try { if (error.context) { const p = await error.context.json(); if (p?.error) msg = p.error; } } catch (_) {}
-            throw new Error(msg);
+        // single slug 모드는 1회 호출, syncAll은 done될 때까지 루프
+        while (true) {
+            const body = isSingle
+                ? { slug: options.slug }
+                : { syncAll: true, division: options.division || undefined, offset, batchSize: 15 };
+
+            const { data, error } = await sb.functions.invoke('sync-fighter-stats', {
+                body,
+                headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+
+            if (error) {
+                let msg = error.message;
+                try { if (error.context) { const p = await error.context.json(); if (p?.error) msg = p.error; } } catch (_) {}
+                throw new Error(msg);
+            }
+
+            totalUpdated += data.updated || 0;
+            totalErrors  += (data.errors || []).length;
+
+            const progressLine = isSingle
+                ? `✅ ${(data.results||[])[0]?.name || options.slug}: stats=${JSON.stringify((data.results||[])[0]?.stats)}`
+                : `배치 ${offset}~${offset + (data.processed||0) - 1} 완료 (${data.processed}/${data.total}) — 업데이트: ${data.updated}명`;
+            if (log) log.textContent += progressLine + '\n';
+
+            if (isSingle || data.done) break;
+
+            offset = data.nextOffset;
+            if (btn) btn.textContent = `⏳ ${offset}/${data.total}명...`;
         }
-        const summary = `✅ 완료\n처리: ${data.processed}명\n업데이트: ${data.updated}명\nBaseline 적용: ${data.usedBaseline}명\nFallback: ${data.usedFallback}명\n오류: ${(data.errors || []).length}건`;
-        if (log) log.textContent += summary;
-        showToast(`✅ 스탯 동기화 완료 — ${data.updated}명 업데이트`);
+
+        if (log) log.textContent += `\n✅ 완료 — 총 업데이트: ${totalUpdated}명, 오류: ${totalErrors}건`;
+        showToast(`✅ 스탯 동기화 완료 — ${totalUpdated}명 업데이트`);
         renderAdminFighterList();
     } catch (e) {
         if (log) log.textContent += `❌ 오류: ${e.message}`;
@@ -831,6 +854,7 @@ var _memState = {
 // ── 이벤트 목록 ────────────────────────────────────────────────────
 
 async function fetchEventsForBuilder() {
+    if (!sb) return;
     const { data, error } = await sb
         .from('events')
         .select('id, title, event_date, status')

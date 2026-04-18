@@ -7,23 +7,16 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
 }
 
-const ATHLETE_BASE_URL = 'https://kr.ufc.com/athlete'
-const FETCH_TIMEOUT_MS = 20000
-const CONCURRENCY = 5
-const SHRINKAGE_K = 8
-const FINISH_POWER = 1.35
+const UFCSTATS_BASE    = 'https://ufcstats.com'
+const FETCH_TIMEOUT_MS = 15000
+const CONCURRENCY      = 3
+const BATCH_SIZE       = 15   // 한 번 호출에 처리할 파이터 수 (504 방지)
+const SHRINKAGE_K      = 8
+const FINISH_POWER     = 1.35
 
-// 체급별 baseline 없을 때 폴백용 절대 max 값
 const FIXED_MAX = {
-  slpm: 10,
-  strAcc: 80,
-  sapm: 8,
-  strDef: 80,
-  tdAvg: 6,
-  tdAcc: 80,
-  tdDef: 95,
-  subAvg: 3,
-  finishMix: 90,
+  slpm: 10, strAcc: 80, sapm: 8, strDef: 80,
+  tdAvg: 6, tdAcc: 80, tdDef: 95, subAvg: 3, finishMix: 90,
 }
 
 type Root = ReturnType<typeof cheerio.load>
@@ -32,14 +25,14 @@ interface SyncRequest {
   slug?: string
   syncAll?: boolean
   division?: string
+  offset?: number      // pagination cursor
+  batchSize?: number   // override default BATCH_SIZE
 }
 
 interface FighterRow {
-  id: string
-  division: string | null
-  wins: number | null
-  height?: string | null
-  reach?: string | null
+  id: string; name_en: string | null; division: string | null
+  wins: number | null; height?: string | null; reach?: string | null
+  ufc_stats_id?: string | null
 }
 
 interface FighterBaseline {
@@ -53,8 +46,7 @@ interface FighterBaseline {
   td_def_p05: number | null; td_def_p95: number | null
   sub_avg_p05: number | null; sub_avg_p95: number | null
   finish_mix_p05: number | null; finish_mix_p95: number | null
-  avg_ko_rate: number | null
-  avg_sub_rate: number | null
+  avg_ko_rate: number | null; avg_sub_rate: number | null
 }
 
 interface ParsedAthleteStats {
@@ -67,133 +59,177 @@ interface ParsedAthleteStats {
   koRate: number | null; subRate: number | null; decRate: number | null
 }
 
-// ── 유틸 ──────────────────────────────────────────────────────────
+// ── 유틸 ─────────────────────────────────────────────────────────────
 
-function normalizeText(v: string | null | undefined): string {
+function norm(v: string | null | undefined): string {
   return (v ?? '').replace(/\s+/g, ' ').trim()
 }
 function round2(v: number): number { return Math.round(v * 100) / 100 }
 function clamp(v: number, min = 0, max = 100): number { return Math.min(Math.max(v, min), max) }
 
-function parseStatNumber(text: string | null | undefined): number | null {
-  const t = normalizeText(text)
+function parseStat(text: string | null | undefined): number | null {
+  const t = norm(text)
   if (!t || t === '--' || t.toUpperCase() === 'N/A') return null
   const m = t.match(/-?\d+(?:\.\d+)?/)
   return m ? round2(parseFloat(m[0])) : null
 }
 
-// ── 단위 변환 파서 ────────────────────────────────────────────────
+function parsePct(text: string | null | undefined): number | null {
+  const t = norm(text)
+  const m = t.match(/(\d+(?:\.\d+)?)\s*%/)
+  return m ? round2(parseFloat(m[1])) : null
+}
+
+// ── 단위 변환 ──────────────────────────────────────────────────────────
 
 function parseHeightCm(raw: string | null): number | null {
   if (!raw) return null
   const cm = raw.match(/(\d+(?:\.\d+)?)\s*cm/i)
   if (cm) return round2(parseFloat(cm[1]))
-  const fi = raw.match(/(\d+)\s*'\s*(\d+(?:\.\d+)?)?/)
+  const fi = raw.match(/(\d+)'\s*(\d+(?:\.\d+)?)?"?/)
   if (fi) return round2(parseFloat(fi[1]) * 30.48 + parseFloat(fi[2] ?? '0') * 2.54)
   return null
 }
-
 function parseWeightKg(raw: string | null): number | null {
   if (!raw) return null
-  const kg = raw.match(/(\d+(?:\.\d+)?)\s*kg/i)
-  if (kg) return round2(parseFloat(kg[1]))
-  const lb = raw.match(/(\d+(?:\.\d+)?)\s*(?:lb|lbs)\b/i)
-  if (lb) return round2(parseFloat(lb[1]) * 0.453592)
+  const kg = raw.match(/(\d+(?:\.\d+)?)\s*kg/i); if (kg) return round2(parseFloat(kg[1]))
+  const lb = raw.match(/(\d+(?:\.\d+)?)\s*(?:lb|lbs)\b/i); if (lb) return round2(parseFloat(lb[1]) * 0.453592)
   return null
 }
-
 function parseReachCm(raw: string | null): number | null {
   if (!raw) return null
-  const cm = raw.match(/(\d+(?:\.\d+)?)\s*cm/i)
-  if (cm) return round2(parseFloat(cm[1]))
-  const inch = raw.match(/(\d+(?:\.\d+)?)\s*(?:"|in|inch|inches)\b/i)
-  if (inch) return round2(parseFloat(inch[1]) * 2.54)
+  const cm = raw.match(/(\d+(?:\.\d+)?)\s*cm/i); if (cm) return round2(parseFloat(cm[1]))
+  const inch = raw.match(/(\d+(?:\.\d+)?)\s*(?:"|in|inch|inches)\b/i); if (inch) return round2(parseFloat(inch[1]) * 2.54)
   return null
 }
 
-// ── 페이지 파싱 ───────────────────────────────────────────────────
+// ── HTTP ───────────────────────────────────────────────────────────────
 
-function parseOrderedMetrics($: Root, selector: string, count: number): Array<number | null> {
-  const vals = $(selector).map((_, el) => parseStatNumber($(el).text())).get()
-  const result: Array<number | null> = new Array(count).fill(null)
-  for (let i = 0; i < Math.min(vals.length, count); i++) result[i] = vals[i]
+async function fetchHtml(url: string): Promise<string> {
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,*/*',
+    },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status} — ${url}`)
+  return res.text()
+}
+
+// ── ufcstats.com 이름 → ID 매핑 ───────────────────────────────────────
+
+function toSlug(nameEn: string | null): string | null {
+  if (!nameEn) return null
+  return nameEn.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || null
+}
+
+async function lookupUfcStatsId(nameEn: string): Promise<string | null> {
+  const parts     = nameEn.trim().split(/\s+/)
+  const lastName  = parts[parts.length - 1].toLowerCase()
+  const firstName = parts.slice(0, -1).join(' ').toLowerCase()
+  const letter    = lastName[0]
+
+  const html = await fetchHtml(
+    `${UFCSTATS_BASE}/statistics/fighters?char=${letter}&page=all`
+  )
+  const $ = cheerio.load(html)
+  let foundId: string | null = null
+
+  $('tr.b-statistics__table-row').each((_, row) => {
+    const cells   = $(row).find('td')
+    const rowFirst = norm(cells.eq(0).text()).toLowerCase()
+    const rowLast  = norm(cells.eq(1).text()).toLowerCase()
+    if (rowFirst === firstName && rowLast === lastName) {
+      const href = cells.eq(0).find('a').attr('href') ?? ''
+      const m    = href.match(/fighter-details\/([a-f0-9]+)/i)
+      if (m) { foundId = m[1]; return false }
+    }
+  })
+  return foundId
+}
+
+// ── ufcstats.com 상세 페이지 파싱 ───────────────────────────────────
+
+function parseBioItem($: Root, label: string): string | null {
+  let result: string | null = null
+  $('li.b-list__box-list-item').each((_, el) => {
+    const title = norm($(el).find('i.b-list__box-item-title').text())
+    if (title.toLowerCase().includes(label.toLowerCase())) {
+      // 제목 텍스트 제거 후 나머지가 값
+      const full  = norm($(el).text())
+      const value = full.replace(title, '').trim()
+      if (value && value !== '--') { result = value; return false }
+    }
+  })
   return result
 }
 
-function collectShortBlocks($: Root): string[] {
-  const seen = new Set<string>()
-  $('body *').each((_, el) => {
-    const t = normalizeText($(el).text())
-    if (t && t.length <= 140 && /\d/.test(t)) seen.add(t)
-  })
-  return Array.from(seen)
-}
+function parseWinMethods($: Root): { koRate: number | null; subRate: number | null; decRate: number | null } {
+  let wins = 0, ko = 0, sub = 0, dec = 0
 
-function parseRateFromBlocks(blocks: string[], labels: string[]): number | null {
-  for (const b of blocks) {
-    const lower = b.toLowerCase()
-    if (!labels.some(l => lower.includes(l))) continue
-    const m = b.match(/(\d+(?:\.\d+)?)\s*%/)
-    if (m) return round2(parseFloat(m[1]))
+  $('tr.b-fight-details__table-row').each((_, row) => {
+    const cells  = $(row).find('td')
+    if (cells.length < 8) return
+    const result = norm(cells.eq(0).text()).toLowerCase()
+    const method = norm(cells.eq(7).text()).toLowerCase()
+    if (!result.startsWith('win') && !result.includes('w')) return // 승리 행만
+    wins++
+    if (method.includes('ko') || method.includes('tko')) ko++
+    else if (method.includes('sub')) sub++
+    else if (method.includes('dec') || method.includes('decision')) dec++
+  })
+
+  if (wins === 0) return { koRate: null, subRate: null, decRate: null }
+  return {
+    koRate:  round2((ko  / wins) * 100),
+    subRate: round2((sub / wins) * 100),
+    decRate: round2((dec / wins) * 100),
   }
-  return null
 }
 
-function parseAthletePage(html: string): ParsedAthleteStats {
-  const $ = cheerio.load(html)
+async function fetchAndParseStats(ufcStatsId: string): Promise<ParsedAthleteStats> {
+  const html = await fetchHtml(`${UFCSTATS_BASE}/fighter-details/${ufcStatsId}`)
+  const $    = cheerio.load(html)
 
-  // 피지컬
-  let rawHeight: string | null = null
-  let rawWeight: string | null = null
-  let rawReach: string | null  = null
+  const rawHeight = parseBioItem($, 'Height')
+  const rawWeight = parseBioItem($, 'Weight')
+  const rawReach  = parseBioItem($, 'Reach')
 
-  $('.c-stat-compare__group').each((_, el) => {
-    const text  = normalizeText($(el).text())
-    const lower = text.toLowerCase()
-    if (!rawHeight && (lower.includes('height') || text.includes('키')))
-      rawHeight = text.match(/\d+['ft][\s\d"incm.]+/i)?.[0] ?? text.match(/\d+(?:\.\d+)?\s*cm/i)?.[0] ?? null
-    if (!rawWeight && (lower.includes('weight') || text.includes('무게')))
-      rawWeight = text.match(/\d+(?:\.\d+)?\s*(?:lb|lbs|kg)\b/i)?.[0] ?? null
-    if (!rawReach && (lower.includes('reach') || text.includes('리치')))
-      rawReach  = text.match(/\d+(?:\.\d+)?\s*(?:"|in|cm)\b/i)?.[0] ?? null
-  })
+  const slpmRaw   = parseBioItem($, 'SLpM')
+  const strAccRaw = parseBioItem($, 'Str. Acc')
+  const sapmRaw   = parseBioItem($, 'SApM')
+  const strDefRaw = parseBioItem($, 'Str. Def')
+  const tdAvgRaw  = parseBioItem($, 'TD Avg')
+  const tdAccRaw  = parseBioItem($, 'TD Acc')
+  const tdDefRaw  = parseBioItem($, 'TD Def')
+  const subAvgRaw = parseBioItem($, 'Sub. Avg')
 
-  // 타격 스탯: SLpM, SApM, Str.Acc%, Str.Def%
-  const [slpm, sapm, strAcc, strDef] = parseOrderedMetrics($, '.c-stat-3bar__value', 4)
-
-  // 레슬링/서브: TD Avg, TD Acc%, TD Def%, Sub.Avg
-  const [tdAvg, tdAcc, tdDef, subAvg] = parseOrderedMetrics($, '.c-stat-compare__number', 4)
-
-  // 승리 방법 비율
-  const blocks = collectShortBlocks($)
-  const koRate  = parseRateFromBlocks(blocks, ['ko/tko', 'ko tko', 'ko'])
-  const subRate = parseRateFromBlocks(blocks, ['submission', 'sub', '서브'])
-  let decRate   = parseRateFromBlocks(blocks, ['decision', 'dec', '판정'])
-  if (decRate === null && koRate !== null && subRate !== null)
-    decRate = round2(clamp(100 - koRate - subRate, 0, 100))
+  const { koRate, subRate, decRate } = parseWinMethods($)
 
   return {
     rawHeight, rawWeight, rawReach,
     heightCm: parseHeightCm(rawHeight),
     weightKg: parseWeightKg(rawWeight),
     reachCm:  parseReachCm(rawReach),
-    slpm, sapm, strAcc, strDef,
-    tdAvg, tdAcc, tdDef, subAvg,
+    slpm:    parseStat(slpmRaw),
+    sapm:    parseStat(sapmRaw),
+    strAcc:  parsePct(strAccRaw),
+    strDef:  parsePct(strDefRaw),
+    tdAvg:   parseStat(tdAvgRaw),
+    tdAcc:   parsePct(tdAccRaw),
+    tdDef:   parsePct(tdDefRaw),
+    subAvg:  parseStat(subAvgRaw),
     koRate, subRate, decRate,
   }
 }
 
-// ── 점수 계산 ─────────────────────────────────────────────────────
+// ── 점수 계산 ─────────────────────────────────────────────────────────
 
 function normHi(v: number, p05: number, p95: number) { return clamp((100 * (v - p05)) / (p95 - p05)) }
 function normLo(v: number, p05: number, p95: number) { return clamp((100 * (p95 - v)) / (p95 - p05)) }
 
-function normMetric(
-  value: number | null,
-  p05: number | null, p95: number | null,
-  fixedMax: number,
-  lowerIsBetter = false,
-): number | null {
+function normMetric(value: number | null, p05: number | null, p95: number | null, fixedMax: number, lowerIsBetter = false): number | null {
   if (value === null || !Number.isFinite(value)) return null
   if (p05 !== null && p95 !== null && p95 > p05)
     return lowerIsBetter ? normLo(value, p05, p95) : normHi(value, p05, p95)
@@ -227,14 +263,14 @@ function computeScores(parsed: ParsedAthleteStats, wins: number | null, bl: Figh
   const n = (v: number | null, p05: number | null, p95: number | null, max: number, inv = false) =>
     normMetric(v, p05, p95, max, inv)
 
-  const slpm_n    = n(parsed.slpm,   bl?.slpm_p05    ?? null, bl?.slpm_p95    ?? null, FIXED_MAX.slpm)
-  const strAcc_n  = n(parsed.strAcc, bl?.str_acc_p05 ?? null, bl?.str_acc_p95 ?? null, FIXED_MAX.strAcc)
-  const sapm_inv  = n(parsed.sapm,   bl?.sapm_p05    ?? null, bl?.sapm_p95    ?? null, FIXED_MAX.sapm, true)
-  const strDef_n  = n(parsed.strDef, bl?.str_def_p05 ?? null, bl?.str_def_p95 ?? null, FIXED_MAX.strDef)
-  const tdAvg_n   = n(parsed.tdAvg,  bl?.td_avg_p05  ?? null, bl?.td_avg_p95  ?? null, FIXED_MAX.tdAvg)
-  const tdAcc_n   = n(parsed.tdAcc,  bl?.td_acc_p05  ?? null, bl?.td_acc_p95  ?? null, FIXED_MAX.tdAcc)
-  const tdDef_n   = n(parsed.tdDef,  bl?.td_def_p05  ?? null, bl?.td_def_p95  ?? null, FIXED_MAX.tdDef)
-  const subAvg_n  = n(parsed.subAvg, bl?.sub_avg_p05 ?? null, bl?.sub_avg_p95 ?? null, FIXED_MAX.subAvg)
+  const slpm_n   = n(parsed.slpm,   bl?.slpm_p05 ?? null,    bl?.slpm_p95 ?? null,    FIXED_MAX.slpm)
+  const strAcc_n = n(parsed.strAcc, bl?.str_acc_p05 ?? null, bl?.str_acc_p95 ?? null, FIXED_MAX.strAcc)
+  const sapm_inv = n(parsed.sapm,   bl?.sapm_p05 ?? null,    bl?.sapm_p95 ?? null,    FIXED_MAX.sapm, true)
+  const strDef_n = n(parsed.strDef, bl?.str_def_p05 ?? null, bl?.str_def_p95 ?? null, FIXED_MAX.strDef)
+  const tdAvg_n  = n(parsed.tdAvg,  bl?.td_avg_p05 ?? null,  bl?.td_avg_p95 ?? null,  FIXED_MAX.tdAvg)
+  const tdAcc_n  = n(parsed.tdAcc,  bl?.td_acc_p05 ?? null,  bl?.td_acc_p95 ?? null,  FIXED_MAX.tdAcc)
+  const tdDef_n  = n(parsed.tdDef,  bl?.td_def_p05 ?? null,  bl?.td_def_p95 ?? null,  FIXED_MAX.tdDef)
+  const subAvg_n = n(parsed.subAvg, bl?.sub_avg_p05 ?? null, bl?.sub_avg_p95 ?? null, FIXED_MAX.subAvg)
 
   const koPrior  = bl?.avg_ko_rate  ?? 35
   const subPrior = bl?.avg_sub_rate ?? 20
@@ -254,20 +290,7 @@ function computeScores(parsed: ParsedAthleteStats, wins: number | null, bl: Figh
   return { stats: [striking, wrestling, submission, defense, finishing], usedBaseline: !!bl }
 }
 
-// ── HTTP 헬퍼 ─────────────────────────────────────────────────────
-
-async function fetchAthleteHtml(slug: string): Promise<string> {
-  const res = await fetch(`${ATHLETE_BASE_URL}/${slug}`, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml',
-      'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8',
-    },
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-  })
-  if (!res.ok) throw new Error(`athlete ${slug}: HTTP ${res.status}`)
-  return res.text()
-}
+// ── DB 헬퍼 ───────────────────────────────────────────────────────────
 
 async function loadBaselines(sb: ReturnType<typeof createClient>): Promise<Map<string, FighterBaseline>> {
   const map = new Map<string, FighterBaseline>()
@@ -276,29 +299,59 @@ async function loadBaselines(sb: ReturnType<typeof createClient>): Promise<Map<s
   return map
 }
 
-async function resolveFighters(sb: ReturnType<typeof createClient>, body: SyncRequest): Promise<FighterRow[]> {
+interface ResolveResult { fighters: FighterRow[]; total: number; offset: number }
+
+async function resolveFighters(sb: ReturnType<typeof createClient>, body: SyncRequest): Promise<ResolveResult> {
   if (body.slug) {
-    const { data, error } = await sb.from('fighters').select('id,division,wins,height,reach').eq('id', body.slug).maybeSingle()
+    const { data: all, error } = await sb.from('fighters').select('id,name_en,division,wins,height,reach,ufc_stats_id')
     if (error) throw new Error(error.message)
-    if (!data) throw new Error(`fighter not found: ${body.slug}`)
-    return [data as FighterRow]
+    const matched = (all ?? []).find((f: FighterRow) => toSlug(f.name_en) === body.slug)
+    if (!matched) throw new Error(`fighter not found for slug: ${body.slug}`)
+    return { fighters: [matched as FighterRow], total: 1, offset: 0 }
   }
   if (!body.syncAll) throw new Error('Provide { slug } or { syncAll: true }')
-  let q = sb.from('fighters').select('id,division,wins,height,reach').order('id').limit(5000)
+
+  const batchSize = Math.min(body.batchSize ?? BATCH_SIZE, 50)
+  const offset    = body.offset ?? 0
+
+  // 전체 수 먼저 조회
+  let countQ = sb.from('fighters').select('id', { count: 'exact', head: true })
+  if (body.division) countQ = countQ.eq('division', body.division)
+  const { count } = await countQ
+
+  // 배치 조회
+  let q = sb.from('fighters')
+    .select('id,name_en,division,wins,height,reach,ufc_stats_id')
+    .order('id')
+    .range(offset, offset + batchSize - 1)
   if (body.division) q = q.eq('division', body.division)
   const { data, error } = await q
   if (error) throw new Error(error.message)
-  return (data ?? []) as FighterRow[]
+
+  return { fighters: (data ?? []) as FighterRow[], total: count ?? 0, offset }
 }
 
+// ── 단일 파이터 동기화 ────────────────────────────────────────────────
+
 async function syncOne(sb: ReturnType<typeof createClient>, fighter: FighterRow, baselines: Map<string, FighterBaseline>) {
-  const html   = await fetchAthleteHtml(fighter.id)
-  const parsed = parseAthletePage(html)
+  if (!fighter.name_en) throw new Error(`name_en 없음: id=${fighter.id}`)
+
+  // ufcstats ID 확인 — 없으면 인덱스 페이지에서 탐색 후 저장
+  let ufcStatsId = fighter.ufc_stats_id ?? null
+  if (!ufcStatsId) {
+    ufcStatsId = await lookupUfcStatsId(fighter.name_en)
+    if (!ufcStatsId) throw new Error(`ufcstats에서 ${fighter.name_en} 미발견`)
+    // 다음 sync에서 재사용할 수 있도록 저장
+    await sb.from('fighters').update({ ufc_stats_id: ufcStatsId }).eq('id', fighter.id)
+  }
+
+  const parsed = await fetchAndParseStats(ufcStatsId)
   const bl     = fighter.division ? baselines.get(fighter.division.toLowerCase()) ?? null : null
   const { stats, usedBaseline } = computeScores(parsed, fighter.wins, bl)
 
   const { error } = await sb.from('fighters').upsert({
     id: fighter.id,
+    ufc_stats_id: ufcStatsId,
     height:    parsed.rawHeight ?? fighter.height ?? null,
     reach:     parsed.rawReach  ?? fighter.reach  ?? null,
     height_cm: parsed.heightCm,
@@ -319,11 +372,11 @@ async function syncOne(sb: ReturnType<typeof createClient>, fighter: FighterRow,
     stats_updated_at: new Date().toISOString(),
   }, { onConflict: 'id' })
 
-  if (error) throw new Error(`upsert failed for ${fighter.id}: ${error.message}`)
-  return { slug: fighter.id, division: fighter.division, usedBaseline, stats }
+  if (error) throw new Error(`upsert failed for ${fighter.name_en}: ${error.message}`)
+  return { name: fighter.name_en, ufcStatsId, division: fighter.division, usedBaseline, stats }
 }
 
-// ── Entry point ───────────────────────────────────────────────────
+// ── Entry point ───────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -345,8 +398,12 @@ Deno.serve(async (req) => {
   const body = await req.json().catch(() => ({})) as SyncRequest
 
   try {
-    const fighters  = await resolveFighters(sb, body)
-    if (!fighters.length) return new Response(JSON.stringify({ success: true, processed: 0, results: [], errors: [] }), { headers: corsHeaders })
+    const { fighters, total, offset } = await resolveFighters(sb, body)
+    const batchSize = Math.min(body.batchSize ?? BATCH_SIZE, 50)
+
+    if (!fighters.length) return new Response(JSON.stringify({
+      success: true, done: true, processed: 0, total, offset, results: [], errors: [],
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
     const baselines = await loadBaselines(sb)
     const results: unknown[] = []
@@ -363,12 +420,19 @@ Deno.serve(async (req) => {
           errors.push(s.reason?.message ?? String(s.reason))
         }
       }
-      if (i + CONCURRENCY < fighters.length) await new Promise(r => setTimeout(r, 250))
+      if (i + CONCURRENCY < fighters.length) await new Promise(r => setTimeout(r, 500))
     }
+
+    const nextOffset = offset + fighters.length
+    const done = !body.syncAll || nextOffset >= total
 
     return new Response(JSON.stringify({
       success: errors.length === 0,
+      done,
       processed: fighters.length,
+      total,
+      offset,
+      nextOffset: done ? null : nextOffset,
       updated: results.length,
       usedBaseline, usedFallback,
       results, errors,
