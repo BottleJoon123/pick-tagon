@@ -508,6 +508,42 @@ async function purgeInactiveFighters(dryRun = false) {
     }
 }
 
+// ----- SYNC FIGHTER STATS -----
+async function syncFighterStats(options = {}) {
+    const btn = document.getElementById('btn-sync-fighter-stats');
+    const log = document.getElementById('fighter-scrape-log');
+    if (!sb) { showToast('⚠ Supabase 연결 필요'); return; }
+
+    const sessionRes = await sb.auth.getSession();
+    const session = sessionRes?.data?.session;
+    if (!session?.access_token) { showToast('⚠ 어드민 로그인 필요'); return; }
+
+    if (btn) { btn.textContent = '⏳ 스탯 동기화 중...'; btn.disabled = true; }
+    if (log) { log.classList.remove('hidden'); log.textContent = '[ 파이터 스탯 동기화 시작 ] kr.ufc.com 스크래핑...\n'; }
+
+    try {
+        const body = options.slug ? { slug: options.slug } : { syncAll: true, division: options.division || undefined };
+        const { data, error } = await sb.functions.invoke('sync-fighter-stats', {
+            body,
+            headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (error) {
+            let msg = error.message;
+            try { if (error.context) { const p = await error.context.json(); if (p?.error) msg = p.error; } } catch (_) {}
+            throw new Error(msg);
+        }
+        const summary = `✅ 완료\n처리: ${data.processed}명\n업데이트: ${data.updated}명\nBaseline 적용: ${data.usedBaseline}명\nFallback: ${data.usedFallback}명\n오류: ${(data.errors || []).length}건`;
+        if (log) log.textContent += summary;
+        showToast(`✅ 스탯 동기화 완료 — ${data.updated}명 업데이트`);
+        renderAdminFighterList();
+    } catch (e) {
+        if (log) log.textContent += `❌ 오류: ${e.message}`;
+        showToast(`❌ 오류: ${e.message}`);
+    } finally {
+        if (btn) { btn.textContent = '📊 스탯 동기화'; btn.disabled = false; }
+    }
+}
+
 // ----- RECENT FIGHTS MANAGER -----
 function buildRecentFightsList(recentArr) {
     var list = document.getElementById('recent-fights-list');
