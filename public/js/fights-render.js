@@ -5,6 +5,17 @@
            admin.js (getActiveFights), utils.js (escapeHtml)
 ============================== */
 
+// ── Fight Card Cache (onclick safe-bridge) ───────────────────────
+var _fightCardCache = {};
+
+function openPickSlipFromCard(fightId) {
+    var fight = _fightCardCache[fightId];
+    if (!fight) return;
+    var f1Last = fight.f1.name.split(' ').pop();
+    var f2Last = fight.f2.name.split(' ').pop();
+    openPickSlip(fightId, f1Last + ' vs ' + f2Last, fight.f1.name, fight.f1.odds || 1.9, fight.f2.name, fight.f2.odds || 1.9);
+}
+
 // ── Dot Form Helper ──────────────────────────────────────────────
 function renderDotForm(recent) {
     if (!recent || !recent.length) return '';
@@ -72,8 +83,9 @@ function renderHeroCard(fight, idx) {
         ? `background-image:url('${f2Img}'); background-size:cover; background-position:center top;`
         : 'background:linear-gradient(225deg,#00001a,#0a0a0a);';
 
+    _fightCardCache[fight.id] = fight;
     return `
-    <div id="card-${fight.id}" onclick="if (event.target.closest('button,[data-no-pick]')) return; openPickSlip(${JSON.stringify(fight.id)}, ${JSON.stringify(f1Last + ' vs ' + f2Last)}, ${JSON.stringify(fight.f1.name)}, ${fight.f1.odds || 1.9}, ${JSON.stringify(fight.f2.name)}, ${fight.f2.odds || 1.9})" class="glass-card ${isMain ? 'rounded-[2.5rem] lg:rounded-[4rem]' : 'rounded-[2rem] lg:rounded-[3rem]'} overflow-hidden transition-all duration-500" style="${glowStyle}">
+    <div id="card-${fight.id}" onclick="if(event.target.closest('button,[data-no-pick]')) return; openPickSlipFromCard('${fight.id}')" class="glass-card ${isMain ? 'rounded-[2.5rem] lg:rounded-[4rem]' : 'rounded-[2rem] lg:rounded-[3rem]'} overflow-hidden transition-all duration-500" style="${glowStyle}">
         <!-- Card Header -->
         <div class="flex items-center justify-between px-5 lg:px-10 py-3 lg:py-4 border-b border-white/10 bg-black/30">
             <div class="flex items-center gap-3">
@@ -200,8 +212,9 @@ function renderStripRow(fight) {
     const f2Last = fight.f2.name.split(' ').pop();
     const divShort = fight.division.replace(' CHAMPIONSHIP', '').replace("WOMEN'S", 'W').trim();
 
+    _fightCardCache[fight.id] = fight;
     return `
-    <div id="card-${fight.id}" onclick="openPickSlip(${JSON.stringify(fight.id)}, ${JSON.stringify(fight.f1.name + ' vs ' + fight.f2.name)}, ${JSON.stringify(fight.f1.name)}, ${fight.f1.odds || 1.9}, ${JSON.stringify(fight.f2.name)}, ${fight.f2.odds || 1.9})" class="glass-card rounded-2xl overflow-hidden transition-all duration-300 border ${glow} cursor-pointer">
+    <div id="card-${fight.id}" onclick="openPickSlipFromCard('${fight.id}')" class="glass-card rounded-2xl overflow-hidden transition-all duration-300 border ${glow} cursor-pointer">
         <!-- Thin community pick bar at top -->
         <div id="live-bar-${fight.id}" class="h-0.5 flex w-full bg-white/5">
             <div class="live-bar-left h-full transition-all duration-700" style="width:50%; background:var(--red)"></div>
@@ -256,6 +269,7 @@ function renderFightCards() {
     const container = document.getElementById('fight-cards-container');
     if (!container) return;
 
+    _fightCardCache = {};
     const fights = getActiveFights();
 
     // DB 데이터 없으면 skeleton 표시 후 fetch 트리거
