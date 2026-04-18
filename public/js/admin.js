@@ -91,7 +91,7 @@ function switchAdminTab(tab) {
     if (tab === 'fighters') renderAdminFighterList();
     if (tab === 'season') renderSeasonAdminPanel();
     if (tab === 'settings') { loadGeminiKeyToUI(); }
-    if (tab === 'ufc') { fetchPendingEvents(); fetchApprovedEvents(); }
+    if (tab === 'ufc') { fetchEventsForBuilder(); }
 }
 
 // ── Gemini API Key 관리 (어드민 설정 탭) ──
@@ -403,49 +403,6 @@ function deleteFighter(fighterId) {
     showToast(`🗑 ${f.name} 삭제됨`);
 }
 
-// ----- FIGHTER STATS SCRAPER -----
-async function scrapeFighterStats() {
-    const btn = document.getElementById('fighter-scrape-btn');
-    const log = document.getElementById('fighter-scrape-log');
-    if (!sb) { showToast('⚠ Supabase 연결 필요'); return; }
-
-    const sessionRes = await sb.auth.getSession();
-    const session = sessionRes?.data?.session;
-    if (!session?.access_token) { showToast('⚠ 어드민 로그인 필요'); return; }
-
-    btn.textContent = '⏳ 크롤링 중...';
-    btn.disabled = true;
-    log.classList.remove('hidden');
-    log.textContent = '[ UFCStats 크롤링 시작 ]\n';
-
-    const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
-    let updated = 0, skipped = 0;
-
-    for (const letter of letters) {
-        log.textContent += `→ ${letter.toUpperCase()} 처리 중...\n`;
-        log.scrollTop = log.scrollHeight;
-        try {
-            const { data, error } = await sb.functions.invoke('scrape-fighter-records', {
-                body: { letter },
-                headers: { Authorization: `Bearer ${session.access_token}` },
-            });
-            if (error) throw new Error(error.message);
-            updated += data.updated || 0;
-            skipped += data.skipped || 0;
-            log.textContent += `  ${data.updated || 0}명 업데이트, ${data.skipped || 0}명 스킵\n`;
-        } catch (e) {
-            log.textContent += `  오류: ${e.message}\n`;
-        }
-        await new Promise(r => setTimeout(r, 300)); // rate limit
-    }
-
-    log.textContent += `\n[ 완료 ] 총 ${updated}명 업데이트, ${skipped}명 스킵\n`;
-    btn.textContent = '🕷 스탯 크롤링';
-    btn.disabled = false;
-    showToast(`✅ 크롤링 완료 — ${updated}명 업데이트`);
-    renderAdminFighterList();
-}
-
 // ----- SYNC ALL FIGHTERS (kr.ufc.com) -----
 async function syncAllFighters() {
     const btn = document.getElementById('btn-sync-all-fighters');
@@ -500,6 +457,47 @@ async function syncAllFighters() {
     btn.disabled = false;
     showToast(`✅ 동기화 완료 — 신규 ${totalInserted}명 추가 / 업데이트 ${totalUpdated}명`);
     renderAdminFighterList();
+}
+
+// ----- PURGE INACTIVE FIGHTERS -----
+async function purgeInactiveFighters(dryRun = false) {
+    const btn = document.getElementById('btn-purge-inactive');
+    const log = document.getElementById('fighter-scrape-log');
+    if (!sb) { showToast('⚠ Supabase 연결 필요'); return; }
+
+    const sessionRes = await sb.auth.getSession();
+    const session = sessionRes?.data?.session;
+    if (!session?.access_token) { showToast('⚠ 어드민 로그인 필요'); return; }
+
+    if (!dryRun && !confirm('⚠ 비활성/은퇴 파이터를 DB에서 영구 삭제합니다.\n먼저 드라이런으로 확인 후 실행하세요.\n\n계속하시겠습니까?')) return;
+
+    if (btn) { btn.textContent = '⏳ 처리 중...'; btn.disabled = true; }
+    log.classList.remove('hidden');
+    log.textContent = dryRun
+        ? '[ 드라이런 ] 삭제 예정 파이터 수 확인 중...\n'
+        : '[ 비활성 파이터 삭제 시작 ] active roster 수집 후 삭제 실행\n';
+
+    try {
+        const { data, error } = await sb.functions.invoke('purge-inactive-fighters', {
+            body: { dryRun },
+            headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (error) throw new Error(error.message);
+
+        if (dryRun) {
+            log.textContent += `✅ 드라이런 완료\n활성 파이터: ${data.collected}명\n삭제 예정: ${data.wouldDelete}명\n\n실제 삭제하려면 "비활성 삭제 실행" 버튼을 누르세요.`;
+            showToast(`드라이런: ${data.wouldDelete}명 삭제 예정`);
+        } else {
+            log.textContent += `✅ 완료\n활성 파이터: ${data.collected}명 유지\n삭제됨: ${data.deleted}명`;
+            showToast(`✅ ${data.deleted}명 삭제 완료`);
+            renderAdminFighterList();
+        }
+    } catch (e) {
+        log.textContent += `❌ 오류: ${e.message}`;
+        showToast(`❌ 오류: ${e.message}`);
+    } finally {
+        if (btn) { btn.textContent = '🗑 비활성 파이터 삭제'; btn.disabled = false; }
+    }
 }
 
 // ----- RECENT FIGHTS MANAGER -----
@@ -753,265 +751,362 @@ function applyEventInfo() {
     if (dateEl) dateEl.textContent = eventInfo.date;
 }
 
-// ── UFC 이벤트 대기열 관리 ──────────────────────────────────────────
+// ── 대진표 빌더 ──────────────────────────────────────────────────────
 
-async function fetchPendingEvents() {
-    const container = document.getElementById('ufc-queue-list');
-    if (!container) return;
+var _builderState = {
+    eventId: null,
+    editingMatchupId: null,
+    redFighter: null,
+    blueFighter: null,
+    weightClass: '',
+    cardSegment: 'main',
+    sortOrder: 1,
+    searchResults: [],
+    _searchTimer: null,
+};
 
-    container.innerHTML = '<p class="oswald-sharp text-gray-600 italic text-sm uppercase tracking-widest animate-pulse py-8 text-center">Loading...</p>';
+var _builderEvents = [];
+var _builderMatchups = [];
+var _allFightersCache = [];
 
+async function fetchEventsForBuilder() {
     const { data, error } = await sb
-        .from('pending_events')
-        .select('*')
-        .eq('status', 'pending')
-        .order('event_date', { ascending: true });
-
-    if (error) {
-        container.innerHTML = `<p class="text-red-400 text-sm py-4">오류: ${escapeHtml(error.message)}</p>`;
-        return;
-    }
-
-    renderPendingEventsList(data || []);
+        .from('events')
+        .select('id, title, event_date, status')
+        .order('event_date', { ascending: false })
+        .limit(30);
+    if (error) { showToast('이벤트 로드 실패: ' + error.message); return; }
+    _builderEvents = data || [];
+    renderBuilderEventList();
 }
 
-function renderPendingEventsList(events) {
-    const container = document.getElementById('ufc-queue-list');
-    if (!container) return;
+function renderBuilderEventList() {
+    const el = document.getElementById('builder-event-list');
+    if (!el) return;
+    if (!_builderEvents.length) {
+        el.innerHTML = '<p class="text-gray-600 text-xs italic py-4 text-center">이벤트 없음</p>';
+        return;
+    }
+    el.innerHTML = _builderEvents.map(ev => {
+        const dateLabel = ev.event_date ? ev.event_date.slice(0,10) : '날짜 미정';
+        const isActive = _builderState.eventId === ev.id;
+        return `<button onclick="selectBuilderEvent('${ev.id}')"
+            class="w-full text-left px-4 py-3 rounded-xl border transition-all text-xs oswald-sharp italic uppercase tracking-widest font-black
+                   ${isActive ? 'bg-ufcRed/10 border-ufcRed text-white' : 'border-white/5 text-gray-400 hover:text-white hover:border-white/20'}">
+            <span class="block truncate">${escapeHtml(ev.title)}</span>
+            <span class="text-[10px] font-normal not-italic normal-case tracking-normal ${isActive ? 'text-red-300' : 'text-gray-600'}">${dateLabel}</span>
+        </button>`;
+    }).join('');
+}
 
-    const countEl = document.getElementById('ufc-queue-count');
-    if (countEl) countEl.textContent = events.length;
+async function selectBuilderEvent(eventId) {
+    _builderState.eventId = eventId;
+    resetBuilderForm();
+    renderBuilderEventList();
+    renderBuilderWorkspace();
+    await fetchBuilderMatchups();
+}
 
-    if (!events.length) {
-        container.innerHTML = `
-            <div class="text-center py-16">
-                <p class="oswald-sharp text-gray-600 italic text-xl uppercase tracking-widest">대기 중인 이벤트 없음</p>
-                <p class="text-gray-700 text-xs mt-2">크롤러 실행 후 다시 확인하세요</p>
-            </div>`;
+async function fetchBuilderMatchups() {
+    if (!_builderState.eventId) return;
+    const { data, error } = await sb
+        .from('matchups')
+        .select('*')
+        .eq('event_id', _builderState.eventId)
+        .order('sort_order', { ascending: true });
+    if (error) { showToast('매치업 로드 실패: ' + error.message); return; }
+    _builderMatchups = data || [];
+    renderBuilderMatchupList();
+}
+
+function renderBuilderWorkspace() {
+    const el = document.getElementById('builder-workspace');
+    if (!el) return;
+    const ev = _builderEvents.find(e => e.id === _builderState.eventId);
+    if (!ev) { el.innerHTML = ''; return; }
+    const dateLabel = ev.event_date ? new Date(ev.event_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '날짜 미정';
+    el.innerHTML = `
+        <div class="mb-4 flex items-start justify-between gap-3">
+            <div>
+                <h5 class="oswald-sharp text-lg font-black italic uppercase text-white tracking-widest leading-tight">${escapeHtml(ev.title)}</h5>
+                <p class="oswald-sharp text-ufcRed italic text-xs tracking-widest mt-0.5">${dateLabel}</p>
+            </div>
+            <button onclick="syncArchiveFighters()" class="oswald-sharp border border-blue-500/30 text-blue-400 hover:text-blue-300 font-black px-3 py-1.5 rounded-xl italic text-[10px] uppercase tracking-widest transition-all shrink-0">↻ 아카이브 동기화</button>
+        </div>
+        <!-- Fighter Search -->
+        <div class="mb-4">
+            <input id="builder-fighter-search" type="text" placeholder="파이터 이름 검색..."
+                oninput="onBuilderSearch(this.value)"
+                class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-ufcRed placeholder-gray-600 transition-colors">
+            <div id="builder-search-results" class="mt-1 space-y-1 max-h-48 overflow-y-auto"></div>
+        </div>
+        <!-- Corners -->
+        <div class="grid grid-cols-2 gap-3 mb-4">
+            <div id="builder-red-slot" onclick="clearBuilderCorner('red')" class="cursor-pointer border border-red-500/30 rounded-xl p-3 min-h-[80px] flex flex-col items-center justify-center text-center transition-all hover:border-red-500/60">
+                <p class="oswald-sharp text-red-400 italic text-[10px] uppercase tracking-widest mb-1">🔴 RED CORNER</p>
+                <p id="builder-red-name" class="oswald-sharp text-white font-black italic text-sm uppercase">—</p>
+                <p id="builder-red-record" class="text-gray-500 text-[10px] mt-0.5"></p>
+            </div>
+            <div id="builder-blue-slot" onclick="clearBuilderCorner('blue')" class="cursor-pointer border border-blue-500/30 rounded-xl p-3 min-h-[80px] flex flex-col items-center justify-center text-center transition-all hover:border-blue-500/60">
+                <p class="oswald-sharp text-blue-400 italic text-[10px] uppercase tracking-widest mb-1">🔵 BLUE CORNER</p>
+                <p id="builder-blue-name" class="oswald-sharp text-white font-black italic text-sm uppercase">—</p>
+                <p id="builder-blue-record" class="text-gray-500 text-[10px] mt-0.5"></p>
+            </div>
+        </div>
+        <!-- Bout Meta -->
+        <div class="grid grid-cols-3 gap-2 mb-4">
+            <select id="builder-segment" onchange="_builderState.cardSegment=this.value"
+                class="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-ufcRed">
+                <option value="main">메인카드</option>
+                <option value="prelim">프렐림</option>
+            </select>
+            <input id="builder-order" type="number" min="1" max="20" placeholder="순서" value="1"
+                oninput="_builderState.sortOrder=parseInt(this.value)||1"
+                class="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-ufcRed text-center">
+            <select id="builder-weight" onchange="_builderState.weightClass=this.value"
+                class="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-ufcRed">
+                <option value="">체급 선택</option>
+                <option value="hw">헤비급</option>
+                <option value="lhw">라이트헤비급</option>
+                <option value="mw">미들급</option>
+                <option value="ww">웰터급</option>
+                <option value="lw">라이트급</option>
+                <option value="fw">페더급</option>
+                <option value="bw">밴텀급</option>
+                <option value="flw">플라이급</option>
+                <option value="wmw">여자 스트로급</option>
+                <option value="wfw">여자 플라이급</option>
+                <option value="wbw">여자 밴텀급</option>
+            </select>
+        </div>
+        <!-- Save -->
+        <div class="flex gap-2">
+            <button onclick="saveBuilderMatchup()"
+                class="flex-1 oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black italic uppercase text-sm px-6 py-2.5 rounded-xl tracking-widest transition-all hover:shadow-[0_0_16px_rgba(232,0,13,0.4)]">
+                💾 저장
+            </button>
+            <button onclick="resetBuilderForm()"
+                class="oswald-sharp border border-white/10 text-gray-400 hover:text-white font-black italic uppercase text-sm px-4 py-2.5 rounded-xl tracking-widest transition-all">
+                초기화
+            </button>
+        </div>
+        <!-- Existing matchups -->
+        <div class="mt-6 border-t border-white/5 pt-4">
+            <p class="oswald-sharp text-xs italic uppercase tracking-widest text-gray-500 mb-3">등록된 대진표</p>
+            <div id="builder-matchup-list" class="space-y-2"></div>
+        </div>`;
+}
+
+function onBuilderSearch(query) {
+    clearTimeout(_builderState._searchTimer);
+    _builderState.searchQuery = query;
+    if (!query.trim()) {
+        document.getElementById('builder-search-results').innerHTML = '';
+        return;
+    }
+    _builderState._searchTimer = setTimeout(() => runBuilderSearch(query), 250);
+}
+
+async function runBuilderSearch(query) {
+    const resultsEl = document.getElementById('builder-search-results');
+    if (!resultsEl) return;
+    const q = query.trim().toLowerCase();
+    if (!q) { resultsEl.innerHTML = ''; return; }
+
+    // Use cached fighters or fetch
+    if (!_allFightersCache.length) {
+        const { data } = await sb.from('fighters').select('id, name, name_en, division, wins, losses, draws, image_url').limit(5000);
+        _allFightersCache = data || [];
+    }
+
+    const hits = _allFightersCache.filter(f =>
+        (f.name || '').toLowerCase().includes(q) ||
+        (f.name_en || '').toLowerCase().includes(q)
+    ).slice(0, 8);
+
+    if (!hits.length) {
+        resultsEl.innerHTML = '<p class="text-gray-600 text-xs italic py-2 px-3">검색 결과 없음</p>';
         return;
     }
 
-    container.innerHTML = events.map(ev => `
-        <div class="glass-card rounded-2xl px-5 py-4 flex items-center gap-4 border border-white/5 hover:border-ufcRed/20 transition-all">
+    resultsEl.innerHTML = hits.map(f => `
+        <div class="flex items-center gap-3 px-3 py-2 rounded-xl border border-white/5 bg-black/30 hover:border-white/20 transition-all">
+            ${f.image_url ? `<img src="${escapeHtml(f.image_url)}" class="w-8 h-8 rounded-full object-cover object-top bg-zinc-800 shrink-0">` : '<div class="w-8 h-8 rounded-full bg-zinc-800 shrink-0"></div>'}
             <div class="flex-1 min-w-0">
-                <p class="oswald-sharp text-white font-black italic uppercase text-sm lg:text-base leading-tight">${escapeHtml(ev.title)}</p>
-                <p class="oswald-sharp text-ufcRed italic text-xs mt-1 tracking-widest">${ev.event_date || '날짜 미정'}</p>
-                ${ev.source_url ? `<a href="${escapeHtml(ev.source_url)}" target="_blank" rel="noopener noreferrer" class="text-gray-600 text-[10px] hover:text-gray-400 transition-colors truncate block mt-0.5">${escapeHtml(ev.source_url)}</a>` : ''}
+                <p class="oswald-sharp text-white font-black italic text-xs uppercase truncate">${escapeHtml(f.name || f.name_en)}</p>
+                <p class="text-gray-500 text-[10px]">${f.wins || 0}-${f.losses || 0}-${f.draws || 0}</p>
             </div>
-            <div class="flex gap-2 shrink-0">
-                <button onclick="approveEvent('${ev.id}', ${JSON.stringify(ev.title).replace(/"/g,'&quot;')}, ${JSON.stringify(ev.event_date || '').replace(/"/g,'&quot;')}, ${JSON.stringify(ev.source_url || '').replace(/"/g,'&quot;')})"
-                    class="oswald-sharp bg-ufcRed text-white font-black italic uppercase text-[11px] px-4 py-2 rounded-xl tracking-widest hover:shadow-[0_0_16px_rgba(232,0,13,0.5)] transition-all">
-                    APPROVE
-                </button>
-                <button onclick="rejectPendingEvent('${ev.id}')"
-                    class="oswald-sharp bg-zinc-800 text-gray-400 font-black italic uppercase text-[11px] px-4 py-2 rounded-xl tracking-widest hover:bg-zinc-700 hover:text-white transition-all">
-                    REJECT
-                </button>
+            <div class="flex gap-1 shrink-0">
+                <button onclick="setBuilderCorner('red', ${JSON.stringify(JSON.stringify(f)).slice(1,-1)})"
+                    class="oswald-sharp bg-red-900/60 hover:bg-red-700 text-red-300 hover:text-white font-black italic text-[10px] px-2 py-1 rounded-lg tracking-widest transition-all">RED</button>
+                <button onclick="setBuilderCorner('blue', ${JSON.stringify(JSON.stringify(f)).slice(1,-1)})"
+                    class="oswald-sharp bg-blue-900/60 hover:bg-blue-700 text-blue-300 hover:text-white font-black italic text-[10px] px-2 py-1 rounded-lg tracking-widest transition-all">BLUE</button>
             </div>
         </div>
     `).join('');
 }
 
-async function approveEvent(id, title, dateStr, sourceUrl) {
-    const cleanTitle = (title || '').replace(/\s+/g, ' ').trim();
-    if (!confirm(`"${cleanTitle}" 이벤트를 승인할까요?`)) return;
-
-    // events 테이블 INSERT (pending_events.event_date는 'YYYY-MM-DD' TEXT)
-    const eventDate = dateStr ? new Date(dateStr + 'T00:00:00Z').toISOString() : null;
-    const { error: insertErr } = await sb
-        .from('events')
-        .insert({ title: cleanTitle, event_date: eventDate, status: 'upcoming', source_url: sourceUrl || null });
-
-    if (insertErr) {
-        showToast('❌ events INSERT 실패: ' + insertErr.message);
-        return;
-    }
-
-    // pending_events status → 'approved'
-    const { error: updateErr } = await sb
-        .from('pending_events')
-        .update({ status: 'approved' })
-        .eq('id', id);
-
-    if (updateErr) {
-        showToast('⚠ pending UPDATE 실패: ' + updateErr.message);
-        return;
-    }
-
-    // archive_events에도 upcoming으로 추가 (archive.js 함수)
-    if (typeof approveToArchive === 'function') {
-        await approveToArchive(id, cleanTitle, dateStr, sourceUrl);
-    }
-
-    showToast('✅ 이벤트 승인 완료: ' + title);
-    fetchPendingEvents();
-    fetchApprovedEvents();
+function setBuilderCorner(corner, fighterJson) {
+    const f = JSON.parse(fighterJson);
+    _builderState[corner + 'Fighter'] = f;
+    const nameEl = document.getElementById(`builder-${corner}-name`);
+    const recordEl = document.getElementById(`builder-${corner}-record`);
+    if (nameEl) nameEl.textContent = f.name || f.name_en;
+    if (recordEl) recordEl.textContent = `${f.wins||0}-${f.losses||0}-${f.draws||0}`;
 }
 
-// ── 승인된 이벤트 + 대진표 크롤링 ───────────────────────────────────
-
-async function fetchApprovedEvents() {
-    const container = document.getElementById('ufc-approved-list');
-    if (!container) return;
-
-    container.innerHTML = '<p class="oswald-sharp text-gray-600 italic text-sm uppercase tracking-widest animate-pulse py-6 text-center">Loading...</p>';
-
-    const { data, error } = await sb
-        .from('events')
-        .select('id, title, event_date, source_url, status')
-        .eq('status', 'upcoming')
-        .order('event_date', { ascending: true });
-
-    if (error) {
-        container.innerHTML = `<p class="text-red-400 text-sm py-4">오류: ${escapeHtml(error.message)}</p>`;
-        return;
-    }
-
-    renderApprovedEventsList(data || []);
+function clearBuilderCorner(corner) {
+    _builderState[corner + 'Fighter'] = null;
+    const nameEl = document.getElementById(`builder-${corner}-name`);
+    const recordEl = document.getElementById(`builder-${corner}-record`);
+    if (nameEl) nameEl.textContent = '—';
+    if (recordEl) recordEl.textContent = '';
 }
 
-function renderApprovedEventsList(events) {
-    const container = document.getElementById('ufc-approved-list');
-    if (!container) return;
+function resetBuilderForm() {
+    _builderState.editingMatchupId = null;
+    _builderState.redFighter = null;
+    _builderState.blueFighter = null;
+    _builderState.weightClass = '';
+    _builderState.cardSegment = 'main';
+    _builderState.sortOrder = 1;
+    ['builder-red-name','builder-blue-name'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '—'; });
+    ['builder-red-record','builder-blue-record'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
+    ['builder-fighter-search','builder-search-results'].forEach(id => { const el = document.getElementById(id); if (el) el.value !== undefined ? el.value = '' : el.innerHTML = ''; });
+}
 
-    const countEl = document.getElementById('ufc-approved-count');
-    if (countEl) countEl.textContent = events.length;
+async function saveBuilderMatchup() {
+    const { eventId, redFighter, blueFighter, weightClass, cardSegment, sortOrder, editingMatchupId } = _builderState;
+    if (!eventId) { showToast('⚠ 이벤트를 먼저 선택하세요'); return; }
+    if (!redFighter || !blueFighter) { showToast('⚠ 레드/블루 코너를 모두 선택하세요'); return; }
+    if (redFighter.id === blueFighter.id) { showToast('⚠ 같은 파이터를 양쪽에 선택했습니다'); return; }
 
-    if (!events.length) {
-        container.innerHTML = `
-            <div class="text-center py-10">
-                <p class="oswald-sharp text-gray-700 italic text-base uppercase tracking-widest">승인된 이벤트 없음</p>
-                <p class="text-gray-700 text-xs mt-1">대기열에서 이벤트를 승인하세요</p>
-            </div>`;
-        return;
+    const row = {
+        event_id: eventId,
+        red_fighter_id: redFighter.id,
+        blue_fighter_id: blueFighter.id,
+        red_fighter_name: redFighter.name || redFighter.name_en,
+        blue_fighter_name: blueFighter.name || blueFighter.name_en,
+        red_image_url: redFighter.image_url || null,
+        blue_image_url: blueFighter.image_url || null,
+        weight_class: weightClass || null,
+        card_segment: cardSegment,
+        sort_order: sortOrder,
+        is_main_event: (cardSegment === 'main' && sortOrder === 1),
+    };
+
+    let err;
+    if (editingMatchupId) {
+        const res = await sb.from('matchups').update(row).eq('id', editingMatchupId);
+        err = res.error;
+    } else {
+        const res = await sb.from('matchups').insert(row);
+        err = res.error;
     }
 
-    container.innerHTML = events.map(ev => {
-        const dateLabel = ev.event_date
-            ? new Date(ev.event_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
-            : '날짜 미정';
-        const hasUrl = !!ev.source_url;
+    if (err) { showToast('❌ 저장 실패: ' + err.message); return; }
+    showToast(editingMatchupId ? '✅ 매치업 수정 완료' : '✅ 매치업 추가 완료');
+    resetBuilderForm();
+    await fetchBuilderMatchups();
+}
 
-        return `
-        <div class="glass-card rounded-2xl px-5 py-4 border border-white/5 hover:border-emerald-500/20 transition-all" id="approved-row-${ev.id}">
-            <div class="flex items-center gap-4">
-                <div class="flex-1 min-w-0">
-                    <p class="oswald-sharp text-white font-black italic uppercase text-sm leading-tight">${escapeHtml(ev.title)}</p>
-                    <p class="oswald-sharp text-emerald-400 italic text-xs mt-1 tracking-widest">${dateLabel}</p>
-                </div>
-                <div class="flex gap-2 shrink-0">
-                    <button onclick="crawlMatchups('${ev.id}', ${JSON.stringify(ev.source_url || '').replace(/"/g,'&quot;')})"
-                        ${hasUrl ? '' : 'disabled'}
-                        class="oswald-sharp font-black italic uppercase text-[11px] px-4 py-2 rounded-xl tracking-widest transition-all
-                               ${hasUrl
-                                   ? 'bg-emerald-600 text-white hover:bg-emerald-500 hover:shadow-[0_0_14px_rgba(52,211,153,0.4)]'
-                                   : 'bg-zinc-800 text-gray-600 cursor-not-allowed'}">
-                        대진표 크롤링
-                    </button>
-                </div>
+function renderBuilderMatchupList() {
+    const el = document.getElementById('builder-matchup-list');
+    if (!el) return;
+    if (!_builderMatchups.length) {
+        el.innerHTML = '<p class="text-gray-700 text-xs italic py-4 text-center">등록된 대진표 없음</p>';
+        return;
+    }
+    const main = _builderMatchups.filter(m => m.card_segment === 'main');
+    const prelim = _builderMatchups.filter(m => m.card_segment !== 'main');
+    const renderGroup = (label, fights) => fights.length ? `
+        <p class="oswald-sharp text-[10px] italic uppercase tracking-widest text-gray-600 mt-3 mb-1">${label}</p>
+        ${fights.map(m => `
+        <div class="flex items-center gap-3 px-3 py-2 rounded-xl border border-white/5 bg-black/20">
+            <span class="oswald-sharp text-gray-500 text-[10px] italic w-4 shrink-0">${m.sort_order||'?'}</span>
+            <p class="flex-1 oswald-sharp text-white font-black italic text-xs uppercase truncate">
+                <span class="text-red-400">${escapeHtml(m.red_fighter_name||'?')}</span>
+                <span class="text-gray-500 mx-1">vs</span>
+                <span class="text-blue-400">${escapeHtml(m.blue_fighter_name||'?')}</span>
+            </p>
+            <div class="flex gap-1 shrink-0">
+                <button onclick="editBuilderMatchup('${m.id}')" class="text-gray-500 hover:text-white text-[10px] px-2 py-1 rounded-lg hover:bg-white/10 transition-all">✏</button>
+                <button onclick="deleteBuilderMatchup('${m.id}')" class="text-gray-500 hover:text-red-400 text-[10px] px-2 py-1 rounded-lg hover:bg-red-500/10 transition-all">🗑</button>
             </div>
-            ${!hasUrl ? `
-            <div class="mt-3 flex gap-2 items-center">
-                <input type="text" id="url-input-${ev.id}" placeholder="Sherdog URL 직접 입력 (예: https://www.sherdog.com/events/...)"
-                    class="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-emerald-500 placeholder-gray-700">
-                <button onclick="crawlMatchupsWithInput('${ev.id}')"
-                    class="oswald-sharp bg-emerald-600 text-white font-black italic uppercase text-[11px] px-4 py-2 rounded-xl tracking-widest hover:bg-emerald-500 transition-all shrink-0">
-                    GO
-                </button>
-            </div>` : ''}
-        </div>`;
-    }).join('');
+        </div>`).join('')}` : '';
+    el.innerHTML = renderGroup('메인카드', main) + renderGroup('프렐림', prelim);
 }
 
-async function crawlMatchups(eventId, sourceUrl) {
-    if (!sourceUrl) { showToast('⚠ source_url이 없습니다'); return; }
+async function deleteBuilderMatchup(id) {
+    if (!confirm('이 대진표를 삭제할까요?')) return;
+    const { error } = await sb.from('matchups').delete().eq('id', id);
+    if (error) { showToast('❌ 삭제 실패: ' + error.message); return; }
+    showToast('🗑 삭제 완료');
+    await fetchBuilderMatchups();
+}
 
-    const btn = document.querySelector(`#approved-row-${eventId} button`);
-    if (btn) { btn.disabled = true; btn.textContent = '크롤링 중...'; }
+function editBuilderMatchup(id) {
+    const m = _builderMatchups.find(x => x.id === id);
+    if (!m) return;
+    _builderState.editingMatchupId = id;
+    // Populate corners from snapshot data (fighter FK might be null for old rows)
+    if (m.red_fighter_id) {
+        const rf = _allFightersCache.find(f => f.id === m.red_fighter_id);
+        if (rf) setBuilderCorner('red', JSON.stringify(rf));
+    }
+    if (m.blue_fighter_id) {
+        const bf = _allFightersCache.find(f => f.id === m.blue_fighter_id);
+        if (bf) setBuilderCorner('blue', JSON.stringify(bf));
+    }
+    const segEl = document.getElementById('builder-segment');
+    const orderEl = document.getElementById('builder-order');
+    const weightEl = document.getElementById('builder-weight');
+    if (segEl) segEl.value = m.card_segment || 'main';
+    if (orderEl) orderEl.value = m.sort_order || 1;
+    if (weightEl) weightEl.value = m.weight_class || '';
+    _builderState.cardSegment = m.card_segment || 'main';
+    _builderState.sortOrder = m.sort_order || 1;
+    _builderState.weightClass = m.weight_class || '';
+    showToast('✏ 수정 모드');
+}
 
-    try {
-        const sessionRes = await sb.auth.getSession();
-        const session = sessionRes && sessionRes.data ? sessionRes.data.session : null;
-        if (!session || !session.access_token) throw new Error('Admin session not ready. Please sign in again.');
-
-        const { data, error } = await sb.functions.invoke('scrape-matchups', {
-            body: { event_id: eventId, source_url: sourceUrl },
-            headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-
-        if (error) {
-            let message = error.message;
-            if (error.context && typeof error.context.json === 'function') {
-                try {
-                    const payload = await error.context.json();
-                    if (payload && payload.error) message = payload.error;
-                } catch (_) {}
-            }
-            throw new Error(message);
-        }
-        if (!data.success) throw new Error(data.error || '파싱 실패');
-
-        showToast(`✅ ${data.inserted}개의 매치업이 로드되었습니다!`);
-        _dbMatchups = [];
-        if (typeof fetchUpcomingMatchups === 'function') fetchUpcomingMatchups();
-        fetchApprovedEvents();
-    } catch (e) {
-        showToast('❌ 크롤링 실패: ' + e.message);
-        if (btn) { btn.disabled = false; btn.textContent = '대진표 크롤링'; }
+// ----- ARCHIVE SYNC -----
+function syncArchiveFighters() {
+    if (typeof fighterArchiveDB !== 'undefined') fighterArchiveDB = [];
+    if (typeof fetchFighterArchive === 'function') {
+        fetchFighterArchive();
+        showToast('✅ 아카이브 파이터 목록 새로고침');
+    } else {
+        showToast('⚠ 아카이브 로더를 찾을 수 없습니다');
     }
 }
 
-async function crawlMatchupsWithInput(eventId) {
-    const input = document.getElementById(`url-input-${eventId}`);
-    const sourceUrl = input ? input.value.trim() : '';
-    console.log('[crawlMatchupsWithInput] eventId:', eventId, 'sourceUrl:', sourceUrl);
-    if (!sourceUrl) { showToast('⚠ URL을 입력해주세요'); return; }
-    await crawlMatchups(eventId, sourceUrl);
+// ----- ADD EVENT MODAL -----
+function openAddEventModal() {
+    const modal = document.getElementById('add-event-modal');
+    if (modal) modal.classList.remove('hidden');
 }
 
-async function runUfcCrawler() {
-    const btn = document.getElementById('btn-run-crawler');
-    if (btn) { btn.disabled = true; btn.textContent = '실행 중...'; }
-    try {
-        const sessionRes = await sb.auth.getSession();
-        const session = sessionRes && sessionRes.data ? sessionRes.data.session : null;
-        if (!session || !session.access_token) throw new Error('Admin session not ready. Please sign in again.');
+async function saveNewEvent() {
+    const titleEl = document.getElementById('new-event-title');
+    const dateEl = document.getElementById('new-event-date');
+    const title = (titleEl?.value || '').trim();
+    const dateVal = dateEl?.value || '';
+    if (!title) { showToast('⚠ 이벤트 이름을 입력하세요'); return; }
 
-        const { data, error } = await sb.functions.invoke('ufc-crawler', {
-            body: {},
-            headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        console.log('[runUfcCrawler] data:', data, 'error:', error);
-        if (error) {
-            let message = error.message;
-            if (error.context && typeof error.context.json === 'function') {
-                try {
-                    const payload = await error.context.json();
-                    if (payload && payload.error) message = payload.error;
-                } catch (_) {}
-            }
-            throw new Error(message);
-        }
-        const count = data?.inserted ?? data?.count ?? '?';
-        showToast(`✅ 크롤러 완료 — ${count}개 이벤트 수집`);
-        fetchPendingEvents();
-    } catch (e) {
-        console.error('[runUfcCrawler]', e);
-        showToast('❌ 크롤러 실패: ' + e.message);
-    } finally {
-        if (btn) { btn.disabled = false; btn.textContent = '🕷 크롤러 실행'; }
-    }
-}
+    const eventDate = dateVal ? new Date(dateVal + 'T00:00:00Z').toISOString() : null;
+    const { data, error } = await sb.from('events').insert({
+        title,
+        event_date: eventDate,
+        status: 'upcoming',
+    }).select('id').single();
 
-async function rejectPendingEvent(id) {
-    if (!confirm('이 이벤트를 거절(Reject) 처리할까요?')) return;
+    if (error) { showToast('❌ 저장 실패: ' + error.message); return; }
 
-    const { error } = await sb
-        .from('pending_events')
-        .update({ status: 'rejected' })
-        .eq('id', id);
-
-    if (error) { showToast('❌ 거절 처리 실패: ' + error.message); return; }
-    showToast('🗑 이벤트 거절 처리 완료');
-    fetchPendingEvents();
+    showToast('✅ 이벤트 추가 완료');
+    document.getElementById('add-event-modal').classList.add('hidden');
+    if (titleEl) titleEl.value = '';
+    if (dateEl) dateEl.value = '';
+    await fetchEventsForBuilder();
+    if (data?.id) selectBuilderEvent(data.id);
 }

@@ -1562,7 +1562,7 @@ textarea, select {
             <button onclick="switchAdminTab('news')" id="admin-tab-news" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">📰 뉴스 관리</button>
             <button onclick="switchAdminTab('season')" id="admin-tab-season" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">🏆 시즌 관리</button>
             <button onclick="switchAdminTab('event')" id="admin-tab-event" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">🏟 이벤트 정보</button>
-            <button onclick="switchAdminTab('ufc')" id="admin-tab-ufc" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">🕷 UFC 대기열</button>
+            <button onclick="switchAdminTab('ufc')" id="admin-tab-ufc" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">📋 대진표 관리</button>
             <button onclick="switchAdminTab('settings')" id="admin-tab-settings" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">⚙ 설정</button>
         </div>
 
@@ -1574,8 +1574,9 @@ textarea, select {
                     <p class="text-gray-400 oswald-sharp text-xs lg:text-sm italic uppercase tracking-widest">등록된 파이터 <span id="fighter-count" class="text-white font-black">0</span>명</p>
                     <div class="flex gap-2">
                         <button onclick="renderAdminFighterList()" class="oswald-sharp border border-white/10 text-gray-400 hover:text-white font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">↻ 새로고침</button>
-                        <button onclick="scrapeFighterStats()" id="fighter-scrape-btn" class="oswald-sharp border border-blue-500/30 text-blue-400 hover:text-blue-300 hover:border-blue-400 font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">🕷 스탯 크롤링</button>
                         <button onclick="syncAllFighters()" id="btn-sync-all-fighters" class="oswald-sharp border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 hover:border-emerald-400 font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">🌐 전체 파이터 동기화</button>
+                        <button onclick="purgeInactiveFighters(true)" class="oswald-sharp border border-yellow-500/30 text-yellow-400 hover:text-yellow-300 hover:border-yellow-400 font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">🔍 드라이런</button>
+                        <button onclick="purgeInactiveFighters(false)" id="btn-purge-inactive" class="oswald-sharp border border-red-500/30 text-red-400 hover:text-red-300 hover:border-red-400 font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">🗑 비활성 파이터 삭제</button>
                         <button onclick="openFighterModal()" class="oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black px-6 lg:px-10 py-2 rounded-xl italic text-xs lg:text-sm uppercase tracking-widest transition-all">+ 파이터 추가</button>
                     </div>
                 </div>
@@ -1733,44 +1734,58 @@ textarea, select {
             </div>
         </div>
 
-        <!-- TAB: UFC 이벤트 대기열 -->
+        <!-- TAB: 대진표 관리 -->
         <div id="admin-panel-ufc" class="hidden">
-            <div class="glass-card rounded-[2rem] p-6 lg:p-10 space-y-5 bg-zinc-900/60">
-                <!-- 헤더 -->
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h4 class="oswald-sharp text-xl font-black italic uppercase text-white tracking-widest">UFC 이벤트 대기열</h4>
-                        <p class="text-gray-500 text-xs mt-1">크롤러가 수집한 이벤트 · 승인 시 <span class="text-ufcRed italic">events</span> 테이블에 등록됩니다</p>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <span class="oswald-sharp text-gray-600 italic text-xs uppercase tracking-widest">대기 <span id="ufc-queue-count" class="text-white font-black">–</span>건</span>
-                        <button onclick="fetchPendingEvents()"
-                            class="oswald-sharp bg-zinc-800 text-gray-300 font-black italic uppercase text-xs px-4 py-2 rounded-xl tracking-widest hover:bg-zinc-700 hover:text-white transition-all">
-                            ↺ 새로고침
+            <div class="glass-card rounded-[2rem] p-4 lg:p-8 bg-zinc-900/60">
+                <div class="flex items-center justify-between mb-5">
+                    <h4 class="oswald-sharp text-xl font-black italic uppercase text-white tracking-widest">대진표 관리</h4>
+                    <div class="flex gap-2">
+                        <button onclick="openAddEventModal()"
+                            class="oswald-sharp border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">
+                            + 이벤트 추가
                         </button>
-                        <button id="btn-run-crawler" onclick="runUfcCrawler()"
-                            class="oswald-sharp bg-ufcRed text-white font-black italic uppercase text-xs px-4 py-2 rounded-xl tracking-widest hover:shadow-[0_0_16px_rgba(232,0,13,0.5)] transition-all">
-                            🕷 크롤러 실행
+                        <button onclick="fetchEventsForBuilder()"
+                            class="oswald-sharp border border-white/10 text-gray-400 hover:text-white font-black px-3 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">
+                            ↻
                         </button>
                     </div>
                 </div>
-                <!-- 대기열 리스트 -->
-                <div id="ufc-queue-list" class="space-y-3">
-                    <p class="oswald-sharp text-gray-700 italic text-sm uppercase tracking-widest text-center py-8">탭을 열면 자동으로 로드됩니다</p>
-                </div>
-
-                <!-- 구분선 -->
-                <div class="border-t border-white/5 pt-6 mt-2">
-                    <div class="flex items-center justify-between mb-4">
-                        <div>
-                            <h5 class="oswald-sharp text-base font-black italic uppercase text-emerald-400 tracking-widest">승인된 이벤트 (Upcoming)</h5>
-                            <p class="text-gray-600 text-xs mt-0.5">대진표 크롤링 버튼으로 <span class="text-emerald-500 italic">matchups</span> 테이블에 저장합니다</p>
+                <div class="flex flex-col lg:flex-row gap-4">
+                    <!-- 이벤트 목록 -->
+                    <div class="lg:w-1/3 shrink-0">
+                        <p class="oswald-sharp text-gray-600 italic text-[10px] uppercase tracking-widest mb-2">이벤트 선택</p>
+                        <div id="builder-event-list" class="space-y-1.5 max-h-[70vh] overflow-y-auto pr-1">
+                            <p class="text-gray-600 text-xs italic py-4 text-center">로딩 중...</p>
                         </div>
-                        <span class="oswald-sharp text-gray-600 italic text-xs uppercase tracking-widest">총 <span id="ufc-approved-count" class="text-white font-black">–</span>건</span>
                     </div>
-                    <div id="ufc-approved-list" class="space-y-3">
-                        <p class="oswald-sharp text-gray-700 italic text-sm uppercase tracking-widest text-center py-6">로딩 대기 중...</p>
+                    <!-- 빌더 워크스페이스 -->
+                    <div class="flex-1 min-w-0">
+                        <div id="builder-workspace">
+                            <div class="flex items-center justify-center h-40">
+                                <p class="oswald-sharp text-gray-700 italic text-sm uppercase tracking-widest">← 이벤트를 선택하세요</p>
+                            </div>
+                        </div>
                     </div>
+                </div>
+            </div>
+        </div>
+        <!-- Add Event Modal -->
+        <div id="add-event-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div class="glass-card rounded-[2rem] p-8 w-full max-w-md bg-zinc-900/90 space-y-4">
+                <h5 class="oswald-sharp text-lg font-black italic uppercase text-white tracking-widest">이벤트 추가</h5>
+                <input id="new-event-title" type="text" placeholder="이벤트 이름 (예: UFC 328)"
+                    class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed placeholder-gray-600">
+                <input id="new-event-date" type="date"
+                    class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed">
+                <div class="flex gap-3 pt-2">
+                    <button onclick="saveNewEvent()"
+                        class="flex-1 oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black italic uppercase text-sm px-6 py-2.5 rounded-xl tracking-widest transition-all">
+                        저장
+                    </button>
+                    <button onclick="document.getElementById('add-event-modal').classList.add('hidden')"
+                        class="oswald-sharp border border-white/10 text-gray-400 hover:text-white font-black italic uppercase text-sm px-4 py-2.5 rounded-xl tracking-widest transition-all">
+                        취소
+                    </button>
                 </div>
             </div>
         </div>
