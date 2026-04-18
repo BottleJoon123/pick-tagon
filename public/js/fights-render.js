@@ -77,10 +77,10 @@ function renderHeroCard(fight, idx) {
     const f1Img = fight.f1.imgUrl || '';
     const f2Img = fight.f2.imgUrl || '';
     const f1BgStyle = f1Img
-        ? `background-image:url('${f1Img}'); background-size:cover; background-position:center top;`
+        ? `background-image:url('${f1Img}'); background-size:cover; background-position:center 15%;`
         : 'background:linear-gradient(135deg,#1a0000,#0a0a0a);';
     const f2BgStyle = f2Img
-        ? `background-image:url('${f2Img}'); background-size:cover; background-position:center top;`
+        ? `background-image:url('${f2Img}'); background-size:cover; background-position:center 15%;`
         : 'background:linear-gradient(225deg,#00001a,#0a0a0a);';
 
     _fightCardCache[fight.id] = fight;
@@ -93,7 +93,6 @@ function renderHeroCard(fight, idx) {
                 <span class="oswald-sharp text-[8px] lg:text-xs text-gray-500 font-black italic tracking-widest uppercase">${fight.division}</span>
             </div>
             <div class="flex items-center gap-2 lg:gap-3">
-                <div id="live-total-${fight.id}" class="barlow text-[10px] font-bold italic text-gray-600 uppercase tracking-widest"></div>
                 <button onclick="toggleStatsOverlay('${fight.id}')"
                     class="oswald-sharp text-[8px] lg:text-[10px] text-gray-400 hover:text-white transition font-black italic uppercase tracking-widest border border-white/15 px-2.5 py-1 rounded-full">ℹ️ STATS</button>
                 <button onclick="toggleAnalysis('${fight.id}')" id="analysis-btn-${fight.id}"
@@ -104,20 +103,21 @@ function renderHeroCard(fight, idx) {
         </div>
 
         <!-- Community Pick Bar -->
-        <div class="px-5 lg:px-10 py-2.5 bg-black/20 border-b border-white/5">
-            <div class="flex items-center justify-between mb-1.5">
-                <span id="live-pct-l-${fight.id}" class="barlow text-[10px] font-black italic text-red-400 uppercase">${f1Last} 0%</span>
-                <span class="barlow text-[9px] font-bold italic text-gray-700 uppercase tracking-widest">커뮤니티 픽</span>
-                <span id="live-pct-r-${fight.id}" class="barlow text-[10px] font-black italic text-blue-400 uppercase">${f2Last} 0%</span>
+        <div class="px-5 lg:px-10 py-4 bg-black/20 border-b border-white/5">
+            <div class="flex items-center justify-between mb-2">
+                <span id="live-pct-l-${fight.id}" class="barlow text-sm font-black italic text-red-400 uppercase">${f1Last} 0%</span>
+                <span class="barlow text-[10px] font-bold italic text-gray-600 uppercase tracking-widest">커뮤니티 픽</span>
+                <span id="live-pct-r-${fight.id}" class="barlow text-sm font-black italic text-blue-400 uppercase">${f2Last} 0%</span>
             </div>
-            <div id="live-bar-${fight.id}" class="h-1.5 rounded-full overflow-hidden flex bg-white/5">
+            <div id="live-bar-${fight.id}" class="h-3 rounded-full overflow-hidden flex bg-white/5">
                 <div class="live-bar-left h-full rounded-l-full transition-all duration-700" style="width:50%; background:var(--red)"></div>
                 <div class="live-bar-right h-full rounded-r-full transition-all duration-700" style="width:50%; background:#2563eb"></div>
             </div>
+            <div id="live-total-${fight.id}" class="barlow text-[10px] font-bold italic text-gray-600 uppercase tracking-widest text-center mt-1.5"></div>
         </div>
 
         <!-- Hero Face-off Area -->
-        <div class="relative overflow-hidden" style="min-height:${isMain ? '300px' : '260px'}">
+        <div class="relative overflow-hidden" style="min-height:${isMain ? '380px' : '320px'}">
             <!-- F1 Background -->
             <div class="absolute inset-y-0 left-0 w-1/2"
                 style="${f1BgStyle} -webkit-mask-image:linear-gradient(to right,rgba(0,0,0,0.95) 30%,transparent 100%); mask-image:linear-gradient(to right,rgba(0,0,0,0.95) 30%,transparent 100%);"></div>
@@ -142,14 +142,14 @@ function renderHeroCard(fight, idx) {
                 <div class="flex gap-1 mb-1.5">${renderDotForm(fight.f1.recent)}</div>
                 <h4 data-no-pick="1" onclick="openFighterProfile(${JSON.stringify(fight.f1).replace(/\"/g, '&quot;')})"
                     class="oswald-sharp ${isMain ? 'text-xl lg:text-3xl' : 'text-lg lg:text-2xl'} font-black italic uppercase tracking-tighter leading-tight text-white cursor-pointer hover:text-ufcRed transition mb-1">${fight.f1.name}</h4>
-                ${fight.f1.odds ? `<p class="oswald-sharp text-[9px] text-ufcRed italic font-bold tracking-widest mb-3">ODDS ${fight.f1.odds} &nbsp;·&nbsp; +${Math.round(fight.f1.odds * 100)}P</p>` : '<p class="oswald-sharp text-[9px] text-ufcRed italic font-bold tracking-widest mb-3">TAP TO PICK</p>'}
+                ${fight.f1.odds ? `<p class="oswald-sharp text-xs text-ufcRed italic font-bold tracking-widest mb-3">ODDS ${fight.f1.odds} &nbsp;·&nbsp; +${Math.round(fight.f1.odds * 100)}P</p>` : '<p class="oswald-sharp text-[9px] text-ufcRed italic font-bold tracking-widest mb-3">TAP TO PICK ›</p>'}
             </div>
             <!-- F2 Info (bottom-right) -->
             <div class="absolute bottom-0 right-0 w-[48%] p-4 lg:p-6 z-20 text-right">
                 <div class="flex gap-1 mb-1.5 justify-end">${renderDotForm(fight.f2.recent)}</div>
                 <h4 data-no-pick="1" onclick="openFighterProfile(${JSON.stringify(fight.f2).replace(/\"/g, '&quot;')})"
                     class="oswald-sharp ${isMain ? 'text-xl lg:text-3xl' : 'text-lg lg:text-2xl'} font-black italic uppercase tracking-tighter leading-tight text-white cursor-pointer hover:text-ufcBlue transition mb-1">${fight.f2.name}</h4>
-                ${fight.f2.odds ? `<p class="oswald-sharp text-[9px] text-ufcBlue italic font-bold tracking-widest mb-3">ODDS ${fight.f2.odds} &nbsp;·&nbsp; +${Math.round(fight.f2.odds * 100)}P</p>` : '<p class="oswald-sharp text-[9px] text-ufcBlue italic font-bold tracking-widest mb-3">TAP TO PICK</p>'}
+                ${fight.f2.odds ? `<p class="oswald-sharp text-xs text-ufcBlue italic font-bold tracking-widest mb-3">ODDS ${fight.f2.odds} &nbsp;·&nbsp; +${Math.round(fight.f2.odds * 100)}P</p>` : '<p class="oswald-sharp text-[9px] text-ufcBlue italic font-bold tracking-widest mb-3">TAP TO PICK ›</p>'}
             </div>
         </div>
 
@@ -212,21 +212,26 @@ function renderStripRow(fight) {
     const f2Last = fight.f2.name.split(' ').pop();
     const divShort = fight.division.replace(' CHAMPIONSHIP', '').replace("WOMEN'S", 'W').trim();
 
+    const f1Img = fight.f1.imgUrl || '';
+    const f2Img = fight.f2.imgUrl || '';
+
     _fightCardCache[fight.id] = fight;
     return `
     <div id="card-${fight.id}" onclick="openPickSlipFromCard('${fight.id}')" class="glass-card rounded-2xl overflow-hidden transition-all duration-300 border ${glow} cursor-pointer">
         <!-- Thin community pick bar at top -->
-        <div id="live-bar-${fight.id}" class="h-0.5 flex w-full bg-white/5">
+        <div id="live-bar-${fight.id}" class="h-1 flex w-full bg-white/5">
             <div class="live-bar-left h-full transition-all duration-700" style="width:50%; background:var(--red)"></div>
             <div class="live-bar-right h-full transition-all duration-700" style="width:50%; background:#2563eb"></div>
         </div>
         <!-- Main strip row -->
-        <div class="flex items-center gap-2 lg:gap-4 px-3 lg:px-5 py-3 lg:py-3.5">
+        <div class="flex items-center gap-2 lg:gap-3 px-3 lg:px-4 py-2.5">
             <!-- Tag + Division label -->
-            <div class="hidden sm:flex flex-col items-start gap-0.5 min-w-[56px] flex-shrink-0">
+            <div class="hidden sm:flex flex-col items-start gap-0.5 min-w-[52px] flex-shrink-0">
                 <span class="oswald-sharp text-[7px] font-black italic uppercase tracking-widest px-2 py-0.5 rounded-full bg-black/50 text-gray-500 border border-white/10 truncate">${fight.tag}</span>
-                <span class="oswald-sharp text-[7px] text-gray-700 italic truncate max-w-[60px]">${divShort}</span>
+                <span class="oswald-sharp text-[7px] text-gray-700 italic truncate max-w-[56px]">${divShort}</span>
             </div>
+            <!-- F1 Thumbnail -->
+            ${f1Img ? `<div class="flex-shrink-0 w-10 h-14 rounded-lg overflow-hidden border border-white/10" style="background-image:url('${f1Img}');background-size:cover;background-position:center 10%;"></div>` : ''}
             <!-- Fighter 1 -->
             <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-1.5">
@@ -235,7 +240,7 @@ function renderStripRow(fight) {
                 </div>
                 <div class="flex items-center gap-1.5 mt-0.5">
                     ${fight.f1.odds ? `<span class="oswald-sharp text-[9px] text-ufcRed italic font-bold">×${fight.f1.odds}</span>` : ''}
-                    <span id="live-pct-l-${fight.id}" class="oswald-sharp text-[8px] text-gray-600 italic"></span>
+                    <span id="live-pct-l-${fight.id}" class="oswald-sharp text-[8px] text-gray-500 italic"></span>
                 </div>
             </div>
             <!-- VS -->
@@ -249,13 +254,13 @@ function renderStripRow(fight) {
                     <span class="oswald-sharp text-xs lg:text-sm font-black italic uppercase text-white truncate">${fight.f2.name}</span>
                 </div>
                 <div class="flex items-center justify-end gap-1.5 mt-0.5">
-                    <span id="live-pct-r-${fight.id}" class="oswald-sharp text-[8px] text-gray-600 italic"></span>
+                    <span id="live-pct-r-${fight.id}" class="oswald-sharp text-[8px] text-gray-500 italic"></span>
                     ${fight.f2.odds ? `<span class="oswald-sharp text-[9px] text-ufcBlue italic font-bold">×${fight.f2.odds}</span>` : ''}
                 </div>
             </div>
-            <div class="flex-shrink-0">
-                <div id="live-total-${fight.id}" class="hidden"></div>
-            </div>
+            <!-- F2 Thumbnail -->
+            ${f2Img ? `<div class="flex-shrink-0 w-10 h-14 rounded-lg overflow-hidden border border-white/10" style="background-image:url('${f2Img}');background-size:cover;background-position:center 10%;"></div>` : ''}
+            <div id="live-total-${fight.id}" class="hidden"></div>
         </div>
         <!-- Settled Badge (compact) -->
         <div id="settled-${fight.id}" class="hidden border-t border-white/10 py-2 px-4 text-center bg-black/20">
@@ -302,6 +307,7 @@ function renderFightCards() {
     container.innerHTML = _html;
     updateAllFightCards();
     updateEventTotalPicks();
+    if (typeof loadAllEventPickCounts === 'function') loadAllEventPickCounts();
 }
 
 /* ── 분석 탭 헬퍼 함수 ── */
