@@ -67,46 +67,45 @@ Deno.serve(async (req) => {
 
   const allSlugs = new Set<string>()
   const scrapeErrors: string[] = []
-  let page = 0
   const MAX_PAGES = 60
+  let consecutiveEmpty = 0
 
-  while (page < MAX_PAGES) {
-    const batchPages = [page, page + 1, page + 2, page + 3]
-    const results = await Promise.allSettled(batchPages.map(p => scrapePageSlugs(p)))
-
-    let batchTotal = 0
-    for (let i = 0; i < results.length; i++) {
-      const r = results[i]
-      if (r.status === 'rejected') {
-        const errMsg = `page ${batchPages[i]}: ${(r as PromiseRejectedResult).reason?.message}`
-        if (strict) {
-          // Hard abort for actual delete — partial roster must never trigger delete
-          return new Response(
-            JSON.stringify({
-              success: false,
-              error: `Scrape failed (${errMsg}). Purge aborted — no data deleted.`,
-              collected: allSlugs.size,
-            }),
-            { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          )
-        }
-        scrapeErrors.push(errMsg)
-      } else {
-        const slugs = (r as PromiseFulfilledResult<string[]>).value
-        batchTotal += slugs.length
-        for (const s of slugs) allSlugs.add(s)
+  for (let page = 0; page < MAX_PAGES; page++) {
+    let slugs: string[] = []
+    try {
+      slugs = await scrapePageSlugs(page)
+    } catch (e: any) {
+      const errMsg = `page ${page}: ${e.message}`
+      if (strict) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: `Scrape failed (${errMsg}). Purge aborted — no data deleted.`,
+            collected: allSlugs.size,
+          }),
+          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
       }
+      scrapeErrors.push(errMsg)
+      await new Promise(r => setTimeout(r, 500))
+      continue
     }
 
-    // End of pagination: entire successful batch returned no fighters
-    if (batchTotal === 0 && results.every(r => r.status === 'fulfilled')) break
+    if (slugs.length === 0) {
+      consecutiveEmpty++
+      if (consecutiveEmpty >= 2) break // two consecutive empty pages = end of list
+    } else {
+      consecutiveEmpty = 0
+      for (const s of slugs) allSlugs.add(s)
+    }
 
-    page += 4
+    // Small delay to avoid rate limiting
+    await new Promise(r => setTimeout(r, 300))
   }
 
   const activeIds = Array.from(allSlugs)
 
-  if (activeIds.length < 700) {
+  if (activeIds.length < 600) {
     return new Response(
       JSON.stringify({
         success: false,
