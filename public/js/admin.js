@@ -779,12 +779,27 @@ var _builderEvents = [];
 var _builderMatchups = [];
 var _allFightersCache = [];
 
+// 매치업 편집 모달 상태
+var _memState = {
+    editingMatchupId: null,
+    redFighter: null,
+    blueFighter: null,
+    redPhotoOverride: '',
+    bluePhotoOverride: '',
+    weightClass: '',
+    cardSegment: 'main',
+    sortOrder: 1,
+    _searchTimer: null,
+};
+
+// ── 이벤트 목록 ────────────────────────────────────────────────────
+
 async function fetchEventsForBuilder() {
     const { data, error } = await sb
         .from('events')
         .select('id, title, event_date, status')
         .order('event_date', { ascending: false })
-        .limit(30);
+        .limit(50);
     if (error) { showToast('이벤트 로드 실패: ' + error.message); return; }
     _builderEvents = data || [];
     renderBuilderEventList();
@@ -800,18 +815,29 @@ function renderBuilderEventList() {
     el.innerHTML = _builderEvents.map(ev => {
         const dateLabel = ev.event_date ? ev.event_date.slice(0,10) : '날짜 미정';
         const isActive = _builderState.eventId === ev.id;
-        return `<button onclick="selectBuilderEvent('${ev.id}')"
-            class="w-full text-left px-4 py-3 rounded-xl border transition-all text-xs oswald-sharp italic uppercase tracking-widest font-black
-                   ${isActive ? 'bg-ufcRed/10 border-ufcRed text-white' : 'border-white/5 text-gray-400 hover:text-white hover:border-white/20'}">
-            <span class="block truncate">${escapeHtml(ev.title)}</span>
-            <span class="text-[10px] font-normal not-italic normal-case tracking-normal ${isActive ? 'text-red-300' : 'text-gray-600'}">${dateLabel}</span>
-        </button>`;
+        const statusBadge = ev.status === 'upcoming'
+            ? '<span class="text-emerald-500 text-[9px]">▶ 예정</span>'
+            : '<span class="text-gray-600 text-[9px]">✓ 완료</span>';
+        return `
+        <div class="flex items-stretch gap-1 mb-1">
+            <button onclick="selectBuilderEvent('${ev.id}')"
+                class="flex-1 text-left px-3 py-2.5 rounded-xl border transition-all text-xs oswald-sharp font-black
+                       ${isActive ? 'bg-ufcRed/10 border-ufcRed text-white' : 'border-white/5 text-gray-400 hover:text-white hover:border-white/20'}">
+                <span class="flex items-center gap-1.5 mb-0.5">${statusBadge}</span>
+                <span class="block truncate italic uppercase tracking-widest leading-tight">${escapeHtml(ev.title)}</span>
+                <span class="text-[10px] font-normal not-italic normal-case tracking-normal ${isActive ? 'text-red-300' : 'text-gray-600'}">${dateLabel}</span>
+            </button>
+            <button onclick="deleteBuilderEvent('${ev.id}', '${escapeHtml(ev.title)}')"
+                title="이벤트 삭제"
+                class="shrink-0 border border-white/5 text-gray-700 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/5 px-2 rounded-xl transition-all text-sm">
+                🗑
+            </button>
+        </div>`;
     }).join('');
 }
 
 async function selectBuilderEvent(eventId) {
     _builderState.eventId = eventId;
-    resetBuilderForm();
     renderBuilderEventList();
     renderBuilderWorkspace();
     await fetchBuilderMatchups();
@@ -826,127 +852,190 @@ async function fetchBuilderMatchups() {
         .order('sort_order', { ascending: true });
     if (error) { showToast('매치업 로드 실패: ' + error.message); return; }
     _builderMatchups = data || [];
-    renderBuilderMatchupList();
+    renderBuilderWorkspace();
 }
+
+// ── 매치업 카드 그리드 ─────────────────────────────────────────────
 
 function renderBuilderWorkspace() {
     const el = document.getElementById('builder-workspace');
     if (!el) return;
     const ev = _builderEvents.find(e => e.id === _builderState.eventId);
-    if (!ev) { el.innerHTML = ''; return; }
-    const dateLabel = ev.event_date ? new Date(ev.event_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '날짜 미정';
-    el.innerHTML = `
-        <div class="mb-4 flex items-start justify-between gap-3">
-            <div>
-                <h5 class="oswald-sharp text-lg font-black italic uppercase text-white tracking-widest leading-tight">${escapeHtml(ev.title)}</h5>
-                <p class="oswald-sharp text-ufcRed italic text-xs tracking-widest mt-0.5">${dateLabel}</p>
-            </div>
-            <button onclick="syncArchiveFighters()" class="oswald-sharp border border-blue-500/30 text-blue-400 hover:text-blue-300 font-black px-3 py-1.5 rounded-xl italic text-[10px] uppercase tracking-widest transition-all shrink-0">↻ 아카이브 동기화</button>
-        </div>
-        <!-- Fighter Search -->
-        <div class="mb-4">
-            <input id="builder-fighter-search" type="text" placeholder="파이터 이름 검색..."
-                oninput="onBuilderSearch(this.value)"
-                class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-ufcRed placeholder-gray-600 transition-colors">
-            <div id="builder-search-results" class="mt-1 space-y-1 max-h-48 overflow-y-auto"></div>
-        </div>
-        <!-- Corners -->
-        <div class="grid grid-cols-2 gap-3 mb-4">
-            <div id="builder-red-slot" onclick="clearBuilderCorner('red')" class="cursor-pointer border border-red-500/30 rounded-xl p-3 min-h-[80px] flex flex-col items-center justify-center text-center transition-all hover:border-red-500/60">
-                <p class="oswald-sharp text-red-400 italic text-[10px] uppercase tracking-widest mb-1">🔴 RED CORNER</p>
-                <p id="builder-red-name" class="oswald-sharp text-white font-black italic text-sm uppercase">—</p>
-                <p id="builder-red-record" class="text-gray-500 text-[10px] mt-0.5"></p>
-            </div>
-            <div id="builder-blue-slot" onclick="clearBuilderCorner('blue')" class="cursor-pointer border border-blue-500/30 rounded-xl p-3 min-h-[80px] flex flex-col items-center justify-center text-center transition-all hover:border-blue-500/60">
-                <p class="oswald-sharp text-blue-400 italic text-[10px] uppercase tracking-widest mb-1">🔵 BLUE CORNER</p>
-                <p id="builder-blue-name" class="oswald-sharp text-white font-black italic text-sm uppercase">—</p>
-                <p id="builder-blue-record" class="text-gray-500 text-[10px] mt-0.5"></p>
-            </div>
-        </div>
-        <!-- Fighter Photos -->
-        <div class="grid grid-cols-2 gap-2 mb-4">
-            <div>
-                <p class="oswald-sharp text-[9px] text-red-500/60 italic uppercase tracking-widest mb-1">🔴 사진 URL</p>
-                <div class="flex gap-1">
-                    <input id="builder-red-photo" type="text" placeholder="이미지 URL (자동입력됨)"
-                        oninput="_builderState.redPhotoOverride=this.value.trim()"
-                        class="flex-1 min-w-0 bg-black/40 border border-red-500/20 rounded-xl px-3 py-2 text-white text-[10px] focus:outline-none focus:border-red-500/60 placeholder-gray-700 transition-colors">
-                    <button onclick="previewBuilderPhoto('red')" title="미리보기"
-                        class="shrink-0 border border-white/10 text-gray-500 hover:text-white px-2 py-1.5 rounded-xl text-xs transition-all">👁</button>
-                </div>
-            </div>
-            <div>
-                <p class="oswald-sharp text-[9px] text-blue-500/60 italic uppercase tracking-widest mb-1">🔵 사진 URL</p>
-                <div class="flex gap-1">
-                    <input id="builder-blue-photo" type="text" placeholder="이미지 URL (자동입력됨)"
-                        oninput="_builderState.bluePhotoOverride=this.value.trim()"
-                        class="flex-1 min-w-0 bg-black/40 border border-blue-500/20 rounded-xl px-3 py-2 text-white text-[10px] focus:outline-none focus:border-blue-500/60 placeholder-gray-700 transition-colors">
-                    <button onclick="previewBuilderPhoto('blue')" title="미리보기"
-                        class="shrink-0 border border-white/10 text-gray-500 hover:text-white px-2 py-1.5 rounded-xl text-xs transition-all">👁</button>
-                </div>
-            </div>
-        </div>
-        <!-- Bout Meta -->
-        <div class="grid grid-cols-3 gap-2 mb-4">
-            <select id="builder-segment" onchange="_builderState.cardSegment=this.value"
-                class="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-ufcRed">
-                <option value="main">메인카드</option>
-                <option value="prelim">프렐림</option>
-            </select>
-            <input id="builder-order" type="number" min="1" max="20" placeholder="순서" value="1"
-                oninput="_builderState.sortOrder=parseInt(this.value)||1"
-                class="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-ufcRed text-center">
-            <select id="builder-weight" onchange="_builderState.weightClass=this.value"
-                class="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-ufcRed">
-                <option value="">체급 선택</option>
-                <option value="hw">헤비급</option>
-                <option value="lhw">라이트헤비급</option>
-                <option value="mw">미들급</option>
-                <option value="ww">웰터급</option>
-                <option value="lw">라이트급</option>
-                <option value="fw">페더급</option>
-                <option value="bw">밴텀급</option>
-                <option value="flw">플라이급</option>
-                <option value="wmw">여자 스트로급</option>
-                <option value="wfw">여자 플라이급</option>
-                <option value="wbw">여자 밴텀급</option>
-            </select>
-        </div>
-        <!-- Save -->
-        <div class="flex gap-2">
-            <button onclick="saveBuilderMatchup()"
-                class="flex-1 oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black italic uppercase text-sm px-6 py-2.5 rounded-xl tracking-widest transition-all hover:shadow-[0_0_16px_rgba(232,0,13,0.4)]">
-                💾 저장
-            </button>
-            <button onclick="resetBuilderForm()"
-                class="oswald-sharp border border-white/10 text-gray-400 hover:text-white font-black italic uppercase text-sm px-4 py-2.5 rounded-xl tracking-widest transition-all">
-                초기화
-            </button>
-        </div>
-        <!-- Existing matchups -->
-        <div class="mt-6 border-t border-white/5 pt-4">
-            <p class="oswald-sharp text-xs italic uppercase tracking-widest text-gray-500 mb-3">등록된 대진표</p>
-            <div id="builder-matchup-list" class="space-y-2"></div>
-        </div>`;
-}
-
-function onBuilderSearch(query) {
-    clearTimeout(_builderState._searchTimer);
-    _builderState.searchQuery = query;
-    if (!query.trim()) {
-        document.getElementById('builder-search-results').innerHTML = '';
+    if (!ev) {
+        el.innerHTML = '<div class="flex items-center justify-center h-40"><p class="oswald-sharp text-gray-700 italic text-sm uppercase tracking-widest">← 이벤트를 선택하세요</p></div>';
         return;
     }
-    _builderState._searchTimer = setTimeout(() => runBuilderSearch(query), 250);
+    const dateLabel = ev.event_date ? new Date(ev.event_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '날짜 미정';
+    const main = _builderMatchups.filter(m => m.card_segment === 'main');
+    const prelim = _builderMatchups.filter(m => m.card_segment !== 'main');
+
+    const renderCard = (m) => {
+        const tagLabel = m.sort_order === 1 && m.card_segment === 'main' ? 'MAIN' : m.sort_order === 2 && m.card_segment === 'main' ? 'CO-MAIN' : m.card_segment === 'prelim' ? 'PRELIM' : '';
+        return `
+        <div onclick="openMatchupEditModal('${m.id}')"
+             class="group cursor-pointer flex items-center gap-3 px-4 py-3 rounded-2xl border border-white/5 bg-black/20 hover:bg-white/5 hover:border-white/20 transition-all">
+            <span class="oswald-sharp text-gray-600 text-[10px] italic w-4 shrink-0 text-center">${m.sort_order || '?'}</span>
+            ${m.red_image_url ? `<img src="${escapeHtml(m.red_image_url)}" class="w-7 h-7 rounded-full object-cover object-top bg-zinc-800 shrink-0 ring-1 ring-red-500/30">` : '<div class="w-7 h-7 rounded-full bg-zinc-800 shrink-0 ring-1 ring-red-500/20"></div>'}
+            <p class="flex-1 oswald-sharp font-black italic text-xs uppercase truncate">
+                <span class="text-red-400">${escapeHtml(m.red_fighter_name || '?')}</span>
+                <span class="text-gray-600 mx-1">vs</span>
+                <span class="text-blue-400">${escapeHtml(m.blue_fighter_name || '?')}</span>
+            </p>
+            ${m.blue_image_url ? `<img src="${escapeHtml(m.blue_image_url)}" class="w-7 h-7 rounded-full object-cover object-top bg-zinc-800 shrink-0 ring-1 ring-blue-500/30">` : '<div class="w-7 h-7 rounded-full bg-zinc-800 shrink-0 ring-1 ring-blue-500/20"></div>'}
+            ${tagLabel ? `<span class="oswald-sharp text-[8px] italic uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0 ${m.sort_order===1&&m.card_segment==='main'?'border-ufcRed/50 text-ufcRed bg-ufcRed/5':'border-white/10 text-gray-500'}">${tagLabel}</span>` : ''}
+            <div class="shrink-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onclick="event.stopPropagation(); openResultModal('${m.id}')" class="text-gray-500 hover:text-yellow-400 text-xs px-1.5 py-1 rounded-lg hover:bg-yellow-500/10" title="결과 입력">🏆</button>
+            </div>
+        </div>`;
+    };
+
+    const renderSection = (label, fights) => !fights.length ? '' : `
+        <p class="oswald-sharp text-[9px] italic uppercase tracking-widest text-gray-600 mt-4 mb-2 px-1">${label}</p>
+        <div class="space-y-1.5">${fights.map(renderCard).join('')}</div>`;
+
+    el.innerHTML = `
+        <div class="flex items-start justify-between gap-3 mb-5">
+            <div>
+                <h5 class="oswald-sharp text-base font-black italic uppercase text-white tracking-widest leading-tight">${escapeHtml(ev.title)}</h5>
+                <p class="oswald-sharp text-ufcRed italic text-[10px] tracking-widest mt-0.5">${dateLabel}</p>
+            </div>
+            <div class="flex gap-2 shrink-0">
+                <button onclick="openMatchupEditModal(null)"
+                    class="oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black italic uppercase text-[10px] px-4 py-2 rounded-xl tracking-widest transition-all">
+                    + 경기 추가
+                </button>
+            </div>
+        </div>
+        ${!_builderMatchups.length
+            ? '<div class="flex flex-col items-center justify-center py-12 text-center"><p class="oswald-sharp text-gray-700 italic text-sm uppercase tracking-widest mb-3">등록된 경기 없음</p><button onclick="openMatchupEditModal(null)" class="oswald-sharp border border-white/10 text-gray-400 hover:text-white text-xs px-4 py-2 rounded-xl italic uppercase tracking-widest transition-all">+ 첫 번째 경기 추가</button></div>'
+            : renderSection('🥊 메인카드', main) + renderSection('⚡ 프렐림', prelim)
+        }`;
 }
 
-async function runBuilderSearch(query) {
-    const resultsEl = document.getElementById('builder-search-results');
+// ── 결과 입력 (매치업 카드에서 바로 진입) ──────────────────────────
+function openResultModal(matchupId) {
+    const fromActive = getActiveFights().find(f => f.id === matchupId);
+    if (fromActive) { adminSetResult(matchupId); return; }
+    const m = _builderMatchups.find(x => x.id === matchupId);
+    if (!m) { showToast('⚠ 경기 정보를 찾을 수 없습니다'); return; }
+    const red = escapeHtml(m.red_fighter_name || '?');
+    const blue = escapeHtml(m.blue_fighter_name || '?');
+    const modal = document.getElementById('result-modal');
+    if (!modal) { showToast('⚠ 결과 모달을 찾을 수 없습니다'); return; }
+    const modalId = document.getElementById('result-modal-fight-id');
+    const modalTitle = document.getElementById('result-modal-title');
+    const modalWinner = document.getElementById('result-winner-select');
+    if (modalId) modalId.value = matchupId;
+    if (modalTitle) modalTitle.textContent = `${red} vs ${blue}`;
+    if (modalWinner) modalWinner.innerHTML = `
+        <option value="">-- 승자 선택 --</option>
+        <option value="${red}">${red} (레드)</option>
+        <option value="${blue}">${blue} (블루)</option>`;
+    modal.classList.remove('hidden');
+}
+
+// ── 매치업 편집 모달 ────────────────────────────────────────────────
+
+function openMatchupEditModal(matchupId) {
+    const modal = document.getElementById('matchup-edit-modal');
+    if (!modal) return;
+
+    // 상태 초기화
+    _memState.editingMatchupId = matchupId;
+    _memState.redFighter = null;
+    _memState.blueFighter = null;
+    _memState.redPhotoOverride = '';
+    _memState.bluePhotoOverride = '';
+    _memState.weightClass = '';
+    _memState.cardSegment = 'main';
+    _memState.sortOrder = 1;
+
+    // UI 초기화
+    const ids = ['mem-red-name','mem-blue-name'];
+    ids.forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '—'; });
+    ['mem-red-record','mem-blue-record'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
+    ['mem-red-photo','mem-blue-photo'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    const searchEl = document.getElementById('mem-search');
+    const resultsEl = document.getElementById('mem-search-results');
+    if (searchEl) searchEl.value = '';
+    if (resultsEl) resultsEl.innerHTML = '';
+
+    const titleEl = document.getElementById('mem-title');
+    const deleteBtn = document.getElementById('mem-delete-btn');
+    const segEl = document.getElementById('mem-segment');
+    const orderEl = document.getElementById('mem-order');
+    const weightEl = document.getElementById('mem-weight');
+
+    if (matchupId) {
+        // 수정 모드
+        const m = _builderMatchups.find(x => x.id === matchupId);
+        if (!m) return;
+        if (titleEl) titleEl.textContent = '경기 수정';
+        if (deleteBtn) deleteBtn.classList.remove('hidden');
+
+        // 코너 이름/기록 복원
+        const redNameEl = document.getElementById('mem-red-name');
+        const blueNameEl = document.getElementById('mem-blue-name');
+        if (redNameEl) redNameEl.textContent = m.red_fighter_name || '—';
+        if (blueNameEl) blueNameEl.textContent = m.blue_fighter_name || '—';
+
+        // 파이터 캐시에서 찾기
+        if (m.red_fighter_id) {
+            const rf = _allFightersCache.find(f => f.id === m.red_fighter_id);
+            if (rf) { _memState.redFighter = rf; const recEl = document.getElementById('mem-red-record'); if (recEl) recEl.textContent = `${rf.wins||0}-${rf.losses||0}-${rf.draws||0}`; }
+        }
+        if (m.blue_fighter_id) {
+            const bf = _allFightersCache.find(f => f.id === m.blue_fighter_id);
+            if (bf) { _memState.blueFighter = bf; const recEl = document.getElementById('mem-blue-record'); if (recEl) recEl.textContent = `${bf.wins||0}-${bf.losses||0}-${bf.draws||0}`; }
+        }
+
+        _memState.redPhotoOverride = m.red_image_url || '';
+        _memState.bluePhotoOverride = m.blue_image_url || '';
+        _memState.cardSegment = m.card_segment || 'main';
+        _memState.sortOrder = m.sort_order || 1;
+        _memState.weightClass = m.weight_class || '';
+
+        const rPhotoEl = document.getElementById('mem-red-photo');
+        const bPhotoEl = document.getElementById('mem-blue-photo');
+        if (rPhotoEl) rPhotoEl.value = m.red_image_url || '';
+        if (bPhotoEl) bPhotoEl.value = m.blue_image_url || '';
+        if (segEl) segEl.value = m.card_segment || 'main';
+        if (orderEl) orderEl.value = m.sort_order || 1;
+        if (weightEl) weightEl.value = m.weight_class || '';
+    } else {
+        // 추가 모드
+        if (titleEl) titleEl.textContent = '경기 추가';
+        if (deleteBtn) deleteBtn.classList.add('hidden');
+        if (segEl) segEl.value = 'main';
+        if (orderEl) orderEl.value = (_builderMatchups.length + 1);
+        if (weightEl) weightEl.value = '';
+        _memState.sortOrder = _builderMatchups.length + 1;
+    }
+
+    modal.classList.remove('hidden');
+}
+
+function closeMatchupEditModal() {
+    const modal = document.getElementById('matchup-edit-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function onMemSearch(query) {
+    clearTimeout(_memState._searchTimer);
+    if (!query.trim()) {
+        const el = document.getElementById('mem-search-results');
+        if (el) el.innerHTML = '';
+        return;
+    }
+    _memState._searchTimer = setTimeout(() => runMemSearch(query), 250);
+}
+
+async function runMemSearch(query) {
+    const resultsEl = document.getElementById('mem-search-results');
     if (!resultsEl) return;
     const q = query.trim().toLowerCase();
     if (!q) { resultsEl.innerHTML = ''; return; }
 
-    // Use cached fighters or fetch
     if (!_allFightersCache.length) {
         const { data } = await sb.from('fighters').select('id, name, name_en, division, wins, losses, draws, image_url').limit(5000);
         _allFightersCache = data || [];
@@ -957,10 +1046,7 @@ async function runBuilderSearch(query) {
         (f.name_en || '').toLowerCase().includes(q)
     ).slice(0, 8);
 
-    if (!hits.length) {
-        resultsEl.innerHTML = '<p class="text-gray-600 text-xs italic py-2 px-3">검색 결과 없음</p>';
-        return;
-    }
+    if (!hits.length) { resultsEl.innerHTML = '<p class="text-gray-600 text-xs italic py-2 px-3">검색 결과 없음</p>'; return; }
 
     resultsEl.innerHTML = hits.map(f => {
         const safeJson = escapeHtml(JSON.stringify(f));
@@ -969,77 +1055,69 @@ async function runBuilderSearch(query) {
             ${f.image_url ? `<img src="${escapeHtml(f.image_url)}" class="w-8 h-8 rounded-full object-cover object-top bg-zinc-800 shrink-0">` : '<div class="w-8 h-8 rounded-full bg-zinc-800 shrink-0"></div>'}
             <div class="flex-1 min-w-0">
                 <p class="oswald-sharp text-white font-black italic text-xs uppercase truncate">${escapeHtml(f.name || f.name_en)}</p>
-                <p class="text-gray-500 text-[10px]">${f.wins || 0}-${f.losses || 0}-${f.draws || 0}</p>
+                <p class="text-gray-500 text-[10px]">${f.wins||0}-${f.losses||0}-${f.draws||0}</p>
             </div>
             <div class="flex gap-1 shrink-0">
-                <button onclick="setBuilderCorner('red', this.closest('[data-fighter-json]').dataset.fighterJson)"
+                <button onclick="setMemCorner('red', this.closest('[data-fighter-json]').dataset.fighterJson)"
                     class="oswald-sharp bg-red-900/60 hover:bg-red-700 text-red-300 hover:text-white font-black italic text-[10px] px-2 py-1 rounded-lg tracking-widest transition-all">RED</button>
-                <button onclick="setBuilderCorner('blue', this.closest('[data-fighter-json]').dataset.fighterJson)"
+                <button onclick="setMemCorner('blue', this.closest('[data-fighter-json]').dataset.fighterJson)"
                     class="oswald-sharp bg-blue-900/60 hover:bg-blue-700 text-blue-300 hover:text-white font-black italic text-[10px] px-2 py-1 rounded-lg tracking-widest transition-all">BLUE</button>
             </div>
         </div>`;
     }).join('');
 }
 
-function setBuilderCorner(corner, fighterJson) {
+function setMemCorner(corner, fighterJson) {
     const f = JSON.parse(fighterJson);
-    _builderState[corner + 'Fighter'] = f;
-    const nameEl = document.getElementById(`builder-${corner}-name`);
-    const recordEl = document.getElementById(`builder-${corner}-record`);
+    _memState[corner + 'Fighter'] = f;
+    const nameEl = document.getElementById(`mem-${corner}-name`);
+    const recordEl = document.getElementById(`mem-${corner}-record`);
     if (nameEl) nameEl.textContent = f.name || f.name_en;
     if (recordEl) recordEl.textContent = `${f.wins||0}-${f.losses||0}-${f.draws||0}`;
-    // 파이터 DB 이미지 자동입력 (기존 값 없을 때만)
-    const photoEl = document.getElementById(`builder-${corner}-photo`);
+    // 이미지 자동입력
+    const photoEl = document.getElementById(`mem-${corner}-photo`);
     if (photoEl && f.image_url) {
         photoEl.value = f.image_url;
-        _builderState[corner + 'PhotoOverride'] = f.image_url;
+        _memState[corner + 'PhotoOverride'] = f.image_url;
     }
+    // 검색창 닫기
+    const searchEl = document.getElementById('mem-search');
+    const resultsEl = document.getElementById('mem-search-results');
+    if (searchEl) searchEl.value = '';
+    if (resultsEl) resultsEl.innerHTML = '';
 }
 
-function previewBuilderPhoto(corner) {
-    const url = _builderState[corner + 'PhotoOverride'];
-    if (!url) { showToast('⚠ 사진 URL을 먼저 입력하세요'); return; }
-    const win = window.open('', '_blank', 'width=400,height=500');
-    if (win) win.document.write(`<body style="margin:0;background:#111"><img src="${url}" style="width:100%;height:100%;object-fit:contain"></body>`);
-}
-
-function clearBuilderCorner(corner) {
-    _builderState[corner + 'Fighter'] = null;
-    const nameEl = document.getElementById(`builder-${corner}-name`);
-    const recordEl = document.getElementById(`builder-${corner}-record`);
+function clearMemCorner(corner) {
+    _memState[corner + 'Fighter'] = null;
+    _memState[corner + 'PhotoOverride'] = '';
+    const nameEl = document.getElementById(`mem-${corner}-name`);
+    const recordEl = document.getElementById(`mem-${corner}-record`);
+    const photoEl = document.getElementById(`mem-${corner}-photo`);
     if (nameEl) nameEl.textContent = '—';
     if (recordEl) recordEl.textContent = '';
+    if (photoEl) photoEl.value = '';
 }
 
-function resetBuilderForm() {
-    _builderState.editingMatchupId = null;
-    _builderState.redFighter = null;
-    _builderState.blueFighter = null;
-    _builderState.redPhotoOverride = '';
-    _builderState.bluePhotoOverride = '';
-    _builderState.weightClass = '';
-    _builderState.cardSegment = 'main';
-    _builderState.sortOrder = 1;
-    ['builder-red-name','builder-blue-name'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '—'; });
-    ['builder-red-record','builder-blue-record'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
-    ['builder-red-photo','builder-blue-photo'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-    ['builder-fighter-search','builder-search-results'].forEach(id => { const el = document.getElementById(id); if (el) el.value !== undefined ? el.value = '' : el.innerHTML = ''; });
-}
+async function saveMatchupFromModal() {
+    const { editingMatchupId, redFighter, blueFighter, weightClass, cardSegment, sortOrder } = _memState;
+    if (!_builderState.eventId) { showToast('⚠ 이벤트가 선택되지 않았습니다'); return; }
 
-async function saveBuilderMatchup() {
-    const { eventId, redFighter, blueFighter, weightClass, cardSegment, sortOrder, editingMatchupId } = _builderState;
-    if (!eventId) { showToast('⚠ 이벤트를 먼저 선택하세요'); return; }
-    if (!redFighter || !blueFighter) { showToast('⚠ 레드/블루 코너를 모두 선택하세요'); return; }
-    if (redFighter.id === blueFighter.id) { showToast('⚠ 같은 파이터를 양쪽에 선택했습니다'); return; }
+    // 이름만 있어도 저장 허용 (파이터 FK 없이 이름만 입력된 경우 대비)
+    const redName = redFighter ? (redFighter.name || redFighter.name_en) : document.getElementById('mem-red-name')?.textContent;
+    const blueName = blueFighter ? (blueFighter.name || blueFighter.name_en) : document.getElementById('mem-blue-name')?.textContent;
+    if (!redName || redName === '—' || !blueName || blueName === '—') {
+        showToast('⚠ 레드/블루 코너를 모두 선택하세요');
+        return;
+    }
 
     const row = {
-        event_id: eventId,
-        red_fighter_id: redFighter.id,
-        blue_fighter_id: blueFighter.id,
-        red_fighter_name: redFighter.name || redFighter.name_en,
-        blue_fighter_name: blueFighter.name || blueFighter.name_en,
-        red_image_url: _builderState.redPhotoOverride || redFighter.image_url || null,
-        blue_image_url: _builderState.bluePhotoOverride || blueFighter.image_url || null,
+        event_id: _builderState.eventId,
+        red_fighter_id: redFighter?.id || null,
+        blue_fighter_id: blueFighter?.id || null,
+        red_fighter_name: redName,
+        blue_fighter_name: blueName,
+        red_image_url: _memState.redPhotoOverride || redFighter?.image_url || null,
+        blue_image_url: _memState.bluePhotoOverride || blueFighter?.image_url || null,
         weight_class: weightClass || null,
         card_segment: cardSegment,
         sort_order: sortOrder,
@@ -1057,100 +1135,40 @@ async function saveBuilderMatchup() {
 
     if (err) { showToast('❌ 저장 실패: ' + err.message); return; }
     showToast(editingMatchupId ? '✅ 매치업 수정 완료' : '✅ 매치업 추가 완료');
-    resetBuilderForm();
+    closeMatchupEditModal();
     await fetchBuilderMatchups();
 }
 
-function renderBuilderMatchupList() {
-    const el = document.getElementById('builder-matchup-list');
-    if (!el) return;
-    if (!_builderMatchups.length) {
-        el.innerHTML = '<p class="text-gray-700 text-xs italic py-4 text-center">등록된 대진표 없음</p>';
-        return;
-    }
-    const main = _builderMatchups.filter(m => m.card_segment === 'main');
-    const prelim = _builderMatchups.filter(m => m.card_segment !== 'main');
-    const renderGroup = (label, fights) => fights.length ? `
-        <p class="oswald-sharp text-[10px] italic uppercase tracking-widest text-gray-600 mt-3 mb-1">${label}</p>
-        ${fights.map(m => `
-        <div class="flex items-center gap-3 px-3 py-2 rounded-xl border border-white/5 bg-black/20">
-            <span class="oswald-sharp text-gray-500 text-[10px] italic w-4 shrink-0">${m.sort_order||'?'}</span>
-            <p class="flex-1 oswald-sharp text-white font-black italic text-xs uppercase truncate">
-                <span class="text-red-400">${escapeHtml(m.red_fighter_name||'?')}</span>
-                <span class="text-gray-500 mx-1">vs</span>
-                <span class="text-blue-400">${escapeHtml(m.blue_fighter_name||'?')}</span>
-            </p>
-            <div class="flex gap-1 shrink-0">
-                <button onclick="adminSetBuilderResult('${m.id}')" class="text-gray-500 hover:text-yellow-400 text-[10px] px-2 py-1 rounded-lg hover:bg-yellow-500/10 transition-all" title="결과 입력">🏆</button>
-                <button onclick="editBuilderMatchup('${m.id}')" class="text-gray-500 hover:text-white text-[10px] px-2 py-1 rounded-lg hover:bg-white/10 transition-all">✏</button>
-                <button onclick="deleteBuilderMatchup('${m.id}')" class="text-gray-500 hover:text-red-400 text-[10px] px-2 py-1 rounded-lg hover:bg-red-500/10 transition-all">🗑</button>
-            </div>
-        </div>`).join('')}` : '';
-    el.innerHTML = renderGroup('메인카드', main) + renderGroup('프렐림', prelim);
-}
-
-async function deleteBuilderMatchup(id) {
-    if (!confirm('이 대진표를 삭제할까요?')) return;
+async function deleteMatchupFromModal() {
+    const id = _memState.editingMatchupId;
+    if (!id) return;
+    const m = _builderMatchups.find(x => x.id === id);
+    const label = m ? `${m.red_fighter_name} vs ${m.blue_fighter_name}` : '이 경기';
+    if (!confirm(`"${label}"를 삭제할까요?`)) return;
     const { error } = await sb.from('matchups').delete().eq('id', id);
     if (error) { showToast('❌ 삭제 실패: ' + error.message); return; }
     showToast('🗑 삭제 완료');
+    closeMatchupEditModal();
     await fetchBuilderMatchups();
 }
 
-function adminSetBuilderResult(matchupId) {
-    // 현재 활성 경기(_dbMatchups)에 있으면 기존 adminSetResult 사용
-    const fromActive = getActiveFights().find(f => f.id === matchupId);
-    if (fromActive) { adminSetResult(matchupId); return; }
-    // 빌더 matchup 직접 처리
-    const m = _builderMatchups.find(x => x.id === matchupId);
-    if (!m) { showToast('⚠ 경기 정보를 찾을 수 없습니다'); return; }
-    const red = escapeHtml(m.red_fighter_name || '?');
-    const blue = escapeHtml(m.blue_fighter_name || '?');
-    const modalId = document.getElementById('result-modal-fight-id');
-    const modalTitle = document.getElementById('result-modal-title');
-    const modalWinner = document.getElementById('result-winner-select');
-    const modal = document.getElementById('result-modal');
-    if (!modal) { showToast('⚠ 결과 모달을 찾을 수 없습니다'); return; }
-    if (modalId) modalId.value = matchupId;
-    if (modalTitle) modalTitle.textContent = `${red} vs ${blue}`;
-    if (modalWinner) modalWinner.innerHTML = `
-        <option value="">-- 승자 선택 --</option>
-        <option value="${red}">${red} (레드)</option>
-        <option value="${blue}">${blue} (블루)</option>
-    `;
-    modal.classList.remove('hidden');
-}
+// ── 이벤트 삭제 ────────────────────────────────────────────────────
 
-function editBuilderMatchup(id) {
-    const m = _builderMatchups.find(x => x.id === id);
-    if (!m) return;
-    _builderState.editingMatchupId = id;
-    // Populate corners from snapshot data (fighter FK might be null for old rows)
-    if (m.red_fighter_id) {
-        const rf = _allFightersCache.find(f => f.id === m.red_fighter_id);
-        if (rf) setBuilderCorner('red', JSON.stringify(rf));
+async function deleteBuilderEvent(eventId, eventTitle) {
+    if (!confirm(`"${eventTitle}" 이벤트를 삭제할까요?\n(이 이벤트의 모든 대진표도 함께 삭제됩니다)`)) return;
+    // 매치업 먼저 삭제
+    await sb.from('matchups').delete().eq('event_id', eventId);
+    // 이벤트 삭제
+    const { error } = await sb.from('events').delete().eq('id', eventId);
+    if (error) { showToast('❌ 이벤트 삭제 실패: ' + error.message); return; }
+    showToast('🗑 이벤트 삭제 완료');
+    // 선택 중이던 이벤트면 워크스페이스 초기화
+    if (_builderState.eventId === eventId) {
+        _builderState.eventId = null;
+        _builderMatchups = [];
     }
-    if (m.blue_fighter_id) {
-        const bf = _allFightersCache.find(f => f.id === m.blue_fighter_id);
-        if (bf) setBuilderCorner('blue', JSON.stringify(bf));
-    }
-    const segEl = document.getElementById('builder-segment');
-    const orderEl = document.getElementById('builder-order');
-    const weightEl = document.getElementById('builder-weight');
-    if (segEl) segEl.value = m.card_segment || 'main';
-    if (orderEl) orderEl.value = m.sort_order || 1;
-    if (weightEl) weightEl.value = m.weight_class || '';
-    _builderState.cardSegment = m.card_segment || 'main';
-    _builderState.sortOrder = m.sort_order || 1;
-    _builderState.weightClass = m.weight_class || '';
-    // 사진 URL 복원
-    _builderState.redPhotoOverride = m.red_image_url || '';
-    _builderState.bluePhotoOverride = m.blue_image_url || '';
-    const rPhotoEl = document.getElementById('builder-red-photo');
-    const bPhotoEl = document.getElementById('builder-blue-photo');
-    if (rPhotoEl) rPhotoEl.value = m.red_image_url || '';
-    if (bPhotoEl) bPhotoEl.value = m.blue_image_url || '';
-    showToast('✏ 수정 모드');
+    await fetchEventsForBuilder();
+    if (_builderState.eventId === null) renderBuilderWorkspace();
 }
 
 // ----- ARCHIVE SYNC -----
@@ -1181,7 +1199,7 @@ async function saveNewEvent() {
     const { data, error } = await sb.from('events').insert({
         title,
         event_date: eventDate,
-        status: 'upcoming',
+        status: document.getElementById('new-event-status')?.value || 'upcoming',
     }).select('id').single();
 
     if (error) { showToast('❌ 저장 실패: ' + error.message); return; }

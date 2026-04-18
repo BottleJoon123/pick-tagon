@@ -574,6 +574,5 @@ function selectPickFighter(side, fightId, match, name, odds) {
         if (btn) btn.classList.remove('bs-sel');
     });
 
-    window._activeBetSlip = { fightId, side, match, pick: name, odds: safeOdds, method: null, methodBonus: 0, round: null };
-    if (typeof activeBetSlip !== 'undefined') activeBetSlip = window._activeBetSlip;
+    window.activeBetSlip = { fightId, side, match, pick: name, odds: safeOdds, method: null, methodBonus: 0, round: null };
 }

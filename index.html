@@ -1749,14 +1749,14 @@ textarea, select {
                     </div>
                 </div>
                 <div class="flex flex-col lg:flex-row gap-4">
-                    <!-- 이벤트 목록 -->
-                    <div class="lg:w-1/3 shrink-0">
+                    <!-- 이벤트 목록 (좌) -->
+                    <div class="lg:w-[280px] shrink-0">
                         <p class="oswald-sharp text-gray-600 italic text-[10px] uppercase tracking-widest mb-2">이벤트 선택</p>
-                        <div id="builder-event-list" class="space-y-1.5 max-h-[70vh] overflow-y-auto pr-1">
+                        <div id="builder-event-list" class="space-y-1.5 max-h-[75vh] overflow-y-auto pr-1">
                             <p class="text-gray-600 text-xs italic py-4 text-center">로딩 중...</p>
                         </div>
                     </div>
-                    <!-- 빌더 워크스페이스 -->
+                    <!-- 매치업 카드 그리드 (우) -->
                     <div class="flex-1 min-w-0">
                         <div id="builder-workspace">
                             <div class="flex items-center justify-center h-40">
@@ -1767,20 +1767,112 @@ textarea, select {
                 </div>
             </div>
         </div>
-        <!-- Add Event Modal -->
-        <div id="add-event-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-            <div class="glass-card rounded-[2rem] p-8 w-full max-w-md bg-zinc-900/90 space-y-4">
+
+        <!-- 이벤트 추가 모달 -->
+        <div id="add-event-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div class="glass-card rounded-[2rem] p-8 w-full max-w-md bg-zinc-900/95 space-y-4">
                 <h5 class="oswald-sharp text-lg font-black italic uppercase text-white tracking-widest">이벤트 추가</h5>
                 <input id="new-event-title" type="text" placeholder="이벤트 이름 (예: UFC 328)"
                     class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed placeholder-gray-600">
                 <input id="new-event-date" type="date"
                     class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed">
+                <select id="new-event-status"
+                    class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed">
+                    <option value="upcoming">예정 (upcoming)</option>
+                    <option value="completed">완료 (completed)</option>
+                </select>
                 <div class="flex gap-3 pt-2">
                     <button onclick="saveNewEvent()"
                         class="flex-1 oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black italic uppercase text-sm px-6 py-2.5 rounded-xl tracking-widest transition-all">
                         저장
                     </button>
                     <button onclick="document.getElementById('add-event-modal').classList.add('hidden')"
+                        class="oswald-sharp border border-white/10 text-gray-400 hover:text-white font-black italic uppercase text-sm px-4 py-2.5 rounded-xl tracking-widest transition-all">
+                        취소
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 매치업 편집 모달 -->
+        <div id="matchup-edit-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div class="glass-card rounded-[2rem] p-6 w-full max-w-lg bg-zinc-900/95 max-h-[90vh] overflow-y-auto">
+                <!-- 헤더 -->
+                <div class="flex items-center justify-between mb-5">
+                    <h5 id="mem-title" class="oswald-sharp text-lg font-black italic uppercase text-white tracking-widest">경기 추가</h5>
+                    <button onclick="closeMatchupEditModal()" class="text-gray-500 hover:text-white text-xl leading-none">✕</button>
+                </div>
+                <!-- 파이터 검색 -->
+                <div class="mb-3">
+                    <input id="mem-search" type="text" placeholder="파이터 이름 검색..."
+                        oninput="onMemSearch(this.value)"
+                        class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-ufcRed placeholder-gray-600 transition-colors">
+                    <div id="mem-search-results" class="mt-1 space-y-1 max-h-44 overflow-y-auto"></div>
+                </div>
+                <!-- 코너 -->
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div id="mem-red-slot" onclick="clearMemCorner('red')" class="cursor-pointer border border-red-500/30 rounded-xl p-3 min-h-[72px] flex flex-col items-center justify-center text-center hover:border-red-500/60 transition-all">
+                        <p class="oswald-sharp text-red-400 italic text-[9px] uppercase tracking-widest mb-1">🔴 RED</p>
+                        <p id="mem-red-name" class="oswald-sharp text-white font-black italic text-xs uppercase">—</p>
+                        <p id="mem-red-record" class="text-gray-500 text-[10px]"></p>
+                    </div>
+                    <div id="mem-blue-slot" onclick="clearMemCorner('blue')" class="cursor-pointer border border-blue-500/30 rounded-xl p-3 min-h-[72px] flex flex-col items-center justify-center text-center hover:border-blue-500/60 transition-all">
+                        <p class="oswald-sharp text-blue-400 italic text-[9px] uppercase tracking-widest mb-1">🔵 BLUE</p>
+                        <p id="mem-blue-name" class="oswald-sharp text-white font-black italic text-xs uppercase">—</p>
+                        <p id="mem-blue-record" class="text-gray-500 text-[10px]"></p>
+                    </div>
+                </div>
+                <!-- 사진 URL -->
+                <div class="grid grid-cols-2 gap-2 mb-3">
+                    <div>
+                        <p class="oswald-sharp text-[9px] text-red-500/60 italic uppercase tracking-widest mb-1">🔴 사진 URL</p>
+                        <input id="mem-red-photo" type="text" placeholder="자동입력 또는 직접 입력"
+                            oninput="_memState.redPhotoOverride=this.value.trim()"
+                            class="w-full bg-black/40 border border-red-500/20 rounded-xl px-3 py-2 text-white text-[10px] focus:outline-none focus:border-red-500/50 placeholder-gray-700">
+                    </div>
+                    <div>
+                        <p class="oswald-sharp text-[9px] text-blue-500/60 italic uppercase tracking-widest mb-1">🔵 사진 URL</p>
+                        <input id="mem-blue-photo" type="text" placeholder="자동입력 또는 직접 입력"
+                            oninput="_memState.bluePhotoOverride=this.value.trim()"
+                            class="w-full bg-black/40 border border-blue-500/20 rounded-xl px-3 py-2 text-white text-[10px] focus:outline-none focus:border-blue-500/50 placeholder-gray-700">
+                    </div>
+                </div>
+                <!-- 메타 -->
+                <div class="grid grid-cols-3 gap-2 mb-5">
+                    <select id="mem-segment" onchange="_memState.cardSegment=this.value"
+                        class="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-ufcRed">
+                        <option value="main">메인카드</option>
+                        <option value="prelim">프렐림</option>
+                    </select>
+                    <input id="mem-order" type="number" min="1" max="20" placeholder="순서" value="1"
+                        oninput="_memState.sortOrder=parseInt(this.value)||1"
+                        class="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-ufcRed text-center">
+                    <select id="mem-weight" onchange="_memState.weightClass=this.value"
+                        class="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-ufcRed">
+                        <option value="">체급 선택</option>
+                        <option value="hw">헤비급</option>
+                        <option value="lhw">라이트헤비급</option>
+                        <option value="mw">미들급</option>
+                        <option value="ww">웰터급</option>
+                        <option value="lw">라이트급</option>
+                        <option value="fw">페더급</option>
+                        <option value="bw">밴텀급</option>
+                        <option value="flw">플라이급</option>
+                        <option value="wmw">여자 스트로급</option>
+                        <option value="wfw">여자 플라이급</option>
+                        <option value="wbw">여자 밴텀급</option>
+                    </select>
+                </div>
+                <!-- 액션 버튼 -->
+                <div class="flex gap-2">
+                    <button onclick="saveMatchupFromModal()"
+                        class="flex-1 oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black italic uppercase text-sm px-6 py-2.5 rounded-xl tracking-widest transition-all">
+                        💾 저장
+                    </button>
+                    <button id="mem-delete-btn" onclick="deleteMatchupFromModal()" class="hidden oswald-sharp border border-red-500/30 text-red-400 hover:text-red-300 hover:bg-red-500/10 font-black italic uppercase text-sm px-4 py-2.5 rounded-xl tracking-widest transition-all">
+                        🗑 삭제
+                    </button>
+                    <button onclick="closeMatchupEditModal()"
                         class="oswald-sharp border border-white/10 text-gray-400 hover:text-white font-black italic uppercase text-sm px-4 py-2.5 rounded-xl tracking-widest transition-all">
                         취소
                     </button>
@@ -2821,7 +2913,8 @@ textarea, select {
 
     /* [💰 ADVANCED DATA & ODDS SYSTEM: Vote Logic] */
     /* ── Global Bet Slip state & functions ── */
-    var activeBetSlip = { fightId: null, side: null, match: null, pick: null, odds: null, method: null, methodBonus: 0, round: null };
+    // window scope — fights-render.js의 selectPickFighter()와 공유
+    window.activeBetSlip = { fightId: null, side: null, match: null, pick: null, odds: null, method: null, methodBonus: 0, round: null };
 
     function openBetSlip(fightId, side, match, pick, odds) {
         if (!currentUser) { showToast('⚠ 베팅은 로그인 후 가능합니다'); return; }
@@ -2829,7 +2922,7 @@ textarea, select {
         if (state.pendings[fightId]) { showToast('⚠️ 이미 이 경기에 예측을 등록했습니다'); return; }
         if (state.settled && state.settled[fightId]) { showToast('⚠️ 이미 결과가 확정된 경기입니다'); return; }
 
-        activeBetSlip = { fightId, side, match, pick, odds, method: null, methodBonus: 0, round: null };
+        window.activeBetSlip = { fightId, side, match, pick, odds, method: null, methodBonus: 0, round: null };
 
         // UI 채우기
         var bsMatch = document.getElementById('bs-match-title');
@@ -2883,8 +2976,8 @@ textarea, select {
         var btn = document.getElementById('bs-mb-' + m.key);
         if (btn) btn.classList.add(m.sel);
 
-        activeBetSlip.method      = method;
-        activeBetSlip.methodBonus = m.bonus;
+        window.activeBetSlip.method      = method;
+        window.activeBetSlip.methodBonus = m.bonus;
 
         var msgEl = document.getElementById('bs-status-msg');
         if (msgEl) msgEl.textContent = '✅ ' + m.label;
@@ -2898,7 +2991,7 @@ textarea, select {
         var btn = document.getElementById('bs-rb-' + round);
         if (btn) btn.classList.add('bs-sel');
 
-        activeBetSlip.round = round;
+        window.activeBetSlip.round = round;
 
         var msgEl = document.getElementById('bs-status-msg');
         if (msgEl) {
@@ -2914,7 +3007,7 @@ textarea, select {
     }
 
     async function confirmBetSlip() {
-        var bs = activeBetSlip;
+        var bs = window.activeBetSlip;
         if (!bs.fightId) return;
 
         var confirmBtn = document.getElementById('bs-confirm-btn');
@@ -2936,7 +3029,7 @@ textarea, select {
         }
 
         closeBetSlip();
-        activeBetSlip = { fightId: null, side: null, match: null, pick: null, odds: null, method: null, methodBonus: 0, round: null };
+        window.activeBetSlip = { fightId: null, side: null, match: null, pick: null, odds: null, method: null, methodBonus: 0, round: null };
         if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = '✓ CONFIRM PICK — ' + BET_COST + 'P'; }
     }
 
