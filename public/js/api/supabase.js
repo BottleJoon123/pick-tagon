@@ -108,16 +108,31 @@ function loadPostsFromDB() {
                             date: d.getFullYear() + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0')
                         };
                     });
-                    // Gemini API로 영문 뉴스 번역 (API 키가 있을 경우)
-                    var translated = await translateNewsWithGemini(mapped);
-                    cachedNews = translated || mapped;
+                    // 원문 먼저 즉시 렌더링 (논블로킹)
+                    cachedNews = mapped;
                     newsFetched = true;
+                    renderNewsGrid();
+                    if (typeof renderHomeNews === 'function') renderHomeNews();
+                    // Gemini 번역은 백그라운드에서 (5초 timeout)
+                    if (typeof translateNewsWithGemini === 'function') {
+                        var translatePromise = Promise.race([
+                            translateNewsWithGemini(mapped),
+                            new Promise(function(resolve) { setTimeout(function() { resolve(null); }, 5000); })
+                        ]);
+                        translatePromise.then(function(translated) {
+                            if (translated) {
+                                cachedNews = translated;
+                                renderNewsGrid();
+                                if (typeof renderHomeNews === 'function') renderHomeNews();
+                            }
+                        });
+                    }
                 } else {
                     cachedNews = [];
                     newsFetched = true;
+                    renderNewsGrid();
+                    if (typeof renderHomeNews === 'function') renderHomeNews();
                 }
-                renderNewsGrid();
-                if (typeof renderHomeNews === 'function') renderHomeNews();
             });
     }
 
@@ -262,28 +277,24 @@ function loadPostsFromDB() {
 async function fetchUpcomingMatchups() {
     if (typeof sb === 'undefined' || !sb) return;
     try {
-        // 전체 이벤트 로드 (sidebar + matchups 헤더용)
+        // 전체 이벤트 1회 쿼리 (sidebar + upcoming 동시 처리)
         var allEvRes = await sb.from('events')
             .select('id, title, event_date, status')
             .order('event_date', { ascending: true });
-        if (!allEvRes.error && allEvRes.data) {
-            if (typeof _sidebarEventsCache !== 'undefined') {
-                _sidebarEventsCache = allEvRes.data;
-            }
-        }
-
-        // 현재 upcoming 이벤트 (가장 빠른 것)
-        var evRes = await sb.from('events')
-            .select('id, title, event_date')
-            .eq('status', 'upcoming')
-            .order('event_date', { ascending: true })
-            .limit(1);
-        if (evRes.error || !evRes.data || !evRes.data.length) {
+        if (allEvRes.error || !allEvRes.data) {
             if (typeof renderEventSidebar === 'function') renderEventSidebar();
             if (typeof renderFightCards === 'function') renderFightCards();
             return;
         }
-        var event = evRes.data[0];
+        if (typeof _sidebarEventsCache !== 'undefined') {
+            _sidebarEventsCache = allEvRes.data;
+        }
+        var event = allEvRes.data.find(function(e) { return e.status === 'upcoming'; });
+        if (!event) {
+            if (typeof renderEventSidebar === 'function') renderEventSidebar();
+            if (typeof renderFightCards === 'function') renderFightCards();
+            return;
+        }
 
         // 이벤트 헤더 DB에서 자동 반영
         if (event.title) {
