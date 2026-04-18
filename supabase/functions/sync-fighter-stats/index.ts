@@ -321,14 +321,14 @@ async function syncOneEspn(sb: ReturnType<typeof createClient>, fighter: Fighter
   const bl = fighter.division ? baselines.get(fighter.division.toLowerCase()) ?? null : null
   const { stats, usedBaseline } = computeScores(s, fighter.wins, bl)
 
-  const { error } = await sb.from('fighters').upsert({
-    id: fighter.id, espn_id: espnId,
+  const { error } = await sb.from('fighters').update({
+    espn_id: espnId,
     height_cm: s.heightCm, weight_kg: s.weightKg, reach_cm: s.reachCm,
     slpm: s.slpm, sapm: s.sapm, str_acc: s.strAcc, str_def: s.strDef,
     td_avg: s.tdAvg, td_acc: s.tdAcc, td_def: s.tdDef, sub_avg: s.subAvg,
     ko_rate: s.koRate, sub_rate: s.subRate, dec_rate: s.decRate,
     stats, stats_updated_at: new Date().toISOString(),
-  }, { onConflict: 'id' })
+  }).eq('id', fighter.id)
 
   if (error) throw new Error(`upsert failed: ${error.message}`)
   return { name: fighter.name_en, espnId, division: fighter.division, usedBaseline, stats }
@@ -343,14 +343,14 @@ async function handleClientStats(sb: ReturnType<typeof createClient>, payloads: 
       const { data: fRow } = await sb.from('fighters').select('wins,division').eq('id', p.fighterId).single()
       const bl = fRow?.division ? baselines.get(fRow.division.toLowerCase()) ?? null : null
       const { stats, usedBaseline } = computeScores(p, fRow?.wins ?? null, bl)
-      const { error } = await sb.from('fighters').upsert({
-        id: p.fighterId, espn_id: p.espnId ?? null,
+      const { error } = await sb.from('fighters').update({
+        espn_id: p.espnId ?? null,
         height_cm: p.heightCm ?? null, weight_kg: p.weightKg ?? null, reach_cm: p.reachCm ?? null,
         slpm: p.slpm ?? null, sapm: p.sapm ?? null, str_acc: p.strAcc ?? null, str_def: p.strDef ?? null,
         td_avg: p.tdAvg ?? null, td_acc: p.tdAcc ?? null, td_def: p.tdDef ?? null, sub_avg: p.subAvg ?? null,
         ko_rate: p.koRate ?? null, sub_rate: p.subRate ?? null, dec_rate: p.decRate ?? null,
         stats, stats_updated_at: new Date().toISOString(),
-      }, { onConflict: 'id' })
+      }).eq('id', p.fighterId)
       if (error) throw new Error(error.message)
       results.push({ fighterId: p.fighterId, usedBaseline, stats })
     } catch (e) {
