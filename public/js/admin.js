@@ -549,6 +549,9 @@ async function syncFighterStats(options = {}) {
                 ? `✅ ${(data.results||[])[0]?.name || options.slug}: stats=${JSON.stringify((data.results||[])[0]?.stats)}`
                 : `배치 ${offset}~${offset + (data.processed||0) - 1} 완료 (${data.processed}/${data.total}) — 업데이트: ${data.updated}명`;
             if (log) log.textContent += progressLine + '\n';
+            if (log && data.errors && data.errors.length) {
+                log.textContent += '  ⚠ 오류:\n' + data.errors.slice(0, 5).map(e => '    ' + e).join('\n') + '\n';
+            }
 
             if (isSingle || data.done) break;
 

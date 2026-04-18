@@ -126,6 +126,7 @@ function toSlug(nameEn: string | null): string | null {
 
 async function lookupUfcStatsId(nameEn: string): Promise<string | null> {
   const parts     = nameEn.trim().split(/\s+/)
+  if (parts.length < 2) return null
   const lastName  = parts[parts.length - 1].toLowerCase()
   const firstName = parts.slice(0, -1).join(' ').toLowerCase()
   const letter    = lastName[0]
@@ -137,11 +138,13 @@ async function lookupUfcStatsId(nameEn: string): Promise<string | null> {
   let foundId: string | null = null
 
   $('tr.b-statistics__table-row').each((_, row) => {
-    const cells   = $(row).find('td')
+    const cells    = $(row).find('td')
+    if (cells.length < 2) return
     const rowFirst = norm(cells.eq(0).text()).toLowerCase()
     const rowLast  = norm(cells.eq(1).text()).toLowerCase()
     if (rowFirst === firstName && rowLast === lastName) {
-      const href = cells.eq(0).find('a').attr('href') ?? ''
+      // href는 절대 URL: http://www.ufcstats.com/fighter-details/{hex}
+      const href = cells.eq(0).find('a').attr('href') ?? cells.eq(1).find('a').attr('href') ?? ''
       const m    = href.match(/fighter-details\/([a-f0-9]+)/i)
       if (m) { foundId = m[1]; return false }
     }
@@ -153,14 +156,16 @@ async function lookupUfcStatsId(nameEn: string): Promise<string | null> {
 
 function parseBioItem($: Root, label: string): string | null {
   let result: string | null = null
+  const labelLow = label.toLowerCase()
   $('li.b-list__box-list-item').each((_, el) => {
-    const title = norm($(el).find('i.b-list__box-item-title').text())
-    if (title.toLowerCase().includes(label.toLowerCase())) {
-      // 제목 텍스트 제거 후 나머지가 값
-      const full  = norm($(el).text())
-      const value = full.replace(title, '').trim()
-      if (value && value !== '--') { result = value; return false }
-    }
+    const $el   = $(el)
+    const title = norm($el.find('i.b-list__box-item-title').text())
+    if (!title || !title.toLowerCase().includes(labelLow)) return
+    // <i> 요소를 clone에서 제거한 뒤 나머지 text가 값
+    const $clone = $el.clone()
+    $clone.find('i').remove()
+    const value = norm($clone.text())
+    if (value && value !== '--') { result = value; return false }
   })
   return result
 }
@@ -168,16 +173,18 @@ function parseBioItem($: Root, label: string): string | null {
 function parseWinMethods($: Root): { koRate: number | null; subRate: number | null; decRate: number | null } {
   let wins = 0, ko = 0, sub = 0, dec = 0
 
-  $('tr.b-fight-details__table-row').each((_, row) => {
+  // ufcstats 파이터 상세 페이지 fight history 테이블
+  $('tr.b-fight-details__table-row__hover, tr.b-fight-details__table-row').each((_, row) => {
     const cells  = $(row).find('td')
     if (cells.length < 8) return
-    const result = norm(cells.eq(0).text()).toLowerCase()
-    const method = norm(cells.eq(7).text()).toLowerCase()
-    if (!result.startsWith('win') && !result.includes('w')) return // 승리 행만
+    // 첫 번째 셀의 링크 텍스트가 "win"이면 승리
+    const resultLink = norm(cells.eq(0).find('a').first().text() || cells.eq(0).text()).toLowerCase()
+    if (!resultLink.startsWith('win')) return
     wins++
+    const method = norm(cells.eq(7).text()).toLowerCase()
     if (method.includes('ko') || method.includes('tko')) ko++
     else if (method.includes('sub')) sub++
-    else if (method.includes('dec') || method.includes('decision')) dec++
+    else if (method.includes('dec') || method.includes('decision') || method.includes('u-dec') || method.includes('s-dec')) dec++
   })
 
   if (wins === 0) return { koRate: null, subRate: null, decRate: null }
