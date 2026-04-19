@@ -2216,10 +2216,34 @@ textarea, select {
                         </div>
                         <div class="w-px h-8 bg-white/10"></div>
                         <div>
+                            <p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest italic">Weight</p>
+                            <p id="fp-weight" class="oswald-sharp text-base lg:text-xl font-black italic text-white"></p>
+                        </div>
+                        <div class="w-px h-8 bg-white/10"></div>
+                        <div>
                             <p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest italic">Odds</p>
                             <p id="fp-odds" class="oswald-sharp text-base lg:text-xl font-black italic text-ufcRed"></p>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Finish Rate -->
+        <div id="fp-finish-section" class="hidden px-8 lg:px-14 py-5 border-b border-white/5">
+            <p class="oswald-sharp text-[9px] text-gray-600 uppercase tracking-[0.3em] font-black italic mb-4">Finish Rate</p>
+            <div class="flex gap-6">
+                <div class="text-center">
+                    <p id="fp-ko-rate" class="oswald-sharp text-xl font-black italic text-red-400">—</p>
+                    <p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest italic mt-1">KO/TKO</p>
+                </div>
+                <div class="text-center">
+                    <p id="fp-sub-rate" class="oswald-sharp text-xl font-black italic text-blue-400">—</p>
+                    <p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest italic mt-1">Submission</p>
+                </div>
+                <div class="text-center">
+                    <p id="fp-dec-rate" class="oswald-sharp text-xl font-black italic text-gray-400">—</p>
+                    <p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest italic mt-1">Decision</p>
                 </div>
             </div>
         </div>
@@ -3528,9 +3552,20 @@ async function publishPost() {
         document.getElementById('fp-record').textContent = fighter.record || '—';
         document.getElementById('fp-height').textContent = fighter.height || '—';
         document.getElementById('fp-reach').textContent = fighter.reach || '—';
+        document.getElementById('fp-weight').textContent = fighter.weight || '—';
         document.getElementById('fp-odds').textContent = fighter.odds ? `×${fighter.odds}` : '—';
         document.getElementById('fp-rank-badge').textContent = fighter.rank || 'UNRANKED';
         document.getElementById('fp-division-badge').textContent = fighter.division || '';
+        // KO/SUB/DEC율
+        const finishSection = document.getElementById('fp-finish-section');
+        if (fighter.ko_rate != null || fighter.sub_rate != null || fighter.dec_rate != null) {
+            finishSection?.classList.remove('hidden');
+            document.getElementById('fp-ko-rate').textContent  = fighter.ko_rate  != null ? fighter.ko_rate.toFixed(1)  + '%' : '—';
+            document.getElementById('fp-sub-rate').textContent = fighter.sub_rate != null ? fighter.sub_rate.toFixed(1) + '%' : '—';
+            document.getElementById('fp-dec-rate').textContent = fighter.dec_rate != null ? fighter.dec_rate.toFixed(1) + '%' : '—';
+        } else {
+            finishSection?.classList.add('hidden');
+        }
 
         // Stat bars
         const stats = fighter.stats || [75, 75, 75, 75, 75];

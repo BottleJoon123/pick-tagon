@@ -534,14 +534,21 @@ function _buildFighterForProfile(f) {
         : null;
     const rankLabel = f.rank === 0 ? 'CHAMPION' : (f.rank ? `#${f.rank}` : 'UNRANKED');
     const divLabel  = DIVISION_LABEL[f.division] || (f.division || '').toUpperCase();
-    const stats     = Array.isArray(f.stats) ? f.stats : [75, 75, 75, 75, 75];
+    const stats     = Array.isArray(f.stats) ? f.stats : [50, 50, 50, 50, 50];
+    const heightStr = f.height_cm ? Math.round(f.height_cm) + ' cm' : (f.height || '—');
+    const reachStr  = f.reach_cm  ? Math.round(f.reach_cm)  + ' cm' : (f.reach  || '—');
+    const weightStr = f.weight_kg ? Math.round(f.weight_kg) + ' kg' : '—';
     return {
         id: f.id,
         name: f.name || f.name_en || '—',
         name_en: f.name_en,
         record: record || '—',
-        height: f.height || '—',
-        reach: f.reach || '—',
+        height: heightStr,
+        reach: reachStr,
+        weight: weightStr,
+        ko_rate: f.ko_rate ?? null,
+        sub_rate: f.sub_rate ?? null,
+        dec_rate: f.dec_rate ?? null,
         odds: f.odds || null,
         rank: rankLabel,
         division: divLabel,
@@ -562,7 +569,7 @@ async function fetchFighterArchive() {
     try {
         const { data, error } = await sb
             .from('fighters')
-            .select('id, name, name_en, division, wins, losses, draws, rank, height, reach, image_url, style')
+            .select('id, name, name_en, division, wins, losses, draws, rank, height, reach, height_cm, weight_kg, reach_cm, ko_rate, sub_rate, dec_rate, stats, image_url, style')
             .order('division', { ascending: true })
             .order('rank', { ascending: true, nullsFirst: false })
             .limit(5000);
