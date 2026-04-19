@@ -3843,6 +3843,31 @@ async function publishPost() {
     let ufcRankingsDB = {};
     let currentDivision = 'p4p';
 
+    async function syncFighterRanksFromRankings(allRows) {
+        if (!sb) return;
+        var updated = 0;
+        var errors = 0;
+        for (var i = 0; i < allRows.length; i++) {
+            var row = allRows[i];
+            var rankVal = row.rank_position === 'C' ? 0 : parseInt(row.rank_position, 10);
+            if (isNaN(rankVal)) continue;
+            var name = (row.fighter_name || '').trim();
+            if (!name) continue;
+            // ilike 퍼지 매칭으로 fighters.name_en 업데이트
+            var res = await sb.from('fighters')
+                .update({ rank: rankVal })
+                .ilike('name_en', name);
+            if (res.error) {
+                errors++;
+                console.warn('[RankSync] 실패:', name, res.error.message);
+            } else {
+                updated++;
+            }
+        }
+        console.log('[RankSync] 완료 — 업데이트:', updated, '/ 실패:', errors);
+        if (updated > 0) showToast('🏆 파이터 랭크 동기화 완료 (' + updated + '명)');
+    }
+
     function loadUFCRankings() {
         if (sb) {
             sb.from('ufc_rankings').select('*').order('division').order('rank_position')
@@ -4001,6 +4026,8 @@ async function publishPost() {
                 var updated = document.getElementById('ufc-rank-updated');
                 if (updated) updated.textContent = 'UFC.com 기준 · ' + new Date().toLocaleDateString('ko-KR');
                 loadUFCRankings();
+                // fighters.rank 동기화
+                syncFighterRanksFromRankings(allRows);
             }
         } catch(e) {
             showToast('❌ 갱신 실패: ' + e.message);
