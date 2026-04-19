@@ -4136,16 +4136,35 @@ async function publishPost() {
         `).join('');
     }
 
-    let _rankImgMap = null; // lowercase name_en → image_url
+    let _rankImgMap = null;     // lowercase name_en → image_url
+    let _rankFighterMap = null; // lowercase name_en → full fighters row
 
     async function _loadRankImgs() {
         if (!sb || _rankImgMap !== null) return;
         _rankImgMap = {};
-        const { data } = await sb.from('fighters').select('name_en, image_url').not('image_url', 'is', null);
+        _rankFighterMap = {};
+        const { data } = await sb.from('fighters').select(
+            'id, name, name_en, division, wins, losses, draws, rank, height, reach, height_cm, weight_kg, reach_cm, ko_rate, sub_rate, dec_rate, stats, image_url, style, odds'
+        );
         (data || []).forEach(f => {
-            if (f.image_url) _rankImgMap[(f.name_en || '').toLowerCase().trim()] = f.image_url;
+            const key = (f.name_en || '').toLowerCase().trim();
+            if (!key) return;
+            if (f.image_url) _rankImgMap[key] = f.image_url;
+            _rankFighterMap[key] = f;
         });
         renderUFCRankings();
+    }
+
+    function _lookupRankFighter(name) {
+        if (!_rankFighterMap) return null;
+        const key = (name || '').toLowerCase().trim();
+        if (_rankFighterMap[key]) return _rankFighterMap[key];
+        const lastName = key.split(' ').pop();
+        if (lastName && lastName.length >= 4) {
+            const found = Object.keys(_rankFighterMap).find(k => k.includes(lastName));
+            if (found) return _rankFighterMap[found];
+        }
+        return null;
     }
 
     function _getRankImg(name) {
@@ -4265,7 +4284,32 @@ async function publishPost() {
     function openUFCFighterProfile(fighter) {
         if (typeof fighter === 'string') fighter = JSON.parse(fighter);
 
-        // Reuse existing fighter profile modal
+        // fighters 테이블 데이터가 있으면 openFighterProfile로 위임
+        const dbRow = _lookupRankFighter(fighter.name);
+        if (dbRow) {
+            const DIVISION_LABEL = { flw:'플라이급', bw:'밴텀급', fw:'페더급', lw:'라이트급', ww:'웰터급', mw:'미들급', lhw:'라이트헤비급', hw:'헤비급', 'w-sw':'여자 스트로우', 'w-flw':'여자 플라이급', 'w-bw':'여자 밴텀급' };
+            const rv = fighter.isChampion ? 0 : (fighter.rank ?? null);
+            const rankLabel = rv === 0 ? 'CHAMPION' : (rv != null ? `#${rv}` : 'UNRANKED');
+            const divLabel = DIVISION_LABEL[dbRow.division] || fighter.division || '';
+            const heightStr = dbRow.height_cm ? Math.round(dbRow.height_cm) + ' cm' : (dbRow.height || fighter.height || '—');
+            const reachStr  = dbRow.reach_cm  ? Math.round(dbRow.reach_cm)  + ' cm' : (dbRow.reach  || fighter.reach  || '—');
+            const weightStr = dbRow.weight_kg ? Math.round(dbRow.weight_kg) + ' kg' : '—';
+            openFighterProfile({
+                id: dbRow.id,
+                name: dbRow.name || dbRow.name_en || fighter.name,
+                name_en: dbRow.name_en,
+                record: dbRow.wins != null ? `${dbRow.wins||0}-${dbRow.losses||0}${dbRow.draws?'-'+dbRow.draws:''}` : (fighter.record || '—'),
+                height: heightStr, reach: reachStr, weight: weightStr,
+                ko_rate: dbRow.ko_rate ?? null, sub_rate: dbRow.sub_rate ?? null, dec_rate: dbRow.dec_rate ?? null,
+                odds: dbRow.odds || fighter.odds || null,
+                rank: rankLabel, division: divLabel, style: dbRow.style,
+                stats: Array.isArray(dbRow.stats) ? dbRow.stats : (fighter.stats || [75,75,75,75,75]),
+                image_url: dbRow.image_url || null,
+            });
+            return;
+        }
+
+        // fallback: fighters 테이블 미매칭 시 기존 로직 사용
         const modal = document.getElementById('fighter-profile-modal');
         modal.classList.remove('hidden');
 
