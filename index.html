@@ -1574,6 +1574,7 @@ textarea, select {
                         <button onclick="renderAdminFighterList()" class="oswald-sharp border border-white/10 text-gray-400 hover:text-white font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">↻ 새로고침</button>
                         <button onclick="syncAllFighters()" id="btn-sync-all-fighters" class="oswald-sharp border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 hover:border-emerald-400 font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">🌐 전체 파이터 동기화</button>
                         <button onclick="syncFighterStats()" id="btn-sync-fighter-stats" class="oswald-sharp border border-blue-500/30 text-blue-400 hover:text-blue-300 hover:border-blue-400 font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">📊 스탯 동기화</button>
+                        <button onclick="syncRankFromUFCRankings()" id="btn-sync-rank" class="oswald-sharp border border-purple-500/30 text-purple-400 hover:text-purple-300 hover:border-purple-400 font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">🏆 랭킹 동기화</button>
                         <button onclick="purgeInactiveFighters(true)" class="oswald-sharp border border-yellow-500/30 text-yellow-400 hover:text-yellow-300 hover:border-yellow-400 font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">🔍 드라이런</button>
                         <button onclick="purgeInactiveFighters(false)" id="btn-purge-inactive" class="oswald-sharp border border-red-500/30 text-red-400 hover:text-red-300 hover:border-red-400 font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">🗑 비활성 파이터 삭제</button>
                         <button onclick="openFighterModal()" class="oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black px-6 lg:px-10 py-2 rounded-xl italic text-xs lg:text-sm uppercase tracking-widest transition-all">+ 파이터 추가</button>
@@ -3866,6 +3867,22 @@ async function publishPost() {
         }
         console.log('[RankSync] 완료 — 업데이트:', updated, '/ 실패:', errors);
         if (updated > 0) showToast('🏆 파이터 랭크 동기화 완료 (' + updated + '명)');
+    }
+
+    async function syncRankFromUFCRankings() {
+        if (!sb) { showToast('⚠ Supabase 연결 필요'); return; }
+        var btn = document.getElementById('btn-sync-rank');
+        if (btn) { btn.textContent = '동기화 중...'; btn.disabled = true; }
+        try {
+            var res = await sb.from('ufc_rankings').select('division,rank_position,fighter_name');
+            if (res.error) throw new Error(res.error.message);
+            if (!res.data || res.data.length === 0) { showToast('⚠ ufc_rankings 데이터 없음. 먼저 랭킹을 갱신하세요.'); return; }
+            await syncFighterRanksFromRankings(res.data);
+        } catch(e) {
+            showToast('❌ 랭킹 동기화 실패: ' + e.message);
+        } finally {
+            if (btn) { btn.textContent = '🏆 랭킹 동기화'; btn.disabled = false; }
+        }
     }
 
     function loadUFCRankings() {
