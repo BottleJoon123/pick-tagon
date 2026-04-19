@@ -12,6 +12,7 @@ var _archiveRetryTimer = null;  // retry timer ref
 
 var fighterArchiveDB = [];      // fighters table cache
 var _fightersFetching = false;
+var _ufcRankMap = {};           // lowercase name_en → rank number (0=champion)
 var _currentArchiveTab = 'events'; // 'events' | 'fighters'
 
 // ── 서브탭 전환 ───────────────────────────────────────────────────────
@@ -527,12 +528,26 @@ const DIVISION_LABEL = {
     wfw: '여성 플라이웨이트', wbw: '여성 밴텀웨이트', wfe: '여성 페더웨이트',
 };
 
+// ufc_rankings 맵에서 랭크 조회 (없으면 fighters.rank 폴백)
+function _getRankVal(f) {
+    const key = (f.name_en || '').toLowerCase().trim();
+    if (key in _ufcRankMap) return _ufcRankMap[key];
+    // 성(last name) 부분 매칭 폴백
+    const lastName = key.split(' ').pop();
+    if (lastName && lastName.length >= 4) {
+        const match = Object.keys(_ufcRankMap).find(k => k.includes(lastName));
+        if (match !== undefined) return _ufcRankMap[match];
+    }
+    return f.rank ?? null;
+}
+
 // Maps a DB fighters row → openFighterProfile() expected shape
 function _buildFighterForProfile(f) {
     const record = (f.wins || f.losses || f.draws)
         ? `${f.wins || 0}-${f.losses || 0}${f.draws ? '-' + f.draws : ''}`
         : null;
-    const rankLabel = f.rank === 0 ? 'CHAMPION' : (f.rank ? `#${f.rank}` : 'UNRANKED');
+    const rv = _getRankVal(f);
+    const rankLabel = rv === 0 ? 'CHAMPION' : (rv != null ? `#${rv}` : 'UNRANKED');
     const divLabel  = DIVISION_LABEL[f.division] || (f.division || '').toUpperCase();
     const stats     = Array.isArray(f.stats) ? f.stats : [50, 50, 50, 50, 50];
     const heightStr = f.height_cm ? Math.round(f.height_cm) + ' cm' : (f.height || '—');
@@ -567,15 +582,27 @@ async function fetchFighterArchive() {
     if (listEl) listEl.innerHTML = '<p class="col-span-full text-center oswald-sharp text-gray-600 italic text-sm uppercase tracking-widest animate-pulse py-16">Loading...</p>';
 
     try {
-        const { data, error } = await sb
-            .from('fighters')
-            .select('id, name, name_en, division, wins, losses, draws, rank, height, reach, height_cm, weight_kg, reach_cm, ko_rate, sub_rate, dec_rate, stats, image_url, style')
-            .order('division', { ascending: true })
-            .order('rank', { ascending: true, nullsFirst: false })
-            .limit(5000);
+        const [fightersRes, rankingsRes] = await Promise.all([
+            sb.from('fighters')
+              .select('id, name, name_en, division, wins, losses, draws, rank, height, reach, height_cm, weight_kg, reach_cm, ko_rate, sub_rate, dec_rate, stats, image_url, style')
+              .order('division', { ascending: true })
+              .order('rank', { ascending: true, nullsFirst: false })
+              .limit(5000),
+            sb.from('ufc_rankings').select('fighter_name, rank_position')
+        ]);
 
-        if (error) throw error;
-        fighterArchiveDB = data || [];
+        if (fightersRes.error) throw fightersRes.error;
+
+        // ufc_rankings → 이름 소문자 키 맵 구성
+        _ufcRankMap = {};
+        (rankingsRes.data || []).forEach(row => {
+            const key = (row.fighter_name || '').toLowerCase().trim();
+            if (!key) return;
+            const rv = row.rank_position === 'C' ? 0 : parseInt(row.rank_position, 10);
+            if (!isNaN(rv)) _ufcRankMap[key] = rv;
+        });
+
+        fighterArchiveDB = fightersRes.data || [];
         renderFighterArchive();
     } catch (e) {
         console.error('[fetchFighterArchive]', e);
@@ -619,7 +646,8 @@ function renderFighterArchive() {
         const record      = (f.wins || f.losses || f.draws)
             ? `${f.wins || 0}-${f.losses || 0}${f.draws ? '-' + f.draws : ''}`
             : null;
-        const rankLabel   = f.rank === 0 ? 'C' : (f.rank ? `#${f.rank}` : '—');
+        const rv2 = _getRankVal(f);
+        const rankLabel   = rv2 === 0 ? 'C' : (rv2 != null ? `#${rv2}` : '—');
         const divLabel    = DIVISION_LABEL[f.division] || (f.division || '').toUpperCase();
 
         const STYLE_COLOR = {
@@ -649,7 +677,7 @@ function renderFighterArchive() {
                 </div>
                 <!-- rank badge -->
                 <div class="absolute top-2 left-2">
-                    <span class="oswald-sharp text-[10px] font-black italic uppercase px-2 py-0.5 rounded-lg ${f.rank === 0 ? 'bg-yellow-500/20 border border-yellow-500/40 text-yellow-400' : 'bg-white/5 border border-white/10 text-gray-400'}">${rankLabel}</span>
+                    <span class="oswald-sharp text-[10px] font-black italic uppercase px-2 py-0.5 rounded-lg ${rv2 === 0 ? 'bg-yellow-500/20 border border-yellow-500/40 text-yellow-400' : 'bg-white/5 border border-white/10 text-gray-400'}">${rankLabel}</span>
                 </div>
             </div>
 
