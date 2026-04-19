@@ -3847,26 +3847,32 @@ async function publishPost() {
     async function syncFighterRanksFromRankings(allRows) {
         if (!sb) return;
         var updated = 0;
-        var errors = 0;
+        var skipped = 0;
         for (var i = 0; i < allRows.length; i++) {
             var row = allRows[i];
             var rankVal = row.rank_position === 'C' ? 0 : parseInt(row.rank_position, 10);
             if (isNaN(rankVal)) continue;
             var name = (row.fighter_name || '').trim();
             if (!name) continue;
-            // ilike 퍼지 매칭으로 fighters.name_en 업데이트
-            var res = await sb.from('fighters')
-                .update({ rank: rankVal })
-                .ilike('name_en', name);
-            if (res.error) {
-                errors++;
-                console.warn('[RankSync] 실패:', name, res.error.message);
-            } else {
-                updated++;
+
+            // 1차: 정확한 ilike 매칭
+            var res = await sb.from('fighters').update({ rank: rankVal }).ilike('name_en', name);
+            if (!res.error && res.count !== 0) { updated++; continue; }
+
+            // 2차: 성(last word)으로 부분 매칭
+            var parts = name.split(' ');
+            var lastName = parts[parts.length - 1];
+            if (lastName.length >= 4) {
+                var res2 = await sb.from('fighters').update({ rank: rankVal }).ilike('name_en', '%' + lastName + '%');
+                if (!res2.error && res2.count !== 0) { updated++; continue; }
             }
+
+            skipped++;
+            console.warn('[RankSync] 매칭 실패:', name);
         }
-        console.log('[RankSync] 완료 — 업데이트:', updated, '/ 실패:', errors);
+        console.log('[RankSync] 완료 — 업데이트:', updated, '/ 매칭 실패:', skipped);
         if (updated > 0) showToast('🏆 파이터 랭크 동기화 완료 (' + updated + '명)');
+        else showToast('⚠ 매칭된 파이터 없음 — 이름을 확인하세요');
     }
 
     async function syncRankFromUFCRankings() {
