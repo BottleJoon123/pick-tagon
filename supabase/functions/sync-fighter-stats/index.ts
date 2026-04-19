@@ -157,51 +157,46 @@ function extractStatByLabel(labels: string[], values: unknown[], keyword: string
 }
 
 async function fetchEspnAthleteStats(espnId: string): Promise<EspnStats> {
-  // 1. Core athlete (신체 정보 + record)
-  const core    = await fetchJson(`${ESPN_CORE}/athletes/${espnId}`) as Record<string, unknown>
-  const rawHeight = (core?.displayHeight ?? core?.height) as string ?? null
-  const rawWeight = (core?.displayWeight ?? core?.weight) as string ?? null
-  const rawReach  = null  // ESPN에 reach 없음
+  // 1. Core athlete (신체 정보) — height/weight/reach는 숫자(인치/파운드)로 옴
+  const core = await fetchJson(`${ESPN_CORE}/athletes/${espnId}`) as Record<string, unknown>
 
-  const heightCm = parseHeightCm(rawHeight)
-  const weightKg = parseWeightKg(rawWeight)
-  const reachCm  = null
+  const rawHeight = core?.displayHeight as string ?? null
+  const rawWeight = core?.displayWeight as string ?? null
+  const rawReach  = core?.displayReach  as string ?? null
 
-  // 2. Overview (커리어 스탯 레이블+값 배열)
-  const overview  = await fetchJson(`${ESPN_WEB}/athletes/${espnId}/overview?region=us&lang=en&contentorigin=espn`) as Record<string, unknown>
-  // stats는 중첩 구조: statistics.splits[].stats[] + labels[]
-  const statsRoot = (overview?.statistics ?? overview?.stats ?? {}) as Record<string, unknown>
-  const splits    = (statsRoot?.splits ?? []) as Array<Record<string, unknown>>
-  const labels: string[] = (statsRoot?.labels ?? splits[0]?.labels ?? []) as string[]
-  const values: unknown[] = (splits[0]?.stats ?? splits[0]?.values ?? []) as unknown[]
+  // ESPN Core는 height(인치), weight(파운드), reach(인치)를 숫자로 반환
+  const heightNum = typeof core?.height === 'number' ? core.height as number : null
+  const weightNum = typeof core?.weight === 'number' ? core.weight as number : null
+  const reachNum  = typeof core?.reach  === 'number' ? core.reach  as number : null
 
-  // ESPN 레이블: "SIG STR LPM", "SIG STR ACC", "SIG STR DEF", "SIG STR SAPM",
-  //              "TD AVG", "TD ACC", "TD DEF", "SUB AVG"
-  const slpm   = extractStatByLabel(labels, values, 'slpm') ?? extractStatByLabel(labels, values, 'str lpm')
-  const sapm   = extractStatByLabel(labels, values, 'sapm') ?? extractStatByLabel(labels, values, 'absorbed')
-  const strAcc = extractStatByLabel(labels, values, 'str acc') ?? extractStatByLabel(labels, values, 'sig str acc')
-  const strDef = extractStatByLabel(labels, values, 'str def') ?? extractStatByLabel(labels, values, 'sig str def')
-  const tdAvg  = extractStatByLabel(labels, values, 'td avg')
-  const tdAcc  = extractStatByLabel(labels, values, 'td acc')
-  const tdDef  = extractStatByLabel(labels, values, 'td def')
-  const subAvg = extractStatByLabel(labels, values, 'sub avg')
+  const heightCm = heightNum !== null ? round2(heightNum * 2.54) : parseHeightCm(rawHeight)
+  const weightKg = weightNum !== null ? round2(weightNum * 0.453592) : parseWeightKg(rawWeight)
+  const reachCm  = reachNum  !== null ? round2(reachNum  * 2.54) : parseReachCm(rawReach)
 
-  // 3. 승리 방법 (core athlete의 record)
-  const record    = (core?.record ?? overview?.record ?? {}) as Record<string, unknown>
-  const totalWins = parseFloat(String(record?.wins ?? core?.wins ?? 0))
-  const koWins    = parseFloat(String(record?.knockout ?? record?.ko ?? 0))
-  const subWins   = parseFloat(String(record?.submission ?? record?.sub ?? 0))
-  const decWins   = parseFloat(String(record?.decision ?? record?.dec ?? 0))
+  // 2. Records API — KO/SUB/DEC 승리수 (실제 응답 구조 확인됨)
+  const recordsData = await fetchJson(`${ESPN_CORE}/athletes/${espnId}/records?lang=en&region=us`) as Record<string, unknown>
+  const items = (recordsData?.items ?? []) as Array<Record<string, unknown>>
+  const recordStats = (items[0]?.stats ?? []) as Array<Record<string, unknown>>
+  const getStat = (name: string): number => {
+    const s = recordStats.find((r) => r.name === name)
+    return typeof s?.value === 'number' ? s.value as number : 0
+  }
+
+  const totalWins = getStat('wins')
+  const koWins    = getStat('tkos')
+  const subWins   = getStat('submissions')
+  const decWins   = Math.max(0, totalWins - koWins - subWins)
 
   const koRate  = totalWins > 0 ? round2((koWins  / totalWins) * 100) : null
   const subRate = totalWins > 0 ? round2((subWins / totalWins) * 100) : null
   const decRate = totalWins > 0 ? round2((decWins / totalWins) * 100) : null
 
+  // slpm/sapm/strAcc 등은 ESPN API에서 제공 안 함 — FIXED_MAX 폴백 사용
   return {
     rawHeight, rawWeight, rawReach,
     heightCm, weightKg, reachCm,
-    slpm, sapm, strAcc, strDef,
-    tdAvg, tdAcc, tdDef, subAvg,
+    slpm: null, sapm: null, strAcc: null, strDef: null,
+    tdAvg: null, tdAcc: null, tdDef: null, subAvg: null,
     koRate, subRate, decRate,
   }
 }
@@ -321,14 +316,23 @@ async function syncOneEspn(sb: ReturnType<typeof createClient>, fighter: Fighter
   const bl = fighter.division ? baselines.get(fighter.division.toLowerCase()) ?? null : null
   const { stats, usedBaseline } = computeScores(s, fighter.wins, bl)
 
-  const { error } = await sb.from('fighters').update({
+  const updatePayload: Record<string, unknown> = {
     espn_id: espnId,
     height_cm: s.heightCm, weight_kg: s.weightKg, reach_cm: s.reachCm,
-    slpm: s.slpm, sapm: s.sapm, str_acc: s.strAcc, str_def: s.strDef,
-    td_avg: s.tdAvg, td_acc: s.tdAcc, td_def: s.tdDef, sub_avg: s.subAvg,
     ko_rate: s.koRate, sub_rate: s.subRate, dec_rate: s.decRate,
     stats, stats_updated_at: new Date().toISOString(),
-  }).eq('id', fighter.id)
+  }
+  // null 스탯은 기존 DB 값 보존 (나중에 다른 소스로 채울 수 있게)
+  if (s.slpm   !== null) updatePayload.slpm    = s.slpm
+  if (s.sapm   !== null) updatePayload.sapm    = s.sapm
+  if (s.strAcc !== null) updatePayload.str_acc = s.strAcc
+  if (s.strDef !== null) updatePayload.str_def = s.strDef
+  if (s.tdAvg  !== null) updatePayload.td_avg  = s.tdAvg
+  if (s.tdAcc  !== null) updatePayload.td_acc  = s.tdAcc
+  if (s.tdDef  !== null) updatePayload.td_def  = s.tdDef
+  if (s.subAvg !== null) updatePayload.sub_avg = s.subAvg
+
+  const { error } = await sb.from('fighters').update(updatePayload).eq('id', fighter.id)
 
   if (error) throw new Error(`upsert failed: ${error.message}`)
   return { name: fighter.name_en, espnId, division: fighter.division, usedBaseline, stats }

@@ -519,7 +519,7 @@ async function syncFighterStats(options = {}) {
     if (!session?.access_token) { showToast('⚠ 어드민 로그인 필요'); return; }
 
     if (btn) { btn.textContent = '⏳ 동기화 중...'; btn.disabled = true; }
-    if (log) { log.classList.remove('hidden'); log.textContent = '[ 파이터 스탯 동기화 시작 ] ufcstats.com 스크래핑...\n'; }
+    if (log) { log.classList.remove('hidden'); log.textContent = '[ 파이터 스탯 동기화 시작 ] ESPN API (신체정보 + KO/SUB/DEC율)...\n'; }
 
     let totalUpdated = 0, totalErrors = 0, offset = 0;
     const isSingle = !!options.slug;
