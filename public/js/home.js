@@ -46,8 +46,21 @@ async function initHomeData() {
     if (typeof sb === 'undefined' || !sb) return;
     try {
         var data = await fetchMainEvent(sb);
-        if (!data) return;
+        if (!data) {
+            var heroLabel = document.getElementById('hero-event-label');
+            var redEl = document.getElementById('hero-red-name');
+            var blueEl = document.getElementById('hero-blue-name');
+            var cdEl = document.getElementById('hero-countdown');
+            if (heroLabel) heroLabel.textContent = 'NO UPCOMING EVENT';
+            if (redEl) redEl.textContent = 'TBA';
+            if (blueEl) blueEl.textContent = 'TBA';
+            if (cdEl) cdEl.style.display = 'none';
+            return;
+        }
         var { event, matchup } = data;
+
+        var heroLabel = document.getElementById('hero-event-label');
+        if (heroLabel) heroLabel.textContent = 'LIVE EVENT · ' + (event.title || '');
 
         var nameEl = document.getElementById('event-name-label');
         var dateEl = document.getElementById('event-date-label');
@@ -76,7 +89,8 @@ async function initHomeData() {
             blueImg.style.backgroundRepeat = 'no-repeat, no-repeat';
         }
         startCountdown(event.event_date);
-        renderFaceOffGlow(Number(matchup.left_bias) || 0.5);
+        var bias = matchup.left_bias != null ? Number(matchup.left_bias) : 0.5;
+        renderFaceOffGlow(isNaN(bias) ? 0.5 : bias);
     } catch(e) {
         console.warn('initHomeData error:', e);
     }
