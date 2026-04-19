@@ -630,9 +630,11 @@ function renderFighterArchive() {
             'all-around': 'text-yellow-400 border-yellow-400/30 bg-yellow-400/5',
         };
 
-        const profileData = encodeURIComponent(JSON.stringify(_buildFighterForProfile(f)));
+        window._fighterCardCache = window._fighterCardCache || {};
+        const cacheKey = 'fc_' + (f.id || f.name_en || Math.random().toString(36).slice(2));
+        window._fighterCardCache[cacheKey] = _buildFighterForProfile(f);
         return `
-        <div class="glass-card rounded-2xl overflow-hidden hover:border-white/20 hover:border-ufcRed/30 transition-all duration-300 flex flex-col cursor-pointer" onclick="openFighterProfile(decodeURIComponent('${profileData}'))">
+        <div class="glass-card rounded-2xl overflow-hidden hover:border-white/20 hover:border-ufcRed/30 transition-all duration-300 flex flex-col cursor-pointer" onclick="openFighterProfile(window._fighterCardCache['${cacheKey}'])">
             <!-- 파이터 이미지 -->
             <div class="relative bg-gradient-to-b from-white/5 to-black/40 aspect-[3/4] flex items-end justify-center overflow-hidden">
                 ${f.image_url
