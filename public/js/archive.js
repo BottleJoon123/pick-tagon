@@ -593,13 +593,15 @@ async function fetchFighterArchive() {
 
         if (fightersRes.error) throw fightersRes.error;
 
-        // ufc_rankings → 이름 소문자 키 맵 구성
+        // ufc_rankings → 이름 소문자 키 맵 구성 (P4P 제외, 같은 이름이면 작은 값 우선)
         _ufcRankMap = {};
         (rankingsRes.data || []).forEach(row => {
+            if (row.division === 'p4p') return;
             const key = (row.fighter_name || '').toLowerCase().trim();
             if (!key) return;
             const rv = row.rank_position === 'C' ? 0 : parseInt(row.rank_position, 10);
-            if (!isNaN(rv)) _ufcRankMap[key] = rv;
+            if (isNaN(rv)) return;
+            if (!(key in _ufcRankMap) || rv < _ufcRankMap[key]) _ufcRankMap[key] = rv;
         });
 
         fighterArchiveDB = fightersRes.data || [];

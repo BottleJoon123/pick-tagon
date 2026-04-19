@@ -3858,6 +3858,7 @@ async function publishPost() {
         var skipped = 0;
         for (var i = 0; i < allRows.length; i++) {
             var row = allRows[i];
+            if (row.division === 'p4p') continue; // P4P는 체급 랭킹과 충돌하므로 제외
             var rankVal = row.rank_position === 'C' ? 0 : parseInt(row.rank_position, 10);
             if (isNaN(rankVal)) continue;
             var name = (row.fighter_name || '').trim();
@@ -3966,6 +3967,7 @@ async function publishPost() {
                         if (!built[row.division]) built[row.division] = { champion: null, fighters: [] };
                         var fighter = {
                             name: row.fighter_name_ko || row.fighter_name,
+                            name_en: row.fighter_name,
                             nation: row.nation || '',
                             record: row.record || '',
                             height: row.height || '—',
@@ -3993,18 +3995,18 @@ async function publishPost() {
                     if (updated) updated.textContent = 'DB 기준 · ' + new Date().toLocaleDateString('ko-KR');
                 } else {
                     // Supabase 비어있으면 시드 데이터 사용
-                    const stored = localStorage.getItem('picktagon_ufc_rankings');
+                    const stored = localStorage.getItem('picktagon_ufc_rankings_v2');
                     ufcRankingsDB = stored ? JSON.parse(stored) : JSON.parse(JSON.stringify(UFC_RANKINGS_SEED));
                 }
             });
         } else {
-            const stored = localStorage.getItem('picktagon_ufc_rankings');
+            const stored = localStorage.getItem('picktagon_ufc_rankings_v2');
             ufcRankingsDB = stored ? JSON.parse(stored) : JSON.parse(JSON.stringify(UFC_RANKINGS_SEED));
         }
     }
 
     function saveUFCRankings() {
-        localStorage.setItem('picktagon_ufc_rankings', JSON.stringify(ufcRankingsDB));
+        localStorage.setItem('picktagon_ufc_rankings_v2', JSON.stringify(ufcRankingsDB));
     }
 
     // ── UFC 랭킹 자동 갱신 (UFC.com 공식 데이터 — Jina.ai 프록시, 키 불필요) ──
@@ -4213,8 +4215,8 @@ async function publishPost() {
             <div class="flex items-center justify-between flex-wrap gap-4">
                 <div class="flex items-center gap-5">
                     <div class="w-14 h-14 lg:w-20 lg:h-20 rounded-2xl bg-yellow-500/10 border-2 border-yellow-500/40 overflow-hidden flex items-center justify-center flex-shrink-0">
-                        ${_getRankImg(divData.champion.name)
-                            ? `<img src="${_getRankImg(divData.champion.name)}" class="w-full h-full object-cover object-top" onerror="this.parentElement.innerHTML='<span class=\\'text-2xl lg:text-4xl\\'>🏆</span>'">`
+                        ${_getRankImg(divData.champion.name_en || divData.champion.name)
+                            ? `<img src="${_getRankImg(divData.champion.name_en || divData.champion.name)}" class="w-full h-full object-cover object-top" onerror="this.parentElement.innerHTML='<span class=\\'text-2xl lg:text-4xl\\'>🏆</span>'">`
                             : `<span class="text-2xl lg:text-4xl">🏆</span>`}
                     </div>
                     <div>
@@ -4255,10 +4257,10 @@ async function publishPost() {
                 </div>
                 <div class="col-span-6 lg:col-span-5 flex items-center gap-3 pl-2">
                     <div class="w-9 h-9 lg:w-11 lg:h-11 rounded-xl bg-white/5 border border-white/10 overflow-hidden flex items-center justify-center flex-shrink-0">
-                        ${_getRankImg(f.name)
-                            ? `<img src="${_getRankImg(f.name)}" class="w-full h-full object-cover object-top" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+                        ${_getRankImg(f.name_en || f.name)
+                            ? `<img src="${_getRankImg(f.name_en || f.name)}" class="w-full h-full object-cover object-top" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
                             : ''}
-                        <span class="oswald-sharp font-black italic text-[10px] text-gray-400 w-full h-full flex items-center justify-center ${_getRankImg(f.name) ? 'hidden' : ''}">${f.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</span>
+                        <span class="oswald-sharp font-black italic text-[10px] text-gray-400 w-full h-full flex items-center justify-center ${_getRankImg(f.name_en || f.name) ? 'hidden' : ''}">${f.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</span>
                     </div>
                     <div>
                         <p class="oswald-sharp font-black italic text-sm lg:text-base text-white uppercase tracking-tighter group-hover:text-ufcRed transition">${f.nation} ${f.name}</p>
@@ -4284,8 +4286,13 @@ async function publishPost() {
     function openUFCFighterProfile(fighter) {
         if (typeof fighter === 'string') fighter = JSON.parse(fighter);
 
-        // fighters 테이블 데이터가 있으면 openFighterProfile로 위임
-        const dbRow = _lookupRankFighter(fighter.name);
+        // _rankFighterMap 아직 미로드 시 on-demand 로딩 후 재시도
+        if (_rankFighterMap === null) {
+            _loadRankImgs().then(() => openUFCFighterProfile(fighter));
+            return;
+        }
+        // fighters 테이블 데이터가 있으면 openFighterProfile로 위임 (영어 이름 우선)
+        const dbRow = _lookupRankFighter(fighter.name_en || fighter.name);
         if (dbRow) {
             const DIVISION_LABEL = { flw:'플라이급', bw:'밴텀급', fw:'페더급', lw:'라이트급', ww:'웰터급', mw:'미들급', lhw:'라이트헤비급', hw:'헤비급', 'w-sw':'여자 스트로우', 'w-flw':'여자 플라이급', 'w-bw':'여자 밴텀급' };
             const rv = fighter.isChampion ? 0 : (fighter.rank ?? null);
