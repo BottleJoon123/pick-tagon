@@ -1731,6 +1731,14 @@ textarea, select {
                         UFC 랭킹 페이지의 "🔄 UFC 랭킹 자동 갱신" 버튼을 눌러 바로 갱신하세요.</p>
                     </div>
                 </div>
+
+                <hr class="border-white/10">
+
+                <h4 class="oswald-sharp text-xl font-black italic uppercase text-gray-300 tracking-widest">랭킹 데이터 검증 & 수동 수정</h4>
+                <div class="flex gap-2 flex-wrap">
+                    <button onclick="loadRankVerifyPanel()" class="oswald-sharp border border-purple-500/30 text-purple-400 hover:text-purple-300 font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">🔍 현재 랭킹 데이터 전체 보기</button>
+                </div>
+                <div id="rank-verify-panel" class="hidden mt-4 space-y-3 max-h-[500px] overflow-y-auto"></div>
             </div>
         </div>
 
@@ -2738,7 +2746,7 @@ textarea, select {
                 si.dataset.bound = '1';
             }
         }
-        if(id === 'ufc-rankings') { renderUFCRankingTabs(); renderUFCRankings(); }
+        if(id === 'ufc-rankings') { renderUFCRankingTabs(); renderUFCRankings(); _loadRankImgs(); }
         if(id === 'matchups') {
             if (typeof fetchUpcomingMatchups === 'function') fetchUpcomingMatchups();
             renderFightCards();
@@ -3875,6 +3883,62 @@ async function publishPost() {
         else showToast('⚠ 매칭된 파이터 없음 — 이름을 확인하세요');
     }
 
+    async function loadRankVerifyPanel() {
+        if (!sb) { showToast('⚠ Supabase 연결 필요'); return; }
+        var panel = document.getElementById('rank-verify-panel');
+        if (!panel) return;
+        panel.classList.remove('hidden');
+        panel.innerHTML = '<p class="oswald-sharp text-xs text-gray-500 italic uppercase animate-pulse">불러오는 중...</p>';
+
+        var { data, error } = await sb.from('ufc_rankings')
+            .select('division, rank_position, fighter_name')
+            .order('division').order('rank_position');
+
+        if (error) { panel.innerHTML = '<p class="text-red-400 text-xs">' + error.message + '</p>'; return; }
+
+        // 디비전별 그룹
+        var groups = {};
+        (data || []).forEach(function(r) {
+            if (!groups[r.division]) groups[r.division] = [];
+            groups[r.division].push(r);
+        });
+
+        var DIV_LABELS = { p4p:'P4P',flw:'플라이급',bw:'밴텀급',fw:'페더급',lw:'라이트급',ww:'웰터급',mw:'미들급',lhw:'라이트헤비급',hw:'헤비급','w-sw':'여자 스트로우','w-flw':'여자 플라이','w-bw':'여자 밴텀' };
+
+        panel.innerHTML = Object.keys(groups).map(function(div) {
+            var rows = groups[div].sort(function(a,b) {
+                if (a.rank_position === 'C') return -1;
+                if (b.rank_position === 'C') return 1;
+                return parseInt(a.rank_position) - parseInt(b.rank_position);
+            });
+            return '<div class="glass-card rounded-xl p-4">' +
+                '<p class="oswald-sharp text-xs font-black italic uppercase tracking-widest text-ufcRed mb-2">' + (DIV_LABELS[div] || div) + '</p>' +
+                rows.map(function(r) {
+                    var isChamp = r.rank_position === 'C';
+                    return '<div class="flex items-center gap-2 py-1 border-b border-white/5 group">' +
+                        '<span class="oswald-sharp text-[10px] font-black italic w-6 text-center ' + (isChamp ? 'text-yellow-400' : 'text-gray-500') + '">' + (isChamp ? 'C' : r.rank_position) + '</span>' +
+                        '<input value="' + (r.fighter_name || '') + '" data-div="' + div + '" data-pos="' + r.rank_position + '" ' +
+                        'class="flex-1 bg-transparent text-white text-xs oswald-sharp italic focus:bg-white/5 rounded px-2 py-0.5 outline-none focus:outline focus:outline-ufcRed/50" ' +
+                        'onchange="saveRankRow(this)">' +
+                        '</div>';
+                }).join('') +
+                '</div>';
+        }).join('');
+    }
+
+    async function saveRankRow(input) {
+        if (!sb) return;
+        var div = input.dataset.div;
+        var pos = input.dataset.pos;
+        var newName = input.value.trim();
+        if (!newName) return;
+        var { error } = await sb.from('ufc_rankings')
+            .update({ fighter_name: newName, fighter_name_ko: newName })
+            .eq('division', div).eq('rank_position', pos);
+        if (error) { showToast('❌ 저장 실패: ' + error.message); input.style.color = '#f87171'; }
+        else { showToast('✅ 저장됨: ' + newName); input.style.color = '#4ade80'; setTimeout(() => input.style.color = '', 2000); }
+    }
+
     async function syncRankFromUFCRankings() {
         if (!sb) { showToast('⚠ Supabase 연결 필요'); return; }
         var btn = document.getElementById('btn-sync-rank');
@@ -4072,6 +4136,30 @@ async function publishPost() {
         `).join('');
     }
 
+    let _rankImgMap = null; // lowercase name_en → image_url
+
+    async function _loadRankImgs() {
+        if (!sb || _rankImgMap !== null) return;
+        _rankImgMap = {};
+        const { data } = await sb.from('fighters').select('name_en, image_url').not('image_url', 'is', null);
+        (data || []).forEach(f => {
+            if (f.image_url) _rankImgMap[(f.name_en || '').toLowerCase().trim()] = f.image_url;
+        });
+        renderUFCRankings();
+    }
+
+    function _getRankImg(name) {
+        if (!_rankImgMap) return null;
+        const key = (name || '').toLowerCase().trim();
+        if (_rankImgMap[key]) return _rankImgMap[key];
+        const lastName = key.split(' ').pop();
+        if (lastName && lastName.length >= 4) {
+            const found = Object.keys(_rankImgMap).find(k => k.includes(lastName));
+            if (found) return _rankImgMap[found];
+        }
+        return null;
+    }
+
     function switchDivision(divId) {
         currentDivision = divId;
         renderUFCRankingTabs();
@@ -4105,8 +4193,10 @@ async function publishPost() {
             style="background:linear-gradient(135deg,rgba(234,179,8,0.08) 0%,rgba(0,0,0,0) 60%)">
             <div class="flex items-center justify-between flex-wrap gap-4">
                 <div class="flex items-center gap-5">
-                    <div class="w-14 h-14 lg:w-20 lg:h-20 rounded-2xl bg-yellow-500/10 border-2 border-yellow-500/40 flex items-center justify-center">
-                        <span class="text-2xl lg:text-4xl">🏆</span>
+                    <div class="w-14 h-14 lg:w-20 lg:h-20 rounded-2xl bg-yellow-500/10 border-2 border-yellow-500/40 overflow-hidden flex items-center justify-center flex-shrink-0">
+                        ${_getRankImg(divData.champion.name)
+                            ? `<img src="${_getRankImg(divData.champion.name)}" class="w-full h-full object-cover object-top" onerror="this.parentElement.innerHTML='<span class=\\'text-2xl lg:text-4xl\\'>🏆</span>'">`
+                            : `<span class="text-2xl lg:text-4xl">🏆</span>`}
                     </div>
                     <div>
                         <p class="oswald-sharp text-[9px] text-yellow-400 uppercase tracking-[0.3em] font-black italic mb-1">Champion · ${divInfo?.label || ''}</p>
@@ -4145,8 +4235,11 @@ async function publishPost() {
                     <span class="oswald-sharp font-black italic text-base lg:text-xl ${f.rank<=3?'text-ufcRed':'text-gray-500'}">${f.rank}</span>
                 </div>
                 <div class="col-span-6 lg:col-span-5 flex items-center gap-3 pl-2">
-                    <div class="w-9 h-9 lg:w-11 lg:h-11 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center oswald-sharp font-black italic text-[10px] text-gray-400 flex-shrink-0">
-                        ${f.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
+                    <div class="w-9 h-9 lg:w-11 lg:h-11 rounded-xl bg-white/5 border border-white/10 overflow-hidden flex items-center justify-center flex-shrink-0">
+                        ${_getRankImg(f.name)
+                            ? `<img src="${_getRankImg(f.name)}" class="w-full h-full object-cover object-top" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+                            : ''}
+                        <span class="oswald-sharp font-black italic text-[10px] text-gray-400 w-full h-full flex items-center justify-center ${_getRankImg(f.name) ? 'hidden' : ''}">${f.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</span>
                     </div>
                     <div>
                         <p class="oswald-sharp font-black italic text-sm lg:text-base text-white uppercase tracking-tighter group-hover:text-ufcRed transition">${f.nation} ${f.name}</p>
