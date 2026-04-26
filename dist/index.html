@@ -2613,7 +2613,8 @@ textarea, select {
                 </div>
                 <div>
                     <label class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic block mb-2">시간</label>
-                    <input id="result-time-input" type="text" placeholder="4:32"
+                    <input id="result-time-input" type="text" placeholder="4:32" maxlength="5"
+                        oninput="let v=this.value.replace(/[^0-9:]/g,'');if(!v.includes(':')&&v.length>=2)v=v[0]+':'+v.slice(1);this.value=v;"
                         class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-ufcRed text-center oswald-sharp font-black italic text-lg">
                 </div>
             </div>
@@ -3186,9 +3187,18 @@ textarea, select {
     async function submitMatchupResult(matchupId, winnerName, winnerSide, method, round, time) {
         try {
             showToast('⏳ 결과 정산 중...');
-            const { data, error } = await sb.functions.invoke('settle-matchup', {
-                body: { matchupId, winnerName, winnerSide, method, round, time: time || null }
-            });
+            let data, error;
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                ({ data, error } = await sb.functions.invoke('settle-matchup', {
+                    body: { matchupId, winnerName, winnerSide, method, round, time: time || null }
+                }));
+                if (!error) break;
+                const isColdStart = (error?.context?.status === 503) || error?.name === 'FunctionsFetchError';
+                if (isColdStart && attempt < 3) {
+                    showToast(`⏳ 서버 준비 중... (${attempt}/3)`);
+                    await new Promise(r => setTimeout(r, 2000 * attempt));
+                } else break;
+            }
 
             if (error) throw error;
 

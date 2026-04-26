@@ -655,16 +655,19 @@ function renderAdminFightCardList() {
     }
 
     list.innerHTML = fights.map((fight, idx) => {
+        const dbDone = fight._fromDB && fight._resultStatus === 'completed';
         const settled = state.settled?.[fight.id];
         const pending = state.pendings?.[fight.id];
-        const statusBadge = settled
+        const statusBadge = dbDone
+            ? `<span class="oswald-sharp text-[9px] px-2 py-1 rounded-lg font-black italic uppercase text-green-400 bg-green-400/10 border border-green-400/20">✅ 완료 · ${escapeHtml(fight._resultWinner||'?')} (${escapeHtml(fight._resultMethod||'—')}) R${fight._resultRound||'?'}</span>`
+            : settled
             ? `<span class="oswald-sharp text-[9px] px-2 py-1 rounded-lg font-black italic uppercase ${settled.result === 'WIN' ? 'text-green-400 bg-green-400/10 border border-green-400/20' : 'text-red-400 bg-red-400/10 border border-red-400/20'}">결과확정 · ${escapeHtml(settled.actualWinner)} (${escapeHtml(settled.actualMethod||'—')})</span>`
             : pending
             ? `<span class="oswald-sharp text-[9px] px-2 py-1 rounded-lg font-black italic uppercase text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 animate-pulse">예측 진행중</span>`
             : `<span class="oswald-sharp text-[9px] px-2 py-1 rounded-lg font-black italic uppercase text-gray-500 border border-white/10">대기중</span>`;
 
         return `
-        <div class="glass-card rounded-2xl p-4 lg:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-3 hover:border-white/20 transition-all">
+        <div class="glass-card rounded-2xl p-4 lg:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-3 hover:border-white/20 transition-all${dbDone ? ' opacity-60' : ''}">
             <div class="flex items-center gap-4">
                 <span class="oswald-sharp text-[8px] lg:text-xs bg-ufcRed/10 border border-ufcRed/20 text-ufcRed px-2 py-1 rounded-lg font-black italic uppercase">${fight.tag}</span>
                 <div>
@@ -673,7 +676,7 @@ function renderAdminFightCardList() {
                 </div>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
-                ${!settled ? `<button onclick="adminSetResult('${fight.id}')" class="oswald-sharp text-[10px] bg-ufcRed hover:bg-red-700 text-white font-black px-4 py-2 rounded-xl italic uppercase tracking-widest transition flex items-center gap-1">🏆 결과 입력</button>` : ''}
+                ${!settled && !dbDone ? `<button onclick="adminSetResult('${fight.id}')" class="oswald-sharp text-[10px] bg-ufcRed hover:bg-red-700 text-white font-black px-4 py-2 rounded-xl italic uppercase tracking-widest transition flex items-center gap-1">🏆 결과 입력</button>` : ''}
                 <button onclick="moveFight(${idx}, -1)" class="text-gray-600 hover:text-white transition px-2 text-xs" title="위로">▲</button>
                 <button onclick="moveFight(${idx}, 1)" class="text-gray-600 hover:text-white transition px-2 text-xs" title="아래로">▼</button>
                 <button onclick="openFightCardModal('${fight.id}')" class="oswald-sharp text-[10px] border border-white/10 text-gray-400 hover:text-white px-3 py-2 rounded-xl italic uppercase tracking-widest transition">수정</button>
@@ -934,9 +937,10 @@ function renderBuilderWorkspace() {
 
     const renderCard = (m) => {
         const tagLabel = m.sort_order === 1 && m.card_segment === 'main' ? 'MAIN' : m.sort_order === 2 && m.card_segment === 'main' ? 'CO-MAIN' : m.card_segment === 'prelim' ? 'PRELIM' : '';
+        const isCompleted = m.result_status === 'completed';
         return `
         <div onclick="openMatchupEditModal('${m.id}')"
-             class="group cursor-pointer flex items-center gap-3 px-4 py-3 rounded-2xl border border-white/5 bg-black/20 hover:bg-white/5 hover:border-white/20 transition-all">
+             class="group cursor-pointer flex items-center gap-3 px-4 py-3 rounded-2xl border border-white/5 bg-black/20 hover:bg-white/5 hover:border-white/20 transition-all${isCompleted ? ' opacity-60' : ''}">
             <span class="oswald-sharp text-gray-600 text-[10px] italic w-4 shrink-0 text-center">${m.sort_order || '?'}</span>
             ${m.red_image_url ? `<img src="${escapeHtml(m.red_image_url)}" class="w-7 h-7 rounded-full object-cover object-top bg-zinc-800 shrink-0 ring-1 ring-red-500/30">` : '<div class="w-7 h-7 rounded-full bg-zinc-800 shrink-0 ring-1 ring-red-500/20"></div>'}
             <p class="flex-1 oswald-sharp font-black italic text-xs uppercase truncate">
@@ -946,8 +950,11 @@ function renderBuilderWorkspace() {
             </p>
             ${m.blue_image_url ? `<img src="${escapeHtml(m.blue_image_url)}" class="w-7 h-7 rounded-full object-cover object-top bg-zinc-800 shrink-0 ring-1 ring-blue-500/30">` : '<div class="w-7 h-7 rounded-full bg-zinc-800 shrink-0 ring-1 ring-blue-500/20"></div>'}
             ${tagLabel ? `<span class="oswald-sharp text-[8px] italic uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0 ${m.sort_order===1&&m.card_segment==='main'?'border-ufcRed/50 text-ufcRed bg-ufcRed/5':'border-white/10 text-gray-500'}">${tagLabel}</span>` : ''}
-            <div class="shrink-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onclick="event.stopPropagation(); openResultModal('${m.id}')" class="text-gray-500 hover:text-yellow-400 text-xs px-1.5 py-1 rounded-lg hover:bg-yellow-500/10" title="결과 입력">🏆</button>
+            <div class="shrink-0 flex gap-1${isCompleted ? '' : ' opacity-0 group-hover:opacity-100'} transition-opacity">
+                ${isCompleted
+                    ? `<span class="oswald-sharp text-[9px] px-2 py-1 rounded-lg font-black italic uppercase text-green-400 bg-green-400/10 border border-green-400/20">✅ 완료 · ${escapeHtml(m.result_winner||'?')} (${escapeHtml(m.result_method||'—')}) R${m.result_round||'?'}</span>`
+                    : `<button onclick="event.stopPropagation(); openResultModal('${m.id}')" class="text-gray-500 hover:text-yellow-400 text-xs px-1.5 py-1 rounded-lg hover:bg-yellow-500/10" title="결과 입력">🏆</button>`
+                }
             </div>
         </div>`;
     };
