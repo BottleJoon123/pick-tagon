@@ -108,16 +108,31 @@ function loadPostsFromDB() {
                             date: d.getFullYear() + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0')
                         };
                     });
-                    // Gemini API로 영문 뉴스 번역 (API 키가 있을 경우)
-                    var translated = await translateNewsWithGemini(mapped);
-                    cachedNews = translated || mapped;
+                    // 원문 먼저 즉시 렌더링 (논블로킹)
+                    cachedNews = mapped;
                     newsFetched = true;
+                    renderNewsGrid();
+                    if (typeof renderHomeNews === 'function') renderHomeNews();
+                    // Gemini 번역은 백그라운드에서 (5초 timeout)
+                    if (typeof translateNewsWithGemini === 'function') {
+                        var translatePromise = Promise.race([
+                            translateNewsWithGemini(mapped),
+                            new Promise(function(resolve) { setTimeout(function() { resolve(null); }, 5000); })
+                        ]);
+                        translatePromise.then(function(translated) {
+                            if (translated) {
+                                cachedNews = translated;
+                                renderNewsGrid();
+                                if (typeof renderHomeNews === 'function') renderHomeNews();
+                            }
+                        });
+                    }
                 } else {
                     cachedNews = [];
                     newsFetched = true;
+                    renderNewsGrid();
+                    if (typeof renderHomeNews === 'function') renderHomeNews();
                 }
-                renderNewsGrid();
-                if (typeof renderHomeNews === 'function') renderHomeNews();
             });
     }
 
@@ -262,27 +277,24 @@ function loadPostsFromDB() {
 async function fetchUpcomingMatchups() {
     if (typeof sb === 'undefined' || !sb) return;
     try {
-        // 전체 이벤트 로드 (sidebar + matchups 헤더용)
+        // 전체 이벤트 1회 쿼리 (sidebar + upcoming 동시 처리)
         var allEvRes = await sb.from('events')
             .select('id, title, event_date, status')
             .order('event_date', { ascending: true });
-        if (!allEvRes.error && allEvRes.data) {
-            if (typeof _sidebarEventsCache !== 'undefined') {
-                _sidebarEventsCache = allEvRes.data;
-            }
-        }
-
-        // 현재 upcoming 이벤트 (가장 빠른 것)
-        var evRes = await sb.from('events')
-            .select('id, title, event_date')
-            .eq('status', 'upcoming')
-            .order('event_date', { ascending: true })
-            .limit(1);
-        if (evRes.error || !evRes.data || !evRes.data.length) {
+        if (allEvRes.error || !allEvRes.data) {
             if (typeof renderEventSidebar === 'function') renderEventSidebar();
+            if (typeof renderFightCards === 'function') renderFightCards();
             return;
         }
-        var event = evRes.data[0];
+        if (typeof _sidebarEventsCache !== 'undefined') {
+            _sidebarEventsCache = allEvRes.data;
+        }
+        var event = allEvRes.data.find(function(e) { return e.status === 'upcoming'; });
+        if (!event) {
+            if (typeof renderEventSidebar === 'function') renderEventSidebar();
+            if (typeof renderFightCards === 'function') renderFightCards();
+            return;
+        }
 
         // 이벤트 헤더 DB에서 자동 반영
         if (event.title) {
@@ -299,31 +311,44 @@ async function fetchUpcomingMatchups() {
         }
 
         var mRes = await sb.from('matchups')
-            .select('*')
+            .select('id, event_id, red_fighter_name, blue_fighter_name, red_image_url, blue_image_url, weight_class, card_segment, sort_order, is_main_event, left_bias, result_status, result_winner, result_winner_side, result_method, result_round, result_time')
             .eq('event_id', event.id)
             .order('sort_order', { ascending: true });
         if (mRes.error || !mRes.data || !mRes.data.length) {
             if (typeof renderEventSidebar === 'function') renderEventSidebar();
+            if (typeof renderFightCards === 'function') renderFightCards();
             return;
         }
 
-        var mainIdx = 0;
+        // 메인카드 순서별 태그 부여 (sort_order 기준)
+        var mainCardRank = 0;
         _dbMatchups = mRes.data.map(function(m) {
-            var isMain = m.is_main_event === true || m.card_segment === 'main';
-            var tag = isMain
-                ? (mainIdx++ === 0 ? 'MAIN EVENT' : 'CO-MAIN EVENT')
-                : 'PRELIMS';
+            var isMainCard = m.card_segment === 'main';
+            var tag = '';
+            if (isMainCard) {
+                mainCardRank++;
+                if (mainCardRank === 1) tag = 'MAIN EVENT';
+                else if (mainCardRank === 2) tag = 'CO-MAIN EVENT';
+            } else {
+                tag = 'PRELIMS';
+            }
             return {
                 id: m.id,
-                section: isMain ? 'main' : 'prelim',
-                sectionLabel: isMain ? '메인 카드' : '프렐림',
+                section: isMainCard ? 'main' : 'prelim',
+                sectionLabel: isMainCard ? '메인 카드' : '프렐림',
                 sectionTime: '',
                 tag: tag,
                 division: m.weight_class || '',
-                rounds: isMain ? 5 : 3,
+                rounds: isMainCard ? 5 : 3,
                 leftBias: Number(m.left_bias) || 0.5,
+                _eventId: event.id,
                 _eventTitle: event.title || '',
                 _fromDB: true,
+                _resultStatus: m.result_status || 'scheduled',
+                _resultWinner: m.result_winner || null,
+                _resultWinnerSide: m.result_winner_side || null,
+                _resultMethod: m.result_method || null,
+                _resultRound: m.result_round || null,
                 f1: { name: m.red_fighter_name || '?', nameEn: '', record: '', odds: null, recent: [], stats: [], imgUrl: m.red_image_url || '' },
                 f2: { name: m.blue_fighter_name || '?', nameEn: '', record: '', odds: null, recent: [], stats: [], imgUrl: m.blue_image_url || '' },
             };
@@ -331,7 +356,72 @@ async function fetchUpcomingMatchups() {
 
         if (typeof renderFightCards === 'function') renderFightCards();
         if (typeof renderEventSidebar === 'function') renderEventSidebar();
+        // 로그인 유저이면 DB에서 픽 상태 복원 (서버 정산 결과 반영)
+        if (typeof currentUser !== 'undefined' && currentUser && typeof loadUserPicksFromDB === 'function') {
+            loadUserPicksFromDB();
+        }
     } catch(e) {
         console.warn('[fetchUpcomingMatchups]', e);
+    }
+}
+
+// ── 현재 이벤트의 픽 상태를 DB에서 복원 ─────────────────────────────────
+// 서버 정산 후 state.pendings/settled를 DB picks 테이블 기준으로 재구성.
+// 로그인 시 + 결과 입력 후 호출.
+async function loadUserPicksFromDB() {
+    if (!sb || typeof currentUser === 'undefined' || !currentUser) return;
+    try {
+        var activeFights = (typeof getActiveFights === 'function') ? getActiveFights() : [];
+        if (!activeFights.length) return;
+        var activeFightIds = activeFights.map(function(f) { return f.id; });
+
+        var res = await sb.from('picks')
+            .select('fight_id, pick_name, odds, bet_cost, payout, is_upset, status, actual_winner, actual_method, method, predicted_round, predicted_side, settled_at')
+            .eq('user_id', currentUser.id)
+            .in('fight_id', activeFightIds);
+
+        if (!res.data || !res.data.length) return;
+
+        var newPendings = {};
+        var newSettled  = {};
+
+        res.data.forEach(function(pick) {
+            var fid = pick.fight_id;
+            if (pick.status === 'pending') {
+                var side = pick.predicted_side === 'red' ? 'left' : 'right';
+                newPendings[fid] = {
+                    side: side,
+                    pick: pick.pick_name,
+                    payout: pick.payout || 0,
+                    fightId: fid,
+                    betCost: pick.bet_cost || (typeof BET_COST !== 'undefined' ? BET_COST : 100),
+                    odds: pick.odds || 1.5,
+                    isUpset: pick.is_upset || false,
+                    method: pick.method || null,
+                    methodBonus: 0
+                };
+            } else if (pick.status === 'win' || pick.status === 'lose') {
+                newSettled[fid] = {
+                    result: pick.status === 'win' ? 'WIN' : 'LOSE',
+                    actualWinner: pick.actual_winner || '',
+                    actualMethod: pick.actual_method || '',
+                    payout: pick.payout || 0,
+                    pick: pick.pick_name,
+                    resolvedAt: pick.settled_at || new Date().toISOString()
+                };
+            }
+        });
+
+        // 현재 이벤트의 fight ID 범위에서만 교체
+        activeFightIds.forEach(function(fid) {
+            delete state.pendings[fid];
+            delete state.settled[fid];
+        });
+        Object.assign(state.pendings, newPendings);
+        Object.assign(state.settled,  newSettled);
+        save();
+        if (typeof updateAllFightCards === 'function') updateAllFightCards();
+    } catch(e) {
+        console.warn('[loadUserPicksFromDB]', e);
     }
 }

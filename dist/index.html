@@ -6,7 +6,7 @@
 <title>Pick-tagon | Ultimate Fighter IQ Platform</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&family=Inter:wght@300;400;500;600&family=Oswald:wght@400;700;900&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 <!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -853,7 +853,7 @@ textarea, select {
 
             <!-- Premium Headline -->
             <div class="flex flex-col gap-4 lg:gap-5 mb-8">
-                <p class="barlow text-xs uppercase tracking-[0.3em] text-gray-500 hero-sub">LIVE EVENT · UFC 327</p>
+                <p id="hero-event-label" class="barlow text-xs uppercase tracking-[0.3em] text-gray-500 hero-sub">NEXT EVENT</p>
                 <h1 class="oswald-sharp text-[clamp(3.2rem,10vw,8rem)] font-black italic uppercase leading-[0.9] tracking-tight text-white hero-line">
                     <span class="block">PREDICT. COMPETE.</span>
                     <span class="block" style="background:linear-gradient(to right,#ef4444,#f87171); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">WIN.</span>
@@ -1428,13 +1428,31 @@ textarea, select {
     <!-- [SECTION: ARCHIVE] -->
     <section id="archive" class="section-animate max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-12 lg:pt-8 lg:pb-20">
         <!-- Header -->
-        <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-6 lg:mb-10">
+        <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-6 lg:mb-8">
             <div class="border-l-8 lg:border-l-[12px] border-ufcRed pl-4 lg:pl-8">
-                <h3 class="oswald-sharp text-3xl lg:text-6xl font-black italic tracking-tighter uppercase">Event Archive</h3>
-                <p class="text-gray-500 oswald-sharp uppercase tracking-widest mt-1 text-[10px] lg:text-sm italic">역대 UFC 이벤트 결과 기록</p>
+                <h3 class="oswald-sharp text-3xl lg:text-6xl font-black italic tracking-tighter uppercase">Archive</h3>
+                <p class="text-gray-500 oswald-sharp uppercase tracking-widest mt-1 text-[10px] lg:text-sm italic">UFC 이벤트 기록 & 파이터 정보</p>
             </div>
+        </div>
+
+        <!-- Sub-tab switcher -->
+        <div class="flex gap-2 mb-6 lg:mb-8 border-b border-white/5 pb-0">
+            <button id="archive-tab-events"
+                onclick="switchArchiveTab('events')"
+                class="oswald-sharp font-black italic uppercase tracking-widest text-sm lg:text-base px-5 py-3 border-b-2 border-ufcRed text-white transition-all">
+                이벤트
+            </button>
+            <button id="archive-tab-fighters"
+                onclick="switchArchiveTab('fighters')"
+                class="oswald-sharp font-black italic uppercase tracking-widest text-sm lg:text-base px-5 py-3 border-b-2 border-transparent text-gray-500 hover:text-gray-300 transition-all">
+                파이터
+            </button>
+        </div>
+
+        <!-- ══ 이벤트 패널 ══ -->
+        <div id="archive-events-panel">
             <!-- Search + Filter -->
-            <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+            <div class="flex flex-col sm:flex-row gap-3 w-full mb-6">
                 <input id="archive-search" type="text" placeholder="이벤트 검색..."
                     class="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed placeholder-gray-600 w-full lg:w-60"
                     oninput="renderArchive()">
@@ -1446,32 +1464,79 @@ textarea, select {
                     <option value="2024">2024</option>
                     <option value="2023">2023</option>
                 </select>
+                <select id="archive-status-filter" class="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed"
+                    onchange="renderArchive()">
+                    <option value="all">전체</option>
+                    <option value="upcoming">예정</option>
+                    <option value="past">지난 이벤트</option>
+                </select>
+            </div>
+
+            <!-- Stats Bar -->
+            <div class="grid grid-cols-3 gap-3 lg:gap-6 mb-6 lg:mb-10">
+                <div class="glass-card rounded-2xl p-4 lg:p-8 text-center">
+                    <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 tracking-widest italic uppercase mb-2">총 이벤트</p>
+                    <p id="archive-stat-events" class="oswald-sharp text-2xl lg:text-5xl font-black italic text-white">0</p>
+                </div>
+                <div class="glass-card rounded-2xl p-4 lg:p-8 text-center">
+                    <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 tracking-widest italic uppercase mb-2">총 경기</p>
+                    <p id="archive-stat-fights" class="oswald-sharp text-2xl lg:text-5xl font-black italic text-ufcRed">0</p>
+                </div>
+                <div class="glass-card rounded-2xl p-4 lg:p-8 text-center">
+                    <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 tracking-widest italic uppercase mb-2">KO/TKO 비율</p>
+                    <p id="archive-stat-ko" class="oswald-sharp text-2xl lg:text-5xl font-black italic text-white">0%</p>
+                </div>
+            </div>
+
+            <div id="archive-list" class="space-y-4 lg:space-y-6"></div>
+            <div id="archive-empty" class="hidden glass-card rounded-[2rem] p-16 text-center">
+                <p class="oswald-sharp text-gray-600 text-sm italic uppercase tracking-widest">등록된 아카이브가 없습니다</p>
+                <p class="text-gray-700 text-xs mt-2">어드민 패널 → 아카이브 탭에서 이벤트를 추가하세요</p>
             </div>
         </div>
 
-        <!-- Stats Bar -->
-        <div class="grid grid-cols-3 gap-3 lg:gap-6 mb-6 lg:mb-10">
-            <div class="glass-card rounded-2xl p-4 lg:p-8 text-center">
-                <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 tracking-widest italic uppercase mb-2">총 이벤트</p>
-                <p id="archive-stat-events" class="oswald-sharp text-2xl lg:text-5xl font-black italic text-white">0</p>
+        <!-- ══ 파이터 패널 ══ -->
+        <div id="archive-fighters-panel" class="hidden">
+            <!-- Search + Filter -->
+            <div class="flex flex-col sm:flex-row gap-3 w-full mb-6">
+                <input id="fighter-archive-search" type="text" placeholder="파이터 검색..."
+                    class="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed placeholder-gray-600 w-full lg:w-60"
+                    oninput="renderFighterArchive()">
+                <select id="fighter-archive-division" class="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed"
+                    onchange="renderFighterArchive()">
+                    <option value="all">전체 체급</option>
+                    <option value="hw">헤비웨이트</option>
+                    <option value="lhw">라이트헤비웨이트</option>
+                    <option value="mw">미들웨이트</option>
+                    <option value="ww">웰터웨이트</option>
+                    <option value="lw">라이트웨이트</option>
+                    <option value="fw">페더웨이트</option>
+                    <option value="bw">밴텀웨이트</option>
+                    <option value="flw">플라이웨이트</option>
+                    <option value="wmw">여성 스트로웨이트</option>
+                    <option value="wfw">여성 플라이웨이트</option>
+                    <option value="wbw">여성 밴텀웨이트</option>
+                    <option value="wfw">여성 페더웨이트</option>
+                </select>
             </div>
-            <div class="glass-card rounded-2xl p-4 lg:p-8 text-center">
-                <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 tracking-widest italic uppercase mb-2">총 경기</p>
-                <p id="archive-stat-fights" class="oswald-sharp text-2xl lg:text-5xl font-black italic text-ufcRed">0</p>
-            </div>
-            <div class="glass-card rounded-2xl p-4 lg:p-8 text-center">
-                <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 tracking-widest italic uppercase mb-2">KO/TKO 비율</p>
-                <p id="archive-stat-ko" class="oswald-sharp text-2xl lg:text-5xl font-black italic text-white">0%</p>
-            </div>
-        </div>
 
-        <!-- Event Cards Grid -->
-        <div id="archive-list" class="space-y-4 lg:space-y-6"></div>
+            <!-- Fighter Stats Bar -->
+            <div class="grid grid-cols-2 gap-3 lg:gap-6 mb-6 lg:mb-8">
+                <div class="glass-card rounded-2xl p-4 lg:p-6 text-center">
+                    <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 tracking-widest italic uppercase mb-2">등록 파이터</p>
+                    <p id="fighter-stat-count" class="oswald-sharp text-2xl lg:text-4xl font-black italic text-white">0</p>
+                </div>
+                <div class="glass-card rounded-2xl p-4 lg:p-6 text-center">
+                    <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 tracking-widest italic uppercase mb-2">체급 수</p>
+                    <p id="fighter-stat-divisions" class="oswald-sharp text-2xl lg:text-4xl font-black italic text-ufcRed">0</p>
+                </div>
+            </div>
 
-        <!-- Empty State -->
-        <div id="archive-empty" class="hidden glass-card rounded-[2rem] p-16 text-center">
-            <p class="oswald-sharp text-gray-600 text-sm italic uppercase tracking-widest">등록된 아카이브가 없습니다</p>
-            <p class="text-gray-700 text-xs mt-2">어드민 패널 → 아카이브 탭에서 이벤트를 추가하세요</p>
+            <!-- Fighter Grid -->
+            <div id="fighter-archive-list" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 lg:gap-4"></div>
+            <div id="fighter-archive-empty" class="hidden glass-card rounded-[2rem] p-16 text-center">
+                <p class="oswald-sharp text-gray-600 text-sm italic uppercase tracking-widest">검색 결과가 없습니다</p>
+            </div>
         </div>
     </section>
 
@@ -1490,29 +1555,55 @@ textarea, select {
         </div>
 
         <!-- Tab Bar -->
-        <div class="flex gap-2 mb-5 lg:mb-8 border-b border-white/10 pb-4">
+        <div class="flex gap-2 mb-5 lg:mb-8 border-b border-white/10 pb-4 flex-wrap">
             <button onclick="switchAdminTab('fighters')" id="admin-tab-fighters" class="oswald-sharp admin-tab active-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all">🥊 파이터 DB</button>
-            <button onclick="switchAdminTab('fights')" id="admin-tab-fights" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">📋 경기 카드</button>
+            <button onclick="switchAdminTab('ufc')" id="admin-tab-ufc" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">📋 대진표 관리</button>
             <button onclick="switchAdminTab('archive')" id="admin-tab-archive" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">📊 아카이브</button>
             <button onclick="switchAdminTab('news')" id="admin-tab-news" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">📰 뉴스 관리</button>
             <button onclick="switchAdminTab('season')" id="admin-tab-season" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">🏆 시즌 관리</button>
-            <button onclick="switchAdminTab('event')" id="admin-tab-event" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">🏟 이벤트 정보</button>
-            <button onclick="switchAdminTab('ufc')" id="admin-tab-ufc" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">🕷 UFC 대기열</button>
             <button onclick="switchAdminTab('settings')" id="admin-tab-settings" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">⚙ 설정</button>
         </div>
 
         <!-- TAB: FIGHTERS DB -->
         <div id="admin-panel-fighters">
-            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 mb-6">
-                <div class="flex items-center gap-3">
+            <div class="flex flex-col gap-3 mb-6">
+                <!-- Row 1: count + add button + scrape button -->
+                <div class="flex flex-wrap items-center justify-between gap-3">
                     <p class="text-gray-400 oswald-sharp text-xs lg:text-sm italic uppercase tracking-widest">등록된 파이터 <span id="fighter-count" class="text-white font-black">0</span>명</p>
+                    <div class="flex gap-2">
+                        <button onclick="renderAdminFighterList()" class="oswald-sharp border border-white/10 text-gray-400 hover:text-white font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">↻ 새로고침</button>
+                        <button onclick="syncAllFighters()" id="btn-sync-all-fighters" class="oswald-sharp border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 hover:border-emerald-400 font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">🌐 전체 파이터 동기화</button>
+                        <button onclick="syncFighterStats()" id="btn-sync-fighter-stats" class="oswald-sharp border border-blue-500/30 text-blue-400 hover:text-blue-300 hover:border-blue-400 font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">📊 스탯 동기화</button>
+                        <button onclick="syncRankFromUFCRankings()" id="btn-sync-rank" class="oswald-sharp border border-purple-500/30 text-purple-400 hover:text-purple-300 hover:border-purple-400 font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">🏆 랭킹 동기화</button>
+                        <button onclick="purgeInactiveFighters(true)" class="oswald-sharp border border-yellow-500/30 text-yellow-400 hover:text-yellow-300 hover:border-yellow-400 font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">🔍 드라이런</button>
+                        <button onclick="purgeInactiveFighters(false)" id="btn-purge-inactive" class="oswald-sharp border border-red-500/30 text-red-400 hover:text-red-300 hover:border-red-400 font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">🗑 비활성 파이터 삭제</button>
+                        <button onclick="openFighterModal()" class="oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black px-6 lg:px-10 py-2 rounded-xl italic text-xs lg:text-sm uppercase tracking-widest transition-all">+ 파이터 추가</button>
+                    </div>
                 </div>
-                <div class="flex gap-3 w-full lg:w-auto">
+                <!-- Row 2: search + division filter -->
+                <div class="flex gap-2">
                     <input id="fighter-search-input" type="text" placeholder="🔍 파이터 검색..."
-                        class="flex-1 lg:w-56 bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white text-sm focus:outline-none focus:border-ufcRed placeholder-gray-600"
-                        oninput="renderAdminFighterList()">
-                    <button onclick="openFighterModal()" class="oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black px-6 lg:px-10 py-2 lg:py-3 rounded-xl italic text-xs lg:text-sm uppercase tracking-widest transition-all flex-shrink-0">+ 파이터 추가</button>
+                        class="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white text-sm focus:outline-none focus:border-ufcRed placeholder-gray-600"
+                        oninput="_renderFighterListFromCache()">
+                    <select id="fighter-div-filter" onchange="_renderFighterListFromCache()"
+                        class="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-ufcRed">
+                        <option value="">전체 체급</option>
+                        <option value="hw">헤비</option>
+                        <option value="lhw">라이트헤비</option>
+                        <option value="mw">미들</option>
+                        <option value="ww">웰터</option>
+                        <option value="lw">라이트</option>
+                        <option value="fw">페더</option>
+                        <option value="bw">밴텀</option>
+                        <option value="flw">플라이</option>
+                        <option value="wmw">여성 스트로</option>
+                        <option value="wfw">여성 플라이</option>
+                        <option value="wbw">여성 밴텀</option>
+                        <option value="wfe">여성 페더</option>
+                    </select>
                 </div>
+                <!-- Scrape log -->
+                <div id="fighter-scrape-log" class="hidden glass-card rounded-xl p-4 text-xs oswald-sharp italic text-gray-400 uppercase tracking-widest max-h-40 overflow-y-auto whitespace-pre-wrap"></div>
             </div>
             <div id="fighter-db-list" class="space-y-3"></div>
         </div>
@@ -1640,47 +1731,161 @@ textarea, select {
                         UFC 랭킹 페이지의 "🔄 UFC 랭킹 자동 갱신" 버튼을 눌러 바로 갱신하세요.</p>
                     </div>
                 </div>
+
+                <hr class="border-white/10">
+
+                <h4 class="oswald-sharp text-xl font-black italic uppercase text-gray-300 tracking-widest">랭킹 데이터 검증 & 수동 수정</h4>
+                <div class="flex gap-2 flex-wrap">
+                    <button onclick="loadRankVerifyPanel()" class="oswald-sharp border border-purple-500/30 text-purple-400 hover:text-purple-300 font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">🔍 현재 랭킹 데이터 전체 보기</button>
+                </div>
+                <div id="rank-verify-panel" class="hidden mt-4 space-y-3 max-h-[500px] overflow-y-auto"></div>
             </div>
         </div>
 
-        <!-- TAB: UFC 이벤트 대기열 -->
+        <!-- TAB: 대진표 관리 -->
         <div id="admin-panel-ufc" class="hidden">
-            <div class="glass-card rounded-[2rem] p-6 lg:p-10 space-y-5 bg-zinc-900/60">
-                <!-- 헤더 -->
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h4 class="oswald-sharp text-xl font-black italic uppercase text-white tracking-widest">UFC 이벤트 대기열</h4>
-                        <p class="text-gray-500 text-xs mt-1">크롤러가 수집한 이벤트 · 승인 시 <span class="text-ufcRed italic">events</span> 테이블에 등록됩니다</p>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <span class="oswald-sharp text-gray-600 italic text-xs uppercase tracking-widest">대기 <span id="ufc-queue-count" class="text-white font-black">–</span>건</span>
-                        <button onclick="fetchPendingEvents()"
-                            class="oswald-sharp bg-zinc-800 text-gray-300 font-black italic uppercase text-xs px-4 py-2 rounded-xl tracking-widest hover:bg-zinc-700 hover:text-white transition-all">
-                            ↺ 새로고침
+            <div class="glass-card rounded-[2rem] p-4 lg:p-8 bg-zinc-900/60">
+                <div class="flex items-center justify-between mb-5">
+                    <h4 class="oswald-sharp text-xl font-black italic uppercase text-white tracking-widest">대진표 관리</h4>
+                    <div class="flex gap-2">
+                        <button onclick="openAddEventModal()"
+                            class="oswald-sharp border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">
+                            + 이벤트 추가
                         </button>
-                        <button id="btn-run-crawler" onclick="runUfcCrawler()"
-                            class="oswald-sharp bg-ufcRed text-white font-black italic uppercase text-xs px-4 py-2 rounded-xl tracking-widest hover:shadow-[0_0_16px_rgba(232,0,13,0.5)] transition-all">
-                            🕷 크롤러 실행
+                        <button onclick="fetchEventsForBuilder()"
+                            class="oswald-sharp border border-white/10 text-gray-400 hover:text-white font-black px-3 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">
+                            ↻
                         </button>
                     </div>
                 </div>
-                <!-- 대기열 리스트 -->
-                <div id="ufc-queue-list" class="space-y-3">
-                    <p class="oswald-sharp text-gray-700 italic text-sm uppercase tracking-widest text-center py-8">탭을 열면 자동으로 로드됩니다</p>
-                </div>
-
-                <!-- 구분선 -->
-                <div class="border-t border-white/5 pt-6 mt-2">
-                    <div class="flex items-center justify-between mb-4">
-                        <div>
-                            <h5 class="oswald-sharp text-base font-black italic uppercase text-emerald-400 tracking-widest">승인된 이벤트 (Upcoming)</h5>
-                            <p class="text-gray-600 text-xs mt-0.5">대진표 크롤링 버튼으로 <span class="text-emerald-500 italic">matchups</span> 테이블에 저장합니다</p>
+                <div class="flex flex-col lg:flex-row gap-4">
+                    <!-- 이벤트 목록 (좌) -->
+                    <div class="lg:w-[280px] shrink-0">
+                        <p class="oswald-sharp text-gray-600 italic text-[10px] uppercase tracking-widest mb-2">이벤트 선택</p>
+                        <div id="builder-event-list" class="space-y-1.5 max-h-[75vh] overflow-y-auto pr-1">
+                            <p class="text-gray-600 text-xs italic py-4 text-center">로딩 중...</p>
                         </div>
-                        <span class="oswald-sharp text-gray-600 italic text-xs uppercase tracking-widest">총 <span id="ufc-approved-count" class="text-white font-black">–</span>건</span>
                     </div>
-                    <div id="ufc-approved-list" class="space-y-3">
-                        <p class="oswald-sharp text-gray-700 italic text-sm uppercase tracking-widest text-center py-6">로딩 대기 중...</p>
+                    <!-- 매치업 카드 그리드 (우) -->
+                    <div class="flex-1 min-w-0">
+                        <div id="builder-workspace">
+                            <div class="flex items-center justify-center h-40">
+                                <p class="oswald-sharp text-gray-700 italic text-sm uppercase tracking-widest">← 이벤트를 선택하세요</p>
+                            </div>
+                        </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 이벤트 추가 모달 -->
+        <div id="add-event-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div class="glass-card rounded-[2rem] p-8 w-full max-w-md bg-zinc-900/95 space-y-4">
+                <h5 class="oswald-sharp text-lg font-black italic uppercase text-white tracking-widest">이벤트 추가</h5>
+                <input id="new-event-title" type="text" placeholder="이벤트 이름 (예: UFC 328)"
+                    class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed placeholder-gray-600">
+                <input id="new-event-date" type="date"
+                    class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed">
+                <select id="new-event-status"
+                    class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed">
+                    <option value="upcoming">예정 (upcoming)</option>
+                    <option value="completed">완료 (completed)</option>
+                </select>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="saveNewEvent()"
+                        class="flex-1 oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black italic uppercase text-sm px-6 py-2.5 rounded-xl tracking-widest transition-all">
+                        저장
+                    </button>
+                    <button onclick="document.getElementById('add-event-modal').classList.add('hidden')"
+                        class="oswald-sharp border border-white/10 text-gray-400 hover:text-white font-black italic uppercase text-sm px-4 py-2.5 rounded-xl tracking-widest transition-all">
+                        취소
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 매치업 편집 모달 -->
+        <div id="matchup-edit-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div class="glass-card rounded-[2rem] p-6 w-full max-w-lg bg-zinc-900/95 max-h-[90vh] overflow-y-auto">
+                <!-- 헤더 -->
+                <div class="flex items-center justify-between mb-5">
+                    <h5 id="mem-title" class="oswald-sharp text-lg font-black italic uppercase text-white tracking-widest">경기 추가</h5>
+                    <button onclick="closeMatchupEditModal()" class="text-gray-500 hover:text-white text-xl leading-none">✕</button>
+                </div>
+                <!-- 파이터 검색 -->
+                <div class="mb-3">
+                    <input id="mem-search" type="text" placeholder="파이터 이름 검색..."
+                        oninput="onMemSearch(this.value)"
+                        class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-ufcRed placeholder-gray-600 transition-colors">
+                    <div id="mem-search-results" class="mt-1 space-y-1 max-h-44 overflow-y-auto"></div>
+                </div>
+                <!-- 코너 -->
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div id="mem-red-slot" onclick="clearMemCorner('red')" class="cursor-pointer border border-red-500/30 rounded-xl p-3 min-h-[72px] flex flex-col items-center justify-center text-center hover:border-red-500/60 transition-all">
+                        <p class="oswald-sharp text-red-400 italic text-[9px] uppercase tracking-widest mb-1">🔴 RED</p>
+                        <p id="mem-red-name" class="oswald-sharp text-white font-black italic text-xs uppercase">—</p>
+                        <p id="mem-red-record" class="text-gray-500 text-[10px]"></p>
+                    </div>
+                    <div id="mem-blue-slot" onclick="clearMemCorner('blue')" class="cursor-pointer border border-blue-500/30 rounded-xl p-3 min-h-[72px] flex flex-col items-center justify-center text-center hover:border-blue-500/60 transition-all">
+                        <p class="oswald-sharp text-blue-400 italic text-[9px] uppercase tracking-widest mb-1">🔵 BLUE</p>
+                        <p id="mem-blue-name" class="oswald-sharp text-white font-black italic text-xs uppercase">—</p>
+                        <p id="mem-blue-record" class="text-gray-500 text-[10px]"></p>
+                    </div>
+                </div>
+                <!-- 사진 URL -->
+                <div class="grid grid-cols-2 gap-2 mb-3">
+                    <div>
+                        <p class="oswald-sharp text-[9px] text-red-500/60 italic uppercase tracking-widest mb-1">🔴 사진 URL</p>
+                        <input id="mem-red-photo" type="text" placeholder="자동입력 또는 직접 입력"
+                            oninput="_memState.redPhotoOverride=this.value.trim()"
+                            class="w-full bg-black/40 border border-red-500/20 rounded-xl px-3 py-2 text-white text-[10px] focus:outline-none focus:border-red-500/50 placeholder-gray-700">
+                    </div>
+                    <div>
+                        <p class="oswald-sharp text-[9px] text-blue-500/60 italic uppercase tracking-widest mb-1">🔵 사진 URL</p>
+                        <input id="mem-blue-photo" type="text" placeholder="자동입력 또는 직접 입력"
+                            oninput="_memState.bluePhotoOverride=this.value.trim()"
+                            class="w-full bg-black/40 border border-blue-500/20 rounded-xl px-3 py-2 text-white text-[10px] focus:outline-none focus:border-blue-500/50 placeholder-gray-700">
+                    </div>
+                </div>
+                <!-- 메타 -->
+                <div class="grid grid-cols-3 gap-2 mb-5">
+                    <select id="mem-segment" onchange="_memState.cardSegment=this.value"
+                        class="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-ufcRed">
+                        <option value="main">메인카드</option>
+                        <option value="prelim">프렐림</option>
+                    </select>
+                    <input id="mem-order" type="number" min="1" max="20" placeholder="순서" value="1"
+                        oninput="_memState.sortOrder=parseInt(this.value)||1"
+                        class="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-ufcRed text-center">
+                    <select id="mem-weight" onchange="_memState.weightClass=this.value"
+                        class="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-ufcRed">
+                        <option value="">체급 선택</option>
+                        <option value="hw">헤비급</option>
+                        <option value="lhw">라이트헤비급</option>
+                        <option value="mw">미들급</option>
+                        <option value="ww">웰터급</option>
+                        <option value="lw">라이트급</option>
+                        <option value="fw">페더급</option>
+                        <option value="bw">밴텀급</option>
+                        <option value="flw">플라이급</option>
+                        <option value="wmw">여자 스트로급</option>
+                        <option value="wfw">여자 플라이급</option>
+                        <option value="wbw">여자 밴텀급</option>
+                    </select>
+                </div>
+                <!-- 액션 버튼 -->
+                <div class="flex gap-2">
+                    <button onclick="saveMatchupFromModal()"
+                        class="flex-1 oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black italic uppercase text-sm px-6 py-2.5 rounded-xl tracking-widest transition-all">
+                        💾 저장
+                    </button>
+                    <button id="mem-delete-btn" onclick="deleteMatchupFromModal()" class="hidden oswald-sharp border border-red-500/30 text-red-400 hover:text-red-300 hover:bg-red-500/10 font-black italic uppercase text-sm px-4 py-2.5 rounded-xl tracking-widest transition-all">
+                        🗑 삭제
+                    </button>
+                    <button onclick="closeMatchupEditModal()"
+                        class="oswald-sharp border border-white/10 text-gray-400 hover:text-white font-black italic uppercase text-sm px-4 py-2.5 rounded-xl tracking-widest transition-all">
+                        취소
+                    </button>
                 </div>
             </div>
         </div>
@@ -1788,16 +1993,18 @@ textarea, select {
             <div>
                 <label class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic block mb-2">체급</label>
                 <select id="fm-division" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-ufcRed">
-                    <option value="HEAVYWEIGHT">헤비급</option>
-                    <option value="LIGHT HEAVYWEIGHT">라이트헤비급</option>
-                    <option value="MIDDLEWEIGHT">미들급</option>
-                    <option value="WELTERWEIGHT">웰터급</option>
-                    <option value="LIGHTWEIGHT">라이트급</option>
-                    <option value="FEATHERWEIGHT">페더급</option>
-                    <option value="BANTAMWEIGHT">밴텀급</option>
-                    <option value="FLYWEIGHT">플라이급</option>
-                    <option value="WOMEN'S STRAWWEIGHT">여자 스트로급</option>
-                    <option value="WOMEN'S FLYWEIGHT">여자 플라이급</option>
+                    <option value="hw">헤비웨이트</option>
+                    <option value="lhw">라이트헤비웨이트</option>
+                    <option value="mw">미들웨이트</option>
+                    <option value="ww">웰터웨이트</option>
+                    <option value="lw">라이트웨이트</option>
+                    <option value="fw">페더웨이트</option>
+                    <option value="bw">밴텀웨이트</option>
+                    <option value="flw">플라이웨이트</option>
+                    <option value="wmw">여성 스트로웨이트</option>
+                    <option value="wfw">여성 플라이웨이트</option>
+                    <option value="wbw">여성 밴텀웨이트</option>
+                    <option value="wfe">여성 페더웨이트</option>
                 </select>
             </div>
             <div class="lg:col-span-2">
@@ -1991,8 +2198,9 @@ textarea, select {
             <button onclick="closeFighterProfile()" class="absolute top-5 right-5 w-9 h-9 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/15 text-gray-400 hover:text-white transition text-lg">✕</button>
             <div class="flex items-start gap-5 lg:gap-8">
                 <!-- Avatar Ring -->
-                <div id="fp-avatar" class="w-16 h-16 lg:w-24 lg:h-24 rounded-2xl lg:rounded-3xl flex-shrink-0 flex items-center justify-center border-2 border-ufcRed/40 bg-ufcRed/10">
-                    <span id="fp-initials" class="oswald-sharp text-2xl lg:text-4xl font-black italic text-ufcRed"></span>
+                <div id="fp-avatar" class="w-16 h-16 lg:w-24 lg:h-24 rounded-2xl lg:rounded-3xl flex-shrink-0 overflow-hidden border-2 border-ufcRed/40 bg-ufcRed/10 relative">
+                    <img id="fp-avatar-img" src="" alt="" class="hidden w-full h-full object-cover object-top">
+                    <span id="fp-initials" class="absolute inset-0 flex items-center justify-center oswald-sharp text-2xl lg:text-4xl font-black italic text-ufcRed"></span>
                 </div>
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-3 mb-2 flex-wrap">
@@ -2017,10 +2225,34 @@ textarea, select {
                         </div>
                         <div class="w-px h-8 bg-white/10"></div>
                         <div>
+                            <p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest italic">Weight</p>
+                            <p id="fp-weight" class="oswald-sharp text-base lg:text-xl font-black italic text-white"></p>
+                        </div>
+                        <div class="w-px h-8 bg-white/10"></div>
+                        <div>
                             <p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest italic">Odds</p>
                             <p id="fp-odds" class="oswald-sharp text-base lg:text-xl font-black italic text-ufcRed"></p>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Finish Rate -->
+        <div id="fp-finish-section" class="hidden px-8 lg:px-14 py-5 border-b border-white/5">
+            <p class="oswald-sharp text-[9px] text-gray-600 uppercase tracking-[0.3em] font-black italic mb-4">Finish Rate</p>
+            <div class="flex gap-6">
+                <div class="text-center">
+                    <p id="fp-ko-rate" class="oswald-sharp text-xl font-black italic text-red-400">—</p>
+                    <p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest italic mt-1">KO/TKO</p>
+                </div>
+                <div class="text-center">
+                    <p id="fp-sub-rate" class="oswald-sharp text-xl font-black italic text-blue-400">—</p>
+                    <p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest italic mt-1">Submission</p>
+                </div>
+                <div class="text-center">
+                    <p id="fp-dec-rate" class="oswald-sharp text-xl font-black italic text-gray-400">—</p>
+                    <p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest italic mt-1">Decision</p>
                 </div>
             </div>
         </div>
@@ -2160,7 +2392,7 @@ textarea, select {
             <h3 id="archive-modal-title" class="oswald-sharp text-2xl font-black italic text-white uppercase tracking-tighter">이벤트 추가</h3>
             <button onclick="closeArchiveEventModal()" class="text-gray-500 hover:text-white text-2xl transition">✕</button>
         </div>
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
             <div class="lg:col-span-1">
                 <label class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic block mb-2">이벤트명 *</label>
                 <input id="ae-name" type="text" placeholder="UFC 310" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-ufcRed oswald-sharp text-lg italic font-black uppercase">
@@ -2173,9 +2405,16 @@ textarea, select {
                 <label class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic block mb-2">장소</label>
                 <input id="ae-venue" type="text" placeholder="T-Mobile Arena, Las Vegas" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-ufcRed text-sm">
             </div>
+            <div>
+                <label class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic block mb-2">상태</label>
+                <select id="ae-status" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-ufcRed text-sm">
+                    <option value="past">지난 이벤트</option>
+                    <option value="upcoming">예정 이벤트</option>
+                </select>
+            </div>
         </div>
         <div class="mb-4 flex items-center justify-between">
-            <h4 class="oswald-sharp text-xs text-gray-400 uppercase tracking-widest italic">경기 결과 목록</h4>
+            <h4 class="oswald-sharp text-xs text-gray-400 uppercase tracking-widest italic">경기 목록</h4>
             <button onclick="addArchiveFightRow()" class="oswald-sharp text-[10px] border border-white/10 text-gray-400 hover:text-white hover:border-white/30 px-3 py-1 rounded-xl italic uppercase tracking-widest transition">+ 경기 추가</button>
         </div>
         <div id="archive-fight-rows" class="space-y-3 mb-6"></div>
@@ -2404,18 +2643,18 @@ textarea, select {
 <script src="/pick-tagon/js/state.js"></script>
 <script src="/pick-tagon/js/storage.js"></script>
 <script src="/pick-tagon/js/utils.js"></script>
-<script src="/pick-tagon/js/api/supabase.js?v=3"></script>
+<script src="/pick-tagon/js/api/supabase.js?v=6"></script>
 <script src="/pick-tagon/js/news.js"></script>
 <script src="/pick-tagon/js/youtube.js"></script>
-<script src="/pick-tagon/js/community.js?v=3"></script>
-<script src="/pick-tagon/js/admin.js?v=3"></script>
+<script src="/pick-tagon/js/community.js?v=6"></script>
+<script src="/pick-tagon/js/admin.js?v=7"></script>
 <script src="/pick-tagon/js/profile.js"></script>
-<script src="/pick-tagon/js/archive.js?v=3"></script>
+<script src="/pick-tagon/js/archive.js?v=6"></script>
 <script src="/pick-tagon/js/season.js"></script>
 <script src="/pick-tagon/js/fights-render.js"></script>
 <script src="/pick-tagon/js/h2h.js"></script>
-<script src="/pick-tagon/js/news-admin.js?v=3"></script>
-<script src="/pick-tagon/js/home.js?v=3"></script>
+<script src="/pick-tagon/js/news-admin.js?v=6"></script>
+<script src="/pick-tagon/js/home.js?v=6"></script>
 <script>
     /* ==============================
        FIGHT CARD DATA
@@ -2457,10 +2696,23 @@ textarea, select {
     /* ==============================
        FIGHT CARD RENDERING
     ============================== */
-    function navigateTo(id) {
+    var _currentPage = 'home';
+
+    function navigateTo(id, fromPopState) {
+        var el = document.getElementById(id);
+        if (!el) return;
+
+        // history API
+        if (!fromPopState) {
+            if (_currentPage !== id) {
+                history.pushState({ page: id }, '', '#' + id);
+            }
+        }
+        _currentPage = id;
+
         document.querySelectorAll('.section-animate').forEach(s => s.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-        
+        el.classList.add('active');
+
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
         const desktopNav = document.getElementById('nav-' + id);
         if(desktopNav) desktopNav.classList.add('active');
@@ -2477,7 +2729,6 @@ textarea, select {
         if(id === 'home') { renderHomeNews(); initHome(); }
         if(id === 'octagon') {
             window.scrollTo(0, 0);
-            // 활성 배틀이 없으면 기본 대기 화면 유지
         }
         if(id === 'mma-news') {
             renderNewsCatTabs();
@@ -2495,66 +2746,105 @@ textarea, select {
                 si.dataset.bound = '1';
             }
         }
-        if(id === 'ufc-rankings') { renderUFCRankingTabs(); renderUFCRankings(); }
+        if(id === 'ufc-rankings') { renderUFCRankingTabs(); renderUFCRankings(); _loadRankImgs(); }
         if(id === 'matchups') {
             if (typeof fetchUpcomingMatchups === 'function') fetchUpcomingMatchups();
             renderFightCards();
             applyEventInfo();
             renderEventLeaderboard();
             renderEventSidebar();
-            // 실시간 구독 시작
             startRealtimeSubscription();
         }
         if(id === 'rankings') setTimeout(() => { renderLeaderboard(); renderHallOfFame(); }, 100);
-        if(id === 'archive') { renderArchive(); }
+        if(id === 'archive') { if (archiveDB.length === 0) fetchArchive(); else renderArchive(); }
         if(id === 'community') { if (currentUser) loadMyBattles(); }
         if(id === 'profile') { setTimeout(() => renderProfileStats(), 100); }
         if(id === 'admin') {
             renderAdminFighterList();
-            renderAdminFightCardList();
             renderArchiveAdminList();
             renderNewsAdminList();
             renderSeasonAdminPanel();
-            loadEventInfoInputs();
+            fetchEventsForBuilder();
         }
         window.scrollTo({top: 0, behavior: 'smooth'});
         refreshUI();
     }
 
+    // 뒤로/앞으로 버튼 처리
+    window.addEventListener('popstate', function(e) {
+        var page = (e.state && e.state.page) || 'home';
+        navigateTo(page, true);
+    });
+
     // ── Event Sidebar ──────────────────────────────────────────────
+    var _sidebarEventsCache = [];
+
     function renderEventSidebarHTML() {
-        const currentName = (typeof eventInfo !== 'undefined' && eventInfo.name) ? eventInfo.name : 'UFC 이벤트';
-        const currentDate = (typeof eventInfo !== 'undefined' && eventInfo.date) ? eventInfo.date : '';
-        const past = (typeof archiveDB !== 'undefined' ? archiveDB : []).slice().reverse().slice(0, 8);
+        const today = new Date().toISOString().slice(0, 10);
+        const allEvents = _sidebarEventsCache;
+
+        // Supabase events 기반 분류
+        const upcoming = allEvents.filter(e => e.status === 'upcoming' || (e.event_date && e.event_date.slice(0, 10) >= today));
+        const currentEvent = upcoming[0]; // 가장 빠른 upcoming
 
         let html = '';
-        // Current event — highlighted
-        html += `<div class="px-4 py-3 border-b border-white/[0.06]" style="background:rgba(210,10,10,0.07)">
-            <div class="flex items-center gap-2 mb-1">
-                <span class="w-1.5 h-1.5 rounded-full bg-ufcRed flex-shrink-0" style="box-shadow:0 0 6px rgba(210,10,10,0.8)"></span>
-                <span class="oswald-sharp text-[8px] font-black italic uppercase tracking-widest text-ufcRed">진행 중</span>
-            </div>
-            <p class="oswald-sharp text-sm font-black italic uppercase text-white leading-tight">${currentName}</p>
-            <p class="oswald-sharp text-[9px] text-gray-500 italic mt-0.5">${currentDate}</p>
-        </div>`;
 
+        // 현재(진행 중) 이벤트
+        if (currentEvent) {
+            const dateLabel = currentEvent.event_date ? new Date(currentEvent.event_date).toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric'}) : '';
+            html += `<div class="px-4 py-3 border-b border-white/[0.06]" style="background:rgba(210,10,10,0.07)">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-ufcRed flex-shrink-0" style="box-shadow:0 0 6px rgba(210,10,10,0.8)"></span>
+                    <span class="oswald-sharp text-[8px] font-black italic uppercase tracking-widest text-ufcRed">진행 중 / 예정</span>
+                </div>
+                <p class="oswald-sharp text-sm font-black italic uppercase text-white leading-tight">${escapeHtml(currentEvent.title)}</p>
+                <p class="oswald-sharp text-[9px] text-gray-500 italic mt-0.5">${dateLabel}</p>
+            </div>`;
+        } else {
+            // DB 이벤트 없으면 localStorage fallback
+            const n = (typeof eventInfo !== 'undefined' && eventInfo.name) ? eventInfo.name : 'UFC 이벤트';
+            const d = (typeof eventInfo !== 'undefined' && eventInfo.date) ? eventInfo.date : '';
+            html += `<div class="px-4 py-3 border-b border-white/[0.06]" style="background:rgba(210,10,10,0.07)">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-ufcRed flex-shrink-0" style="box-shadow:0 0 6px rgba(210,10,10,0.8)"></span>
+                    <span class="oswald-sharp text-[8px] font-black italic uppercase tracking-widest text-ufcRed">진행 중</span>
+                </div>
+                <p class="oswald-sharp text-sm font-black italic uppercase text-white leading-tight">${n}</p>
+                <p class="oswald-sharp text-[9px] text-gray-500 italic mt-0.5">${d}</p>
+            </div>`;
+        }
+
+        // 예정된 이벤트 (현재 제외, 나머지 upcoming)
+        const futureEvents = upcoming.slice(1);
+        if (futureEvents.length > 0) {
+            html += `<div class="px-4 pt-3 pb-1"><span class="oswald-sharp text-[8px] text-blue-400 uppercase tracking-widest italic">예정된 이벤트</span></div>`;
+            futureEvents.forEach(function(ev) {
+                const dateLabel = ev.event_date ? new Date(ev.event_date).toLocaleDateString('ko-KR', {month:'short',day:'numeric'}) : '날짜 미정';
+                html += `<div class="px-4 py-2 border-b border-white/[0.04] hover:bg-white/[0.03] transition">
+                    <p class="oswald-sharp text-xs font-black italic uppercase text-gray-300 leading-tight">${escapeHtml(ev.title)}</p>
+                    <p class="oswald-sharp text-[9px] text-blue-500/70 italic mt-0.5">${dateLabel}</p>
+                </div>`;
+            });
+        }
+
+        // 지난 이벤트 (archiveDB)
+        const past = (typeof archiveDB !== 'undefined' ? archiveDB : []).slice().reverse().slice(0, 8);
         if (past.length > 0) {
             html += `<div class="px-4 pt-3 pb-1"><span class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest italic">지난 이벤트</span></div>`;
             past.forEach(function(ev) {
-                const mainFight = (ev.fights && ev.fights[0])
-                    ? `${ev.fights[0].f1} vs ${ev.fights[0].f2}`
-                    : '';
+                const mainFight = (ev.fights && ev.fights[0]) ? `${ev.fights[0].f1} vs ${ev.fights[0].f2}` : '';
                 const winner = (ev.fights && ev.fights[0] && ev.fights[0].winner) ? ev.fights[0].winner : '';
                 html += `<div class="px-4 py-2.5 border-b border-white/[0.04] hover:bg-white/[0.03] transition cursor-pointer" onclick="navigateTo('archive')">
-                    <p class="oswald-sharp text-xs font-black italic uppercase text-gray-300 leading-tight">${ev.name}</p>
+                    <p class="oswald-sharp text-xs font-black italic uppercase text-gray-400 leading-tight">${ev.name}</p>
                     <p class="oswald-sharp text-[9px] text-gray-600 italic mt-0.5">${ev.date || ''}</p>
                     ${mainFight ? `<p class="oswald-sharp text-[8px] text-gray-700 italic mt-1 truncate">메인: ${mainFight}</p>` : ''}
                     ${winner ? `<p class="oswald-sharp text-[8px] text-ufcRed italic">승자: ${winner}</p>` : ''}
                 </div>`;
             });
-        } else {
+        } else if (!currentEvent) {
             html += `<div class="px-4 py-4 text-center oswald-sharp text-[9px] text-gray-700 italic uppercase tracking-widest">이벤트 기록 없음</div>`;
         }
+
         return html;
     }
 
@@ -2657,7 +2947,8 @@ textarea, select {
 
     /* [💰 ADVANCED DATA & ODDS SYSTEM: Vote Logic] */
     /* ── Global Bet Slip state & functions ── */
-    var activeBetSlip = { fightId: null, side: null, match: null, pick: null, odds: null, method: null, methodBonus: 0, round: null };
+    // window scope — fights-render.js의 selectPickFighter()와 공유
+    window.activeBetSlip = { fightId: null, side: null, match: null, pick: null, odds: null, method: null, methodBonus: 0, round: null };
 
     function openBetSlip(fightId, side, match, pick, odds) {
         if (!currentUser) { showToast('⚠ 베팅은 로그인 후 가능합니다'); return; }
@@ -2665,7 +2956,7 @@ textarea, select {
         if (state.pendings[fightId]) { showToast('⚠️ 이미 이 경기에 예측을 등록했습니다'); return; }
         if (state.settled && state.settled[fightId]) { showToast('⚠️ 이미 결과가 확정된 경기입니다'); return; }
 
-        activeBetSlip = { fightId, side, match, pick, odds, method: null, methodBonus: 0, round: null };
+        window.activeBetSlip = { fightId, side, match, pick, odds, method: null, methodBonus: 0, round: null };
 
         // UI 채우기
         var bsMatch = document.getElementById('bs-match-title');
@@ -2719,8 +3010,8 @@ textarea, select {
         var btn = document.getElementById('bs-mb-' + m.key);
         if (btn) btn.classList.add(m.sel);
 
-        activeBetSlip.method      = method;
-        activeBetSlip.methodBonus = m.bonus;
+        window.activeBetSlip.method      = method;
+        window.activeBetSlip.methodBonus = m.bonus;
 
         var msgEl = document.getElementById('bs-status-msg');
         if (msgEl) msgEl.textContent = '✅ ' + m.label;
@@ -2734,7 +3025,7 @@ textarea, select {
         var btn = document.getElementById('bs-rb-' + round);
         if (btn) btn.classList.add('bs-sel');
 
-        activeBetSlip.round = round;
+        window.activeBetSlip.round = round;
 
         var msgEl = document.getElementById('bs-status-msg');
         if (msgEl) {
@@ -2750,7 +3041,7 @@ textarea, select {
     }
 
     async function confirmBetSlip() {
-        var bs = activeBetSlip;
+        var bs = window.activeBetSlip;
         if (!bs.fightId) return;
 
         var confirmBtn = document.getElementById('bs-confirm-btn');
@@ -2772,7 +3063,7 @@ textarea, select {
         }
 
         closeBetSlip();
-        activeBetSlip = { fightId: null, side: null, match: null, pick: null, odds: null, method: null, methodBonus: 0, round: null };
+        window.activeBetSlip = { fightId: null, side: null, match: null, pick: null, odds: null, method: null, methodBonus: 0, round: null };
         if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = '✓ CONFIRM PICK — ' + BET_COST + 'P'; }
     }
 
@@ -2786,7 +3077,7 @@ textarea, select {
         const isUpset = odds >= 2.0;
 
         if (sb && currentUser) {
-            const saved = await savePick(fightId, pick, null, null, odds, basePayout, isUpset);
+            const saved = await savePick(fightId, pick, null, null, odds, basePayout, isUpset, side);
             if (!saved.ok) return;
         }
 
@@ -2855,7 +3146,7 @@ textarea, select {
         document.getElementById('result-modal').classList.add('hidden');
     }
 
-    function confirmAdminResult() {
+    async function confirmAdminResult() {
         const fightId = document.getElementById('result-modal-fight-id').value;
         const winner = document.getElementById('result-winner-select').value;
         const method = document.getElementById('result-method-select').value;
@@ -2867,10 +3158,45 @@ textarea, select {
         const fight = getActiveFights().find(f => f.id === fightId);
         const winnerSide = fight.f1.name === winner ? 'left' : 'right';
 
-        settleBet(fightId, winner, method, winnerSide, round, time);
         closeResultModal();
-        renderAdminFightCardList();
-        showToast(`✅ ${winner} 승리 (${method}, R${round} ${time}) 결과 확정!`);
+
+        if (fight._fromDB) {
+            // DB 매치업 → Edge Function으로 서버사이드 일괄 정산
+            const dbSide = winnerSide === 'left' ? 'red' : 'blue';
+            await submitMatchupResult(fightId, winner, dbSide, method, parseInt(round), time);
+        } else {
+            // 로컬 매치업 → 기존 클라이언트 정산
+            settleBet(fightId, winner, method, winnerSide, round, time);
+            renderAdminFightCardList();
+            showToast(`✅ ${winner} 승리 (${method}, R${round} ${time}) 결과 확정!`);
+        }
+    }
+
+    async function submitMatchupResult(matchupId, winnerName, winnerSide, method, round, time) {
+        try {
+            showToast('⏳ 결과 정산 중...');
+            const { data, error } = await sb.functions.invoke('settle-matchup', {
+                body: { matchupId, winnerName, winnerSide, method, round, time: time || null }
+            });
+
+            if (error) throw error;
+
+            const settled = data?.settled_count ?? 0;
+            const wins = data?.win_count ?? 0;
+            const losses = data?.lose_count ?? 0;
+            const eventDone = data?.event_completed ?? false;
+
+            showToast(`✅ ${winnerName} 승리 (${method}, R${round}) — ${settled}명 정산 (${wins}승 ${losses}패)${eventDone ? ' · 이벤트 완료!' : ''}`);
+
+            // 로컬 상태 갱신
+            if (typeof loadUserPicksFromDB === 'function') await loadUserPicksFromDB();
+            if (typeof loadUserFromDB === 'function' && currentUser) loadUserFromDB(currentUser.id);
+            if (typeof fetchUpcomingMatchups === 'function') await fetchUpcomingMatchups();
+            renderAdminFightCardList();
+        } catch (e) {
+            console.error('[submitMatchupResult]', e);
+            showToast(`❌ 정산 실패: ${e.message ?? e}`);
+        }
     }
 
     async function settleBet(fightId, actualWinner, actualMethod, winnerSide, round, time) {
@@ -3250,18 +3576,40 @@ async function publishPost() {
         const modal = document.getElementById('fighter-profile-modal');
         modal.classList.remove('hidden');
 
-        // Initials
-        const initials = fighter.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-        document.getElementById('fp-initials').textContent = initials;
+        // Avatar: image or initials fallback
+        const avatarImg = document.getElementById('fp-avatar-img');
+        const initialsEl = document.getElementById('fp-initials');
+        if (fighter.image_url) {
+            avatarImg.src = fighter.image_url;
+            avatarImg.classList.remove('hidden');
+            initialsEl.classList.add('hidden');
+            avatarImg.onerror = function() { avatarImg.classList.add('hidden'); initialsEl.classList.remove('hidden'); };
+        } else {
+            avatarImg.classList.add('hidden');
+            initialsEl.classList.remove('hidden');
+        }
+        const initials = (fighter.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+        initialsEl.textContent = initials;
 
         // Basic info
         document.getElementById('fp-name').textContent = fighter.name;
         document.getElementById('fp-record').textContent = fighter.record || '—';
         document.getElementById('fp-height').textContent = fighter.height || '—';
         document.getElementById('fp-reach').textContent = fighter.reach || '—';
+        document.getElementById('fp-weight').textContent = fighter.weight || '—';
         document.getElementById('fp-odds').textContent = fighter.odds ? `×${fighter.odds}` : '—';
         document.getElementById('fp-rank-badge').textContent = fighter.rank || 'UNRANKED';
         document.getElementById('fp-division-badge').textContent = fighter.division || '';
+        // KO/SUB/DEC율
+        const finishSection = document.getElementById('fp-finish-section');
+        if (fighter.ko_rate != null || fighter.sub_rate != null || fighter.dec_rate != null) {
+            finishSection?.classList.remove('hidden');
+            document.getElementById('fp-ko-rate').textContent  = fighter.ko_rate  != null ? fighter.ko_rate.toFixed(1)  + '%' : '—';
+            document.getElementById('fp-sub-rate').textContent = fighter.sub_rate != null ? fighter.sub_rate.toFixed(1) + '%' : '—';
+            document.getElementById('fp-dec-rate').textContent = fighter.dec_rate != null ? fighter.dec_rate.toFixed(1) + '%' : '—';
+        } else {
+            finishSection?.classList.add('hidden');
+        }
 
         // Stat bars
         const stats = fighter.stats || [75, 75, 75, 75, 75];
@@ -3539,6 +3887,110 @@ async function publishPost() {
     let ufcRankingsDB = {};
     let currentDivision = 'p4p';
 
+    async function syncFighterRanksFromRankings(allRows) {
+        if (!sb) return;
+        var updated = 0;
+        var skipped = 0;
+        for (var i = 0; i < allRows.length; i++) {
+            var row = allRows[i];
+            if (row.division === 'p4p') continue; // P4P는 체급 랭킹과 충돌하므로 제외
+            var rankVal = row.rank_position === 'C' ? 0 : parseInt(row.rank_position, 10);
+            if (isNaN(rankVal)) continue;
+            var name = (row.fighter_name || '').trim();
+            if (!name) continue;
+
+            // 1차: 정확한 ilike 매칭
+            var res = await sb.from('fighters').update({ rank: rankVal }).ilike('name_en', name);
+            if (!res.error && res.count !== 0) { updated++; continue; }
+
+            // 2차: 성(last word)으로 부분 매칭
+            var parts = name.split(' ');
+            var lastName = parts[parts.length - 1];
+            if (lastName.length >= 4) {
+                var res2 = await sb.from('fighters').update({ rank: rankVal }).ilike('name_en', '%' + lastName + '%');
+                if (!res2.error && res2.count !== 0) { updated++; continue; }
+            }
+
+            skipped++;
+            console.warn('[RankSync] 매칭 실패:', name);
+        }
+        console.log('[RankSync] 완료 — 업데이트:', updated, '/ 매칭 실패:', skipped);
+        if (updated > 0) showToast('🏆 파이터 랭크 동기화 완료 (' + updated + '명)');
+        else showToast('⚠ 매칭된 파이터 없음 — 이름을 확인하세요');
+    }
+
+    async function loadRankVerifyPanel() {
+        if (!sb) { showToast('⚠ Supabase 연결 필요'); return; }
+        var panel = document.getElementById('rank-verify-panel');
+        if (!panel) return;
+        panel.classList.remove('hidden');
+        panel.innerHTML = '<p class="oswald-sharp text-xs text-gray-500 italic uppercase animate-pulse">불러오는 중...</p>';
+
+        var { data, error } = await sb.from('ufc_rankings')
+            .select('division, rank_position, fighter_name')
+            .order('division').order('rank_position');
+
+        if (error) { panel.innerHTML = '<p class="text-red-400 text-xs">' + error.message + '</p>'; return; }
+
+        // 디비전별 그룹
+        var groups = {};
+        (data || []).forEach(function(r) {
+            if (!groups[r.division]) groups[r.division] = [];
+            groups[r.division].push(r);
+        });
+
+        var DIV_LABELS = { p4p:'P4P',flw:'플라이급',bw:'밴텀급',fw:'페더급',lw:'라이트급',ww:'웰터급',mw:'미들급',lhw:'라이트헤비급',hw:'헤비급','w-sw':'여자 스트로우','w-flw':'여자 플라이','w-bw':'여자 밴텀' };
+
+        panel.innerHTML = Object.keys(groups).map(function(div) {
+            var rows = groups[div].sort(function(a,b) {
+                if (a.rank_position === 'C') return -1;
+                if (b.rank_position === 'C') return 1;
+                return parseInt(a.rank_position) - parseInt(b.rank_position);
+            });
+            return '<div class="glass-card rounded-xl p-4">' +
+                '<p class="oswald-sharp text-xs font-black italic uppercase tracking-widest text-ufcRed mb-2">' + (DIV_LABELS[div] || div) + '</p>' +
+                rows.map(function(r) {
+                    var isChamp = r.rank_position === 'C';
+                    return '<div class="flex items-center gap-2 py-1 border-b border-white/5 group">' +
+                        '<span class="oswald-sharp text-[10px] font-black italic w-6 text-center ' + (isChamp ? 'text-yellow-400' : 'text-gray-500') + '">' + (isChamp ? 'C' : r.rank_position) + '</span>' +
+                        '<input value="' + (r.fighter_name || '') + '" data-div="' + div + '" data-pos="' + r.rank_position + '" ' +
+                        'class="flex-1 bg-transparent text-white text-xs oswald-sharp italic focus:bg-white/5 rounded px-2 py-0.5 outline-none focus:outline focus:outline-ufcRed/50" ' +
+                        'onchange="saveRankRow(this)">' +
+                        '</div>';
+                }).join('') +
+                '</div>';
+        }).join('');
+    }
+
+    async function saveRankRow(input) {
+        if (!sb) return;
+        var div = input.dataset.div;
+        var pos = input.dataset.pos;
+        var newName = input.value.trim();
+        if (!newName) return;
+        var { error } = await sb.from('ufc_rankings')
+            .update({ fighter_name: newName, fighter_name_ko: newName })
+            .eq('division', div).eq('rank_position', pos);
+        if (error) { showToast('❌ 저장 실패: ' + error.message); input.style.color = '#f87171'; }
+        else { showToast('✅ 저장됨: ' + newName); input.style.color = '#4ade80'; setTimeout(() => input.style.color = '', 2000); }
+    }
+
+    async function syncRankFromUFCRankings() {
+        if (!sb) { showToast('⚠ Supabase 연결 필요'); return; }
+        var btn = document.getElementById('btn-sync-rank');
+        if (btn) { btn.textContent = '동기화 중...'; btn.disabled = true; }
+        try {
+            var res = await sb.from('ufc_rankings').select('division,rank_position,fighter_name');
+            if (res.error) throw new Error(res.error.message);
+            if (!res.data || res.data.length === 0) { showToast('⚠ ufc_rankings 데이터 없음. 먼저 랭킹을 갱신하세요.'); return; }
+            await syncFighterRanksFromRankings(res.data);
+        } catch(e) {
+            showToast('❌ 랭킹 동기화 실패: ' + e.message);
+        } finally {
+            if (btn) { btn.textContent = '🏆 랭킹 동기화'; btn.disabled = false; }
+        }
+    }
+
     function loadUFCRankings() {
         if (sb) {
             sb.from('ufc_rankings').select('*').order('division').order('rank_position')
@@ -3550,6 +4002,7 @@ async function publishPost() {
                         if (!built[row.division]) built[row.division] = { champion: null, fighters: [] };
                         var fighter = {
                             name: row.fighter_name_ko || row.fighter_name,
+                            name_en: row.fighter_name,
                             nation: row.nation || '',
                             record: row.record || '',
                             height: row.height || '—',
@@ -3577,18 +4030,18 @@ async function publishPost() {
                     if (updated) updated.textContent = 'DB 기준 · ' + new Date().toLocaleDateString('ko-KR');
                 } else {
                     // Supabase 비어있으면 시드 데이터 사용
-                    const stored = localStorage.getItem('picktagon_ufc_rankings');
+                    const stored = localStorage.getItem('picktagon_ufc_rankings_v2');
                     ufcRankingsDB = stored ? JSON.parse(stored) : JSON.parse(JSON.stringify(UFC_RANKINGS_SEED));
                 }
             });
         } else {
-            const stored = localStorage.getItem('picktagon_ufc_rankings');
+            const stored = localStorage.getItem('picktagon_ufc_rankings_v2');
             ufcRankingsDB = stored ? JSON.parse(stored) : JSON.parse(JSON.stringify(UFC_RANKINGS_SEED));
         }
     }
 
     function saveUFCRankings() {
-        localStorage.setItem('picktagon_ufc_rankings', JSON.stringify(ufcRankingsDB));
+        localStorage.setItem('picktagon_ufc_rankings_v2', JSON.stringify(ufcRankingsDB));
     }
 
     // ── UFC 랭킹 자동 갱신 (UFC.com 공식 데이터 — Jina.ai 프록시, 키 불필요) ──
@@ -3697,6 +4150,8 @@ async function publishPost() {
                 var updated = document.getElementById('ufc-rank-updated');
                 if (updated) updated.textContent = 'UFC.com 기준 · ' + new Date().toLocaleDateString('ko-KR');
                 loadUFCRankings();
+                // fighters.rank 동기화
+                syncFighterRanksFromRankings(allRows);
             }
         } catch(e) {
             showToast('❌ 갱신 실패: ' + e.message);
@@ -3716,6 +4171,49 @@ async function publishPost() {
                 ${d.icon} ${d.label}
             </button>
         `).join('');
+    }
+
+    let _rankImgMap = null;     // lowercase name_en → image_url
+    let _rankFighterMap = null; // lowercase name_en → full fighters row
+
+    async function _loadRankImgs() {
+        if (!sb || _rankImgMap !== null) return;
+        _rankImgMap = {};
+        _rankFighterMap = {};
+        const { data } = await sb.from('fighters').select(
+            'id, name, name_en, division, wins, losses, draws, rank, height, reach, height_cm, weight_kg, reach_cm, ko_rate, sub_rate, dec_rate, stats, image_url, style, odds'
+        );
+        (data || []).forEach(f => {
+            const key = (f.name_en || '').toLowerCase().trim();
+            if (!key) return;
+            if (f.image_url) _rankImgMap[key] = f.image_url;
+            _rankFighterMap[key] = f;
+        });
+        renderUFCRankings();
+    }
+
+    function _lookupRankFighter(name) {
+        if (!_rankFighterMap) return null;
+        const key = (name || '').toLowerCase().trim();
+        if (_rankFighterMap[key]) return _rankFighterMap[key];
+        const lastName = key.split(' ').pop();
+        if (lastName && lastName.length >= 4) {
+            const found = Object.keys(_rankFighterMap).find(k => k.includes(lastName));
+            if (found) return _rankFighterMap[found];
+        }
+        return null;
+    }
+
+    function _getRankImg(name) {
+        if (!_rankImgMap) return null;
+        const key = (name || '').toLowerCase().trim();
+        if (_rankImgMap[key]) return _rankImgMap[key];
+        const lastName = key.split(' ').pop();
+        if (lastName && lastName.length >= 4) {
+            const found = Object.keys(_rankImgMap).find(k => k.includes(lastName));
+            if (found) return _rankImgMap[found];
+        }
+        return null;
     }
 
     function switchDivision(divId) {
@@ -3751,8 +4249,10 @@ async function publishPost() {
             style="background:linear-gradient(135deg,rgba(234,179,8,0.08) 0%,rgba(0,0,0,0) 60%)">
             <div class="flex items-center justify-between flex-wrap gap-4">
                 <div class="flex items-center gap-5">
-                    <div class="w-14 h-14 lg:w-20 lg:h-20 rounded-2xl bg-yellow-500/10 border-2 border-yellow-500/40 flex items-center justify-center">
-                        <span class="text-2xl lg:text-4xl">🏆</span>
+                    <div class="w-14 h-14 lg:w-20 lg:h-20 rounded-2xl bg-yellow-500/10 border-2 border-yellow-500/40 overflow-hidden flex items-center justify-center flex-shrink-0">
+                        ${_getRankImg(divData.champion.name_en || divData.champion.name)
+                            ? `<img src="${_getRankImg(divData.champion.name_en || divData.champion.name)}" class="w-full h-full object-cover object-top" onerror="this.parentElement.innerHTML='<span class=\\'text-2xl lg:text-4xl\\'>🏆</span>'">`
+                            : `<span class="text-2xl lg:text-4xl">🏆</span>`}
                     </div>
                     <div>
                         <p class="oswald-sharp text-[9px] text-yellow-400 uppercase tracking-[0.3em] font-black italic mb-1">Champion · ${divInfo?.label || ''}</p>
@@ -3791,8 +4291,11 @@ async function publishPost() {
                     <span class="oswald-sharp font-black italic text-base lg:text-xl ${f.rank<=3?'text-ufcRed':'text-gray-500'}">${f.rank}</span>
                 </div>
                 <div class="col-span-6 lg:col-span-5 flex items-center gap-3 pl-2">
-                    <div class="w-9 h-9 lg:w-11 lg:h-11 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center oswald-sharp font-black italic text-[10px] text-gray-400 flex-shrink-0">
-                        ${f.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
+                    <div class="w-9 h-9 lg:w-11 lg:h-11 rounded-xl bg-white/5 border border-white/10 overflow-hidden flex items-center justify-center flex-shrink-0">
+                        ${_getRankImg(f.name_en || f.name)
+                            ? `<img src="${_getRankImg(f.name_en || f.name)}" class="w-full h-full object-cover object-top" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+                            : ''}
+                        <span class="oswald-sharp font-black italic text-[10px] text-gray-400 w-full h-full flex items-center justify-center ${_getRankImg(f.name_en || f.name) ? 'hidden' : ''}">${f.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</span>
                     </div>
                     <div>
                         <p class="oswald-sharp font-black italic text-sm lg:text-base text-white uppercase tracking-tighter group-hover:text-ufcRed transition">${f.nation} ${f.name}</p>
@@ -3818,7 +4321,37 @@ async function publishPost() {
     function openUFCFighterProfile(fighter) {
         if (typeof fighter === 'string') fighter = JSON.parse(fighter);
 
-        // Reuse existing fighter profile modal
+        // _rankFighterMap 아직 미로드 시 on-demand 로딩 후 재시도
+        if (_rankFighterMap === null) {
+            _loadRankImgs().then(() => openUFCFighterProfile(fighter));
+            return;
+        }
+        // fighters 테이블 데이터가 있으면 openFighterProfile로 위임 (영어 이름 우선)
+        const dbRow = _lookupRankFighter(fighter.name_en || fighter.name);
+        if (dbRow) {
+            const DIVISION_LABEL = { flw:'플라이급', bw:'밴텀급', fw:'페더급', lw:'라이트급', ww:'웰터급', mw:'미들급', lhw:'라이트헤비급', hw:'헤비급', 'w-sw':'여자 스트로우', 'w-flw':'여자 플라이급', 'w-bw':'여자 밴텀급' };
+            const rv = fighter.isChampion ? 0 : (fighter.rank ?? null);
+            const rankLabel = rv === 0 ? 'CHAMPION' : (rv != null ? `#${rv}` : 'UNRANKED');
+            const divLabel = DIVISION_LABEL[dbRow.division] || fighter.division || '';
+            const heightStr = dbRow.height_cm ? Math.round(dbRow.height_cm) + ' cm' : (dbRow.height || fighter.height || '—');
+            const reachStr  = dbRow.reach_cm  ? Math.round(dbRow.reach_cm)  + ' cm' : (dbRow.reach  || fighter.reach  || '—');
+            const weightStr = dbRow.weight_kg ? Math.round(dbRow.weight_kg) + ' kg' : '—';
+            openFighterProfile({
+                id: dbRow.id,
+                name: dbRow.name || dbRow.name_en || fighter.name,
+                name_en: dbRow.name_en,
+                record: dbRow.wins != null ? `${dbRow.wins||0}-${dbRow.losses||0}${dbRow.draws?'-'+dbRow.draws:''}` : (fighter.record || '—'),
+                height: heightStr, reach: reachStr, weight: weightStr,
+                ko_rate: dbRow.ko_rate ?? null, sub_rate: dbRow.sub_rate ?? null, dec_rate: dbRow.dec_rate ?? null,
+                odds: dbRow.odds || fighter.odds || null,
+                rank: rankLabel, division: divLabel, style: dbRow.style,
+                stats: Array.isArray(dbRow.stats) ? dbRow.stats : (fighter.stats || [75,75,75,75,75]),
+                image_url: dbRow.image_url || null,
+            });
+            return;
+        }
+
+        // fallback: fighters 테이블 미매칭 시 기존 로직 사용
         const modal = document.getElementById('fighter-profile-modal');
         modal.classList.remove('hidden');
 
@@ -4252,8 +4785,13 @@ async function publishPost() {
         }, '⚠ 프로필 동기화에 실패했습니다.');
     }
 
-    async function savePick(fightId, pick, method, round, odds, payout, isUpset) {
+    async function savePick(fightId, pick, method, round, odds, payout, isUpset, side) {
         if (!sb || !currentUser) return { ok: true };
+        // DB 매치업이면 matchup_id와 predicted_side 저장
+        const fight = getActiveFights().find(function(f) { return f.id === fightId; });
+        const matchupId = (fight && fight._fromDB) ? fightId : null;
+        // side: 'left'→'red'(f1), 'right'→'blue'(f2)
+        const predictedSide = side === 'left' ? 'red' : side === 'right' ? 'blue' : null;
         return runSupabaseMutation(function() {
             return sb.from('picks').insert({
                 user_id: currentUser.id,
@@ -4265,8 +4803,11 @@ async function publishPost() {
                 odds: odds,
                 bet_cost: BET_COST,
                 payout: payout,
+                base_payout: payout,
                 is_upset: isUpset,
-                status: 'pending'
+                status: 'pending',
+                matchup_id: matchupId,
+                predicted_side: predictedSide
             });
         }, '⚠ 예측 저장에 실패했습니다. 다시 시도해주세요.');
     }
@@ -4319,9 +4860,12 @@ async function publishPost() {
 
     async function saveEventPick(fightId, fighterIdx) {
         if (!sb || !currentUser) return;
+        // DB 매치업이면 실제 event_id 사용, 레거시이면 상수 폴백
+        const fight = getActiveFights().find(function(f) { return f.id === fightId; });
+        const eventId = (fight && fight._eventId) ? fight._eventId : EVENT_ID;
         await sb.from('event_picks').upsert({
             user_id: currentUser.id,
-            event_id: EVENT_ID,
+            event_id: eventId,
             fight_id: fightId,
             fighter_index: fighterIdx,
         }, { onConflict: 'user_id,fight_id' });
@@ -4442,15 +4986,21 @@ async function addCommentToDB(postDbId, userNick, text) {
         load();
         loadAdmin();
         loadEventInfo();
-        loadArchive();
         loadNews();
         loadSeason();
         loadUFCRankings();
         applyEventInfo();
         updateNicknameDisplay();
         refreshUI();
-        navigateTo('home');
+        // hash 기반 초기 페이지 복원 (뒤로가기 지원)
+        var validPages = ['home','matchups','ufc-rankings','rankings','mma-news','community','archive','profile','admin'];
+        var hashPage = window.location.hash.replace('#', '');
+        var initPage = validPages.indexOf(hashPage) !== -1 ? hashPage : 'home';
+        history.replaceState({ page: initPage }, '', '#' + initPage);
+        _currentPage = initPage;
         initSupabase();
+        navigateTo(initPage, true);
+        fetchArchive();
         setTimeout(initHome, 400);
     };
 

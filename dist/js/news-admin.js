@@ -50,6 +50,11 @@
             grid.innerHTML = renderNewsSkeleton(3);
         }
 
+        if (!sb) {
+            grid.innerHTML = '<div class="col-span-3 glass-card rounded-[2rem] p-12 text-center text-gray-600 oswald-sharp text-xs italic uppercase tracking-widest">등록된 뉴스가 없습니다</div>';
+            return;
+        }
+
         if (sb) {
             sb.from('news_cache')
                 .select('*')

@@ -311,7 +311,7 @@ async function fetchUpcomingMatchups() {
         }
 
         var mRes = await sb.from('matchups')
-            .select('*')
+            .select('id, event_id, red_fighter_name, blue_fighter_name, red_image_url, blue_image_url, weight_class, card_segment, sort_order, is_main_event, left_bias, result_status, result_winner, result_winner_side, result_method, result_round, result_time')
             .eq('event_id', event.id)
             .order('sort_order', { ascending: true });
         if (mRes.error || !mRes.data || !mRes.data.length) {
@@ -321,7 +321,6 @@ async function fetchUpcomingMatchups() {
         }
 
         // 메인카드 순서별 태그 부여 (sort_order 기준)
-        // sort_order=1 main → MAIN EVENT, sort_order=2 main → CO-MAIN EVENT, 나머지 main → '' (빈 태그), prelim → PRELIMS
         var mainCardRank = 0;
         _dbMatchups = mRes.data.map(function(m) {
             var isMainCard = m.card_segment === 'main';
@@ -342,8 +341,14 @@ async function fetchUpcomingMatchups() {
                 division: m.weight_class || '',
                 rounds: isMainCard ? 5 : 3,
                 leftBias: Number(m.left_bias) || 0.5,
+                _eventId: event.id,
                 _eventTitle: event.title || '',
                 _fromDB: true,
+                _resultStatus: m.result_status || 'scheduled',
+                _resultWinner: m.result_winner || null,
+                _resultWinnerSide: m.result_winner_side || null,
+                _resultMethod: m.result_method || null,
+                _resultRound: m.result_round || null,
                 f1: { name: m.red_fighter_name || '?', nameEn: '', record: '', odds: null, recent: [], stats: [], imgUrl: m.red_image_url || '' },
                 f2: { name: m.blue_fighter_name || '?', nameEn: '', record: '', odds: null, recent: [], stats: [], imgUrl: m.blue_image_url || '' },
             };
@@ -351,7 +356,72 @@ async function fetchUpcomingMatchups() {
 
         if (typeof renderFightCards === 'function') renderFightCards();
         if (typeof renderEventSidebar === 'function') renderEventSidebar();
+        // 로그인 유저이면 DB에서 픽 상태 복원 (서버 정산 결과 반영)
+        if (typeof currentUser !== 'undefined' && currentUser && typeof loadUserPicksFromDB === 'function') {
+            loadUserPicksFromDB();
+        }
     } catch(e) {
         console.warn('[fetchUpcomingMatchups]', e);
+    }
+}
+
+// ── 현재 이벤트의 픽 상태를 DB에서 복원 ─────────────────────────────────
+// 서버 정산 후 state.pendings/settled를 DB picks 테이블 기준으로 재구성.
+// 로그인 시 + 결과 입력 후 호출.
+async function loadUserPicksFromDB() {
+    if (!sb || typeof currentUser === 'undefined' || !currentUser) return;
+    try {
+        var activeFights = (typeof getActiveFights === 'function') ? getActiveFights() : [];
+        if (!activeFights.length) return;
+        var activeFightIds = activeFights.map(function(f) { return f.id; });
+
+        var res = await sb.from('picks')
+            .select('fight_id, pick_name, odds, bet_cost, payout, is_upset, status, actual_winner, actual_method, method, predicted_round, predicted_side, settled_at')
+            .eq('user_id', currentUser.id)
+            .in('fight_id', activeFightIds);
+
+        if (!res.data || !res.data.length) return;
+
+        var newPendings = {};
+        var newSettled  = {};
+
+        res.data.forEach(function(pick) {
+            var fid = pick.fight_id;
+            if (pick.status === 'pending') {
+                var side = pick.predicted_side === 'red' ? 'left' : 'right';
+                newPendings[fid] = {
+                    side: side,
+                    pick: pick.pick_name,
+                    payout: pick.payout || 0,
+                    fightId: fid,
+                    betCost: pick.bet_cost || (typeof BET_COST !== 'undefined' ? BET_COST : 100),
+                    odds: pick.odds || 1.5,
+                    isUpset: pick.is_upset || false,
+                    method: pick.method || null,
+                    methodBonus: 0
+                };
+            } else if (pick.status === 'win' || pick.status === 'lose') {
+                newSettled[fid] = {
+                    result: pick.status === 'win' ? 'WIN' : 'LOSE',
+                    actualWinner: pick.actual_winner || '',
+                    actualMethod: pick.actual_method || '',
+                    payout: pick.payout || 0,
+                    pick: pick.pick_name,
+                    resolvedAt: pick.settled_at || new Date().toISOString()
+                };
+            }
+        });
+
+        // 현재 이벤트의 fight ID 범위에서만 교체
+        activeFightIds.forEach(function(fid) {
+            delete state.pendings[fid];
+            delete state.settled[fid];
+        });
+        Object.assign(state.pendings, newPendings);
+        Object.assign(state.settled,  newSettled);
+        save();
+        if (typeof updateAllFightCards === 'function') updateAllFightCards();
+    } catch(e) {
+        console.warn('[loadUserPicksFromDB]', e);
     }
 }
