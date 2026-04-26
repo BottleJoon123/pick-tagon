@@ -307,7 +307,10 @@ function renderFightCards() {
     container.innerHTML = _html;
     updateAllFightCards();
     updateEventTotalPicks();
-    if (typeof loadAllEventPickCounts === 'function') loadAllEventPickCounts();
+    // Apply already-loaded pick counts to bars (avoid DB reset race with saveEventPick)
+    if (typeof updateLivePickBar === 'function' && typeof getActiveFights === 'function') {
+        getActiveFights().forEach(function(f) { updateLivePickBar(f.id); });
+    }
 }
 
 /* ── 분석 탭 헬퍼 함수 ── */
