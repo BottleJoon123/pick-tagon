@@ -117,7 +117,7 @@ function renderHeroCard(fight, idx) {
         </div>
 
         <!-- Hero Face-off Area -->
-        <div class="relative overflow-hidden" style="min-height:${isMain ? '380px' : '320px'}">
+        <div class="relative overflow-hidden" style="min-height:${isMain ? '300px' : '260px'}">
             <!-- F1 Background -->
             <div class="absolute inset-y-0 left-0 w-1/2"
                 style="${f1BgStyle} -webkit-mask-image:linear-gradient(to right,rgba(0,0,0,0.95) 30%,transparent 100%); mask-image:linear-gradient(to right,rgba(0,0,0,0.95) 30%,transparent 100%);"></div>

@@ -308,6 +308,7 @@ async function fetchUpcomingMatchups() {
                 var formatted = d.toLocaleDateString('ko-KR', {year:'numeric', month:'long', day:'numeric', weekday:'short'}).toUpperCase();
                 dateEl.textContent = formatted;
             }
+            if (typeof startEventCountdown === 'function') startEventCountdown(event.event_date);
         }
 
         var mRes = await sb.from('matchups')
