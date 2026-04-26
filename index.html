@@ -3615,9 +3615,37 @@ async function publishPost() {
     const STAT_LABELS = ['Striking', 'Grappling', 'Stamina', 'Defense', 'Speed'];
     const STAT_COLORS = ['#d20a0a', '#3b82f6', '#22c55e', '#f59e0b', '#a855f7'];
 
-    function openFighterProfile(fighter) {
+    async function openFighterProfile(fighter) {
         // If passed as string (from onclick attr), parse it
         if (typeof fighter === 'string') fighter = JSON.parse(fighter);
+
+        // Normalize imgUrl → image_url for DB-sourced fighters
+        if (!fighter.image_url && fighter.imgUrl) fighter.image_url = fighter.imgUrl;
+
+        // If minimal data (no record/height), fetch full profile from fighters table
+        if (!fighter.record && !fighter.height && fighter.name && typeof sb !== 'undefined' && sb) {
+            try {
+                const { data: dbF } = await sb.from('fighters')
+                    .select('name, name_en, division, wins, losses, draws, rank, height, reach, weight_kg, ko_rate, sub_rate, dec_rate, stats, image_url')
+                    .ilike('name', fighter.name)
+                    .maybeSingle();
+                if (dbF) {
+                    fighter = Object.assign({}, fighter, {
+                        record:    `${dbF.wins||0}-${dbF.losses||0}-${dbF.draws||0}`,
+                        height:    dbF.height || null,
+                        reach:     dbF.reach  || null,
+                        weight:    dbF.weight_kg ? dbF.weight_kg + ' kg' : null,
+                        rank:      dbF.rank    ? '#' + dbF.rank : null,
+                        division:  dbF.division || fighter.division || null,
+                        ko_rate:   dbF.ko_rate,
+                        sub_rate:  dbF.sub_rate,
+                        dec_rate:  dbF.dec_rate,
+                        stats:     dbF.stats   || fighter.stats,
+                        image_url: dbF.image_url || fighter.image_url,
+                    });
+                }
+            } catch (_) {}
+        }
 
         const modal = document.getElementById('fighter-profile-modal');
         modal.classList.remove('hidden');

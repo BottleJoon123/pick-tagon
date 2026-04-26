@@ -9,6 +9,54 @@
 var adminGateMode = 'signin';
 var editingFighterId = null;
 var editingFightCardId = null;
+var _dndDragIdx = null;
+
+function _onFightDragStart(e, idx) {
+    _dndDragIdx = idx;
+    e.dataTransfer.effectAllowed = 'move';
+    e.currentTarget.style.opacity = '0.4';
+}
+function _onFightDragEnd(e) {
+    e.currentTarget.style.opacity = '';
+}
+function _onFightDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+}
+function _onFightDrop(e, dropIdx) {
+    e.preventDefault();
+    var dragIdx = _dndDragIdx;
+    _dndDragIdx = null;
+    if (dragIdx === null || dragIdx === dropIdx) return;
+
+    var fights = getActiveFights().slice();
+    var moved = fights.splice(dragIdx, 1)[0];
+    fights.splice(dropIdx, 0, moved);
+
+    if (typeof _dbMatchups !== 'undefined' && fights[0] && fights[0]._fromDB) {
+        _dbMatchups = fights;
+    } else {
+        customFights = fights;
+        saveAdmin();
+    }
+    renderAdminFightCardList();
+
+    if (typeof sb !== 'undefined' && sb && moved._fromDB) {
+        var mainFights  = fights.filter(function(f) { return f.section === 'main'; });
+        var prelimFights = fights.filter(function(f) { return f.section !== 'main'; });
+        var updates = [];
+        mainFights.forEach(function(f, i)  { if (f._fromDB) updates.push({ id: f.id, sort_order: i + 1 }); });
+        prelimFights.forEach(function(f, i) { if (f._fromDB) updates.push({ id: f.id, sort_order: i + 1 }); });
+        if (updates.length) {
+            Promise.all(updates.map(function(u) {
+                return sb.from('matchups').update({ sort_order: u.sort_order }).eq('id', u.id);
+            })).then(function() { showToast('↕ 순서 저장됨'); })
+              .catch(function() { showToast('⚠ 순서 저장 실패'); });
+            return;
+        }
+    }
+    showToast('↕ 경기 순서 변경됨');
+}
 
 // Fighter DB (persisted separately)
 var fighterDB = [];
@@ -667,8 +715,14 @@ function renderAdminFightCardList() {
             : `<span class="oswald-sharp text-[9px] px-2 py-1 rounded-lg font-black italic uppercase text-gray-500 border border-white/10">대기중</span>`;
 
         return `
-        <div class="glass-card rounded-2xl p-4 lg:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-3 hover:border-white/20 transition-all${dbDone ? ' opacity-60' : ''}">
+        <div draggable="true"
+             ondragstart="_onFightDragStart(event,${idx})"
+             ondragend="_onFightDragEnd(event)"
+             ondragover="_onFightDragOver(event)"
+             ondrop="_onFightDrop(event,${idx})"
+             class="glass-card rounded-2xl p-4 lg:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-3 hover:border-white/20 transition-all cursor-grab${dbDone ? ' opacity-60' : ''}">
             <div class="flex items-center gap-4">
+                <span class="text-gray-600 text-base select-none" title="드래그로 순서 변경">⠿</span>
                 <span class="oswald-sharp text-[8px] lg:text-xs bg-ufcRed/10 border border-ufcRed/20 text-ufcRed px-2 py-1 rounded-lg font-black italic uppercase">${fight.tag}</span>
                 <div>
                     <p class="oswald-sharp font-black italic text-sm lg:text-lg text-white uppercase tracking-tighter">${fight.f1.name} <span class="text-ufcRed">VS</span> ${fight.f2.name}</p>
@@ -678,8 +732,6 @@ function renderAdminFightCardList() {
             <div class="flex items-center gap-2 flex-wrap">
                 ${!settled && !dbDone ? `<button onclick="adminSetResult('${fight.id}')" class="oswald-sharp text-[10px] bg-ufcRed hover:bg-red-700 text-white font-black px-4 py-2 rounded-xl italic uppercase tracking-widest transition flex items-center gap-1">🏆 결과 입력</button>` : ''}
                 ${dbDone ? `<button onclick="editMatchupResult('${fight.id}')" class="oswald-sharp text-[10px] border border-yellow-500/30 text-yellow-500/70 hover:text-yellow-400 hover:border-yellow-400/50 px-3 py-2 rounded-xl italic uppercase tracking-widest transition">✏️ 수정</button>` : ''}
-                <button onclick="moveFight(${idx}, -1)" class="text-gray-600 hover:text-white transition px-2 text-xs" title="위로">▲</button>
-                <button onclick="moveFight(${idx}, 1)" class="text-gray-600 hover:text-white transition px-2 text-xs" title="아래로">▼</button>
                 <button onclick="openFightCardModal('${fight.id}')" class="oswald-sharp text-[10px] border border-white/10 text-gray-400 hover:text-white px-3 py-2 rounded-xl italic uppercase tracking-widest transition">수정</button>
                 <button onclick="deleteFightCard('${fight.id}')" class="oswald-sharp text-[10px] border border-ufcRed/20 text-ufcRed/60 hover:text-ufcRed px-3 py-2 rounded-xl italic uppercase tracking-widest transition">삭제</button>
             </div>
@@ -687,16 +739,6 @@ function renderAdminFightCardList() {
     }).join('');
 }
 
-function moveFight(idx, dir) {
-    const fights = [...getActiveFights()];
-    const newIdx = idx + dir;
-    if (newIdx < 0 || newIdx >= fights.length) return;
-    [fights[idx], fights[newIdx]] = [fights[newIdx], fights[idx]];
-    customFights = fights;
-    saveAdmin();
-    renderAdminFightCardList();
-    showToast('↕ 경기 순서 변경됨');
-}
 
 function openFightCardModal(fightId) {
     editingFightCardId = fightId || null;
@@ -941,15 +983,19 @@ function renderBuilderWorkspace() {
         const isCompleted = m.result_status === 'completed';
         return `
         <div onclick="openMatchupEditModal('${m.id}')"
-             class="group cursor-pointer flex items-center gap-3 px-4 py-3 rounded-2xl border border-white/5 bg-black/20 hover:bg-white/5 hover:border-white/20 transition-all${isCompleted ? ' opacity-60' : ''}">
+             class="group cursor-pointer flex items-center gap-2 px-4 py-3 rounded-2xl border border-white/5 bg-black/20 hover:bg-white/5 hover:border-white/20 transition-all${isCompleted ? ' opacity-60' : ''}">
             <span class="oswald-sharp text-gray-600 text-[10px] italic w-4 shrink-0 text-center">${m.sort_order || '?'}</span>
-            ${m.red_image_url ? `<img src="${escapeHtml(m.red_image_url)}" class="w-7 h-7 rounded-full object-cover object-top bg-zinc-800 shrink-0 ring-1 ring-red-500/30">` : '<div class="w-7 h-7 rounded-full bg-zinc-800 shrink-0 ring-1 ring-red-500/20"></div>'}
-            <p class="flex-1 oswald-sharp font-black italic text-xs uppercase truncate">
-                <span class="text-red-400">${escapeHtml(m.red_fighter_name || '?')}</span>
-                <span class="text-gray-600 mx-1">vs</span>
-                <span class="text-blue-400">${escapeHtml(m.blue_fighter_name || '?')}</span>
-            </p>
-            ${m.blue_image_url ? `<img src="${escapeHtml(m.blue_image_url)}" class="w-7 h-7 rounded-full object-cover object-top bg-zinc-800 shrink-0 ring-1 ring-blue-500/30">` : '<div class="w-7 h-7 rounded-full bg-zinc-800 shrink-0 ring-1 ring-blue-500/20"></div>'}
+            <!-- Red side -->
+            <div class="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
+                <span class="oswald-sharp font-black italic text-xs uppercase truncate text-red-400">${escapeHtml(m.red_fighter_name || '?')}</span>
+                ${m.red_image_url ? `<img src="${escapeHtml(m.red_image_url)}" class="w-7 h-7 rounded-full object-cover object-top bg-zinc-800 shrink-0 ring-1 ring-red-500/30">` : '<div class="w-7 h-7 rounded-full bg-zinc-800 shrink-0 ring-1 ring-red-500/20"></div>'}
+            </div>
+            <span class="oswald-sharp text-gray-600 text-[10px] italic shrink-0 px-1">vs</span>
+            <!-- Blue side -->
+            <div class="flex items-center gap-1.5 flex-1 min-w-0">
+                ${m.blue_image_url ? `<img src="${escapeHtml(m.blue_image_url)}" class="w-7 h-7 rounded-full object-cover object-top bg-zinc-800 shrink-0 ring-1 ring-blue-500/30">` : '<div class="w-7 h-7 rounded-full bg-zinc-800 shrink-0 ring-1 ring-blue-500/20"></div>'}
+                <span class="oswald-sharp font-black italic text-xs uppercase truncate text-blue-400">${escapeHtml(m.blue_fighter_name || '?')}</span>
+            </div>
             ${tagLabel ? `<span class="oswald-sharp text-[8px] italic uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0 ${m.sort_order===1&&m.card_segment==='main'?'border-ufcRed/50 text-ufcRed bg-ufcRed/5':'border-white/10 text-gray-500'}">${tagLabel}</span>` : ''}
             <div class="shrink-0 flex gap-1${isCompleted ? '' : ' opacity-0 group-hover:opacity-100'} transition-opacity">
                 ${isCompleted

@@ -77,10 +77,10 @@ function renderHeroCard(fight, idx) {
     const f1Img = fight.f1.imgUrl || '';
     const f2Img = fight.f2.imgUrl || '';
     const f1BgStyle = f1Img
-        ? `background-image:url('${f1Img}'); background-size:cover; background-position:center 15%;`
+        ? `background-image:url('${f1Img}'); background-size:cover; background-position:60% top;`
         : 'background:linear-gradient(135deg,#1a0000,#0a0a0a);';
     const f2BgStyle = f2Img
-        ? `background-image:url('${f2Img}'); background-size:cover; background-position:center 15%;`
+        ? `background-image:url('${f2Img}'); background-size:cover; background-position:40% top;`
         : 'background:linear-gradient(225deg,#00001a,#0a0a0a);';
 
     _fightCardCache[fight.id] = fight;
