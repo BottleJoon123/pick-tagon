@@ -44,12 +44,13 @@ Deno.serve(async (req) => {
 
   // ── 입력 검증 ───────────────────────────────────────────────────────
   let body: {
-    matchupId: string
+    matchupId:  string
     winnerName: string
-    winnerSide: 'red' | 'blue'
-    method: string
-    round: number
-    time?: string
+    winnerSide: 'red' | 'blue' | 'draw' | 'nc'
+    method:     string
+    round:      number
+    time?:      string
+    force?:     boolean
   }
 
   try {
@@ -64,7 +65,7 @@ Deno.serve(async (req) => {
     return Response.json({ error: 'missing_fields' }, { status: 400, headers: corsHeaders })
   }
 
-  if (!['red', 'blue'].includes(winnerSide)) {
+  if (!['red', 'blue', 'draw', 'nc'].includes(winnerSide)) {
     return Response.json({ error: 'invalid_winner_side' }, { status: 400, headers: corsHeaders })
   }
 
@@ -87,6 +88,7 @@ Deno.serve(async (req) => {
     p_method:      method,
     p_round:       round,
     p_time:        body.time ?? null,
+    p_force:       body.force ?? false,
   })
 
   if (error) {

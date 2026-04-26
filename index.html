@@ -2586,10 +2586,11 @@ textarea, select {
         <h3 class="oswald-sharp text-2xl font-black italic text-white uppercase mb-1">결과 입력</h3>
         <p id="result-modal-title" class="oswald-sharp text-sm text-gray-500 italic uppercase tracking-widest mb-7"></p>
         <input type="hidden" id="result-modal-fight-id">
+        <input type="hidden" id="result-modal-force" value="false">
 
         <div class="space-y-4 text-left mb-7">
             <div>
-                <label class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic block mb-2">승자 *</label>
+                <label class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic block mb-2">결과 *</label>
                 <select id="result-winner-select" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-ufcRed oswald-sharp font-black italic uppercase text-sm">
                 </select>
             </div>
@@ -3131,16 +3132,24 @@ textarea, select {
     // 어드민이 실제 결과를 입력하면 자동 정산
     function adminSetResult(fightId) {
         document.getElementById('result-modal-fight-id').value = fightId;
+        document.getElementById('result-modal-force').value = 'false';
         const fight = getActiveFights().find(f => f.id === fightId);
         if (!fight) return;
 
         document.getElementById('result-modal-title').textContent = `${fight.f1.name} vs ${fight.f2.name}`;
         document.getElementById('result-winner-select').innerHTML = `
-            <option value="">-- 승자 선택 --</option>
-            <option value="${fight.f1.name}">${fight.f1.name} (레드)</option>
-            <option value="${fight.f2.name}">${fight.f2.name} (블루)</option>
+            <option value="">-- 결과 선택 --</option>
+            <option value="${fight.f1.name}">${fight.f1.name} 승 (레드)</option>
+            <option value="${fight.f2.name}">${fight.f2.name} 승 (블루)</option>
+            <option value="DRAW">무승부 (DRAW)</option>
+            <option value="NC">경기 취소/무효 (NC)</option>
         `;
         document.getElementById('result-modal').classList.remove('hidden');
+    }
+
+    function editMatchupResult(fightId) {
+        adminSetResult(fightId);
+        document.getElementById('result-modal-force').value = 'true';
     }
 
     function closeResultModal() {
@@ -3149,22 +3158,29 @@ textarea, select {
 
     async function confirmAdminResult() {
         const fightId = document.getElementById('result-modal-fight-id').value;
-        const winner = document.getElementById('result-winner-select').value;
-        const method = document.getElementById('result-method-select').value;
-        const round = document.getElementById('result-round-input').value || '3';
-        const time = document.getElementById('result-time-input').value || '5:00';
+        const winner  = document.getElementById('result-winner-select').value;
+        const method  = document.getElementById('result-method-select').value;
+        const round   = document.getElementById('result-round-input').value || '3';
+        const time    = document.getElementById('result-time-input').value || '5:00';
+        const isForce = document.getElementById('result-modal-force').value === 'true';
 
-        if (!winner) { showToast('⚠ 승자를 선택하세요'); return; }
+        if (!winner) { showToast('⚠ 결과를 선택하세요'); return; }
 
         closeResultModal();
+
+        // 무승부 / 경기취소
+        if (winner === 'DRAW' || winner === 'NC') {
+            const dbSide = winner === 'DRAW' ? 'draw' : 'nc';
+            const autoMethod = winner === 'NC' ? 'NC' : method;
+            await submitMatchupResult(fightId, winner, dbSide, autoMethod, parseInt(round), time, isForce);
+            return;
+        }
 
         const fight = getActiveFights().find(f => f.id === fightId);
         const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         const isDbMatchup = (fight && fight._fromDB) || (!fight && uuidRe.test(fightId));
 
         if (isDbMatchup) {
-            // DB 매치업 → Edge Function으로 서버사이드 일괄 정산
-            // winnerSide: f1(red) vs f2(blue). fight 없으면 select의 첫 번째 실옵션이 red
             let dbSide;
             if (fight) {
                 dbSide = fight.f1.name === winner ? 'red' : 'blue';
@@ -3172,9 +3188,8 @@ textarea, select {
                 const opts = document.getElementById('result-winner-select').options;
                 dbSide = opts[1] && opts[1].value === winner ? 'red' : 'blue';
             }
-            await submitMatchupResult(fightId, winner, dbSide, method, parseInt(round), time);
+            await submitMatchupResult(fightId, winner, dbSide, method, parseInt(round), time, isForce);
         } else if (fight) {
-            // 로컬 매치업 → 기존 클라이언트 정산
             const winnerSide = fight.f1.name === winner ? 'left' : 'right';
             settleBet(fightId, winner, method, winnerSide, round, time);
             renderAdminFightCardList();
@@ -3184,13 +3199,13 @@ textarea, select {
         }
     }
 
-    async function submitMatchupResult(matchupId, winnerName, winnerSide, method, round, time) {
+    async function submitMatchupResult(matchupId, winnerName, winnerSide, method, round, time, force = false) {
         try {
             showToast('⏳ 결과 정산 중...');
             let data, error;
             for (let attempt = 1; attempt <= 3; attempt++) {
                 ({ data, error } = await sb.functions.invoke('settle-matchup', {
-                    body: { matchupId, winnerName, winnerSide, method, round, time: time || null }
+                    body: { matchupId, winnerName, winnerSide, method, round, time: time || null, force }
                 }));
                 if (!error) break;
                 const isColdStart = (error?.context?.status === 503) || error?.name === 'FunctionsFetchError';
@@ -3200,14 +3215,24 @@ textarea, select {
                 } else break;
             }
 
-            if (error) throw error;
+            if (error) {
+                // 실제 서버 에러 메시지 추출
+                let detail = error.message || '알 수 없는 오류';
+                try { const b = await error.context?.json?.(); if (b?.error) detail = b.error; } catch {}
+                throw new Error(detail);
+            }
 
-            const settled = data?.settled_count ?? 0;
-            const wins = data?.win_count ?? 0;
-            const losses = data?.lose_count ?? 0;
+            const settled   = data?.settled_count ?? 0;
+            const wins      = data?.win_count ?? 0;
+            const losses    = data?.lose_count ?? 0;
+            const cancels   = data?.cancel_count ?? 0;
             const eventDone = data?.event_completed ?? false;
 
-            showToast(`✅ ${winnerName} 승리 (${method}, R${round}) — ${settled}명 정산 (${wins}승 ${losses}패)${eventDone ? ' · 이벤트 완료!' : ''}`);
+            const isDrawNc  = winnerSide === 'draw' || winnerSide === 'nc';
+            const label     = isDrawNc
+                ? `${winnerName} (${method}, R${round}) — ${cancels}명 환급`
+                : `${winnerName} 승 (${method}, R${round}) — ${settled}명 정산 (${wins}승 ${losses}패)`;
+            showToast(`✅ ${label}${eventDone ? ' · 이벤트 완료!' : ''}`);
 
             // 로컬 상태 갱신
             if (typeof loadUserPicksFromDB === 'function') await loadUserPicksFromDB();

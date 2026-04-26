@@ -677,6 +677,7 @@ function renderAdminFightCardList() {
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                 ${!settled && !dbDone ? `<button onclick="adminSetResult('${fight.id}')" class="oswald-sharp text-[10px] bg-ufcRed hover:bg-red-700 text-white font-black px-4 py-2 rounded-xl italic uppercase tracking-widest transition flex items-center gap-1">🏆 결과 입력</button>` : ''}
+                ${dbDone ? `<button onclick="editMatchupResult('${fight.id}')" class="oswald-sharp text-[10px] border border-yellow-500/30 text-yellow-500/70 hover:text-yellow-400 hover:border-yellow-400/50 px-3 py-2 rounded-xl italic uppercase tracking-widest transition">✏️ 수정</button>` : ''}
                 <button onclick="moveFight(${idx}, -1)" class="text-gray-600 hover:text-white transition px-2 text-xs" title="위로">▲</button>
                 <button onclick="moveFight(${idx}, 1)" class="text-gray-600 hover:text-white transition px-2 text-xs" title="아래로">▼</button>
                 <button onclick="openFightCardModal('${fight.id}')" class="oswald-sharp text-[10px] border border-white/10 text-gray-400 hover:text-white px-3 py-2 rounded-xl italic uppercase tracking-widest transition">수정</button>
@@ -952,7 +953,8 @@ function renderBuilderWorkspace() {
             ${tagLabel ? `<span class="oswald-sharp text-[8px] italic uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0 ${m.sort_order===1&&m.card_segment==='main'?'border-ufcRed/50 text-ufcRed bg-ufcRed/5':'border-white/10 text-gray-500'}">${tagLabel}</span>` : ''}
             <div class="shrink-0 flex gap-1${isCompleted ? '' : ' opacity-0 group-hover:opacity-100'} transition-opacity">
                 ${isCompleted
-                    ? `<span class="oswald-sharp text-[9px] px-2 py-1 rounded-lg font-black italic uppercase text-green-400 bg-green-400/10 border border-green-400/20">✅ 완료 · ${escapeHtml(m.result_winner||'?')} (${escapeHtml(m.result_method||'—')}) R${m.result_round||'?'}</span>`
+                    ? `<span class="oswald-sharp text-[9px] px-2 py-1 rounded-lg font-black italic uppercase text-green-400 bg-green-400/10 border border-green-400/20">✅ ${escapeHtml(m.result_winner||'DRAW/NC')} R${m.result_round||'?'}</span>
+                       <button onclick="event.stopPropagation(); openResultModalForEdit('${m.id}')" class="text-gray-500 hover:text-yellow-400 text-xs px-1.5 py-1 rounded-lg hover:bg-yellow-500/10" title="결과 수정">✏️</button>`
                     : `<button onclick="event.stopPropagation(); openResultModal('${m.id}')" class="text-gray-500 hover:text-yellow-400 text-xs px-1.5 py-1 rounded-lg hover:bg-yellow-500/10" title="결과 입력">🏆</button>`
                 }
             </div>
@@ -996,12 +998,22 @@ function openResultModal(matchupId) {
     const modalTitle = document.getElementById('result-modal-title');
     const modalWinner = document.getElementById('result-winner-select');
     if (modalId) modalId.value = matchupId;
+    const forceEl = document.getElementById('result-modal-force');
+    if (forceEl) forceEl.value = 'false';
     if (modalTitle) modalTitle.textContent = `${red} vs ${blue}`;
     if (modalWinner) modalWinner.innerHTML = `
-        <option value="">-- 승자 선택 --</option>
-        <option value="${red}">${red} (레드)</option>
-        <option value="${blue}">${blue} (블루)</option>`;
+        <option value="">-- 결과 선택 --</option>
+        <option value="${red}">${red} 승 (레드)</option>
+        <option value="${blue}">${blue} 승 (블루)</option>
+        <option value="DRAW">무승부 (DRAW)</option>
+        <option value="NC">경기 취소/무효 (NC)</option>`;
     modal.classList.remove('hidden');
+}
+
+function openResultModalForEdit(matchupId) {
+    openResultModal(matchupId);
+    const forceEl = document.getElementById('result-modal-force');
+    if (forceEl) forceEl.value = 'true';
 }
 
 // ── 매치업 편집 모달 ────────────────────────────────────────────────
