@@ -48,10 +48,11 @@ function _onFightDrop(e, dropIdx) {
         mainFights.forEach(function(f, i)  { if (f._fromDB) updates.push({ id: f.id, sort_order: i + 1 }); });
         prelimFights.forEach(function(f, i) { if (f._fromDB) updates.push({ id: f.id, sort_order: i + 1 }); });
         if (updates.length) {
-            Promise.all(updates.map(function(u) {
-                return sb.from('matchups').update({ sort_order: u.sort_order }).eq('id', u.id);
-            })).then(function() { showToast('↕ 순서 저장됨'); })
-              .catch(function() { showToast('⚠ 순서 저장 실패'); });
+            sb.rpc('admin_reorder_matchups', { p_updates: updates })
+              .then(function(res) {
+                  if (res.error) { showToast('⚠ 순서 저장 실패: ' + (res.error.message || res.error)); return; }
+                  showToast('↕ 순서 저장됨');
+              });
             return;
         }
     }
@@ -1252,16 +1253,9 @@ async function saveMatchupFromModal() {
         is_main_event: (cardSegment === 'main' && sortOrder === 1),
     };
 
-    let err;
-    if (editingMatchupId) {
-        const res = await sb.from('matchups').update(row).eq('id', editingMatchupId);
-        err = res.error;
-    } else {
-        const res = await sb.from('matchups').insert(row);
-        err = res.error;
-    }
-
-    if (err) { showToast('❌ 저장 실패: ' + err.message); return; }
+    const payload = editingMatchupId ? Object.assign({}, row, { id: editingMatchupId }) : row;
+    const { error: rpcErr } = await sb.rpc('admin_upsert_matchup', { p_payload: payload });
+    if (rpcErr) { showToast('❌ 저장 실패: ' + (rpcErr.message || rpcErr)); return; }
     showToast(editingMatchupId ? '✅ 매치업 수정 완료' : '✅ 매치업 추가 완료');
     closeMatchupEditModal();
     await fetchBuilderMatchups();
@@ -1273,8 +1267,8 @@ async function deleteMatchupFromModal() {
     const m = _builderMatchups.find(x => x.id === id);
     const label = m ? `${m.red_fighter_name} vs ${m.blue_fighter_name}` : '이 경기';
     if (!confirm(`"${label}"를 삭제할까요?`)) return;
-    const { error } = await sb.from('matchups').delete().eq('id', id);
-    if (error) { showToast('❌ 삭제 실패: ' + error.message); return; }
+    const { error } = await sb.rpc('admin_delete_matchup', { p_matchup_id: id });
+    if (error) { showToast('❌ 삭제 실패: ' + (error.message || error)); return; }
     showToast('🗑 삭제 완료');
     closeMatchupEditModal();
     await fetchBuilderMatchups();
@@ -1284,11 +1278,8 @@ async function deleteMatchupFromModal() {
 
 async function deleteBuilderEvent(eventId, eventTitle) {
     if (!confirm(`"${eventTitle}" 이벤트를 삭제할까요?\n(이 이벤트의 모든 대진표도 함께 삭제됩니다)`)) return;
-    // 매치업 먼저 삭제
-    await sb.from('matchups').delete().eq('event_id', eventId);
-    // 이벤트 삭제
-    const { error } = await sb.from('events').delete().eq('id', eventId);
-    if (error) { showToast('❌ 이벤트 삭제 실패: ' + error.message); return; }
+    const { error } = await sb.rpc('admin_delete_event', { p_event_id: eventId });
+    if (error) { showToast('❌ 이벤트 삭제 실패: ' + (error.message || error)); return; }
     showToast('🗑 이벤트 삭제 완료');
     // 선택 중이던 이벤트면 워크스페이스 초기화
     if (_builderState.eventId === eventId) {
@@ -1323,19 +1314,18 @@ async function saveNewEvent() {
     const dateVal = dateEl?.value || '';
     if (!title) { showToast('⚠ 이벤트 이름을 입력하세요'); return; }
 
-    const eventDate = dateVal ? new Date(dateVal + 'T00:00:00Z').toISOString() : null;
-    const { data, error } = await sb.from('events').insert({
+    const payload = {
         title,
-        event_date: eventDate,
+        event_date: dateVal ? new Date(dateVal + 'T00:00:00Z').toISOString() : null,
         status: document.getElementById('new-event-status')?.value || 'upcoming',
-    }).select('id').single();
-
-    if (error) { showToast('❌ 저장 실패: ' + error.message); return; }
+    };
+    const { data, error } = await sb.rpc('admin_upsert_event', { p_payload: payload });
+    if (error) { showToast('❌ 저장 실패: ' + (error.message || error)); return; }
 
     showToast('✅ 이벤트 추가 완료');
     document.getElementById('add-event-modal').classList.add('hidden');
     if (titleEl) titleEl.value = '';
     if (dateEl) dateEl.value = '';
     await fetchEventsForBuilder();
-    if (data?.id) selectBuilderEvent(data.id);
+    if (data?.event_id) selectBuilderEvent(data.event_id);
 }
