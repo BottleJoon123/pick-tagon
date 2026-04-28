@@ -3049,27 +3049,15 @@ textarea, select {
         var confirmBtn = document.getElementById('bs-confirm-btn');
         if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = '처리 중...'; }
 
-        await castVote(bs.side, bs.match, bs.pick, bs.odds, bs.fightId);
-
-        // 방식/라운드를 pending에 즉시 반영
-        var pending = state.pendings[bs.fightId];
-        if (pending) {
-            if (bs.method) {
-                pending.method      = bs.method;
-                pending.methodBonus = bs.methodBonus;
-            }
-            if (bs.round) {
-                pending.predictedRound = bs.round;
-            }
-            save();
-        }
+        // method/round/methodBonus를 castVote에 직접 전달 — castVote 내부에서 DB 저장 및 pendings 반영
+        await castVote(bs.side, bs.match, bs.pick, bs.odds, bs.fightId, bs.method, bs.round, bs.methodBonus);
 
         closeBetSlip();
         window.activeBetSlip = { fightId: null, side: null, match: null, pick: null, odds: null, method: null, methodBonus: 0, round: null };
         if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = '✓ CONFIRM PICK — ' + BET_COST + 'P'; }
     }
 
-    async function castVote(side, match, pick, odds, fightId) {
+    async function castVote(side, match, pick, odds, fightId, method, round, methodBonus) {
         if (state.points < BET_COST) { showToast(`⚠️ 포인트가 부족합니다! (${BET_COST}P 필요)`); return; }
         if (state.pendings[fightId]) { showToast("⚠️ 이미 이 경기에 예측을 등록했습니다."); return; }
         if (state.settled?.[fightId]) { showToast("⚠️ 이미 결과가 확정된 경기입니다."); return; }
@@ -3079,23 +3067,40 @@ textarea, select {
         const isUpset = odds >= 2.0;
 
         if (sb && currentUser) {
-            const saved = await savePick(fightId, pick, null, null, odds, basePayout, isUpset, side);
+            // DB가 source of truth: RPC 성공 후에만 로컬 상태 갱신
+            const saved = await savePick(fightId, pick, method || null, round || null, odds, basePayout, isUpset, side);
             if (!saved.ok) return;
+            // DB에서 반환된 new_points로 로컬 동기화 (race condition 방지)
+            if (typeof saved.new_points === 'number') {
+                state.points = saved.new_points;
+            } else {
+                state.points -= BET_COST;
+            }
+        } else {
+            state.points -= BET_COST;
         }
 
         state.total += 1;
-        state.points -= BET_COST;
 
         state.pendings[fightId] = {
             side, match, pick, payout: basePayout, fightId,
             betCost: BET_COST, odds,
-            isUpset, method: null, methodBonus: 0
+            isUpset,
+            method: method || null,
+            methodBonus: methodBonus || 0,
+            predictedRound: round || null
         };
         state.history.unshift({ fightId, match, pick, payout: basePayout, betCost: BET_COST, res: 'PENDING' });
 
-        // event_picks 저장 → 커뮤니티 픽 바 실시간 업데이트
+        // 로컬 커뮤니티 픽 카운터 갱신
+        // 로그인 사용자: event_picks DB insert는 place_pick RPC가 이미 처리 → 중복 upsert 방지
+        // 비로그인 사용자: saveEventPick이 어차피 no-op(currentUser 없음) → 동일 경로
         const fighterIdx = side === 'left' ? 0 : 1;
-        saveEventPick(fightId, fighterIdx);
+        myEventPicks[fightId] = fighterIdx;
+        if (!eventPickCounts[fightId]) eventPickCounts[fightId] = { c0: 0, c1: 0 };
+        if (fighterIdx === 0) eventPickCounts[fightId].c0++;
+        else eventPickCounts[fightId].c1++;
+        updateLivePickBar(fightId);
 
         // Disable bet buttons
         const btn1 = document.getElementById(`bet-btn-f1-${fightId}`);
@@ -3105,8 +3110,6 @@ textarea, select {
 
         const upsetMsg = isUpset ? ' 🔥 업셋 픽!' : '';
         showToast(`${pick} 선택 · ${BET_COST}P 사용 · 기본 ${basePayout}P${upsetMsg}`);
-
-        // DB 저장
 
         // 커뮤니티 자동 공유
         autoSharePick(pick, match, basePayout, isUpset, fightId);
@@ -4898,29 +4901,38 @@ async function publishPost() {
 
     async function savePick(fightId, pick, method, round, odds, payout, isUpset, side) {
         if (!sb || !currentUser) return { ok: true };
-        // DB 매치업이면 matchup_id와 predicted_side 저장
         const fight = getActiveFights().find(function(f) { return f.id === fightId; });
         const matchupId = (fight && fight._fromDB) ? fightId : null;
-        // side: 'left'→'red'(f1), 'right'→'blue'(f2)
         const predictedSide = side === 'left' ? 'red' : side === 'right' ? 'blue' : null;
-        return runSupabaseMutation(function() {
-            return sb.from('picks').insert({
-                user_id: currentUser.id,
-                fight_id: fightId,
-                match_name: pick,
-                pick_name: pick,
-                method: method || null,
-                predicted_round: round || null,
-                odds: odds,
-                bet_cost: BET_COST,
-                payout: payout,
-                base_payout: payout,
-                is_upset: isUpset,
-                status: 'pending',
-                matchup_id: matchupId,
-                predicted_side: predictedSide
+        const eventId = (fight && fight._eventId) ? fight._eventId : EVENT_ID;
+        try {
+            var res = await sb.rpc('place_pick', {
+                p_fight_id:        fightId,
+                p_matchup_id:      matchupId,
+                p_pick_name:       pick,
+                p_predicted_side:  predictedSide,
+                p_method:          method || null,
+                p_predicted_round: round || null,
+                p_odds:            odds,
+                p_base_payout:     payout,
+                p_bet_cost:        BET_COST,
+                p_is_upset:        isUpset,
+                p_event_id:        eventId
             });
-        }, '⚠ 예측 저장에 실패했습니다. 다시 시도해주세요.');
+            if (res.error) {
+                var msg = res.error.message || '';
+                if (msg.includes('insufficient_points')) showToast('⚠️ 포인트가 부족합니다!');
+                else if (msg.includes('duplicate_pick'))  showToast('⚠️ 이미 이 경기에 예측을 등록했습니다.');
+                else showToast('⚠ 예측 저장에 실패했습니다. 다시 시도해주세요.');
+                console.warn('[place_pick error]', res.error);
+                return { ok: false, error: res.error };
+            }
+            return { ok: true, new_points: res.data && res.data.new_points };
+        } catch (e) {
+            console.warn('[place_pick exception]', e);
+            showToast('⚠ 예측 저장에 실패했습니다. 다시 시도해주세요.');
+            return { ok: false, error: e };
+        }
     }
 
     async function updatePickResult(fightId, result, actualWinner, actualMethod, finalPayout) {
