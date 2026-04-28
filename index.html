@@ -5034,10 +5034,7 @@ async function publishPost() {
 
     function loadRealRankings() {
         if (!sb) return null;
-        return sb.from('users')
-            .select('nickname, points, total_picks, success_picks')
-            .order('points', { ascending: false })
-            .limit(20);
+        return sb.rpc('get_leaderboard', { p_limit: 20 });
     }
 
     async function savePostToDB(post) {
