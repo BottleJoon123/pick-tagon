@@ -5299,7 +5299,8 @@ async function addCommentToDB(postDbId, userNick, text) {
 
     function declineBattleFromList(battleId) {
         if (!sb) return;
-        sb.from('battles').update({ status: 'declined' }).eq('id', battleId).then(function() {
+        sb.rpc('decline_battle', { p_battle_id: battleId }).then(function(res) {
+            if (res.error) { showToast('⚠️ 거절 실패: ' + (res.error.message || '')); return; }
             showToast('배틀을 거절했습니다');
             loadMyBattles();
         });
@@ -5307,7 +5308,8 @@ async function addCommentToDB(postDbId, userNick, text) {
 
     function cancelBattleById(battleId) {
         if (!sb) return;
-        sb.from('battles').update({ status: 'cancelled' }).eq('id', battleId).then(function() {
+        sb.rpc('cancel_battle', { p_battle_id: battleId }).then(function(res) {
+            if (res.error) { showToast('⚠️ 취소 실패: ' + (res.error.message || '')); return; }
             showToast('배틀 신청을 취소했습니다');
             if (octagon.battleId === battleId) { octagon.status = 'idle'; octagon.battleId = null; }
             loadMyBattles();
@@ -5436,26 +5438,22 @@ async function addCommentToDB(postDbId, userNick, text) {
         document.getElementById('octagon-invite-modal').classList.add('hidden');
         var myNick = getDisplayUsername();
 
-        sb.from('battles').update({
-            receiver_id: currentUser.id,
-            receiver_nick: myNick,
-            status: 'active',
-            current_turn_nick: starterNick,
-            current_round: 1,
-            turn_started_at: new Date().toISOString(),
-        }).eq('id', battleId).then(function(res) {
-            if (res.error) { showToast('⚠️ 수락 실패'); return; }
+        sb.rpc('accept_battle', { p_battle_id: battleId }).then(function(res) {
+            if (res.error) { showToast('⚠️ 수락 실패: ' + (res.error.message || '')); return; }
+            var d = res.data || {};
+            var resolvedStarterNick = d.starter_nick || starterNick;
+            var resolvedReceiverNick = d.receiver_nick || myNick;
             octagon.battleId = battleId;
             octagon.role = 'receiver';
             octagon.status = 'active';
-            octagon.starterNick = starterNick;
-            octagon.receiverNick = myNick;
+            octagon.starterNick = resolvedStarterNick;
+            octagon.receiverNick = resolvedReceiverNick;
             octagon.currentRound = 1;
-            octagon.currentTurnNick = starterNick;
+            octagon.currentTurnNick = resolvedStarterNick;
             octagon.starterHp = 100; octagon.receiverHp = 100;
 
             navigateTo('octagon');
-            _subscribeOctagonRoom(battleId, 'receiver', starterNick, myNick);
+            _subscribeOctagonRoom(battleId, 'receiver', resolvedStarterNick, resolvedReceiverNick);
             renderOctagonRoom();
 
             // 스타터에게 수락 신호 전송 (구독 완료 후)
@@ -5464,8 +5462,8 @@ async function addCommentToDB(postDbId, userNick, text) {
                     octagon.battleChannel.send({
                         type: 'broadcast', event: 'battle_accepted',
                         payload: {
-                            receiverNick: myNick,
-                            currentTurnNick: starterNick,
+                            receiverNick: resolvedReceiverNick,
+                            currentTurnNick: resolvedStarterNick,
                             currentRound: 1,
                             starterHp: 100, receiverHp: 100,
                         }
