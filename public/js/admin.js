@@ -416,22 +416,19 @@ function saveFighter() {
     }
 
     saveAdmin();
-    // Supabase fighters 테이블에 동기화
     if (sb) {
-        sb.from('fighters').upsert({
+        sb.rpc('admin_upsert_fighter', { p_payload: {
             id: data.id, name: data.name, name_en: data.name_en,
             country: data.country, division: data.division,
             wins: data.wins, losses: data.losses, draws: data.draws,
-            rank: data.rank, style: data.style,
+            rank: String(data.rank), style: data.style,
             height: data.height, reach: data.reach,
-            odds: data.odds, image_url: data.image_url,
+            odds: String(data.odds), image_url: data.image_url,
             stats: data.stats,
             slpm: data.slpm, str_acc: data.strAcc,
             td_avg: data.tdAvg, sub_avg: data.subAvg,
-            ko_rate: data.koRate, sub_rate: data.subRate, dec_rate: data.decRate,
-            recent: data.recent,
-            updated_at: new Date().toISOString()
-        }, { onConflict: 'id' }).then(function(res) {
+            ko_rate: data.koRate, sub_rate: data.subRate, dec_rate: data.decRate
+        }}).then(function(res) {
             if (res.error) console.warn('파이터 DB 저장 실패:', res.error.message);
         });
     }
@@ -444,7 +441,7 @@ function deleteFighter(fighterId) {
     if (!f) return;
     if (!confirm(`"${f.name}"을(를) 파이터 DB에서 삭제하시겠습니까?`)) return;
     if (sb) {
-        sb.from('fighters').delete().eq('id', fighterId).then(function(res) {
+        sb.rpc('admin_delete_fighter', { p_fighter_id: fighterId }).then(function(res) {
             if (res.error) console.warn('파이터 DB 삭제 실패:', res.error.message);
         });
     }

@@ -4003,33 +4003,10 @@ async function publishPost() {
 
     async function syncFighterRanksFromRankings(allRows) {
         if (!sb) return;
-        var updated = 0;
-        var skipped = 0;
-        for (var i = 0; i < allRows.length; i++) {
-            var row = allRows[i];
-            if (row.division === 'p4p') continue; // P4P는 체급 랭킹과 충돌하므로 제외
-            var rankVal = row.rank_position === 'C' ? 0 : parseInt(row.rank_position, 10);
-            if (isNaN(rankVal)) continue;
-            var name = (row.fighter_name || '').trim();
-            if (!name) continue;
-
-            // 1차: 정확한 ilike 매칭
-            var res = await sb.from('fighters').update({ rank: rankVal }).ilike('name_en', name);
-            if (!res.error && res.count !== 0) { updated++; continue; }
-
-            // 2차: 성(last word)으로 부분 매칭
-            var parts = name.split(' ');
-            var lastName = parts[parts.length - 1];
-            if (lastName.length >= 4) {
-                var res2 = await sb.from('fighters').update({ rank: rankVal }).ilike('name_en', '%' + lastName + '%');
-                if (!res2.error && res2.count !== 0) { updated++; continue; }
-            }
-
-            skipped++;
-            console.warn('[RankSync] 매칭 실패:', name);
-        }
-        console.log('[RankSync] 완료 — 업데이트:', updated, '/ 매칭 실패:', skipped);
-        if (updated > 0) showToast('🏆 파이터 랭크 동기화 완료 (' + updated + '명)');
+        var { data, error } = await sb.rpc('admin_update_fighter_ranks', { p_updates: allRows });
+        if (error) { showToast('⚠ 랭크 동기화 실패: ' + (error.message || '')); return; }
+        console.log('[RankSync] 완료 — 업데이트:', data.updated, '/ 매칭 실패:', data.skipped);
+        if (data.updated > 0) showToast('🏆 파이터 랭크 동기화 완료 (' + data.updated + '명)');
         else showToast('⚠ 매칭된 파이터 없음 — 이름을 확인하세요');
     }
 
@@ -4082,9 +4059,9 @@ async function publishPost() {
         var pos = input.dataset.pos;
         var newName = input.value.trim();
         if (!newName) return;
-        var { error } = await sb.from('ufc_rankings')
-            .update({ fighter_name: newName, fighter_name_ko: newName })
-            .eq('division', div).eq('rank_position', pos);
+        var { error } = await sb.rpc('admin_update_ufc_ranking_name', {
+            p_division: div, p_rank_position: pos, p_name: newName
+        });
         if (error) { showToast('❌ 저장 실패: ' + error.message); input.style.color = '#f87171'; }
         else { showToast('✅ 저장됨: ' + newName); input.style.color = '#4ade80'; setTimeout(() => input.style.color = '', 2000); }
     }
@@ -4254,8 +4231,7 @@ async function publishPost() {
                 return;
             }
 
-            // upsert (division+rank_position 충돌 시 업데이트)
-            var result = await sb.from('ufc_rankings').upsert(allRows, { onConflict: 'division,rank_position' });
+            var result = await sb.rpc('admin_upsert_ufc_rankings', { p_rows: allRows });
             if (result.error) {
                 showToast('❌ DB 저장 실패: ' + result.error.message);
                 console.error('[UFC Rankings] upsert error:', result.error);
@@ -4264,7 +4240,6 @@ async function publishPost() {
                 var updated = document.getElementById('ufc-rank-updated');
                 if (updated) updated.textContent = 'UFC.com 기준 · ' + new Date().toLocaleDateString('ko-KR');
                 loadUFCRankings();
-                // fighters.rank 동기화
                 syncFighterRanksFromRankings(allRows);
             }
         } catch(e) {
