@@ -5297,13 +5297,17 @@ async function addCommentToDB(postDbId, userNick, text) {
         acceptBattle();
     }
 
-    function declineBattleFromList(battleId) {
-        if (!sb) return;
+    function _declineBattleById(battleId) {
         sb.rpc('decline_battle', { p_battle_id: battleId }).then(function(res) {
             if (res.error) { showToast('⚠️ 거절 실패: ' + (res.error.message || '')); return; }
             showToast('배틀을 거절했습니다');
             loadMyBattles();
         });
+    }
+
+    function declineBattleFromList(battleId) {
+        if (!sb) return;
+        _declineBattleById(battleId);
     }
 
     function cancelBattleById(battleId) {
@@ -5474,9 +5478,11 @@ async function addCommentToDB(postDbId, userNick, text) {
     }
 
     function declineBattle() {
+        var battleId = octagon.pendingBattleId;
         document.getElementById('octagon-invite-modal').classList.add('hidden');
         octagon.pendingBattleId = null;
         octagon.pendingStarterNick = null;
+        if (battleId && sb && currentUser) { _declineBattleById(battleId); }
     }
 
     /* ── 배틀룸 Realtime 구독 (Broadcast + Presence) ── */
