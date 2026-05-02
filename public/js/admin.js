@@ -1326,3 +1326,74 @@ async function saveNewEvent() {
     await fetchEventsForBuilder();
     if (data?.event_id) selectBuilderEvent(data.event_id);
 }
+
+// ── EVENT LIFECYCLE RPCs ──────────────────────────────────────────
+// UI 연결 위치: renderBuilderWorkspace() 이벤트 헤더 버튼 영역
+//   - 픽 마감/재오픈: 이벤트 선택 후 상단 액션 버튼
+//   - 결과 입력: 매치업 카드 🏆 버튼 (현재 submitMatchupResult → Edge Function 경유)
+//   - 정산/아카이브: 이벤트 상태 뱃지 옆 버튼 (Phase 2 UI에서 추가 예정)
+
+async function adminLockEventPicks(eventId) {
+    if (!sb) return;
+    const { data, error } = await sb.rpc('admin_lock_event_picks', { p_event_id: eventId });
+    if (error) { showToast('❌ 픽 마감 실패: ' + (error.message || '')); return; }
+    showToast(data.idempotent ? '이미 마감된 이벤트입니다' : '🔒 픽 마감 완료');
+    await fetchEventsForBuilder();
+    if (_builderState.eventId === eventId) await fetchBuilderMatchups();
+}
+
+async function adminReopenEventPicks(eventId) {
+    if (!sb) return;
+    const { data, error } = await sb.rpc('admin_reopen_event_picks', { p_event_id: eventId });
+    if (error) { showToast('❌ 픽 재오픈 실패: ' + (error.message || '')); return; }
+    showToast(data.idempotent ? '이미 열린 이벤트입니다' : '🔓 픽 재오픈 완료');
+    await fetchEventsForBuilder();
+    if (_builderState.eventId === eventId) await fetchBuilderMatchups();
+}
+
+// 현재 결과 입력은 submitMatchupResult() → settle-matchup Edge Function 경유
+// 이 함수는 audit log 포함 RPC 경로 — 향후 Edge Function 대체 시 사용
+async function adminSetMatchupResult(matchupId, winnerName, winnerSide, method, round, time, force = false) {
+    if (!sb) return null;
+    const { data, error } = await sb.rpc('admin_set_matchup_result', {
+        p_matchup_id:  matchupId,
+        p_winner_name: winnerName,
+        p_winner_side: winnerSide,
+        p_method:      method,
+        p_round:       round,
+        p_time:        time,
+        p_force:       force
+    });
+    if (error) { showToast('❌ 결과 입력 실패: ' + (error.message || '')); return null; }
+    return data;
+}
+
+async function adminSettleEvent(eventId) {
+    if (!sb) return;
+    const { data, error } = await sb.rpc('admin_settle_event', { p_event_id: eventId });
+    if (error) {
+        const msg = error.message || '';
+        if (msg.includes('event_has_unresolved_matchups')) showToast('⚠️ 결과 미입력 경기가 있습니다. 모든 경기 결과를 먼저 입력하세요.');
+        else if (msg.includes('event_not_completable'))    showToast('⚠️ 아직 정산 불가한 이벤트입니다 (상태: ' + msg.split('status is ')[1] + ')');
+        else showToast('❌ 이벤트 정산 실패: ' + msg);
+        return;
+    }
+    showToast(data.idempotent
+        ? '이미 정산된 이벤트입니다'
+        : `✅ 이벤트 정산 완료${data.cancelled_pending_picks ? ' (미결 픽 ' + data.cancelled_pending_picks + '건 환급)' : ''}`
+    );
+    await fetchEventsForBuilder();
+}
+
+async function adminArchiveEvent(eventId) {
+    if (!sb) return;
+    const { data, error } = await sb.rpc('admin_archive_event', { p_event_id: eventId });
+    if (error) {
+        const msg = error.message || '';
+        if (msg.includes('event_not_settled')) showToast('⚠️ 정산 완료 후 아카이브 가능합니다 (adminSettleEvent 먼저 호출)');
+        else showToast('❌ 이벤트 아카이브 실패: ' + msg);
+        return;
+    }
+    showToast(data.idempotent ? '이미 아카이브된 이벤트입니다' : '📦 이벤트 아카이브 완료');
+    await fetchEventsForBuilder();
+}

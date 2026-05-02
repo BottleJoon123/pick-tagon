@@ -4898,6 +4898,7 @@ async function publishPost() {
                 var msg = res.error.message || '';
                 if (msg.includes('insufficient_points')) showToast('⚠️ 포인트가 부족합니다!');
                 else if (msg.includes('duplicate_pick'))  showToast('⚠️ 이미 이 경기에 예측을 등록했습니다.');
+                else if (msg.includes('pick_locked'))      showToast('🔒 픽 마감된 경기입니다. 예측을 등록할 수 없습니다.');
                 else showToast('⚠ 예측 저장에 실패했습니다. 다시 시도해주세요.');
                 console.warn('[place_pick error]', res.error);
                 return { ok: false, error: res.error };
