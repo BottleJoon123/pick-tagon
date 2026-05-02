@@ -17,7 +17,9 @@
 --   cancel refund +100 already applied; net WIN adjustment: +90
 --
 -- KDI-02 pick 75 (JuliaPolastri/blue, cancelled)
---   cancel refund +100 already applied; net LOSE adjustment: -100
+--   status stays 'cancelled': picks_uniq_user_fight_active index
+--   prevents setting status='lose' while pick 71 is 'win' for the
+--   same fight_id. Points-only correction: -bet_cost(100) = -100 pts.
 --
 -- KINGBOTTLE baseline at time of this migration: 3015 pts
 -- (3315 post-orphan-repair − 300 from picks 80/81/82, ISSUE-04)
@@ -42,12 +44,14 @@ BEGIN
     SELECT * INTO v_p71   FROM public.picks    WHERE id = 71;
     SELECT * INTO v_p75   FROM public.picks    WHERE id = 75;
 
+    -- pick 75 is intentionally excluded from the no-op guard: its status
+    -- remains 'cancelled' both before and after this migration, so status
+    -- alone cannot signal whether the points correction was already applied.
     v_all_done := (
         (v_m248  IS NULL OR v_m248.result_status  = 'draw')
         AND (v_m3006 IS NULL OR (v_m3006.result_status = 'completed'
                                   AND v_m3006.result_winner = 'TalitaAlencar'))
         AND (v_p71 IS NULL OR v_p71.status = 'win')
-        AND (v_p75 IS NULL OR v_p75.status = 'lose')
     );
     IF v_all_done THEN
         RAISE NOTICE 'kdi_repair_v2: already fully applied. No changes.';
@@ -116,20 +120,16 @@ BEGIN
         RAISE NOTICE 'kdi_repair_v2: pick 71 already processed, skipping.';
     END IF;
 
-    -- pick 75: cancelled → LOSE (-100 net)
+    -- pick 75: points-only correction (-100 net), status stays 'cancelled'
+    -- picks_uniq_user_fight_active index (WHERE status IN ('pending','win','lose'))
+    -- prevents setting status='lose' while pick 71 holds 'win' for the same fight_id.
     IF v_p75 IS NOT NULL AND v_p75.status = 'cancelled' THEN
-        UPDATE public.picks SET
-            status         = 'lose',
-            payout         = 0,
-            settled_payout = 0,
-            settled_at     = NOW()
-        WHERE id = 75;
         UPDATE public.users SET
             points = COALESCE(points, 0) - v_p75.bet_cost
         WHERE id = v_user_id;
-        RAISE NOTICE 'kdi_repair_v2: pick 75 → lose | net=-%', v_p75.bet_cost;
+        RAISE NOTICE 'kdi_repair_v2: pick 75 points -% (cancelled status retained, unique constraint)', v_p75.bet_cost;
     ELSE
-        RAISE NOTICE 'kdi_repair_v2: pick 75 already processed, skipping.';
+        RAISE NOTICE 'kdi_repair_v2: pick 75 already processed or absent, skipping.';
     END IF;
 
 END;
