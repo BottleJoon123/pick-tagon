@@ -904,7 +904,7 @@ async function fetchEventsForBuilder() {
     if (!sb) return;
     const { data, error } = await sb
         .from('events')
-        .select('id, title, event_date, status')
+        .select('id, title, event_date, status, picks_locked_at, settled_at, archived_at')
         .order('event_date', { ascending: false })
         .limit(50);
     if (error) { showToast('이벤트 로드 실패: ' + error.message); return; }
@@ -922,9 +922,9 @@ function renderBuilderEventList() {
     el.innerHTML = _builderEvents.map(ev => {
         const dateLabel = ev.event_date ? ev.event_date.slice(0,10) : '날짜 미정';
         const isActive = _builderState.eventId === ev.id;
-        const statusBadge = ev.status === 'upcoming'
-            ? '<span class="text-emerald-500 text-[9px]">▶ 예정</span>'
-            : '<span class="text-gray-600 text-[9px]">✓ 완료</span>';
+        const _scMap = { upcoming: 'text-emerald-500', locked: 'text-amber-400', completed: 'text-blue-400', settled: 'text-green-400', archived: 'text-gray-500' };
+        const _slMap = { upcoming: '▶ 예정', locked: '🔒 마감', completed: '⚡ 결과완료', settled: '✅ 정산', archived: '📦 아카이브' };
+        const statusBadge = `<span class="${_scMap[ev.status] || 'text-gray-500'} text-[9px]">${_slMap[ev.status] || ev.status}</span>`;
         return `
         <div class="flex items-stretch gap-1 mb-1">
             <button onclick="selectBuilderEvent('${ev.id}')"
@@ -960,6 +960,46 @@ async function fetchBuilderMatchups() {
     if (error) { showToast('매치업 로드 실패: ' + error.message); return; }
     _builderMatchups = data || [];
     renderBuilderWorkspace();
+}
+
+// ── 이벤트 lifecycle 패널 ──────────────────────────────────────────
+
+function _renderLifecyclePanel(ev) {
+    const s = ev.status;
+    const statusCfg = {
+        upcoming:  { cls: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/5',  label: '▶ OPEN' },
+        locked:    { cls: 'text-amber-400 border-amber-500/30 bg-amber-500/5',        label: '🔒 LOCKED' },
+        completed: { cls: 'text-blue-400 border-blue-500/30 bg-blue-500/5',           label: '⚡ COMPLETED' },
+        settled:   { cls: 'text-green-400 border-green-500/30 bg-green-500/5',        label: '✅ SETTLED' },
+        archived:  { cls: 'text-gray-500 border-gray-600/30 bg-gray-600/5',           label: '📦 ARCHIVED' },
+    };
+    const cfg = statusCfg[s] || statusCfg.upcoming;
+    const eid = ev.id;
+    const b = 'oswald-sharp font-black italic uppercase text-[9px] px-3 py-1.5 rounded-lg border transition-all';
+
+    let sub = '';
+    if (ev.picks_locked_at)              sub = `<span class="text-gray-600 text-[9px]">마감 ${ev.picks_locked_at.slice(0,10)}</span>`;
+    else if (s === 'settled'  && ev.settled_at)  sub = `<span class="text-gray-600 text-[9px]">정산 ${ev.settled_at.slice(0,10)}</span>`;
+    else if (s === 'archived' && ev.archived_at) sub = `<span class="text-gray-600 text-[9px]">아카이브 ${ev.archived_at.slice(0,10)}</span>`;
+
+    let btns = '';
+    if (s === 'upcoming') {
+        btns = `<button onclick="onLifecycleLock('${eid}')" class="${b} border-amber-500/40 text-amber-400 hover:bg-amber-500/10">🔒 픽 마감</button>`;
+    } else if (s === 'locked') {
+        btns = `<button onclick="onLifecycleReopen('${eid}')" class="${b} border-white/20 text-gray-400 hover:bg-white/5 hover:text-white">🔓 재오픈</button>`;
+        btns += `<button onclick="onLifecycleSettle('${eid}')" class="${b} border-green-500/40 text-green-400 hover:bg-green-500/10">✅ 정산</button>`;
+    } else if (s === 'completed') {
+        btns = `<button onclick="onLifecycleSettle('${eid}')" class="${b} border-green-500/40 text-green-400 hover:bg-green-500/10">✅ 정산</button>`;
+    } else if (s === 'settled') {
+        btns = `<button onclick="onLifecycleArchive('${eid}')" class="${b} border-gray-500/40 text-gray-400 hover:bg-gray-500/10 hover:text-white">📦 아카이브</button>`;
+    }
+
+    const divider = btns ? '<span class="text-white/10 text-xs mx-0.5">|</span>' : '';
+    return `
+    <div class="flex items-center gap-2 flex-wrap mt-3 pt-3 border-t border-white/5">
+        <span class="oswald-sharp font-black italic uppercase text-[9px] px-2.5 py-1 rounded-full border ${cfg.cls}">${cfg.label}</span>
+        ${sub}${divider}${btns}
+    </div>`;
 }
 
 // ── 매치업 카드 그리드 ─────────────────────────────────────────────
@@ -1010,17 +1050,20 @@ function renderBuilderWorkspace() {
         <div class="space-y-1.5">${fights.map(renderCard).join('')}</div>`;
 
     el.innerHTML = `
-        <div class="flex items-start justify-between gap-3 mb-5">
-            <div>
-                <h5 class="oswald-sharp text-base font-black italic uppercase text-white tracking-widest leading-tight">${escapeHtml(ev.title)}</h5>
-                <p class="oswald-sharp text-ufcRed italic text-[10px] tracking-widest mt-0.5">${dateLabel}</p>
+        <div class="mb-5">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h5 class="oswald-sharp text-base font-black italic uppercase text-white tracking-widest leading-tight">${escapeHtml(ev.title)}</h5>
+                    <p class="oswald-sharp text-ufcRed italic text-[10px] tracking-widest mt-0.5">${dateLabel}</p>
+                </div>
+                <div class="flex gap-2 shrink-0">
+                    <button onclick="openMatchupEditModal(null)"
+                        class="oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black italic uppercase text-[10px] px-4 py-2 rounded-xl tracking-widest transition-all">
+                        + 경기 추가
+                    </button>
+                </div>
             </div>
-            <div class="flex gap-2 shrink-0">
-                <button onclick="openMatchupEditModal(null)"
-                    class="oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black italic uppercase text-[10px] px-4 py-2 rounded-xl tracking-widest transition-all">
-                    + 경기 추가
-                </button>
-            </div>
+            ${_renderLifecyclePanel(ev)}
         </div>
         ${!_builderMatchups.length
             ? '<div class="flex flex-col items-center justify-center py-12 text-center"><p class="oswald-sharp text-gray-700 italic text-sm uppercase tracking-widest mb-3">등록된 경기 없음</p><button onclick="openMatchupEditModal(null)" class="oswald-sharp border border-white/10 text-gray-400 hover:text-white text-xs px-4 py-2 rounded-xl italic uppercase tracking-widest transition-all">+ 첫 번째 경기 추가</button></div>'
@@ -1396,4 +1439,31 @@ async function adminArchiveEvent(eventId) {
     }
     showToast(data.idempotent ? '이미 아카이브된 이벤트입니다' : '📦 이벤트 아카이브 완료');
     await fetchEventsForBuilder();
+}
+
+// ── LIFECYCLE UI WRAPPERS (confirm + RPC 호출) ────────────────────
+// renderBuilderWorkspace 내 버튼 onclick에서 호출
+
+async function onLifecycleLock(eventId) {
+    if (!confirm('이 이벤트의 예측 등록을 마감할까요?')) return;
+    await adminLockEventPicks(eventId);
+    // adminLockEventPicks → fetchEventsForBuilder + fetchBuilderMatchups → renderBuilderWorkspace
+}
+
+async function onLifecycleReopen(eventId) {
+    if (!confirm('이 이벤트의 예측 등록을 다시 열까요?')) return;
+    await adminReopenEventPicks(eventId);
+    // adminReopenEventPicks → fetchEventsForBuilder + fetchBuilderMatchups → renderBuilderWorkspace
+}
+
+async function onLifecycleSettle(eventId) {
+    if (!confirm('모든 경기 결과 입력을 확인했나요?\n이벤트를 정산할까요?')) return;
+    await adminSettleEvent(eventId);
+    renderBuilderWorkspace();  // adminSettleEvent는 fetchBuilderMatchups를 호출하지 않으므로 직접 갱신
+}
+
+async function onLifecycleArchive(eventId) {
+    if (!confirm('정산 완료 이벤트를 아카이브할까요?')) return;
+    await adminArchiveEvent(eventId);
+    renderBuilderWorkspace();  // adminArchiveEvent는 fetchBuilderMatchups를 호출하지 않으므로 직접 갱신
 }
