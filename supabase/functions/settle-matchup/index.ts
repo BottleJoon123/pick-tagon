@@ -75,13 +75,11 @@ Deno.serve(async (req) => {
     return Response.json({ error: 'invalid_matchup_id' }, { status: 400, headers: corsHeaders })
   }
 
-  // ── service_role로 SQL 함수 호출 ────────────────────────────────────
-  const adminClient = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  )
-
-  const { data, error } = await adminClient.rpc('service_settle_matchup', {
+  // ── admin_set_matchup_result RPC 호출 (JWT 컨텍스트 유지) ──────────
+  // anonClient에 사용자 JWT가 붙어 있으므로 RPC 내부의 auth.uid() /
+  // private.is_admin() 이 정상 동작한다. service role client를 쓰면
+  // auth.uid() = NULL → admin_required 예외 발생.
+  const { data, error } = await anonClient.rpc('admin_set_matchup_result', {
     p_matchup_id:  matchupId,
     p_winner_name: winnerName,
     p_winner_side: winnerSide,
@@ -92,7 +90,7 @@ Deno.serve(async (req) => {
   })
 
   if (error) {
-    console.error('[settle-matchup] rpc error:', error)
+    console.error('[settle-matchup] admin_set_matchup_result error:', error)
     return Response.json({ error: error.message }, { status: 500, headers: corsHeaders })
   }
 
