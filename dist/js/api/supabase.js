@@ -308,11 +308,13 @@ async function fetchUpcomingMatchups() {
                 var formatted = d.toLocaleDateString('ko-KR', {year:'numeric', month:'long', day:'numeric', weekday:'short'}).toUpperCase();
                 dateEl.textContent = formatted;
             }
+            if (typeof startEventCountdown === 'function') startEventCountdown(event.event_date);
         }
 
         var mRes = await sb.from('matchups')
             .select('id, event_id, red_fighter_name, blue_fighter_name, red_image_url, blue_image_url, weight_class, card_segment, sort_order, is_main_event, left_bias, result_status, result_winner, result_winner_side, result_method, result_round, result_time')
             .eq('event_id', event.id)
+            .order('card_segment', { ascending: true })
             .order('sort_order', { ascending: true });
         if (mRes.error || !mRes.data || !mRes.data.length) {
             if (typeof renderEventSidebar === 'function') renderEventSidebar();

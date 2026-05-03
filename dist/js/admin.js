@@ -9,6 +9,55 @@
 var adminGateMode = 'signin';
 var editingFighterId = null;
 var editingFightCardId = null;
+var _dndDragIdx = null;
+
+function _onFightDragStart(e, idx) {
+    _dndDragIdx = idx;
+    e.dataTransfer.effectAllowed = 'move';
+    e.currentTarget.style.opacity = '0.4';
+}
+function _onFightDragEnd(e) {
+    e.currentTarget.style.opacity = '';
+}
+function _onFightDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+}
+function _onFightDrop(e, dropIdx) {
+    e.preventDefault();
+    var dragIdx = _dndDragIdx;
+    _dndDragIdx = null;
+    if (dragIdx === null || dragIdx === dropIdx) return;
+
+    var fights = getActiveFights().slice();
+    var moved = fights.splice(dragIdx, 1)[0];
+    fights.splice(dropIdx, 0, moved);
+
+    if (typeof _dbMatchups !== 'undefined' && fights[0] && fights[0]._fromDB) {
+        _dbMatchups = fights;
+    } else {
+        customFights = fights;
+        saveAdmin();
+    }
+    renderAdminFightCardList();
+
+    if (typeof sb !== 'undefined' && sb && moved._fromDB) {
+        var mainFights  = fights.filter(function(f) { return f.section === 'main'; });
+        var prelimFights = fights.filter(function(f) { return f.section !== 'main'; });
+        var updates = [];
+        mainFights.forEach(function(f, i)  { if (f._fromDB) updates.push({ id: f.id, sort_order: i + 1 }); });
+        prelimFights.forEach(function(f, i) { if (f._fromDB) updates.push({ id: f.id, sort_order: i + 1 }); });
+        if (updates.length) {
+            sb.rpc('admin_reorder_matchups', { p_updates: updates })
+              .then(function(res) {
+                  if (res.error) { showToast('⚠ 순서 저장 실패: ' + (res.error.message || res.error)); return; }
+                  showToast('↕ 순서 저장됨');
+              });
+            return;
+        }
+    }
+    showToast('↕ 경기 순서 변경됨');
+}
 
 // Fighter DB (persisted separately)
 var fighterDB = [];
@@ -367,22 +416,19 @@ function saveFighter() {
     }
 
     saveAdmin();
-    // Supabase fighters 테이블에 동기화
     if (sb) {
-        sb.from('fighters').upsert({
+        sb.rpc('admin_upsert_fighter', { p_payload: {
             id: data.id, name: data.name, name_en: data.name_en,
             country: data.country, division: data.division,
             wins: data.wins, losses: data.losses, draws: data.draws,
-            rank: data.rank, style: data.style,
+            rank: String(data.rank), style: data.style,
             height: data.height, reach: data.reach,
-            odds: data.odds, image_url: data.image_url,
+            odds: String(data.odds), image_url: data.image_url,
             stats: data.stats,
             slpm: data.slpm, str_acc: data.strAcc,
             td_avg: data.tdAvg, sub_avg: data.subAvg,
-            ko_rate: data.koRate, sub_rate: data.subRate, dec_rate: data.decRate,
-            recent: data.recent,
-            updated_at: new Date().toISOString()
-        }, { onConflict: 'id' }).then(function(res) {
+            ko_rate: data.koRate, sub_rate: data.subRate, dec_rate: data.decRate
+        }}).then(function(res) {
             if (res.error) console.warn('파이터 DB 저장 실패:', res.error.message);
         });
     }
@@ -395,7 +441,7 @@ function deleteFighter(fighterId) {
     if (!f) return;
     if (!confirm(`"${f.name}"을(를) 파이터 DB에서 삭제하시겠습니까?`)) return;
     if (sb) {
-        sb.from('fighters').delete().eq('id', fighterId).then(function(res) {
+        sb.rpc('admin_delete_fighter', { p_fighter_id: fighterId }).then(function(res) {
             if (res.error) console.warn('파이터 DB 삭제 실패:', res.error.message);
         });
     }
@@ -667,8 +713,14 @@ function renderAdminFightCardList() {
             : `<span class="oswald-sharp text-[9px] px-2 py-1 rounded-lg font-black italic uppercase text-gray-500 border border-white/10">대기중</span>`;
 
         return `
-        <div class="glass-card rounded-2xl p-4 lg:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-3 hover:border-white/20 transition-all${dbDone ? ' opacity-60' : ''}">
+        <div draggable="true"
+             ondragstart="_onFightDragStart(event,${idx})"
+             ondragend="_onFightDragEnd(event)"
+             ondragover="_onFightDragOver(event)"
+             ondrop="_onFightDrop(event,${idx})"
+             class="glass-card rounded-2xl p-4 lg:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-3 hover:border-white/20 transition-all cursor-grab${dbDone ? ' opacity-60' : ''}">
             <div class="flex items-center gap-4">
+                <span class="text-gray-600 text-base select-none" title="드래그로 순서 변경">⠿</span>
                 <span class="oswald-sharp text-[8px] lg:text-xs bg-ufcRed/10 border border-ufcRed/20 text-ufcRed px-2 py-1 rounded-lg font-black italic uppercase">${fight.tag}</span>
                 <div>
                     <p class="oswald-sharp font-black italic text-sm lg:text-lg text-white uppercase tracking-tighter">${fight.f1.name} <span class="text-ufcRed">VS</span> ${fight.f2.name}</p>
@@ -678,8 +730,6 @@ function renderAdminFightCardList() {
             <div class="flex items-center gap-2 flex-wrap">
                 ${!settled && !dbDone ? `<button onclick="adminSetResult('${fight.id}')" class="oswald-sharp text-[10px] bg-ufcRed hover:bg-red-700 text-white font-black px-4 py-2 rounded-xl italic uppercase tracking-widest transition flex items-center gap-1">🏆 결과 입력</button>` : ''}
                 ${dbDone ? `<button onclick="editMatchupResult('${fight.id}')" class="oswald-sharp text-[10px] border border-yellow-500/30 text-yellow-500/70 hover:text-yellow-400 hover:border-yellow-400/50 px-3 py-2 rounded-xl italic uppercase tracking-widest transition">✏️ 수정</button>` : ''}
-                <button onclick="moveFight(${idx}, -1)" class="text-gray-600 hover:text-white transition px-2 text-xs" title="위로">▲</button>
-                <button onclick="moveFight(${idx}, 1)" class="text-gray-600 hover:text-white transition px-2 text-xs" title="아래로">▼</button>
                 <button onclick="openFightCardModal('${fight.id}')" class="oswald-sharp text-[10px] border border-white/10 text-gray-400 hover:text-white px-3 py-2 rounded-xl italic uppercase tracking-widest transition">수정</button>
                 <button onclick="deleteFightCard('${fight.id}')" class="oswald-sharp text-[10px] border border-ufcRed/20 text-ufcRed/60 hover:text-ufcRed px-3 py-2 rounded-xl italic uppercase tracking-widest transition">삭제</button>
             </div>
@@ -687,16 +737,6 @@ function renderAdminFightCardList() {
     }).join('');
 }
 
-function moveFight(idx, dir) {
-    const fights = [...getActiveFights()];
-    const newIdx = idx + dir;
-    if (newIdx < 0 || newIdx >= fights.length) return;
-    [fights[idx], fights[newIdx]] = [fights[newIdx], fights[idx]];
-    customFights = fights;
-    saveAdmin();
-    renderAdminFightCardList();
-    showToast('↕ 경기 순서 변경됨');
-}
 
 function openFightCardModal(fightId) {
     editingFightCardId = fightId || null;
@@ -864,7 +904,7 @@ async function fetchEventsForBuilder() {
     if (!sb) return;
     const { data, error } = await sb
         .from('events')
-        .select('id, title, event_date, status')
+        .select('id, title, event_date, status, picks_locked_at, settled_at, archived_at')
         .order('event_date', { ascending: false })
         .limit(50);
     if (error) { showToast('이벤트 로드 실패: ' + error.message); return; }
@@ -882,9 +922,9 @@ function renderBuilderEventList() {
     el.innerHTML = _builderEvents.map(ev => {
         const dateLabel = ev.event_date ? ev.event_date.slice(0,10) : '날짜 미정';
         const isActive = _builderState.eventId === ev.id;
-        const statusBadge = ev.status === 'upcoming'
-            ? '<span class="text-emerald-500 text-[9px]">▶ 예정</span>'
-            : '<span class="text-gray-600 text-[9px]">✓ 완료</span>';
+        const _scMap = { upcoming: 'text-emerald-500', locked: 'text-amber-400', completed: 'text-blue-400', settled: 'text-green-400', archived: 'text-gray-500' };
+        const _slMap = { upcoming: '▶ 예정', locked: '🔒 마감', completed: '⚡ 결과완료', settled: '✅ 정산', archived: '📦 아카이브' };
+        const statusBadge = `<span class="${_scMap[ev.status] || 'text-gray-500'} text-[9px]">${_slMap[ev.status] || ev.status}</span>`;
         return `
         <div class="flex items-stretch gap-1 mb-1">
             <button onclick="selectBuilderEvent('${ev.id}')"
@@ -922,6 +962,46 @@ async function fetchBuilderMatchups() {
     renderBuilderWorkspace();
 }
 
+// ── 이벤트 lifecycle 패널 ──────────────────────────────────────────
+
+function _renderLifecyclePanel(ev) {
+    const s = ev.status;
+    const statusCfg = {
+        upcoming:  { cls: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/5',  label: '▶ OPEN' },
+        locked:    { cls: 'text-amber-400 border-amber-500/30 bg-amber-500/5',        label: '🔒 LOCKED' },
+        completed: { cls: 'text-blue-400 border-blue-500/30 bg-blue-500/5',           label: '⚡ COMPLETED' },
+        settled:   { cls: 'text-green-400 border-green-500/30 bg-green-500/5',        label: '✅ SETTLED' },
+        archived:  { cls: 'text-gray-500 border-gray-600/30 bg-gray-600/5',           label: '📦 ARCHIVED' },
+    };
+    const cfg = statusCfg[s] || statusCfg.upcoming;
+    const eid = ev.id;
+    const b = 'oswald-sharp font-black italic uppercase text-[9px] px-3 py-1.5 rounded-lg border transition-all';
+
+    let sub = '';
+    if (ev.picks_locked_at)              sub = `<span class="text-gray-600 text-[9px]">마감 ${ev.picks_locked_at.slice(0,10)}</span>`;
+    else if (s === 'settled'  && ev.settled_at)  sub = `<span class="text-gray-600 text-[9px]">정산 ${ev.settled_at.slice(0,10)}</span>`;
+    else if (s === 'archived' && ev.archived_at) sub = `<span class="text-gray-600 text-[9px]">아카이브 ${ev.archived_at.slice(0,10)}</span>`;
+
+    let btns = '';
+    if (s === 'upcoming') {
+        btns = `<button onclick="onLifecycleLock('${eid}')" class="${b} border-amber-500/40 text-amber-400 hover:bg-amber-500/10">🔒 픽 마감</button>`;
+    } else if (s === 'locked') {
+        btns = `<button onclick="onLifecycleReopen('${eid}')" class="${b} border-white/20 text-gray-400 hover:bg-white/5 hover:text-white">🔓 재오픈</button>`;
+        btns += `<button onclick="onLifecycleSettle('${eid}')" class="${b} border-green-500/40 text-green-400 hover:bg-green-500/10">✅ 정산</button>`;
+    } else if (s === 'completed') {
+        btns = `<button onclick="onLifecycleSettle('${eid}')" class="${b} border-green-500/40 text-green-400 hover:bg-green-500/10">✅ 정산</button>`;
+    } else if (s === 'settled') {
+        btns = `<button onclick="onLifecycleArchive('${eid}')" class="${b} border-gray-500/40 text-gray-400 hover:bg-gray-500/10 hover:text-white">📦 아카이브</button>`;
+    }
+
+    const divider = btns ? '<span class="text-white/10 text-xs mx-0.5">|</span>' : '';
+    return `
+    <div class="flex items-center gap-2 flex-wrap mt-3 pt-3 border-t border-white/5">
+        <span class="oswald-sharp font-black italic uppercase text-[9px] px-2.5 py-1 rounded-full border ${cfg.cls}">${cfg.label}</span>
+        ${sub}${divider}${btns}
+    </div>`;
+}
+
 // ── 매치업 카드 그리드 ─────────────────────────────────────────────
 
 function renderBuilderWorkspace() {
@@ -941,15 +1021,19 @@ function renderBuilderWorkspace() {
         const isCompleted = m.result_status === 'completed';
         return `
         <div onclick="openMatchupEditModal('${m.id}')"
-             class="group cursor-pointer flex items-center gap-3 px-4 py-3 rounded-2xl border border-white/5 bg-black/20 hover:bg-white/5 hover:border-white/20 transition-all${isCompleted ? ' opacity-60' : ''}">
+             class="group cursor-pointer flex items-center gap-2 px-4 py-3 rounded-2xl border border-white/5 bg-black/20 hover:bg-white/5 hover:border-white/20 transition-all${isCompleted ? ' opacity-60' : ''}">
             <span class="oswald-sharp text-gray-600 text-[10px] italic w-4 shrink-0 text-center">${m.sort_order || '?'}</span>
-            ${m.red_image_url ? `<img src="${escapeHtml(m.red_image_url)}" class="w-7 h-7 rounded-full object-cover object-top bg-zinc-800 shrink-0 ring-1 ring-red-500/30">` : '<div class="w-7 h-7 rounded-full bg-zinc-800 shrink-0 ring-1 ring-red-500/20"></div>'}
-            <p class="flex-1 oswald-sharp font-black italic text-xs uppercase truncate">
-                <span class="text-red-400">${escapeHtml(m.red_fighter_name || '?')}</span>
-                <span class="text-gray-600 mx-1">vs</span>
-                <span class="text-blue-400">${escapeHtml(m.blue_fighter_name || '?')}</span>
-            </p>
-            ${m.blue_image_url ? `<img src="${escapeHtml(m.blue_image_url)}" class="w-7 h-7 rounded-full object-cover object-top bg-zinc-800 shrink-0 ring-1 ring-blue-500/30">` : '<div class="w-7 h-7 rounded-full bg-zinc-800 shrink-0 ring-1 ring-blue-500/20"></div>'}
+            <!-- Red side -->
+            <div class="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
+                <span class="oswald-sharp font-black italic text-xs uppercase truncate text-red-400">${escapeHtml(m.red_fighter_name || '?')}</span>
+                ${m.red_image_url ? `<img src="${escapeHtml(m.red_image_url)}" class="w-7 h-7 rounded-full object-cover object-top bg-zinc-800 shrink-0 ring-1 ring-red-500/30">` : '<div class="w-7 h-7 rounded-full bg-zinc-800 shrink-0 ring-1 ring-red-500/20"></div>'}
+            </div>
+            <span class="oswald-sharp text-gray-600 text-[10px] italic shrink-0 px-1">vs</span>
+            <!-- Blue side -->
+            <div class="flex items-center gap-1.5 flex-1 min-w-0">
+                ${m.blue_image_url ? `<img src="${escapeHtml(m.blue_image_url)}" class="w-7 h-7 rounded-full object-cover object-top bg-zinc-800 shrink-0 ring-1 ring-blue-500/30">` : '<div class="w-7 h-7 rounded-full bg-zinc-800 shrink-0 ring-1 ring-blue-500/20"></div>'}
+                <span class="oswald-sharp font-black italic text-xs uppercase truncate text-blue-400">${escapeHtml(m.blue_fighter_name || '?')}</span>
+            </div>
             ${tagLabel ? `<span class="oswald-sharp text-[8px] italic uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0 ${m.sort_order===1&&m.card_segment==='main'?'border-ufcRed/50 text-ufcRed bg-ufcRed/5':'border-white/10 text-gray-500'}">${tagLabel}</span>` : ''}
             <div class="shrink-0 flex gap-1${isCompleted ? '' : ' opacity-0 group-hover:opacity-100'} transition-opacity">
                 ${isCompleted
@@ -966,17 +1050,20 @@ function renderBuilderWorkspace() {
         <div class="space-y-1.5">${fights.map(renderCard).join('')}</div>`;
 
     el.innerHTML = `
-        <div class="flex items-start justify-between gap-3 mb-5">
-            <div>
-                <h5 class="oswald-sharp text-base font-black italic uppercase text-white tracking-widest leading-tight">${escapeHtml(ev.title)}</h5>
-                <p class="oswald-sharp text-ufcRed italic text-[10px] tracking-widest mt-0.5">${dateLabel}</p>
+        <div class="mb-5">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h5 class="oswald-sharp text-base font-black italic uppercase text-white tracking-widest leading-tight">${escapeHtml(ev.title)}</h5>
+                    <p class="oswald-sharp text-ufcRed italic text-[10px] tracking-widest mt-0.5">${dateLabel}</p>
+                </div>
+                <div class="flex gap-2 shrink-0">
+                    <button onclick="openMatchupEditModal(null)"
+                        class="oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black italic uppercase text-[10px] px-4 py-2 rounded-xl tracking-widest transition-all">
+                        + 경기 추가
+                    </button>
+                </div>
             </div>
-            <div class="flex gap-2 shrink-0">
-                <button onclick="openMatchupEditModal(null)"
-                    class="oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black italic uppercase text-[10px] px-4 py-2 rounded-xl tracking-widest transition-all">
-                    + 경기 추가
-                </button>
-            </div>
+            ${_renderLifecyclePanel(ev)}
         </div>
         ${!_builderMatchups.length
             ? '<div class="flex flex-col items-center justify-center py-12 text-center"><p class="oswald-sharp text-gray-700 italic text-sm uppercase tracking-widest mb-3">등록된 경기 없음</p><button onclick="openMatchupEditModal(null)" class="oswald-sharp border border-white/10 text-gray-400 hover:text-white text-xs px-4 py-2 rounded-xl italic uppercase tracking-widest transition-all">+ 첫 번째 경기 추가</button></div>'
@@ -1206,16 +1293,9 @@ async function saveMatchupFromModal() {
         is_main_event: (cardSegment === 'main' && sortOrder === 1),
     };
 
-    let err;
-    if (editingMatchupId) {
-        const res = await sb.from('matchups').update(row).eq('id', editingMatchupId);
-        err = res.error;
-    } else {
-        const res = await sb.from('matchups').insert(row);
-        err = res.error;
-    }
-
-    if (err) { showToast('❌ 저장 실패: ' + err.message); return; }
+    const payload = editingMatchupId ? Object.assign({}, row, { id: editingMatchupId }) : row;
+    const { error: rpcErr } = await sb.rpc('admin_upsert_matchup', { p_payload: payload });
+    if (rpcErr) { showToast('❌ 저장 실패: ' + (rpcErr.message || rpcErr)); return; }
     showToast(editingMatchupId ? '✅ 매치업 수정 완료' : '✅ 매치업 추가 완료');
     closeMatchupEditModal();
     await fetchBuilderMatchups();
@@ -1227,8 +1307,8 @@ async function deleteMatchupFromModal() {
     const m = _builderMatchups.find(x => x.id === id);
     const label = m ? `${m.red_fighter_name} vs ${m.blue_fighter_name}` : '이 경기';
     if (!confirm(`"${label}"를 삭제할까요?`)) return;
-    const { error } = await sb.from('matchups').delete().eq('id', id);
-    if (error) { showToast('❌ 삭제 실패: ' + error.message); return; }
+    const { error } = await sb.rpc('admin_delete_matchup', { p_matchup_id: id });
+    if (error) { showToast('❌ 삭제 실패: ' + (error.message || error)); return; }
     showToast('🗑 삭제 완료');
     closeMatchupEditModal();
     await fetchBuilderMatchups();
@@ -1238,11 +1318,8 @@ async function deleteMatchupFromModal() {
 
 async function deleteBuilderEvent(eventId, eventTitle) {
     if (!confirm(`"${eventTitle}" 이벤트를 삭제할까요?\n(이 이벤트의 모든 대진표도 함께 삭제됩니다)`)) return;
-    // 매치업 먼저 삭제
-    await sb.from('matchups').delete().eq('event_id', eventId);
-    // 이벤트 삭제
-    const { error } = await sb.from('events').delete().eq('id', eventId);
-    if (error) { showToast('❌ 이벤트 삭제 실패: ' + error.message); return; }
+    const { error } = await sb.rpc('admin_delete_event', { p_event_id: eventId });
+    if (error) { showToast('❌ 이벤트 삭제 실패: ' + (error.message || error)); return; }
     showToast('🗑 이벤트 삭제 완료');
     // 선택 중이던 이벤트면 워크스페이스 초기화
     if (_builderState.eventId === eventId) {
@@ -1277,19 +1354,116 @@ async function saveNewEvent() {
     const dateVal = dateEl?.value || '';
     if (!title) { showToast('⚠ 이벤트 이름을 입력하세요'); return; }
 
-    const eventDate = dateVal ? new Date(dateVal + 'T00:00:00Z').toISOString() : null;
-    const { data, error } = await sb.from('events').insert({
+    const payload = {
         title,
-        event_date: eventDate,
+        event_date: dateVal ? new Date(dateVal + 'T00:00:00Z').toISOString() : null,
         status: document.getElementById('new-event-status')?.value || 'upcoming',
-    }).select('id').single();
-
-    if (error) { showToast('❌ 저장 실패: ' + error.message); return; }
+    };
+    const { data, error } = await sb.rpc('admin_upsert_event', { p_payload: payload });
+    if (error) { showToast('❌ 저장 실패: ' + (error.message || error)); return; }
 
     showToast('✅ 이벤트 추가 완료');
     document.getElementById('add-event-modal').classList.add('hidden');
     if (titleEl) titleEl.value = '';
     if (dateEl) dateEl.value = '';
     await fetchEventsForBuilder();
-    if (data?.id) selectBuilderEvent(data.id);
+    if (data?.event_id) selectBuilderEvent(data.event_id);
+}
+
+// ── EVENT LIFECYCLE RPCs ──────────────────────────────────────────
+// UI 연결 위치: renderBuilderWorkspace() 이벤트 헤더 버튼 영역
+//   - 픽 마감/재오픈: 이벤트 선택 후 상단 액션 버튼
+//   - 결과 입력: 매치업 카드 🏆 버튼 (현재 submitMatchupResult → Edge Function 경유)
+//   - 정산/아카이브: 이벤트 상태 뱃지 옆 버튼 (Phase 2 UI에서 추가 예정)
+
+async function adminLockEventPicks(eventId) {
+    if (!sb) return;
+    const { data, error } = await sb.rpc('admin_lock_event_picks', { p_event_id: eventId });
+    if (error) { showToast('❌ 픽 마감 실패: ' + (error.message || '')); return; }
+    showToast(data.idempotent ? '이미 마감된 이벤트입니다' : '🔒 픽 마감 완료');
+    await fetchEventsForBuilder();
+    if (_builderState.eventId === eventId) await fetchBuilderMatchups();
+}
+
+async function adminReopenEventPicks(eventId) {
+    if (!sb) return;
+    const { data, error } = await sb.rpc('admin_reopen_event_picks', { p_event_id: eventId });
+    if (error) { showToast('❌ 픽 재오픈 실패: ' + (error.message || '')); return; }
+    showToast(data.idempotent ? '이미 열린 이벤트입니다' : '🔓 픽 재오픈 완료');
+    await fetchEventsForBuilder();
+    if (_builderState.eventId === eventId) await fetchBuilderMatchups();
+}
+
+// 현재 결과 입력은 submitMatchupResult() → settle-matchup Edge Function 경유
+// 이 함수는 audit log 포함 RPC 경로 — 향후 Edge Function 대체 시 사용
+async function adminSetMatchupResult(matchupId, winnerName, winnerSide, method, round, time, force = false) {
+    if (!sb) return null;
+    const { data, error } = await sb.rpc('admin_set_matchup_result', {
+        p_matchup_id:  matchupId,
+        p_winner_name: winnerName,
+        p_winner_side: winnerSide,
+        p_method:      method,
+        p_round:       round,
+        p_time:        time,
+        p_force:       force
+    });
+    if (error) { showToast('❌ 결과 입력 실패: ' + (error.message || '')); return null; }
+    return data;
+}
+
+async function adminSettleEvent(eventId) {
+    if (!sb) return;
+    const { data, error } = await sb.rpc('admin_settle_event', { p_event_id: eventId });
+    if (error) {
+        const msg = error.message || '';
+        if (msg.includes('event_has_unresolved_matchups')) showToast('⚠️ 결과 미입력 경기가 있습니다. 모든 경기 결과를 먼저 입력하세요.');
+        else if (msg.includes('event_not_completable'))    showToast('⚠️ 아직 정산 불가한 이벤트입니다 (상태: ' + msg.split('status is ')[1] + ')');
+        else showToast('❌ 이벤트 정산 실패: ' + msg);
+        return;
+    }
+    showToast(data.idempotent
+        ? '이미 정산된 이벤트입니다'
+        : `✅ 이벤트 정산 완료${data.cancelled_pending_picks ? ' (미결 픽 ' + data.cancelled_pending_picks + '건 환급)' : ''}`
+    );
+    await fetchEventsForBuilder();
+}
+
+async function adminArchiveEvent(eventId) {
+    if (!sb) return;
+    const { data, error } = await sb.rpc('admin_archive_event', { p_event_id: eventId });
+    if (error) {
+        const msg = error.message || '';
+        if (msg.includes('event_not_settled')) showToast('⚠️ 정산 완료 후 아카이브 가능합니다 (adminSettleEvent 먼저 호출)');
+        else showToast('❌ 이벤트 아카이브 실패: ' + msg);
+        return;
+    }
+    showToast(data.idempotent ? '이미 아카이브된 이벤트입니다' : '📦 이벤트 아카이브 완료');
+    await fetchEventsForBuilder();
+}
+
+// ── LIFECYCLE UI WRAPPERS (confirm + RPC 호출) ────────────────────
+// renderBuilderWorkspace 내 버튼 onclick에서 호출
+
+async function onLifecycleLock(eventId) {
+    if (!confirm('이 이벤트의 예측 등록을 마감할까요?')) return;
+    await adminLockEventPicks(eventId);
+    // adminLockEventPicks → fetchEventsForBuilder + fetchBuilderMatchups → renderBuilderWorkspace
+}
+
+async function onLifecycleReopen(eventId) {
+    if (!confirm('이 이벤트의 예측 등록을 다시 열까요?')) return;
+    await adminReopenEventPicks(eventId);
+    // adminReopenEventPicks → fetchEventsForBuilder + fetchBuilderMatchups → renderBuilderWorkspace
+}
+
+async function onLifecycleSettle(eventId) {
+    if (!confirm('모든 경기 결과 입력을 확인했나요?\n이벤트를 정산할까요?')) return;
+    await adminSettleEvent(eventId);
+    renderBuilderWorkspace();  // adminSettleEvent는 fetchBuilderMatchups를 호출하지 않으므로 직접 갱신
+}
+
+async function onLifecycleArchive(eventId) {
+    if (!confirm('정산 완료 이벤트를 아카이브할까요?')) return;
+    await adminArchiveEvent(eventId);
+    renderBuilderWorkspace();  // adminArchiveEvent는 fetchBuilderMatchups를 호출하지 않으므로 직접 갱신
 }

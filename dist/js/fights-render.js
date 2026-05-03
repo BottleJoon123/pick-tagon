@@ -77,10 +77,10 @@ function renderHeroCard(fight, idx) {
     const f1Img = fight.f1.imgUrl || '';
     const f2Img = fight.f2.imgUrl || '';
     const f1BgStyle = f1Img
-        ? `background-image:url('${f1Img}'); background-size:cover; background-position:center 15%;`
+        ? `background-image:url('${f1Img}'); background-size:cover; background-position:60% top;`
         : 'background:linear-gradient(135deg,#1a0000,#0a0a0a);';
     const f2BgStyle = f2Img
-        ? `background-image:url('${f2Img}'); background-size:cover; background-position:center 15%;`
+        ? `background-image:url('${f2Img}'); background-size:cover; background-position:40% top;`
         : 'background:linear-gradient(225deg,#00001a,#0a0a0a);';
 
     _fightCardCache[fight.id] = fight;
@@ -117,7 +117,7 @@ function renderHeroCard(fight, idx) {
         </div>
 
         <!-- Hero Face-off Area -->
-        <div class="relative overflow-hidden" style="min-height:${isMain ? '380px' : '320px'}">
+        <div class="relative overflow-hidden" style="min-height:${isMain ? '300px' : '260px'}">
             <!-- F1 Background -->
             <div class="absolute inset-y-0 left-0 w-1/2"
                 style="${f1BgStyle} -webkit-mask-image:linear-gradient(to right,rgba(0,0,0,0.95) 30%,transparent 100%); mask-image:linear-gradient(to right,rgba(0,0,0,0.95) 30%,transparent 100%);"></div>
@@ -307,7 +307,10 @@ function renderFightCards() {
     container.innerHTML = _html;
     updateAllFightCards();
     updateEventTotalPicks();
-    if (typeof loadAllEventPickCounts === 'function') loadAllEventPickCounts();
+    // Apply already-loaded pick counts to bars (avoid DB reset race with saveEventPick)
+    if (typeof updateLivePickBar === 'function' && typeof getActiveFights === 'function') {
+        getActiveFights().forEach(function(f) { updateLivePickBar(f.id); });
+    }
 }
 
 /* ── 분석 탭 헬퍼 함수 ── */
