@@ -1,8 +1,31 @@
 # Picktagon Next Work Plan
 
-작성일: 2026-05-02  
-현재 기준 커밋: `c608f90`  
-목적: 다음 세션부터 순차적으로 진행할 작업 계획을 고정하고, 화면 개선 작업 전 반드시 정리해야 할 기반 작업을 명확히 한다.
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-04  
+현재 기준 커밋: `4422713` (origin/main)
+
+---
+
+## 2026-05-04 상태 업데이트
+
+**완료 (이번 세션):**
+- Event Lifecycle Phase 3B: settle-matchup Edge Function → `admin_set_matchup_result` RPC 경유 전환
+- Phase 3A-2: archived event guard (`event_already_archived`)
+- Hotfix: `admin_upsert_matchup` fighter_id TEXT cast 오류 수정
+- Hotfix: `admin_delete_event` FK 순서 + settled/archived 가드 + pending 환급
+- Hotfix: `service_settle_matchup` archive_events event_date DATE cast 오류 수정
+- .gitignore 추가 (node_modules/, supabase/.temp/)
+- Phase 3B QA PASS (정상 입력 / force 재정산 / archived guard 모두 확인)
+- QA 문서: `docs/QA_RUN_2026-05-04.md`
+
+**남은 로컬 변경 (미커밋):**
+- `dist/` 4개 파일: admin lifecycle 패널 UI, DnD 순서변경, RPC 전환, 카운트다운 위젯 등 실질적 기능 변경 포함 → 별도 커밋 결정 필요
+- `.claude/settings.json`, `.claudeignore`: 커밋하지 않음
+
+**완료 항목 참조 (이하 목록에서 완료된 것):**
+- 1번 KDI 데이터 정리 ✅
+- 2번 QA 2차 ✅
+- 4번 Event Lifecycle Phase 3 ✅
+- 12번 배포/레포 정리 (.gitignore) ✅
 
 ---
 
@@ -296,14 +319,19 @@
 ```text
 docs/NEXT_WORK_PLAN.md 기준으로 다음 작업을 시작해줘.
 
-우선순위 1번인 KDI 데이터 정리부터 진행하자.
+현재 상태:
+- origin/main == main == 4422713
+- dist/ 4개 파일 미커밋 (admin lifecycle UI, DnD, RPC 전환 등 실질 기능 변경)
+- .claude*, .claudeignore 는 커밋하지 마
+
+우선순위:
+1. dist/ 변경 내용 확인 후 커밋 여부 판단 보고
+2. 3번 Common Data RPC Phase 설계 시작
 
 중요:
-- 먼저 조회만 하고 수정하지 마.
-- KDI-01 result_status/result_method 불일치와 KDI-02 중복 matchup의 실제 DB 상태를 확인해.
-- 어떤 데이터를 살리고 어떤 데이터를 정리해야 하는지 판단 보고서를 먼저 작성해.
-- repair migration은 내가 승인한 뒤 작성해.
-- dist/*, node_modules/, supabase/.temp/, .claude* 는 건드리지 마.
+- dist/ 는 먼저 diff 확인 후 내 승인 받고 커밋해.
+- node_modules/, supabase/.temp/, .claude* 는 건드리지 마.
+- 새 기능 구현 전 남은 미커밋 상태 먼저 정리해.
 ```
 
 ---
