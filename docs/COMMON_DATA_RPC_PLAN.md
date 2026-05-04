@@ -76,23 +76,59 @@ GRANT anon, authenticated
 
 ---
 
-## Phase 4C — Community Pick Ratio RPC (예정)
+## Phase 4C — Community Pick Ratio RPC ✅ (2026-05-04)
 
-목표: event_picks vs picks 중 어느 것이 커뮤니티 비율의 source of truth인지 정리
+### source-of-truth 판단
 
-현재 이슈:
-- `event_picks.fighter_index` (TEXT column, event_id도 TEXT)가 있음
-- `picks`에서 직접 집계하는 방식도 가능
-- 두 테이블 간 불일치 가능성 있음
+| 항목 | event_picks | picks |
+|------|-------------|-------|
+| cancelled 포함 여부 | 포함 (NC/무승부 환급픽 오염) | 제외 가능 (status 필터) |
+| 레거시 fight_id | 'f1','f2' 등 UUID 매핑 불가 | matchup_id UUID 정확 |
+| predicted_side 정밀도 | fighter_index 0/1만 (draw/nc도 1) | 'red'/'blue'/'draw'/'nc' |
+| 실시간 쓰기 | place_pick RPC + 레거시 saveEventPick | place_pick RPC만 |
 
-확인 필요:
-- `saveEventPick` 함수가 어떤 테이블에 쓰는지
-- 중복 write가 있는지 (place_pick RPC + saveEventPick 동시 호출 여부)
+**결론: `picks` 테이블이 source of truth.** `event_picks`는 실시간 구독 트리거 역할만 유지.
 
-후보 RPC: `get_event_pick_ratios(p_event_id UUID)`
+### 완료 내용
+- `get_event_pick_ratios(p_event_id UUID)` 구현 및 DB 적용
+- migration: `supabase/migrations/20260504_get_event_pick_ratios_rpc.sql`
+- `index.html` `loadAllEventPickCounts()` → RPC 호출로 교체
+  - `loadMyEventPicks()`: 개인 데이터, `event_picks` 직접 읽기 유지
+  - `saveEventPick()`: 레거시 + 실시간 구독 트리거용, `event_picks` 쓰기 유지
+  - Realtime 구독 `event_picks` → debounce → `loadAllEventPickCounts()` → RPC 경로 유지
 
-반환:
-- matchup_id별 red_count, blue_count, total
+### RPC 계약
+
+```sql
+FUNCTION public.get_event_pick_ratios(p_event_id UUID)
+RETURNS TABLE (
+  matchup_id   UUID,
+  red_count    INTEGER,
+  blue_count   INTEGER,
+  total_count  INTEGER,
+  red_pct      INTEGER,   -- 0 if total_count = 0
+  blue_pct     INTEGER
+)
+LANGUAGE sql STABLE SECURITY DEFINER
+GRANT anon, authenticated
+```
+
+### 집계 기준
+- source: `matchups LEFT JOIN picks` (matchup_id 기준)
+- 포함 status: `pending`, `win`, `lose`
+- 제외 status: `cancelled` (NC/무승부 환급)
+- 포함 predicted_side: `'red'`, `'blue'` 만 (draw/nc 제외)
+- 0픽 matchup: 0/0/0/0/0 반환 (null 없음, crash 없음)
+- 정렬: card_segment (main 우선), sort_order
+
+### QA 결과
+
+| 케이스 | 기대 | 결과 |
+|--------|------|------|
+| UFC FN 274 matchup(cancelled blue있음) | blue=0(cancelled 제외) | PASS |
+| 0픽 matchup | 0/0/0/0/0 | PASS |
+| UFC FN 275 upcoming (pending) | pending 포함, 50/50 | PASS |
+| 존재하지 않는 event_id | 빈 배열 | PASS (LEFT JOIN → 0행) |
 
 ---
 

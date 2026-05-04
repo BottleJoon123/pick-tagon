@@ -4916,16 +4916,14 @@ async function publishPost() {
 
     async function loadAllEventPickCounts() {
         if (!sb) return;
-        const allFightIds = getActiveFights().map(function(f) { return f.id; });
-        var result = await sb.from('event_picks')
-            .select('fight_id, fighter_index')
-            .in('fight_id', allFightIds);
+        const eventId = getActiveFights()[0]?._eventId;
+        if (!eventId) return;
+        // get_event_pick_ratios: picks 기반 집계 (cancelled 제외, predicted_side=null 레거시 제외)
+        var result = await sb.rpc('get_event_pick_ratios', { p_event_id: eventId });
         if (!result.data) return;
         eventPickCounts = {};
-        result.data.forEach(function(p) {
-            if (!eventPickCounts[p.fight_id]) eventPickCounts[p.fight_id] = { c0: 0, c1: 0 };
-            if (p.fighter_index === 0) eventPickCounts[p.fight_id].c0++;
-            else eventPickCounts[p.fight_id].c1++;
+        result.data.forEach(function(r) {
+            eventPickCounts[r.matchup_id] = { c0: r.red_count, c1: r.blue_count };
         });
         // Preserve local optimistic picks for fights not yet in DB (race condition guard)
         Object.keys(myEventPicks).forEach(function(fid) {
