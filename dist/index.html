@@ -3408,60 +3408,43 @@ async function publishPost() {
     /* ==============================
        EVENT LEADERBOARD
     ============================== */
-    function renderEventLeaderboard() {
+    async function renderEventLeaderboard() {
         const list = document.getElementById('event-leaderboard-list');
         const subtitle = document.getElementById('event-lb-subtitle');
         if (!list) return;
 
         const fights = getActiveFights();
-        const eventName = eventInfo?.name || 'UFC 이벤트';
-
-        // 이번 이벤트 픽 집계 (현재 유저 기준)
-        const myEventPicks = fights.map(f => {
-            const settled = state.settled?.[f.id];
-            const pending = state.pendings?.[f.id];
-            return { fightId: f.id, settled, pending };
-        }).filter(p => p.settled || p.pending);
-
-        const myWins = myEventPicks.filter(p => p.settled?.result === 'WIN').length;
-        const myPending = myEventPicks.filter(p => p.pending).length;
-        const myEarned = myEventPicks.reduce((s, p) => s + (p.settled?.result === 'WIN' ? (p.settled.payout || 0) : 0), 0);
-
-        // 이벤트 리더보드 — 현재 유저 + 목 데이터
-        const myNickname = getDisplayUsername();
-        const mockEventRankings = [
-            { name: 'DAGESTANI_KING', picks: fights.length, wins: Math.floor(fights.length * 0.85), earned: 980 },
-            { name: 'OCTAGON_ORACLE', picks: fights.length, wins: Math.floor(fights.length * 0.75), earned: 820 },
-            { name: 'KO_PROPHET',     picks: fights.length - 1, wins: Math.floor(fights.length * 0.7), earned: 710 },
-            { name: 'SUBMISSION_IQ',  picks: fights.length - 1, wins: Math.floor(fights.length * 0.65), earned: 640 },
-            { name: 'JITZ_WIZARD',    picks: fights.length - 2, wins: Math.floor(fights.length * 0.6), earned: 530 },
-        ];
-
-        const myEntry = {
-            name: myNickname,
-            picks: myEventPicks.length,
-            wins: myWins,
-            pending: myPending,
-            earned: myEarned,
-            isUser: true
-        };
-
-        const all = [...mockEventRankings, myEntry]
-            .sort((a, b) => b.earned - a.earned || b.wins - a.wins);
+        const eventName = (fights[0]?._eventTitle) || eventInfo?.name || 'UFC 이벤트';
+        const eventId = fights[0]?._eventId;
 
         if (subtitle) subtitle.textContent = `${eventName} · 총 ${fights.length}경기`;
 
-        if (myEventPicks.length === 0) {
+        if (!sb || !eventId) {
+            list.innerHTML = `<div class="px-6 lg:px-10 py-10 text-center oswald-sharp text-xs text-gray-600 italic uppercase tracking-widest">이벤트 정보를 불러오는 중...</div>`;
+            return;
+        }
+
+        list.innerHTML = `<div class="px-6 lg:px-10 py-10 text-center oswald-sharp text-xs text-gray-600 italic uppercase tracking-widest">로딩 중...</div>`;
+
+        const { data, error } = await sb.rpc('get_event_leaderboard', { p_event_id: eventId });
+        if (error || !data) {
+            list.innerHTML = `<div class="px-6 lg:px-10 py-10 text-center oswald-sharp text-xs text-gray-600 italic uppercase tracking-widest">리더보드를 불러올 수 없습니다</div>`;
+            return;
+        }
+        if (data.length === 0) {
             list.innerHTML = `<div class="px-6 lg:px-10 py-10 text-center oswald-sharp text-xs text-gray-600 italic uppercase tracking-widest">아직 예측을 시작하지 않았어요 — 위에서 픽하세요!</div>`;
             return;
         }
 
+        const myUserId = currentUser?.id;
         const medals = ['🥇','🥈','🥉'];
-        list.innerHTML = all.map((u, i) => {
-            const rank = i + 1;
-            const acc = u.picks === 0 ? 0 : Math.round((u.wins / u.picks) * 100);
-            const isUser = u.isUser;
+        list.innerHTML = data.map(u => {
+            const rank = Number(u.rank);
+            const isUser = u.user_id === myUserId;
             const userStyle = isUser ? 'bg-ufcRed/10 border-l-4 border-ufcRed' : '';
+            const acc = u.accuracy != null ? u.accuracy : (u.pending_count > 0 ? '—' : 0);
+            const accColor = typeof acc === 'number' && acc >= 70 ? 'text-ufcRed' : 'text-white';
+            const name = u.nickname || '익명';
 
             return `
             <div class="grid grid-cols-12 px-6 lg:px-10 py-4 lg:py-5 border-b border-white/5 items-center hover:bg-white/[0.02] transition ${userStyle}">
@@ -3473,21 +3456,21 @@ async function publishPost() {
                 </div>
                 <div class="col-span-5 flex items-center gap-3 pl-2">
                     <div class="w-7 h-7 lg:w-8 lg:h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center oswald-sharp text-[9px] font-black italic text-gray-400">
-                        ${u.name.slice(0,2)}
+                        ${name.slice(0,2)}
                     </div>
-                    <p class="oswald-sharp font-black italic text-xs lg:text-sm text-white uppercase truncate ${isUser ? 'text-ufcRed' : ''}">
-                        ${isUser ? '★ ' : ''}${u.name}
-                        ${isUser && u.pending > 0 ? `<span class="text-yellow-500 text-[8px] ml-1">(${u.pending} 진행중)</span>` : ''}
+                    <p class="oswald-sharp font-black italic text-xs lg:text-sm uppercase truncate ${isUser ? 'text-ufcRed' : 'text-white'}">
+                        ${isUser ? '★ ' : ''}${name}
+                        ${u.pending_count > 0 ? `<span class="text-yellow-500 text-[8px] ml-1">(${u.pending_count} 진행중)</span>` : ''}
                     </p>
                 </div>
                 <div class="col-span-2 text-center">
-                    <span class="oswald-sharp font-black italic text-xs lg:text-sm text-gray-400">${u.picks}</span>
+                    <span class="oswald-sharp font-black italic text-xs lg:text-sm text-gray-400">${u.total_picks}</span>
                 </div>
                 <div class="col-span-2 text-center">
-                    <span class="oswald-sharp font-black italic text-xs lg:text-sm ${acc >= 70 ? 'text-ufcRed' : 'text-white'}">${u.wins}<span class="text-gray-600 text-[9px] ml-1">(${acc}%)</span></span>
+                    <span class="oswald-sharp font-black italic text-xs lg:text-sm ${accColor}">${u.win_count}<span class="text-gray-600 text-[9px] ml-1">(${acc}%)</span></span>
                 </div>
                 <div class="col-span-2 text-center">
-                    <span class="oswald-sharp font-black italic text-xs lg:text-sm text-white">${u.earned.toLocaleString()}<span class="text-gray-600 text-[9px] ml-0.5">P</span></span>
+                    <span class="oswald-sharp font-black italic text-xs lg:text-sm text-white">${u.event_points.toLocaleString()}<span class="text-gray-600 text-[9px] ml-0.5">P</span></span>
                 </div>
             </div>`;
         }).join('');
