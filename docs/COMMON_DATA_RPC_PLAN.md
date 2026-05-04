@@ -61,18 +61,67 @@ GRANT anon, authenticated
 
 ---
 
-## Phase 4B — User Profile Stats RPC (예정)
+## Phase 4B — User Profile Stats RPC ✅ (2026-05-04)
 
-목표: 유저의 체급별/방식별/이벤트별 예측 성향 집계
+### 완료 내용
+- `get_user_pick_stats(p_user_id UUID)` 구현 및 DB 적용
+- migration: `supabase/migrations/20260504_get_user_pick_stats_rpc.sql`
+- 프론트 변경 없음 (RPC + docs 전용 Phase)
+- 기존 `profile.js`의 localStorage/state 기반 집계를 대체하는 공식 source of truth
 
-후보 RPC: `get_user_pick_stats(p_user_id UUID)`
+### RPC 계약
 
-반환 후보:
-- 전체 적중률
-- 체급별 win/lose/accuracy
-- 방식별 (KO, SUB, Decision) 예측 vs 실제 적중률
-- 최근 N이벤트 폼 (streak)
-- 보너스 픽 (method bonus, upset bonus) 현황
+```sql
+FUNCTION public.get_user_pick_stats(p_user_id UUID)
+RETURNS JSONB   -- 단일 객체
+LANGUAGE sql STABLE SECURITY DEFINER
+GRANT authenticated
+```
+
+반환 구조:
+```json
+{
+  "settled_picks": INTEGER,   -- win+lose+cancelled
+  "win_count":     INTEGER,
+  "lose_count":    INTEGER,
+  "cancel_count":  INTEGER,
+  "pending_count": INTEGER,
+  "accuracy":      INTEGER,   -- NULL if no settled (win+lose) picks
+  "net_points":    INTEGER,   -- SUM(settled_payout) WHERE status='win'
+  "upset_wins":    INTEGER,
+  "upset_picks":   INTEGER,
+  "by_weight_class": [
+    { "weight_class": TEXT, "win_count": INTEGER, "lose_count": INTEGER,
+      "total": INTEGER, "accuracy": INTEGER }
+    ...                       -- ORDER BY total DESC
+  ],
+  "by_method": [
+    { "method": TEXT, "win_count": INTEGER, "total": INTEGER }
+    ...                       -- actual_method 기준, ORDER BY win_count DESC
+  ]
+}
+```
+
+### 집계 기준
+- source: `picks` (전체 기록) + `picks JOIN matchups` (weight_class 획득)
+- accuracy = `win / (win + lose) * 100` (cancelled/pending 제외)
+- by_weight_class: `matchups.weight_class` 기준 (NULL weight_class 제외)
+- by_method: `picks.actual_method` 기준 (예측 방식이 아닌 실제 결과 방식)
+  - `status IN ('win','lose')` AND `actual_method IS NOT NULL` 만 집계
+- upset stats: `picks.is_upset = true` 필터
+- 픽 없는 유저: 전부 0, accuracy null, arrays 빈 배열 (crash 없음)
+
+### 보안
+- SECURITY DEFINER: 일관성 유지 (users 조인 없어 RLS 우회 불필요하나 패턴 통일)
+- GRANT authenticated only: 개인 데이터 — anon 미부여
+- 반환 aggregate only — 개별 pick 선택(pick_name, predicted_side) 미노출
+
+### QA 결과
+
+| 케이스 | 기대 | 결과 |
+|--------|------|------|
+| 실유저 (28픽, 12승) | accuracy 63%, net_points 2090, by_weight_class/method 정상 | PASS |
+| 픽 없는 유저 (nil UUID) | 전부 0, accuracy null, arrays [] | PASS |
 
 ---
 
