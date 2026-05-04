@@ -4,12 +4,35 @@
    의존성: state.js (state), community.js (getBeltInfo, getRollingScore), utils.js (escapeHtml)
 ============================== */
 
-function renderProfileStats() {
+let _rpcStats = null; // get_user_pick_stats RPC 캐시 (null = 미로드 또는 실패 → state fallback)
+
+// weight_class 단축키 → 표시 레이블
+const WEIGHT_CLASS_LABEL = {
+    hw: 'Heavyweight', lhw: 'Light Heavyweight', mw: 'Middleweight',
+    ww: 'Welterweight', lw: 'Lightweight', fw: 'Featherweight',
+    bw: 'Bantamweight', flw: 'Flyweight',
+    wbw: "W. Bantamweight", wfw: "W. Featherweight",
+    wsw: "W. Strawweight", wflw: "W. Flyweight",
+};
+
+async function renderProfileStats() {
+    // 1차: state 기반 즉시 렌더 (현재 이벤트 범위 fallback)
+    _rpcStats = null;
     renderProfileReport();
     renderDivisionStats();
     renderFormChart();
     renderMethodStats();
     renderBonusSummary();
+    // 2차: RPC 데이터 수신 후 해당 섹션 덮어쓰기 (전체 이벤트, cross-session)
+    if (currentUser?.id) {
+        const { data, error } = await sb.rpc('get_user_pick_stats', { p_user_id: currentUser.id });
+        if (!error && data) {
+            _rpcStats = data;
+            renderProfileReport();
+            renderDivisionStats();
+            renderMethodStats();
+        }
+    }
 }
 
 // 연승 스트릭 계산
@@ -38,13 +61,23 @@ function getAnalystType(acc, total, methodBonusCount, upsetCount) {
 
 function renderProfileReport() {
     const streak = calcStreak();
-    const settled = Object.values(state.settled || {});
-    const total = state.total;
-    const success = state.success;
-    const acc = total === 0 ? 0 : Math.round(success / total * 100);
-    const totalEarned = state.history.filter(h => h.res === 'WIN').reduce((s, h) => s + (h.payout || 0), 0);
-    const upsetWins = settled.filter(s => s.hadUpsetBonus && s.result === 'WIN').length;
-    const methodBonusCount = settled.filter(s => s.hadMethodBonus).length;
+    const stateSettled = Object.values(state.settled || {});
+
+    // RPC 우선, state 기반 fallback
+    const total       = _rpcStats
+        ? (_rpcStats.win_count + _rpcStats.lose_count)
+        : state.total;
+    const success     = _rpcStats ? _rpcStats.win_count : state.success;
+    const acc         = _rpcStats
+        ? (_rpcStats.accuracy ?? 0)
+        : (state.total === 0 ? 0 : Math.round(state.success / state.total * 100));
+    const totalEarned = _rpcStats
+        ? _rpcStats.net_points
+        : state.history.filter(h => h.res === 'WIN').reduce((s, h) => s + (h.payout || 0), 0);
+    const upsetWins   = _rpcStats
+        ? _rpcStats.upset_wins
+        : stateSettled.filter(s => s.hadUpsetBonus && s.result === 'WIN').length;
+    const methodBonusCount = stateSettled.filter(s => s.hadMethodBonus).length; // state-only
     const analyst = getAnalystType(acc, total, methodBonusCount, upsetWins);
 
     // 스트릭 배지
@@ -97,12 +130,39 @@ function renderDivisionStats() {
     const el = document.getElementById('profile-division-stats');
     if (!el) return;
 
-    // 히스토리에서 체급 정보 추출 (fight ID → division 매핑)
+    // RPC 경로: picks JOIN matchups → 전체 이벤트 체급별 집계
+    if (_rpcStats) {
+        const wcs = _rpcStats.by_weight_class || [];
+        if (wcs.length === 0) {
+            el.innerHTML = `<p class="oswald-sharp text-xs text-gray-700 italic uppercase text-center py-4">결과 확정된 예측 없음</p>`;
+            return;
+        }
+        el.innerHTML = wcs.map(wc => {
+            const acc = wc.accuracy ?? 0;
+            const label = (WEIGHT_CLASS_LABEL[wc.weight_class] || wc.weight_class || '기타').toUpperCase();
+            return `
+            <div>
+                <div class="flex justify-between items-center mb-1.5">
+                    <span class="oswald-sharp text-[10px] lg:text-xs font-black italic text-gray-300 uppercase truncate max-w-[60%]">${label}</span>
+                    <div class="flex items-center gap-2">
+                        <span class="oswald-sharp text-[9px] text-gray-600 italic">${wc.win_count}/${wc.total}</span>
+                        <span class="oswald-sharp text-xs font-black italic ${acc >= 70 ? 'text-ufcRed' : acc >= 50 ? 'text-white' : 'text-gray-500'}">${acc}%</span>
+                    </div>
+                </div>
+                <div class="h-2 rounded-full bg-white/5 overflow-hidden">
+                    <div class="h-full rounded-full transition-all duration-700 ${acc >= 70 ? 'bg-ufcRed' : acc >= 50 ? 'bg-blue-500' : 'bg-white/20'}"
+                        style="width:${acc}%"></div>
+                </div>
+            </div>`;
+        }).join('');
+        return;
+    }
+
+    // fallback: state 기반 (현재 이벤트 범위만)
     const fights = getActiveFights();
     const divMap = {};
     fights.forEach(f => { divMap[f.id] = f.division; });
 
-    // settled 결과로 체급별 집계
     const divStats = {};
     Object.entries(state.settled || {}).forEach(([fightId, s]) => {
         const div = divMap[fightId] || '기타';
@@ -184,12 +244,40 @@ function renderMethodStats() {
     const methodEl = document.getElementById('profile-method-stats');
     if (!methodEl) return;
 
-    const settled = Object.values(state.settled || {});
     const methods = [
         { key: 'KO/TKO', icon: '🥊', color: 'bg-ufcRed' },
         { key: 'SUB',    icon: '🤼', color: 'bg-purple-500' },
         { key: 'UD',     icon: '📋', color: 'bg-blue-500' },
     ];
+
+    // RPC 경로: actual_method 기준 전체 정산 픽 집계
+    if (_rpcStats) {
+        const byMethodMap = {};
+        (_rpcStats.by_method || []).forEach(m => { byMethodMap[m.method] = m; });
+        methodEl.innerHTML = methods.map(m => {
+            const d = byMethodMap[m.key];
+            const total = d ? d.total : 0;
+            const wins  = d ? d.win_count : 0;
+            const pct   = total === 0 ? 0 : Math.round(wins / total * 100);
+            return `
+            <div>
+                <div class="flex justify-between items-center mb-1.5">
+                    <span class="oswald-sharp text-xs font-black italic text-gray-300 uppercase">${m.icon} ${m.key}</span>
+                    <span class="oswald-sharp text-xs font-black italic ${pct >= 70 ? 'text-ufcRed' : pct >= 50 ? 'text-white' : 'text-gray-500'}">
+                        ${total === 0 ? '—' : pct + '%'}
+                    </span>
+                </div>
+                <div class="h-2 rounded-full bg-white/5 overflow-hidden">
+                    <div class="h-full rounded-full ${m.color} transition-all duration-700" style="width:${pct}%"></div>
+                </div>
+                <p class="oswald-sharp text-[9px] text-gray-600 italic mt-1">${total === 0 ? '데이터 없음' : `${wins}승 / ${total}경기`}</p>
+            </div>`;
+        }).join('');
+        return;
+    }
+
+    // fallback: state 기반
+    const settled = Object.values(state.settled || {});
 
     if (settled.length === 0) {
         methodEl.innerHTML = `<p class="oswald-sharp text-xs text-gray-700 italic uppercase text-center">결과 확정된 예측 없음</p>`;

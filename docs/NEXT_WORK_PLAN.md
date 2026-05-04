@@ -1,29 +1,27 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-04  
-현재 기준 커밋: `4422713` (origin/main)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-05
+현재 기준 커밋: `1c0e6d8` (origin/main)
 
 ---
 
-## 2026-05-04 상태 업데이트
+## 2026-05-05 상태 업데이트
 
 **완료 (이번 세션):**
-- Event Lifecycle Phase 3B: settle-matchup Edge Function → `admin_set_matchup_result` RPC 경유 전환
-- Phase 3A-2: archived event guard (`event_already_archived`)
-- Hotfix: `admin_upsert_matchup` fighter_id TEXT cast 오류 수정
-- Hotfix: `admin_delete_event` FK 순서 + settled/archived 가드 + pending 환급
-- Hotfix: `service_settle_matchup` archive_events event_date DATE cast 오류 수정
-- .gitignore 추가 (node_modules/, supabase/.temp/)
-- Phase 3B QA PASS (정상 입력 / force 재정산 / archived guard 모두 확인)
-- QA 문서: `docs/QA_RUN_2026-05-04.md`
+- Phase 4A: `get_event_leaderboard` RPC 구현 · DB 적용 · 프론트 연결 · push (`6eabf9e`)
+- Phase 4C: `get_event_pick_ratios` RPC 구현 · DB 적용 · 프론트 연결 · push (`bfcae51`)
+  - `event_picks` vs `picks` source-of-truth 판단 완료 → `picks`로 확정
+- Phase 4B: `get_user_pick_stats` RPC 구현 · DB 적용 · docs 업데이트 · push (`1c0e6d8`)
+  - 체급별/방식별/upset 통계, GRANT authenticated only
+- Build: dist/ 4개 파일 커밋 (`a6ecbfa`) — admin lifecycle UI, DnD, RPC 전환, castVote fix
 
-**남은 로컬 변경 (미커밋):**
-- `dist/` 4개 파일: admin lifecycle 패널 UI, DnD 순서변경, RPC 전환, 카운트다운 위젯 등 실질적 기능 변경 포함 → 별도 커밋 결정 필요
-- `.claude/settings.json`, `.claudeignore`: 커밋하지 않음
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`: untracked, 커밋하지 않음
 
 **완료 항목 참조 (이하 목록에서 완료된 것):**
 - 1번 KDI 데이터 정리 ✅
 - 2번 QA 2차 ✅
+- 3번 공통 데이터 RPC (Phase 4A/B/C) ✅
 - 4번 Event Lifecycle Phase 3 ✅
 - 12번 배포/레포 정리 (.gitignore) ✅
 
@@ -91,25 +89,19 @@
 
 ---
 
-### 3. 공통 데이터/RPC 기반 구축
+### 3. 공통 데이터/RPC 기반 구축 ✅ (Phase 4A/B/C 완료)
 
-목표: 대진표, 랭킹, 커뮤니티, 프로필이 같은 source of truth를 보도록 공통 조회 계층을 만든다.
+완료:
+- Phase 4A: `get_event_leaderboard(p_event_id)` — 이벤트 리더보드 ✅
+- Phase 4B: `get_user_pick_stats(p_user_id)` — 유저 프로필 집계 + `profile.js` 연결 ✅
+- Phase 4C: `get_event_pick_ratios(p_event_id)` — 커뮤니티 픽 비율 ✅
 
-우선 RPC 후보:
-- 이벤트 리더보드 RPC
-- 집단/소속 랭킹 포인트 산정 RPC
-- 유저 프로필 분석 RPC
-  - 체급별 예측 적중률
-  - 최근 폼
-  - 방식별 예측 적중률
-  - 보너스 획득 현황
-- 메인/코메인 픽 비율 조회 RPC
-- 파이터 상세 stat 조회 RPC
+남은 작업:
+- Phase 4D: `get_event_pick_summary(p_event_id)` — 이벤트별 총 베팅/페이아웃 집계 (예정)
+- 집단/소속 랭킹 포인트 산정 RPC (미설계)
+- 파이터 상세 stat 조회 RPC (미설계)
 
-원칙:
-- 화면 개선 전에 데이터 계약부터 확정
-- 기존 테이블/RPC 재사용 우선
-- 공개 데이터와 개인 데이터 권한 분리
+참고 문서: `docs/COMMON_DATA_RPC_PLAN.md`
 
 ---
 
@@ -185,7 +177,7 @@
 - 글 목록/댓글 구조 정리
 
 주의:
-- 픽 비율은 `event_picks`와 실제 `picks` 사이의 source of truth를 명확히 해야 함
+- 픽 비율 source of truth: Phase 4C에서 `picks` 테이블로 확정 완료 (`event_picks`는 실시간 구독 트리거 역할만 유지)
 
 ---
 
@@ -317,21 +309,23 @@
 ## 다음 세션 시작 추천 프롬프트
 
 ```text
-docs/NEXT_WORK_PLAN.md 기준으로 다음 작업을 시작해줘.
+Pick-tagon 작업 이어서 진행하자.
 
 현재 상태:
-- origin/main == main == 4422713
-- dist/ 4개 파일 미커밋 (admin lifecycle UI, DnD, RPC 전환 등 실질 기능 변경)
-- .claude*, .claudeignore 는 커밋하지 마
+- main == origin/main == (push 후 최신 SHA 확인)
+- Phase 4A/B/C Common Data RPC + profile.js 프론트 연결 완료 및 push 완료
+- dirty: .claude/settings.json, .claudeignore untracked (커밋 금지)
 
-우선순위:
-1. dist/ 변경 내용 확인 후 커밋 여부 판단 보고
-2. 3번 Common Data RPC Phase 설계 시작
+우선순위 후보 (선택해줘):
+A. Phase 4D 설계 — get_event_pick_summary(p_event_id) RPC 구현
+B. Profile QA — RPC 연결 후 체급별/방식별 통계가 실제 DB 데이터와 일치하는지 검증
+C. 9번 프로필 고도화 UI 카드 구성 시작
 
-중요:
-- dist/ 는 먼저 diff 확인 후 내 승인 받고 커밋해.
-- node_modules/, supabase/.temp/, .claude* 는 건드리지 마.
-- 새 기능 구현 전 남은 미커밋 상태 먼저 정리해.
+원칙:
+- 운영 데이터 수정 금지
+- .claude/settings.json, .claudeignore 커밋 금지
+- push는 별도 승인 전까지 금지
+- 새 기능 전 git status 확인 먼저
 ```
 
 ---

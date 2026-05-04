@@ -66,8 +66,14 @@ GRANT anon, authenticated
 ### 완료 내용
 - `get_user_pick_stats(p_user_id UUID)` 구현 및 DB 적용
 - migration: `supabase/migrations/20260504_get_user_pick_stats_rpc.sql`
-- 프론트 변경 없음 (RPC + docs 전용 Phase)
-- 기존 `profile.js`의 localStorage/state 기반 집계를 대체하는 공식 source of truth
+- `public/js/profile.js` RPC 연결 완료 (`2d21781`)
+  - `renderProfileStats()` → async, state 1차 즉시 렌더 후 RPC 데이터로 덮어쓰기
+  - `renderProfileReport()`: total/accuracy/net_points/upset_wins → RPC 우선
+  - `renderDivisionStats()`: `by_weight_class` 전체 이벤트 체급별 집계 → RPC 우선
+  - `renderMethodStats()`: `by_method` actual_method 기반 전체 집계 → RPC 우선
+  - `renderFormChart()`, `renderBonusSummary()`: state-only 유지 (RPC 해당 필드 없음)
+  - RPC 실패 시 기존 state/localStorage 기반 렌더로 silent fallback
+- `by_weight_class.total` = 참여 픽 전체 수 (pending 포함), accuracy 분모는 `win + lose`만
 
 ### RPC 계약
 
