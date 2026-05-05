@@ -883,6 +883,7 @@ var _builderState = {
 
 var _builderEvents = [];
 var _builderMatchups = [];
+var _builderPickSummary = null; // get_event_pick_summary RPC 캐시
 var _allFightersCache = [];
 
 // 매치업 편집 모달 상태
@@ -945,9 +946,11 @@ function renderBuilderEventList() {
 
 async function selectBuilderEvent(eventId) {
     _builderState.eventId = eventId;
+    _builderPickSummary = null;
     renderBuilderEventList();
     renderBuilderWorkspace();
     await fetchBuilderMatchups();
+    await fetchBuilderPickSummary();
 }
 
 async function fetchBuilderMatchups() {
@@ -959,6 +962,14 @@ async function fetchBuilderMatchups() {
         .order('sort_order', { ascending: true });
     if (error) { showToast('매치업 로드 실패: ' + error.message); return; }
     _builderMatchups = data || [];
+    renderBuilderWorkspace();
+}
+
+async function fetchBuilderPickSummary() {
+    if (!sb || !_builderState.eventId) return;
+    const { data, error } = await sb.rpc('get_event_pick_summary', { p_event_id: _builderState.eventId });
+    if (!error && data && data.length > 0) _builderPickSummary = data[0];
+    else _builderPickSummary = null;
     renderBuilderWorkspace();
 }
 
@@ -999,6 +1010,49 @@ function _renderLifecyclePanel(ev) {
     <div class="flex items-center gap-2 flex-wrap mt-3 pt-3 border-t border-white/5">
         <span class="oswald-sharp font-black italic uppercase text-[9px] px-2.5 py-1 rounded-full border ${cfg.cls}">${cfg.label}</span>
         ${sub}${divider}${btns}
+    </div>`;
+}
+
+// ── 픽 현황 패널 ──────────────────────────────────────────────────
+
+function renderPickSummaryPanel(s) {
+    if (!s) return '';
+    if (s.total_picks === 0) return `
+        <div class="mt-3 px-3 py-2 rounded-xl border border-white/5 bg-black/10">
+            <p class="oswald-sharp text-[9px] italic uppercase text-gray-700 tracking-widest text-center">픽 없음</p>
+        </div>`;
+    const acc = s.accuracy !== null ? s.accuracy + '%' : '—';
+    const accColor = s.accuracy !== null
+        ? (s.accuracy >= 70 ? 'text-ufcRed' : s.accuracy >= 50 ? 'text-white' : 'text-gray-400')
+        : 'text-gray-600';
+    return `
+    <div class="mt-3 rounded-xl border border-white/5 bg-black/10 px-3 py-2.5">
+        <p class="oswald-sharp text-[8px] italic uppercase tracking-widest text-gray-600 mb-2">픽 현황</p>
+        <div class="grid grid-cols-3 gap-2 text-center mb-2">
+            <div>
+                <p class="oswald-sharp text-sm font-black italic text-white">${s.total_picks}</p>
+                <p class="oswald-sharp text-[8px] italic uppercase text-gray-600">총 픽</p>
+            </div>
+            <div>
+                <p class="oswald-sharp text-sm font-black italic text-white">${s.unique_bettors}</p>
+                <p class="oswald-sharp text-[8px] italic uppercase text-gray-600">참여자</p>
+            </div>
+            <div>
+                <p class="oswald-sharp text-sm font-black italic ${accColor}">${acc}</p>
+                <p class="oswald-sharp text-[8px] italic uppercase text-gray-600">적중률</p>
+            </div>
+        </div>
+        <div class="flex justify-center gap-4 text-center">
+            <div><span class="oswald-sharp text-xs font-black italic text-green-400">${s.win_picks}W</span> <span class="oswald-sharp text-[8px] italic text-gray-700">승</span></div>
+            <div><span class="oswald-sharp text-xs font-black italic text-gray-400">${s.lose_picks}L</span> <span class="oswald-sharp text-[8px] italic text-gray-700">패</span></div>
+            ${s.pending_picks > 0 ? `<div><span class="oswald-sharp text-xs font-black italic text-amber-400">${s.pending_picks}P</span> <span class="oswald-sharp text-[8px] italic text-gray-700">대기</span></div>` : ''}
+            ${s.cancelled_picks > 0 ? `<div><span class="oswald-sharp text-xs font-black italic text-gray-600">${s.cancelled_picks}C</span> <span class="oswald-sharp text-[8px] italic text-gray-700">취소</span></div>` : ''}
+        </div>
+        ${s.total_paid_out > 0 ? `
+        <div class="mt-2 pt-2 border-t border-white/5 flex justify-between items-center">
+            <p class="oswald-sharp text-[8px] italic uppercase text-gray-600">지급 포인트</p>
+            <p class="oswald-sharp text-xs font-black italic text-yellow-400">${s.total_paid_out.toLocaleString()}P</p>
+        </div>` : ''}
     </div>`;
 }
 
@@ -1064,6 +1118,7 @@ function renderBuilderWorkspace() {
                 </div>
             </div>
             ${_renderLifecyclePanel(ev)}
+            ${renderPickSummaryPanel(_builderPickSummary)}
         </div>
         ${!_builderMatchups.length
             ? '<div class="flex flex-col items-center justify-center py-12 text-center"><p class="oswald-sharp text-gray-700 italic text-sm uppercase tracking-widest mb-3">등록된 경기 없음</p><button onclick="openMatchupEditModal(null)" class="oswald-sharp border border-white/10 text-gray-400 hover:text-white text-xs px-4 py-2 rounded-xl italic uppercase tracking-widest transition-all">+ 첫 번째 경기 추가</button></div>'
@@ -1459,6 +1514,7 @@ async function onLifecycleReopen(eventId) {
 async function onLifecycleSettle(eventId) {
     if (!confirm('모든 경기 결과 입력을 확인했나요?\n이벤트를 정산할까요?')) return;
     await adminSettleEvent(eventId);
+    await fetchBuilderPickSummary();
     renderBuilderWorkspace();  // adminSettleEvent는 fetchBuilderMatchups를 호출하지 않으므로 직접 갱신
 }
 
