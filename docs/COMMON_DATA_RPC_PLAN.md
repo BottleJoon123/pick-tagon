@@ -192,7 +192,10 @@ GRANT anon, authenticated
 ### 완료 내용
 - `get_event_pick_summary(p_event_id UUID)` 구현 및 DB 적용
 - migration: `supabase/migrations/20260505_get_event_pick_summary_rpc.sql`
-- 프론트 연결 없음 (어드민 대시보드 / 랭킹 시스템 연결은 별도 Phase)
+- `public/js/admin.js`, `dist/js/admin.js` — 어드민 이벤트 워크스페이스 연결 완료 (`38a798c`)
+  - `fetchBuilderPickSummary()`: 이벤트 선택 및 정산 후 RPC 호출
+  - `renderPickSummaryPanel()`: 총 픽/참여자/적중률/W-L-P-C/지급 포인트 렌더
+  - `_renderLifecyclePanel` 하단에 패널 삽입, 0픽/RPC 실패 방어 포함
 
 ### RPC 계약
 

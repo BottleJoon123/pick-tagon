@@ -1,7 +1,7 @@
 # Picktagon Next Work Plan
 
 최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-05
-현재 기준 커밋: `1c0e6d8` (origin/main)
+현재 기준 커밋: push 후 `git log --oneline -1 origin/main` 으로 확인
 
 ---
 
@@ -97,7 +97,7 @@
 - Phase 4C: `get_event_pick_ratios(p_event_id)` — 커뮤니티 픽 비율 ✅
 
 남은 작업:
-- Phase 4D: `get_event_pick_summary(p_event_id)` — 이벤트별 총 베팅/페이아웃 집계 (예정)
+- Phase 4D: `get_event_pick_summary(p_event_id)` — 어드민 워크스페이스 연결 완료 ✅ (`38a798c`)
 - 집단/소속 랭킹 포인트 산정 RPC (미설계)
 - 파이터 상세 stat 조회 RPC (미설계)
 
@@ -312,14 +312,14 @@
 Pick-tagon 작업 이어서 진행하자.
 
 현재 상태:
-- main == origin/main == (push 후 최신 SHA 확인)
-- Phase 4A/B/C Common Data RPC + profile.js 프론트 연결 완료 및 push 완료
+- main 2커밋 ahead of origin/main (push 후 origin/main 기준으로 확인)
+- Phase 4A/B/C/D Common Data RPC 전부 구현 완료, admin workspace 픽 현황 패널 연결 완료
 - dirty: .claude/settings.json, .claudeignore untracked (커밋 금지)
 
 우선순위 후보 (선택해줘):
-A. Phase 4D 설계 — get_event_pick_summary(p_event_id) RPC 구현
-B. Profile QA — RPC 연결 후 체급별/방식별 통계가 실제 DB 데이터와 일치하는지 검증
-C. 9번 프로필 고도화 UI 카드 구성 시작
+A. Admin smoke QA — get_event_pick_summary 패널이 FN 273/274/275/276에서 정상 표시되는지 확인
+B. 집단/소속 랭킹 RPC 설계 — faction score/points 산정 기준 확인 및 RPC 설계
+C. Profile 고도화 UI — Phase 4B RPC 기반 체급별/방식별 분석 카드 개선
 
 원칙:
 - 운영 데이터 수정 금지
