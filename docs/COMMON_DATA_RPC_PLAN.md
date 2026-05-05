@@ -187,8 +187,59 @@ GRANT anon, authenticated
 
 ---
 
-## Phase 4D — Ticket/Point Aggregation RPC (예정)
+## Phase 4D — Event Pick Summary RPC ✅ (2026-05-05)
 
-목표: 이벤트별 총 베팅 포인트, 총 페이아웃, 집계 통계
+### 완료 내용
+- `get_event_pick_summary(p_event_id UUID)` 구현 및 DB 적용
+- migration: `supabase/migrations/20260505_get_event_pick_summary_rpc.sql`
+- 프론트 연결 없음 (어드민 대시보드 / 랭킹 시스템 연결은 별도 Phase)
 
-후보 RPC: `get_event_pick_summary(p_event_id UUID)`
+### RPC 계약
+
+```sql
+FUNCTION public.get_event_pick_summary(p_event_id UUID)
+RETURNS TABLE (
+  event_id        UUID,
+  total_picks     INTEGER,    -- 전체 픽 수 (status 무관)
+  unique_bettors  INTEGER,    -- 참여 유저 수 (DISTINCT user_id)
+  win_picks       INTEGER,
+  lose_picks      INTEGER,
+  cancelled_picks INTEGER,
+  pending_picks   INTEGER,
+  total_paid_out  INTEGER,    -- SUM(settled_payout) WHERE status='win'
+  bonus_paid_out  INTEGER,    -- SUM(GREATEST(settled_payout - base_payout, 0)) WHERE status='win'
+  accuracy        INTEGER,    -- win/(win+lose)*100, NULL if no settled picks
+  upset_wins      INTEGER     -- is_upset=true AND status='win'
+)
+LANGUAGE sql STABLE SECURITY DEFINER
+GRANT anon, authenticated
+```
+
+### 집계 기준
+- source: `events LEFT JOIN matchups LEFT JOIN picks` (이벤트 anchor)
+- 픽 없는 이벤트: 0값 1행 반환 (LEFT JOIN으로 이벤트 행 보존)
+- 존재하지 않는 event_id: 0행 반환
+- accuracy = `win / (win + lose) * 100` (pending/cancelled 제외, NULL if no settled)
+- bonus_paid_out: `GREATEST(settled_payout - COALESCE(base_payout, settled_payout), 0)`
+  - `base_payout IS NULL` → COALESCE로 차액 = 0 (방어)
+  - 음수 방어: GREATEST(..., 0)
+- total_wagered 제외: `payout`/`bet_cost` 필드 의미 혼재 (레거시 데이터) → 별도 정리 후 추가 가능
+
+### 데이터 품질 주의
+- `bonus_paid_out`은 `base_payout`이 일관되게 저장된 픽부터 의미 있음
+- 현재 win 픽 13건 분석: `base_payout=NULL` 6건, `base=settled` 7건 → 현 데이터 `bonus_paid_out` 항상 0
+- `place_pick` RPC 경유 픽부터 `base_payout` 기록 → 향후 데이터 축적 시 정상 동작
+
+### 보안
+- SECURITY DEFINER: 일관성 유지
+- GRANT anon, authenticated: 공개 이벤트 집계, 개인 데이터 미포함
+
+### QA 결과
+
+| 케이스 | 기대 | 결과 |
+|--------|------|------|
+| FN 273 (archived, 11픽) | win=6/lose=4/acc=60%/paid=1140 | PASS |
+| FN 274 (archived, 9픽) | win=6/lose=2/acc=75%/paid=1140 | PASS |
+| FN 275 (locked, 전체 pending) | pending=5/acc=NULL/paid=0 | PASS |
+| FN 276 (upcoming, 0픽) | 0값 1행/acc=NULL | PASS |
+| 존재하지 않는 event_id | 0행 반환 | PASS |
