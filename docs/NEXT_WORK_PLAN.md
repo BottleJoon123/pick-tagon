@@ -13,6 +13,8 @@
   - `event_picks` vs `picks` source-of-truth 판단 완료 → `picks`로 확정
 - Phase 4B: `get_user_pick_stats` RPC 구현 · DB 적용 · docs 업데이트 · push (`1c0e6d8`)
   - 체급별/방식별/upset 통계, GRANT authenticated only
+- Phase 4D Admin smoke QA 완료 (`docs/QA_RUN_2026-05-05_PHASE4D_ADMIN.md`)
+  - FN 273/274/275 및 0픽 upcoming 이벤트 패널 매핑 PASS
 - Build: dist/ 4개 파일 커밋 (`a6ecbfa`) — admin lifecycle UI, DnD, RPC 전환, castVote fix
 
 **현재 dirty:**
@@ -317,9 +319,9 @@ Pick-tagon 작업 이어서 진행하자.
 - dirty: .claude/settings.json, .claudeignore untracked (커밋 금지)
 
 우선순위 후보 (선택해줘):
-A. Admin smoke QA — get_event_pick_summary 패널이 FN 273/274/275/276에서 정상 표시되는지 확인
-B. 집단/소속 랭킹 RPC 설계 — faction score/points 산정 기준 확인 및 RPC 설계
-C. Profile 고도화 UI — Phase 4B RPC 기반 체급별/방식별 분석 카드 개선
+A. 집단/소속 랭킹 RPC 설계 — faction score/points 산정 기준 확인 및 RPC 설계
+B. Profile 고도화 UI — Phase 4B RPC 기반 체급별/방식별 분석 카드 개선
+C. Admin visual QA — 실제 admin 계정으로 Phase 4D 픽 현황 패널 클릭 검증
 
 원칙:
 - 운영 데이터 수정 금지
