@@ -173,8 +173,19 @@ GRANT anon, authenticated
 | `selectFaction()` — `factions[i].id` | 동일 |
 | `currentFaction.id === f.id` 비교 | 동일 |
 
-### 집단 멤버 랭킹 UI
-현재 없음 — 후속 Phase에서 팩션 클릭 시 멤버 랭킹 패널 신규 추가 예정
+### 집단 멤버 랭킹 UI — Phase 5A-4 ✅ (2026-05-06)
+
+| 항목 | 내용 |
+|------|------|
+| 트리거 | 집단 랭킹 카드 클릭 → `toggleFactionMemberRanking(factionId)` |
+| 펼침/접힘 | `selectedFactionRankingId` 기준 토글, ▼/▲ 인디케이터 |
+| 데이터 | `get_faction_member_rankings(p_faction_id)` RPC 호출 |
+| 캐시 | `factionMemberRankings[factionId]` — 첫 클릭 시 로딩 후 저장 |
+| P3 캐시 무효화 | `loadFactions()` RPC 성공 시 `factionMemberRankings = {}` 초기화, 열린 패널은 `loadFactionMemberRankings()` 재호출 |
+| 멤버 행 | rank · nickname · WW LL · accuracy% · net_points P |
+| 0멤버 집단 | "멤버 없음" 표시 |
+| 로딩 중 | placeholder → 데이터 도착 시 `renderFactionRanking()` 재호출로 자동 교체 |
+| 변경 파일 | `public/js/state.js`, `public/js/api/supabase.js`, `index.html`, dist 반영 |
 
 ---
 

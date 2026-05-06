@@ -30,8 +30,22 @@ function loadFactions() {
                         accuracy:                r.accuracy
                     };
                 });
+                // P3: 집단 데이터 갱신 시 멤버 캐시 무효화 (stale 방지)
+                factionMemberRankings = {};
+                if (selectedFactionRankingId) loadFactionMemberRankings(selectedFactionRankingId);
             }
             if (typeof renderFactionRanking === 'function') renderFactionRanking();
+        });
+}
+
+function loadFactionMemberRankings(factionId) {
+    if (!sb || !factionId) return;
+    sb.rpc('get_faction_member_rankings', { p_faction_id: factionId })
+        .then(function(res) {
+            factionMemberRankings[factionId] = (!res.error && res.data) ? res.data : [];
+            if (selectedFactionRankingId === factionId && typeof renderFactionRanking === 'function') {
+                renderFactionRanking();
+            }
         });
 }
 

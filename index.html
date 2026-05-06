@@ -2645,7 +2645,7 @@ textarea, select {
 <script src="/js/state.js"></script>
 <script src="/js/storage.js"></script>
 <script src="/js/utils.js"></script>
-<script src="/js/api/supabase.js?v=6"></script>
+<script src="/js/api/supabase.js?v=7"></script>
 <script src="/js/news.js"></script>
 <script src="/js/youtube.js"></script>
 <script src="/js/community.js?v=6"></script>
@@ -6173,6 +6173,7 @@ async function addCommentToDB(postDbId, userNick, text) {
             var score = f.total_win_points || 0;
             var pct = Math.round((score / maxScore) * 100);
             var isMyFaction = currentFaction && currentFaction.id === f.id;
+            var isOpen = selectedFactionRankingId === f.id;
             var rank = f.rank || (idx + 1);
             var medalEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '<span class="oswald-sharp text-gray-500 font-black italic">#' + rank + '</span>';
             var accColor = (f.accuracy !== null && f.accuracy !== undefined)
@@ -6184,14 +6185,50 @@ async function addCommentToDB(postDbId, userNick, text) {
                 '<span class="text-gray-500">' + (f.win_picks || 0) + 'W / ' + (f.total_picks || 0) + '</span>' +
                 ' <span class="text-white/20">·</span> ' +
                 '<span class="' + accColor + '">' + accText + '</span>';
-            return '<div class="glass-card rounded-[2rem] p-5 lg:p-8 border ' + (isMyFaction ? 'border-ufcRed/50' : 'border-white/5') + ' ' + (isMyFaction ? 'faction-ranking-mine' : '') + '">' +
+
+            // 멤버 랭킹 패널 (펼침 상태일 때만)
+            var memberPanel = '';
+            if (isOpen) {
+                var members = factionMemberRankings[f.id];
+                if (!members) {
+                    memberPanel = '<div class="mt-3 pt-3 border-t border-white/5 text-center oswald-sharp text-[9px] italic uppercase tracking-widest text-gray-600">로딩 중...</div>';
+                } else if (members.length === 0) {
+                    memberPanel = '<div class="mt-3 pt-3 border-t border-white/5 text-center oswald-sharp text-[9px] italic uppercase tracking-widest text-gray-600">멤버 없음</div>';
+                } else {
+                    memberPanel = '<div class="mt-3 pt-3 border-t border-white/5 space-y-1.5">' +
+                        members.map(function(m) {
+                            var mAccColor = (m.accuracy !== null && m.accuracy !== undefined)
+                                ? (m.accuracy >= 70 ? 'text-ufcRed' : m.accuracy >= 50 ? 'text-white' : 'text-gray-400')
+                                : 'text-gray-600';
+                            var mAccText = (m.accuracy !== null && m.accuracy !== undefined) ? m.accuracy + '%' : '—';
+                            var mMedal = m.rank === 1 ? '🥇' : m.rank === 2 ? '🥈' : m.rank === 3 ? '🥉' : '#' + m.rank;
+                            return '<div class="flex items-center justify-between gap-2 py-0.5">' +
+                                '<div class="flex items-center gap-2 min-w-0">' +
+                                    '<span class="oswald-sharp text-[10px] text-gray-500 italic w-6 shrink-0 text-center">' + mMedal + '</span>' +
+                                    '<span class="oswald-sharp text-xs font-black italic text-white truncate">' + escapeHtml(m.nickname || '—') + '</span>' +
+                                '</div>' +
+                                '<div class="flex items-center gap-3 shrink-0">' +
+                                    '<span class="oswald-sharp text-[10px] italic text-gray-500">' + (m.win_picks || 0) + 'W ' + (m.lose_picks || 0) + 'L</span>' +
+                                    '<span class="oswald-sharp text-[10px] font-black italic ' + mAccColor + '">' + mAccText + '</span>' +
+                                    '<span class="oswald-sharp text-xs font-black italic text-yellow-400">' + (m.net_points || 0).toLocaleString() + 'P</span>' +
+                                '</div>' +
+                            '</div>';
+                        }).join('') +
+                    '</div>';
+                }
+            }
+
+            return '<div class="glass-card rounded-[2rem] p-5 lg:p-8 border ' + (isMyFaction ? 'border-ufcRed/50' : 'border-white/5') + ' ' + (isMyFaction ? 'faction-ranking-mine' : '') + ' cursor-pointer" onclick="toggleFactionMemberRanking(' + f.id + ')">' +
                 '<div class="flex items-center gap-4 mb-4">' +
                   '<div class="text-2xl lg:text-3xl w-10 text-center">' + medalEmoji + '</div>' +
                   '<div class="text-3xl lg:text-4xl">' + f.emoji_icon + '</div>' +
                   '<div class="flex-1">' +
                     '<div class="flex items-center justify-between mb-1">' +
                       '<span class="oswald-sharp text-base lg:text-xl font-black italic text-white uppercase">' + escapeHtml(f.name) + (isMyFaction ? ' <span class="text-ufcRed text-xs">◀ 내 집단</span>' : '') + '</span>' +
-                      '<span class="oswald-sharp text-sm lg:text-base font-black italic text-ufcRed">' + score.toLocaleString() + ' pt</span>' +
+                      '<div class="flex items-center gap-2">' +
+                        '<span class="oswald-sharp text-sm lg:text-base font-black italic text-ufcRed">' + score.toLocaleString() + ' pt</span>' +
+                        '<span class="oswald-sharp text-[9px] text-gray-600 italic">' + (isOpen ? '▲' : '▼') + '</span>' +
+                      '</div>' +
                     '</div>' +
                     '<div class="w-full bg-white/5 rounded-full h-1.5 mb-1">' +
                       '<div class="h-1.5 rounded-full bg-ufcRed transition-all duration-700" style="width:' + pct + '%"></div>' +
@@ -6200,8 +6237,23 @@ async function addCommentToDB(postDbId, userNick, text) {
                     '<p class="oswald-sharp text-[10px] text-gray-600 italic uppercase tracking-widest">' + escapeHtml(f.representative_fighters || '') + '</p>' +
                   '</div>' +
                 '</div>' +
+                memberPanel +
             '</div>';
         }).join('');
+    }
+
+    // 집단 멤버 랭킹 패널 토글
+    function toggleFactionMemberRanking(factionId) {
+        if (selectedFactionRankingId === factionId) {
+            selectedFactionRankingId = null;
+            renderFactionRanking();
+            return;
+        }
+        selectedFactionRankingId = factionId;
+        renderFactionRanking();  // loading placeholder 즉시 표시
+        if (!factionMemberRankings[factionId]) {
+            loadFactionMemberRankings(factionId);  // async → renderFactionRanking() 재호출
+        }
     }
 
     // 집단 선택 모달 열기

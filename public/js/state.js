@@ -93,3 +93,5 @@ var likedPostIds = new Set();
 // 집단(Faction) 시스템
 var factions = [];        // factions 테이블 전체 캐시 [{id, name, emoji_icon, representative_fighters, total_score}]
 var currentFaction = null; // 현재 로그인 유저의 faction 객체 (null = 미선택)
+var selectedFactionRankingId = null; // 현재 펼친 집단 멤버 패널 faction id
+var factionMemberRankings = {};      // { [factionId]: [...members] } get_faction_member_rankings RPC 캐시
