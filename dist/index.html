@@ -6165,15 +6165,25 @@ async function addCommentToDB(postDbId, userNick, text) {
             el.innerHTML = '<div class="glass-card p-10 text-center text-gray-600 oswald-sharp text-xs italic uppercase tracking-widest rounded-2xl">집단 데이터 로딩 중...</div>';
             return;
         }
-        // total_score 내림차순 정렬 (이미 DB에서 정렬되어 오지만 안전하게 재정렬)
-        var sorted = factions.slice().sort(function(a, b) { return (b.total_score || 0) - (a.total_score || 0); });
-        var maxScore = sorted[0].total_score || 1;
+        // RPC가 total_win_points 기준으로 정렬하여 반환하지만 안전하게 재정렬
+        var sorted = factions.slice().sort(function(a, b) { return (b.total_win_points || 0) - (a.total_win_points || 0); });
+        var maxScore = sorted[0].total_win_points || 1;
 
         el.innerHTML = sorted.map(function(f, idx) {
-            var pct = Math.round(((f.total_score || 0) / maxScore) * 100);
+            var score = f.total_win_points || 0;
+            var pct = Math.round((score / maxScore) * 100);
             var isMyFaction = currentFaction && currentFaction.id === f.id;
-            var rank = idx + 1;
+            var rank = f.rank || (idx + 1);
             var medalEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '<span class="oswald-sharp text-gray-500 font-black italic">#' + rank + '</span>';
+            var accColor = (f.accuracy !== null && f.accuracy !== undefined)
+                ? (f.accuracy >= 70 ? 'text-ufcRed' : f.accuracy >= 50 ? 'text-white' : 'text-gray-400')
+                : 'text-gray-600';
+            var accText = (f.accuracy !== null && f.accuracy !== undefined) ? f.accuracy + '%' : '—';
+            var statsLine = '<span class="text-gray-600">' + (f.member_count || 0) + '명</span>' +
+                ' <span class="text-white/20">·</span> ' +
+                '<span class="text-gray-500">' + (f.win_picks || 0) + 'W / ' + (f.total_picks || 0) + '</span>' +
+                ' <span class="text-white/20">·</span> ' +
+                '<span class="' + accColor + '">' + accText + '</span>';
             return '<div class="glass-card rounded-[2rem] p-5 lg:p-8 border ' + (isMyFaction ? 'border-ufcRed/50' : 'border-white/5') + ' ' + (isMyFaction ? 'faction-ranking-mine' : '') + '">' +
                 '<div class="flex items-center gap-4 mb-4">' +
                   '<div class="text-2xl lg:text-3xl w-10 text-center">' + medalEmoji + '</div>' +
@@ -6181,12 +6191,13 @@ async function addCommentToDB(postDbId, userNick, text) {
                   '<div class="flex-1">' +
                     '<div class="flex items-center justify-between mb-1">' +
                       '<span class="oswald-sharp text-base lg:text-xl font-black italic text-white uppercase">' + escapeHtml(f.name) + (isMyFaction ? ' <span class="text-ufcRed text-xs">◀ 내 집단</span>' : '') + '</span>' +
-                      '<span class="oswald-sharp text-sm lg:text-base font-black italic text-ufcRed">' + (f.total_score || 0).toLocaleString() + ' pt</span>' +
+                      '<span class="oswald-sharp text-sm lg:text-base font-black italic text-ufcRed">' + score.toLocaleString() + ' pt</span>' +
                     '</div>' +
-                    '<div class="w-full bg-white/5 rounded-full h-1.5">' +
+                    '<div class="w-full bg-white/5 rounded-full h-1.5 mb-1">' +
                       '<div class="h-1.5 rounded-full bg-ufcRed transition-all duration-700" style="width:' + pct + '%"></div>' +
                     '</div>' +
-                    '<p class="oswald-sharp text-[10px] text-gray-600 italic uppercase tracking-widest mt-1">' + escapeHtml(f.representative_fighters) + '</p>' +
+                    '<p class="oswald-sharp text-[9px] italic uppercase tracking-widest mb-1">' + statsLine + '</p>' +
+                    '<p class="oswald-sharp text-[10px] text-gray-600 italic uppercase tracking-widest">' + escapeHtml(f.representative_fighters || '') + '</p>' +
                   '</div>' +
                 '</div>' +
             '</div>';

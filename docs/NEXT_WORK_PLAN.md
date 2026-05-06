@@ -314,14 +314,14 @@
 Pick-tagon 작업 이어서 진행하자.
 
 현재 상태:
-- main 2커밋 ahead of origin/main (push 후 origin/main 기준으로 확인)
-- Phase 4A/B/C/D Common Data RPC 전부 구현 완료, admin workspace 픽 현황 패널 연결 완료
+- main == origin/main (push 후 확인)
+- Phase 5A RPC + 프론트 연결 완료 (get_faction_leaderboard RPC 기반 랭킹 화면)
 - dirty: .claude/settings.json, .claudeignore untracked (커밋 금지)
 
 우선순위 후보 (선택해줘):
-A. 집단/소속 랭킹 RPC 설계 — faction score/points 산정 기준 확인 및 RPC 설계
-B. Profile 고도화 UI — Phase 4B RPC 기반 체급별/방식별 분석 카드 개선
-C. Admin visual QA — 실제 admin 계정으로 Phase 4D 픽 현황 패널 클릭 검증
+A. Phase 5A-3 smoke QA — 실제 브라우저에서 집단 랭킹 탭 확인 (스탯 라인, 점수, 모달)
+B. 집단 멤버 랭킹 UI — 팩션 클릭 시 get_faction_member_rankings 패널 추가
+C. Profile 고도화 UI — Phase 4B RPC 기반 체급별/방식별 분석 카드 개선
 
 원칙:
 - 운영 데이터 수정 금지

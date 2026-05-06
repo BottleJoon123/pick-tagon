@@ -12,12 +12,25 @@
 // ── Faction API ──────────────────────────────────────
 function loadFactions() {
     if (!sb) return;
-    sb.from('factions')
-        .select('*')
-        .order('total_score', { ascending: false })
+    sb.rpc('get_faction_leaderboard')
         .then(function(res) {
-            if (res.error || !res.data) return;
-            factions = res.data;
+            if (!res.error && res.data) {
+                factions = res.data.map(function(r) {
+                    return {
+                        id:                      r.faction_id,
+                        name:                    r.faction_name,
+                        emoji_icon:              r.emoji_icon,
+                        representative_fighters: r.representative_fighters,
+                        total_score:             r.total_win_points,  // 기존 UI 호환
+                        rank:                    r.rank,
+                        member_count:            r.member_count,
+                        total_win_points:        r.total_win_points,
+                        win_picks:               r.win_picks,
+                        total_picks:             r.total_picks,
+                        accuracy:                r.accuracy
+                    };
+                });
+            }
             if (typeof renderFactionRanking === 'function') renderFactionRanking();
         });
 }

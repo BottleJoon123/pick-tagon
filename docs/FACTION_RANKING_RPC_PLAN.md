@@ -150,13 +150,31 @@ GRANT anon, authenticated
 
 ---
 
-## 프론트 연결 계획 (Phase 5A-3)
+## Phase 5A-3 — Frontend 연결 ✅ (2026-05-06)
 
-| 현재 코드 | 변경 내용 |
-|-----------|-----------|
-| `loadFactions()` in `public/js/api/supabase.js` — `factions.total_score` 직접 읽기 | `get_faction_leaderboard()` RPC로 교체 |
-| `renderFactionRanking()` in `index.html` — `f.total_score` 사용 | RPC 반환 필드(`total_win_points`, `accuracy` 등)로 확장 |
-| 집단 멤버 랭킹 UI | 현재 없음 — 팩션 클릭 시 멤버 랭킹 패널 신규 추가 가능 |
+### 완료 내용
+- `get_faction_leaderboard()` v2: `representative_fighters` 추가 (반환 타입 변경 → DROP/CREATE)
+  - migration: `supabase/migrations/20260505_get_faction_leaderboard_v2.sql`
+- `loadFactions()` in `public/js/api/supabase.js` — RPC 호출로 교체
+  - 반환 객체 정규화: `faction_id → id`, `faction_name → name`, `total_win_points → total_score` (레거시 호환)
+  - RPC 실패 시 `factions` 기존 캐시 유지, `renderFactionRanking()` 호출
+- `renderFactionRanking()` in `index.html` — RPC 필드 우선 사용
+  - 점수: `f.total_win_points` (기존 `f.total_score` → 교체)
+  - 추가 스탯 라인: `N명 · NW / N총 · N%` (member_count, win_picks, total_picks, accuracy)
+  - accuracy 색상: ≥70% ufcRed, ≥50% white, <50% gray, null → gray `—`
+  - 정렬: `total_win_points` 기준 재정렬 (RPC pre-sorted + 안전 재정렬)
+- `dist/js/api/supabase.js`, `dist/index.html` 반영 완료
+
+### 호환성 보장
+| 기존 코드 경로 | 호환 방법 |
+|----------------|-----------|
+| `_renderFactionCards()` — `f.id`, `f.name`, `f.emoji_icon`, `f.representative_fighters` | RPC 반환값 정규화로 그대로 작동 |
+| `setUserFaction()` — `factions.find(f.id === factionId)` | `id: r.faction_id` 매핑으로 그대로 작동 |
+| `selectFaction()` — `factions[i].id` | 동일 |
+| `currentFaction.id === f.id` 비교 | 동일 |
+
+### 집단 멤버 랭킹 UI
+현재 없음 — 후속 Phase에서 팩션 클릭 시 멤버 랭킹 패널 신규 추가 예정
 
 ---
 
