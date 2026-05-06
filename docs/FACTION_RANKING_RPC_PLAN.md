@@ -187,6 +187,52 @@ GRANT anon, authenticated
 | 로딩 중 | placeholder → 데이터 도착 시 `renderFactionRanking()` 재호출로 자동 교체 |
 | 변경 파일 | `public/js/state.js`, `public/js/api/supabase.js`, `index.html`, dist 반영 |
 
+### Phase 5A-4 Smoke QA — 코드 리뷰 기반 (2026-05-06)
+
+#### PASS/FAIL 표
+
+| 항목 | 코드 경로 | 결과 |
+|------|-----------|------|
+| 8개 집단 카드 렌더링 | `factions.slice().sort(...)` → `.map()` | PASS |
+| 다게스탄 2,090pt / 1명 / 12W / 26총 / 63% | `statsLine` — `total_win_points`, `member_count`, `win_picks`, `total_picks`, `accuracy` | PASS |
+| 조지아 190pt / 1명 / 1W / 9총 / 50% | 동일 | PASS |
+| 0멤버 집단 0pt / — / 행 포함 | `member_count \|\| 0`, `win_picks \|\| 0`, `accuracy → '—'` | PASS |
+| ▼/▲ 인디케이터 | `isOpen ? '▲' : '▼'` in header | PASS |
+| 카드 클릭 → 패널 펼침 + 로딩 placeholder | `toggleFactionMemberRanking`: `selectedFactionRankingId = factionId` → `renderFactionRanking()` 즉시 → `members === undefined` → "로딩 중..." | PASS |
+| 재클릭 → 패널 접힘 | `selectedFactionRankingId === factionId` → `null` → re-render | PASS |
+| 다른 집단 클릭 → 기존 닫힘 / 새 패널 열림 | `isOpen = selectedFactionRankingId === f.id` 로직으로 이전 카드 `isOpen=false` | PASS |
+| 캐시 히트 시 RPC 재호출 없음 | `if (!factionMemberRankings[factionId])` guard | PASS |
+| 한국 (0픽 멤버) | `net_points\|\|0 → 0P`, `accuracy null → '—'`, `0W 0L` | PASS |
+| 0멤버 집단 → "멤버 없음" | RPC `[]` → `members.length === 0` 분기 | PASS |
+| P3 캐시 무효화 | `loadFactions()` 성공 → `factionMemberRankings = {}` → 열린 패널 있으면 `loadFactionMemberRankings()` 재호출 | PASS |
+| P3 async 두 번 렌더 패턴 | 즉시 "로딩 중..." → RPC 완료 후 `renderFactionRanking()` 재호출 | PASS |
+| Modal 호환: `representative_fighters` | `r.representative_fighters` 정규화 포함 | PASS |
+| Modal 호환: `id / name / emoji_icon` | `id: r.faction_id`, `name: r.faction_name` 매핑 | PASS |
+| `onclick` 중첩 충돌 없음 | 집단 선택 modal 버튼은 랭킹 카드 내부에 없음 | PASS |
+| 모바일: nickname truncate | `truncate` + `min-w-0` on left container | PASS |
+| 모바일: 우측 숫자 고정 | `shrink-0` on right container | PASS (★관찰 참고) |
+
+#### Findings
+
+**Finding 1 — RPC 실패 ≡ "멤버 없음" 구분 불가 (저위험)**
+- 경로: `loadFactionMemberRankings` → `(!res.error && res.data) ? res.data : []`
+- 결과: RPC 실패와 0멤버 집단이 동일하게 `members = []` → "멤버 없음" 표시
+- 위험도: 낮음 — 안전하게 처리되나 사용자가 에러와 빈 상태를 구분 불가
+- 수정 필요 없음 (운영 중 혼란 보고 시 별도 처리)
+
+**Finding 2 — 모바일 320px 우측 고정 공간 관찰 (정보성)**
+- `'flex items-center gap-3 shrink-0'` — WL · accuracy · points 세 컬럼이 고정폭
+- 320px에서 nickname이 충분히 truncate되면 문제 없으나 닉네임이 짧을 경우 레이아웃은 정상
+- 실 기기 확인 권장 (코드 리뷰로는 확인 한계)
+
+**Finding 3 — P3 async 정보성 메모**
+- `factionMemberRankings = {}` 직후 `loadFactionMemberRankings()` 호출 (비동기, await 없음)
+- 그 다음 줄에서 `renderFactionRanking()` 호출 → 이 시점 `factionMemberRankings[id] === undefined` → "로딩 중..." 표시
+- RPC 완료 시 `renderFactionRanking()` 재호출 → 데이터 표시
+- 정상적인 two-render 패턴. 단, P3 무효화 후 패널이 짧게 "로딩 중..."으로 깜빡일 수 있음 (UX 허용 범위)
+
+**전체 결론: PASS — Phase 5A-4 코드 리뷰 기반 QA 통과. 실 브라우저 확인 권장.**
+
 ---
 
 ## 보류 항목
