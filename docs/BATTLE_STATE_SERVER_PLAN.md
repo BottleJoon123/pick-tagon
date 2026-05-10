@@ -1,7 +1,7 @@
 # Battle State Server Plan
 
 작성일: 2026-05-10
-Phase: 5C (5C-1~4 완료 / 5C-5 QA 대기)
+Phase: 5C 전체 완료 (5C-1~5)
 전제: Phase 5B (battle_votes + vote_battle RPC) 완료 (`8c4d731`)
 
 ---
@@ -550,7 +550,7 @@ QA 결과 (Supabase MCP):
 | 기존 row null_rows = 0 | PASS |
 | 기존 row min/max HP = 100/100 | PASS |
 
-다음: Phase 5C-5 — Full QA
+다음: Phase 5D — attack/foul broadcast HP 서버화
 
 ### Phase 5C-2: vote_battle RPC 확장 + 프론트 투표 흐름 변경 ✅ (2026-05-10)
 
@@ -660,9 +660,133 @@ QA 결과 (코드 레벨 — 18/18 PASS):
 | broadcast vote_cast legacy fallback 유지 | PASS |
 | npm run build PASS (373.29 kB) | PASS |
 
-### Phase 5C-5: QA
+### Phase 5C-5: QA ✅ (2026-05-10)
 
-Section 10 참조
+**QA 방법**: 코드 레벨 정적 분석 (migration SQL + index.html)  
+**결과**: 전 항목 PASS (5개 false-fail은 정규식 범위 문제 — 수동 확인으로 모두 정상 검증)
+
+#### A. DB/RPC 구조
+
+| 항목 | 결과 | 비고 |
+|------|------|------|
+| battles.starter_hp INTEGER NOT NULL DEFAULT 100 | PASS | 20260510_battle_state_server.sql |
+| battles.receiver_hp INTEGER NOT NULL DEFAULT 100 | PASS | 20260510_battle_state_server.sql |
+| CHECK 0 ≤ starter_hp ≤ 100 | PASS | battles_starter_hp_range |
+| CHECK 0 ≤ receiver_hp ≤ 100 | PASS | battles_receiver_hp_range |
+| battle_votes UNIQUE(battle_id, voter_id) | PASS | 20260507_vote_battle_rpc.sql |
+| vote_battle RPC (5C-2 버전) 존재 | PASS | 20260510_vote_battle_server_hp.sql |
+| finish_battle RPC 존재 | PASS | 20260510_finish_battle_rpc.sql |
+| finish_battle REVOKE ALL FROM PUBLIC | PASS | — |
+| finish_battle GRANT TO authenticated only | PASS | — |
+| battle_votes 직접 INSERT policy 없음 | PASS | SECURITY DEFINER RPC만 허용 |
+| vote_battle SECURITY DEFINER | PASS | — |
+| finish_battle SECURITY DEFINER | PASS | — |
+
+#### B. vote_battle RPC 로직
+
+| 항목 | 결과 |
+|------|------|
+| 인증 필수 (auth.uid IS NULL → authentication_required) | PASS |
+| side 검증 (invalid_side) | PASS |
+| FOR UPDATE 잠금 (race condition 방지) | PASS |
+| active 상태 검증 (battle_not_active) | PASS |
+| 참가자 본인 투표 차단 (participant_cannot_vote) | PASS |
+| INSERT ON CONFLICT DO NOTHING | PASS |
+| already_voted 반환 | PASS |
+| HP 클램핑 LEAST(100, hp+3) | PASS |
+| HP 클램핑 GREATEST(0, hp-3) | PASS |
+| 단일 UPDATE로 HP + votes 동시 갱신 | PASS |
+| 반환: ok, side, starter_hp, receiver_hp, starter_votes, receiver_votes | PASS |
+
+#### C. octagonVote() 프론트
+
+| 항목 | 결과 |
+|------|------|
+| RPC ok:false/error → HP변경 없이 return | PASS |
+| voteSubmitting guard (중복 클릭 방지) | PASS |
+| voteSubmitting = true before await | PASS |
+| voteSubmitting = false after await (에러 시도 복구) | PASS |
+| broadcast vote_cast payload에 starter_hp 포함 | PASS |
+| broadcast vote_cast payload에 receiver_hp 포함 | PASS |
+| vote_cast 수신: payload 절대값 우선 적용 | PASS |
+| legacy fallback else 분기 (payload 없을 때만) | PASS |
+| votes.starter 서버값 동기화 | PASS |
+
+#### D. finish_battle RPC + _endBattle() 로직
+
+| 항목 | 결과 |
+|------|------|
+| 인증 필수 (authentication_required) | PASS |
+| FOR UPDATE 잠금 (이중 종료 race 방지) | PASS |
+| already_finished 멱등성 (ok:true 반환) | PASS |
+| active 상태 검증 (battle_not_active) | PASS |
+| IS DISTINCT FROM 참가자 검증 (NULL-safe) | PASS |
+| participant_required 반환 | PASS |
+| DB HP 기준 winner 결정 | PASS |
+| Tie-break: battle_messages COUNT per nick | PASS |
+| 동수 시 starter 우선 (v_s_msgs >= v_r_msgs) | PASS |
+| COALESCE(finished_at, NOW()) 최초 시각 보존 | PASS |
+| _endBattle() async function 전환 | PASS |
+| messagesInserted 플래그 (await 전 세팅) | PASS |
+| insRes.error → toast + return (RPC 호출 전 중단) | PASS |
+| finish_battle RPC 호출 | PASS |
+| already_finished 시 battle_ended broadcast 생략 | PASS |
+| renderOctagonResult에 서버 winner_nick 사용 | PASS |
+
+#### E. postgres_changes fallback (Phase 5C-4)
+
+| 항목 | 결과 |
+|------|------|
+| battles UPDATE 구독 등록 | PASS |
+| filter: id=eq.+battleId | PASS |
+| battleId 불일치 guard | PASS |
+| idle 상태 guard | PASS |
+| typeof number HP 정정 | PASS |
+| _updateHpBars() 핸들러 내 호출 | PASS |
+| votes.starter/receiver 동기화 | PASS |
+| 종료 fallback guard (already finished skip) | PASS |
+| fallback renderOctagonResult | PASS |
+| exitOctagon removeChannel (postgres_changes 포함) | PASS |
+| inviteChannel battles postgres_changes 사용 → publication 확인 | PASS |
+
+---
+
+#### Findings
+
+**FINDING-01** — Severity: LOW
+- 위치: `vote_battle` RPC (20260510_vote_battle_server_hp.sql line 55)
+- 설명: 참가자 투표 차단 조건에서 `receiver_id = v_uid`에 일반 `=` 비교 사용. `finish_battle`은 `IS DISTINCT FROM`으로 수정했으나 `vote_battle`은 미적용.
+- 영향: Active 배틀에서 `receiver_id`는 항상 NOT NULL이므로 실제 취약점 없음. NULL인 상태(pending)는 이미 active 검증(`step 4`)에서 차단됨.
+- 수정 필요: 선택적 (안전성 향상, 기능 영향 없음) — Phase 5D cleanup 후보
+
+**FINDING-02** — Severity: INFO
+- 위치: `vote_battle` RPC HP 하한 vs 클라이언트 legacy fallback
+- 설명: 서버 HP 하한 = `GREATEST(0, ...)` = 0. 클라이언트 legacy vote_cast fallback = `Math.max(10, ...)` = 10. attack/foul = `Math.max(5, ...)`. Phase 5C-2 spec에서 0 기준으로 의도됨.
+- 영향: 정상 경로(서버 HP 절대값 payload)에서는 불일치 없음. legacy path는 old client에서만 발동.
+- 수정 필요: 없음 (의도된 설계)
+
+**FINDING-03** — Severity: INFO
+- 위치: `_advanceTurn()` line 5825 — `_endBattle()` 호출 시 `await` 없음
+- 설명: `_endBattle()`이 async function이지만 `_advanceTurn()`에서 `await` 없이 호출됨 (fire-and-forget).
+- 영향: 에러 propagation 없음. 단, `_endBattle()` 내에 `throw` 없으므로 unhandled rejection 위험 없음. 에러는 toast로 노출됨.
+- 수정 필요: 없음 (의도된 패턴)
+
+**FINDING-04** — Severity: INFO
+- 위치: `_subscribeOctagonRoom()` postgres_changes 구독
+- 설명: battles 테이블 Realtime publication 설정 여부는 코드 레벨로 직접 확인 불가. 실제 브라우저 테스트 필요.
+- 근거: `octagon.inviteChannel`이 이미 `battles` postgres_changes (INSERT/UPDATE)를 사용 중이므로 publication 활성화 간접 확인됨.
+- 수정 필요: 없음 (브라우저 QA에서 확인 권고)
+
+---
+
+#### Known Limitations (Phase 5C 범위 외)
+
+| 항목 | 상태 | 예정 Phase |
+|------|------|-----------|
+| attack/foul broadcast HP 서버화 | ❌ 미해결 | Phase 5D |
+| fake attack/foul broadcast로 HP 일시 조작 가능 | ❌ 미해결 | Phase 5D |
+| Realtime 지연으로 broadcast와 postgres_changes 순서 역전 가능 | 영향 최소화됨 | 모니터링 |
+| battle_messages.user_id 컬럼 없음 (user_nick만 있음) | ❌ 미해결 | Phase 5D cleanup |
 
 ---
 

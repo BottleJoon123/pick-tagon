@@ -1,6 +1,6 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-10 (Phase 5C-4)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-10 (Phase 5C-5 QA)
 현재 기준 커밋: push 후 `git log --oneline -1 origin/main` 으로 확인
 
 ---
@@ -53,6 +53,7 @@
 - Phase 5C-2: vote_battle RPC HP 갱신 확장 + octagonVote() 서버 HP 적용 완료
 - Phase 5C-3: finish_battle RPC 신규 + _endBattle() 서버 위임 완료
 - Phase 5C-4: postgres_changes 구독으로 battles DB 상태 HP/votes/종료 정정 완료
+- Phase 5C-5: Phase 5C 전체 코드 레벨 QA 완료 (59/59 PASS, 4개 Finding 기록)
 - ISSUE-01/02/03 repair 완료
 
 ---
@@ -261,7 +262,27 @@
   - HP/votes DB 공식값으로 정정, 종료 fallback (battle_ended 누락 시 DB로 처리)
   - 방어 조건: battleId 불일치, idle 상태, already finished 모두 skip
   - exitOctagon removeChannel 한 번으로 postgres_changes 포함 전체 해제
-- ⏳ **5C-5**: QA
+- ✅ **5C-5**: Phase 5C 전체 코드 레벨 QA 완료
+  - 59/59 항목 PASS (A.DB구조, B.vote_battle, C.octagonVote UI, D.finish_battle, E.postgres_changes fallback)
+  - Finding-01(LOW): vote_battle 참가자 차단 `=` vs `IS DISTINCT FROM` 불일치 — active 배틀 제약으로 실위험 없음
+  - Finding-02(INFO): HP 하한 서버(0) vs legacy fallback(10) 불일치 — 의도된 설계
+  - Finding-03(INFO): _advanceTurn에서 _endBattle() await 없음 — fire-and-forget 의도
+  - Finding-04(INFO): battles Realtime publication 직접 확인 불가 — inviteChannel 간접 확인
+
+---
+
+### Phase 5D — Battle 보안 강화 2차 (후보)
+
+Phase 5C Finding + Known Limitations 기반 후속 작업 후보.
+
+작업 후보:
+- **5D-1**: `vote_battle` RPC 참가자 차단 조건 `IS DISTINCT FROM` 적용 (Finding-01)
+- **5D-2**: attack/foul broadcast HP 서버화 (새 RPC or battles.attack_hp 컬럼)
+- **5D-3**: `battle_messages.user_id` 컬럼 추가 (nick→id 이중 저장, tie-break 강화)
+- **5D-4**: anon GRANT cleanup (vote_battle 등)
+- **5D-5**: battle_ended broadcast 누락 시나리오 브라우저 실제 테스트
+
+우선순위: 5C Finding-01은 LOW severity, 현재 배포에 즉각적 위험 없음. 다른 기능 작업 후 별도 세션에서 진행 권장.
 
 ---
 
