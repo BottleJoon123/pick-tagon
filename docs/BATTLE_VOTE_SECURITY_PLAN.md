@@ -145,7 +145,14 @@ Phase 5B는 **DB 레벨 중복 투표 방지**만 해결한다.
 
 ## Phase 5C 후보 — Broadcast 스팸 / HP 서버사이드화
 
-Phase 5B 이후 배틀 보안 강화 방향. **미구현, 설계 필요.**
+Phase 5B 이후 배틀 보안 강화 방향.
+**설계 완료 (2026-05-10): `docs/BATTLE_STATE_SERVER_PLAN.md` 참조.**
+
+추천안: 후보 A' — `battles.starter_hp / receiver_hp` 컬럼 추가 + `vote_battle` RPC HP 갱신 확장 + `finish_battle` RPC 신규 + postgres_changes 구독.
+
+---
+
+### 원래 후보 요약 (설계 시 검토 항목)
 
 ### 후보 A: HP snapshot 서버 저장 + 종료 시 서버 검증
 
