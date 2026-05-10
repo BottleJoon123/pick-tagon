@@ -1,21 +1,18 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-05
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-10
 현재 기준 커밋: push 후 `git log --oneline -1 origin/main` 으로 확인
 
 ---
 
-## 2026-05-05 상태 업데이트
+## 2026-05-10 상태 업데이트
 
 **완료 (이번 세션):**
-- Phase 4A: `get_event_leaderboard` RPC 구현 · DB 적용 · 프론트 연결 · push (`6eabf9e`)
-- Phase 4C: `get_event_pick_ratios` RPC 구현 · DB 적용 · 프론트 연결 · push (`bfcae51`)
-  - `event_picks` vs `picks` source-of-truth 판단 완료 → `picks`로 확정
-- Phase 4B: `get_user_pick_stats` RPC 구현 · DB 적용 · docs 업데이트 · push (`1c0e6d8`)
-  - 체급별/방식별/upset 통계, GRANT authenticated only
-- Phase 4D Admin smoke QA 완료 (`docs/QA_RUN_2026-05-05_PHASE4D_ADMIN.md`)
-  - FN 273/274/275 및 0픽 upcoming 이벤트 패널 매핑 PASS
-- Build: dist/ 4개 파일 커밋 (`a6ecbfa`) — admin lifecycle UI, DnD, RPC 전환, castVote fix
+- Phase 5A-4: 집단 멤버 랭킹 UI + QA 문서 push (`9c6df90`, `a4c718a`)
+- Profile 고도화 UI: `get_user_pick_stats` RPC 기반 통계 카드 개선 push (`fd595a6`)
+  - totalAll(pending 포함) 표시, accuracy null → '—', 업셋 비율, by_method 동적 렌더
+- Phase 5B: battle vote dedup DB 레벨 구현 push (`8c4d731`)
+  - `battle_votes` 테이블 + `vote_battle` RPC + `octagonVote()` RPC 전환
 
 **현재 dirty:**
 - `.claude/settings.json`, `.claudeignore`: untracked, 커밋하지 않음
@@ -25,7 +22,19 @@
 - 2번 QA 2차 ✅
 - 3번 공통 데이터 RPC (Phase 4A/B/C) ✅
 - 4번 Event Lifecycle Phase 3 ✅
+- 9번 프로필 고도화 (1차) ✅
 - 12번 배포/레포 정리 (.gitignore) ✅
+
+---
+
+## 2026-05-05 상태 업데이트 (이전)
+
+**완료:**
+- Phase 4A: `get_event_leaderboard` RPC 구현 · DB 적용 · 프론트 연결 · push (`6eabf9e`)
+- Phase 4C: `get_event_pick_ratios` RPC 구현 · DB 적용 · 프론트 연결 · push (`bfcae51`)
+- Phase 4B: `get_user_pick_stats` RPC 구현 · DB 적용 · docs 업데이트 · push (`1c0e6d8`)
+- Phase 4D Admin smoke QA 완료 (`docs/QA_RUN_2026-05-05_PHASE4D_ADMIN.md`)
+- Build: dist/ 4개 파일 커밋 (`a6ecbfa`)
 
 ---
 
@@ -36,15 +45,11 @@
 - users RLS insert own 및 구형 broad policy 제거 완료
 - admin 이벤트/대진표/fighter/ranking mutation RPC 서버화 1차 완료
 - event lifecycle Phase 1/2 완료
-  - 픽 마감
-  - 재오픈
-  - 정산
-  - 아카이브
-  - admin UI 버튼 연결
-- QA 체크리스트 및 QA run 문서 작성 완료
-- ISSUE-01 orphan pending picks repair 완료
-- ISSUE-02 users legacy RLS policy 제거 완료
-- ISSUE-03 place_pick pick_id UUID/BIGINT mismatch 수정 완료
+- Phase 4A/B/C/D 공통 데이터 RPC 완료
+- Phase 5A 집단 랭킹 RPC + UI 완료 (leaderboard v2, member ranking)
+- Profile 고도화 UI 1차 완료 (get_user_pick_stats 기반)
+- Phase 5B battle vote dedup 완료 (battle_votes + vote_battle RPC)
+- ISSUE-01/02/03 repair 완료
 
 ---
 
@@ -206,22 +211,46 @@
 
 ---
 
-### 9. 프로필 고도화
+### 9. 프로필 고도화 ✅ (1차 완료)
 
-목표: 유저가 자신의 예측 성향과 강점을 볼 수 있는 분석 리포트를 만든다.
+완료:
+- `get_user_pick_stats` RPC 기반 totalAll/accuracy null 처리/업셋 비율/by_method 동적 렌더 (`fd595a6`)
 
-작업:
-- 나만의 분석 리포트
-- 체급별 예측 적중률
-- 최근 폼
-- 방식별 예측 적중률
-- 보너스 획득 현황
-- 대표 배지/칭호
+남은 작업:
+- 대표 배지/칭호 시스템
 - 시즌별 성과
+- 더 많은 체급/방식 stat 시각화
 
-우선순위:
-- 먼저 RPC로 데이터 집계
-- 그 다음 UI 카드 구성
+---
+
+### Phase 5B — Battle Vote Dedup ✅ (2026-05-10, `8c4d731`)
+
+완료:
+- `battle_votes` 테이블 + `vote_battle` RPC 구현 및 DB 적용
+- `octagonVote()` RPC 기반 전환, `voteSubmitting` 중복 클릭 방지
+- DB 레벨 UNIQUE(battle_id, voter_id) 제약으로 중복 투표 차단
+
+참고 문서: `docs/BATTLE_VOTE_SECURITY_PLAN.md`
+
+---
+
+### Phase 5C — Battle Broadcast 보안 강화 (미구현, 설계 필요)
+
+목표: Realtime broadcast 스팸 / 클라이언트 HP 조작을 서버사이드로 차단한다.
+
+배경:
+- Phase 5B는 DB 레벨 중복 투표만 해결
+- broadcast `vote_cast` 스팸은 아직 가능 (채널 가입자 누구나 전송 가능)
+- 클라이언트 HP 직접 조작 (`octagon.starterHp = 5`) 도 아직 가능
+
+후보 작업:
+- 후보 A (권장 1순위): HP snapshot 서버 저장 — `battles.hp_snapshot JSONB`에 라운드별 HP 기록, `_endBattle()` 시 DB snapshot 기준 winner 결정
+- 후보 B: vote 이벤트 서버 집계 — `vote_battle` RPC 직접 HP 계산, broadcast 제거
+- 후보 C: Realtime Channel Authorization — 참가자/등록 관전자만 채널 입장 허용
+
+결정 필요:
+- 배틀 HP를 완전 서버사이드로 이전할지 vs snapshot 저장 절충안 선택
+- 구현 전 `docs/BATTLE_VOTE_SECURITY_PLAN.md` Phase 5C 섹션에 설계 확정 후 진행
 
 ---
 
@@ -314,14 +343,16 @@
 Pick-tagon 작업 이어서 진행하자.
 
 현재 상태:
-- main == origin/main (push 후 확인)
-- Phase 5A RPC + 프론트 연결 완료 (get_faction_leaderboard RPC 기반 랭킹 화면)
+- main == origin/main == 8c4d731
+- Phase 5B battle vote dedup 완료 (battle_votes + vote_battle RPC + octagonVote 전환)
+- Profile 고도화 UI 1차 완료
 - dirty: .claude/settings.json, .claudeignore untracked (커밋 금지)
 
 우선순위 후보 (선택해줘):
-A. Phase 5A smoke QA — 브라우저에서 집단 랭킹 탭 + 멤버 패널 토글 확인
-B. Profile 고도화 UI — Phase 4B RPC 기반 체급별/방식별 분석 카드 개선
-C. 랭킹 시스템 고도화 5번 — 전체/시즌/이벤트별 랭킹 RPC 설계
+A. Phase 5C 설계 — HP snapshot 서버 저장 방식으로 broadcast 스팸 완화
+   (docs/BATTLE_VOTE_SECURITY_PLAN.md Phase 5C 후보 A 참고)
+B. 랭킹 시스템 고도화 — 전체/시즌/이벤트별 랭킹 RPC 설계 (NEXT_WORK_PLAN 5번)
+C. 커뮤니티 개선 1차 — 픽 비율 실시간 연동 검증 + UI 정리 (NEXT_WORK_PLAN 7번)
 
 원칙:
 - 운영 데이터 수정 금지
