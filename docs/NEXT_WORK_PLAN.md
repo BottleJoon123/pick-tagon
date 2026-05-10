@@ -1,6 +1,6 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-10 (Phase 5C-1)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-10 (Phase 5C-2)
 현재 기준 커밋: push 후 `git log --oneline -1 origin/main` 으로 확인
 
 ---
@@ -50,6 +50,7 @@
 - Profile 고도화 UI 1차 완료 (get_user_pick_stats 기반)
 - Phase 5B battle vote dedup 완료 (battle_votes + vote_battle RPC)
 - Phase 5C-1: battles.starter_hp / receiver_hp DB 컬럼 + CHECK 제약 적용 완료
+- Phase 5C-2: vote_battle RPC HP 갱신 확장 + octagonVote() 서버 HP 적용 완료
 - ISSUE-01/02/03 repair 완료
 
 ---
@@ -243,10 +244,12 @@
 진행 상황:
 - ✅ **5C-1**: `battles.starter_hp / receiver_hp` INTEGER NOT NULL DEFAULT 100 + CHECK 제약 추가
   - migration: `supabase/migrations/20260510_battle_state_server.sql`
-- ⏳ **5C-2**: vote_battle RPC 확장 + 프론트 투표 흐름 변경
+- ✅ **5C-2**: vote_battle RPC HP 갱신 확장 + 프론트 투표 흐름 변경
+  - migration: `supabase/migrations/20260510_vote_battle_server_hp.sql`
   - vote_battle이 HP 갱신 후 starter_hp/receiver_hp 반환
-  - octagonVote() 서버 HP 값 적용, vote_cast payload 절대값 포함
-  - vote_cast 수신 ±3 계산 제거
+  - octagonVote() 서버 HP 절대값 적용, vote_cast payload HP 포함
+  - vote_cast 수신 payload HP 절대값 우선 적용 (legacy fallback 유지)
+- ⏳ **5C-3**: finish_battle RPC 신규 + _endBattle() 서버 위임
 - ⏳ **5C-3**: finish_battle RPC 신규 + _endBattle() 서버 위임
 - ⏳ **5C-4**: postgres_changes 구독 추가 (broadcast 스팸 방어)
 - ⏳ **5C-5**: QA

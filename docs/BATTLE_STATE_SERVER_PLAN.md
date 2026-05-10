@@ -1,7 +1,7 @@
 # Battle State Server Plan
 
 작성일: 2026-05-10
-Phase: 5C (5C-1 완료 / 5C-2~5 구현 대기)
+Phase: 5C (5C-1~2 완료 / 5C-3~5 구현 대기)
 전제: Phase 5B (battle_votes + vote_battle RPC) 완료 (`8c4d731`)
 
 ---
@@ -550,13 +550,37 @@ QA 결과 (Supabase MCP):
 | 기존 row null_rows = 0 | PASS |
 | 기존 row min/max HP = 100/100 | PASS |
 
-다음: Phase 5C-2 — vote_battle RPC 확장 + 프론트 투표 흐름 변경
+다음: Phase 5C-3 — finish_battle RPC + _endBattle() 서버 위임
 
-### Phase 5C-2: 프론트 투표 흐름 변경
+### Phase 5C-2: vote_battle RPC 확장 + 프론트 투표 흐름 변경 ✅ (2026-05-10)
 
-1. `octagonVote()` — RPC 반환 HP 사용, broadcast payload에 HP 포함
-2. `vote_cast` 수신 — payload 절대값 적용 (±3 계산 제거)
-3. `rejoinBattle()` — DB에서 HP 로드
+Migration: `supabase/migrations/20260510_vote_battle_server_hp.sql`
+
+완료 항목:
+- `vote_battle` RPC: 투표 성공 시 `battles.starter_hp / receiver_hp` DB 갱신 추가
+- `vote_battle` 반환: `{ok, side, starter_hp, receiver_hp, starter_votes, receiver_votes}`
+- HP 클램핑: `LEAST(100, hp+3)` / `GREATEST(0, hp-3)` (server-side)
+- `octagonVote()`: 로컬 ±3 계산 제거 → `res.data.starter_hp / receiver_hp` 절대값 적용
+- `octagonVote()`: `octagon.votes.starter/receiver` 서버 값으로 동기화
+- `vote_cast` broadcast payload: HP 절대값 포함 (`starter_hp, receiver_hp, starter_votes, receiver_votes`)
+- `vote_cast` 수신: payload HP 절대값 우선 적용, legacy fallback 유지
+
+QA 결과 (코드 레벨):
+
+| 항목 | 결과 |
+|------|------|
+| ok:false return이 HP 변경보다 선행 | PASS |
+| octagon.starterHp = res.data.starter_hp | PASS |
+| octagon.receiverHp = res.data.receiver_hp | PASS |
+| 로컬 ±3 계산 코드 제거 | PASS |
+| broadcast payload starter_hp 포함 | PASS |
+| broadcast payload receiver_hp 포함 | PASS |
+| votes.starter 서버 동기화 | PASS |
+| vote_cast 수신: d.starter_hp !== undefined 체크 | PASS |
+| vote_cast 수신: octagon.starterHp = d.starter_hp | PASS |
+| legacy fallback 존재 | PASS |
+| voteSubmitting guard 유지 | PASS |
+| npm run build PASS | PASS |
 
 ### Phase 5C-3: 배틀 종료 서버화
 

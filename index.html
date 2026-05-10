@@ -5539,12 +5539,19 @@ async function addCommentToDB(postDbId, userNick, text) {
             /* ── 투표 ── */
             .on('broadcast', { event: 'vote_cast' }, function(p) {
                 var d = p.payload;
-                if (d.for === 'starter') {
-                    octagon.starterHp = Math.min(100, octagon.starterHp + 3);
-                    octagon.receiverHp = Math.max(10, octagon.receiverHp - 3);
+                if (d.starter_hp !== undefined && d.receiver_hp !== undefined) {
+                    // 서버 HP 절대값 우선 (Phase 5C-2+)
+                    octagon.starterHp = d.starter_hp;
+                    octagon.receiverHp = d.receiver_hp;
                 } else {
-                    octagon.receiverHp = Math.min(100, octagon.receiverHp + 3);
-                    octagon.starterHp = Math.max(10, octagon.starterHp - 3);
+                    // legacy fallback — HP 절대값 없는 구형 payload
+                    if (d.for === 'starter') {
+                        octagon.starterHp = Math.min(100, octagon.starterHp + 3);
+                        octagon.receiverHp = Math.max(10, octagon.receiverHp - 3);
+                    } else {
+                        octagon.receiverHp = Math.min(100, octagon.receiverHp + 3);
+                        octagon.starterHp = Math.max(10, octagon.starterHp - 3);
+                    }
                 }
                 _updateHpBars();
             })
@@ -5895,20 +5902,22 @@ async function addCommentToDB(postDbId, userNick, text) {
             return;
         }
 
-        // RPC 성공 — HP 업데이트 및 broadcast
+        // RPC 성공 — 서버 HP 절대값으로 업데이트 및 broadcast
         octagon.votedThisBattle = true;
-        octagon.votes[forWho]++;
-        if (forWho === 'starter') {
-            octagon.starterHp = Math.min(100, octagon.starterHp + 3);
-            octagon.receiverHp = Math.max(10, octagon.receiverHp - 3);
-        } else {
-            octagon.receiverHp = Math.min(100, octagon.receiverHp + 3);
-            octagon.starterHp = Math.max(10, octagon.starterHp - 3);
-        }
+        octagon.starterHp = res.data.starter_hp;
+        octagon.receiverHp = res.data.receiver_hp;
+        if (res.data.starter_votes !== undefined) octagon.votes.starter = res.data.starter_votes;
+        if (res.data.receiver_votes !== undefined) octagon.votes.receiver = res.data.receiver_votes;
         _updateHpBars();
         if (octagon.battleChannel) {
             octagon.battleChannel.send({
-                type: 'broadcast', event: 'vote_cast', payload: { for: forWho }
+                type: 'broadcast', event: 'vote_cast', payload: {
+                    for: forWho,
+                    starter_hp: res.data.starter_hp,
+                    receiver_hp: res.data.receiver_hp,
+                    starter_votes: res.data.starter_votes,
+                    receiver_votes: res.data.receiver_votes
+                }
             });
         }
         showToast('🗳️ 투표 완료!');
