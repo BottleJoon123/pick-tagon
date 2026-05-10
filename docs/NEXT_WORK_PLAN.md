@@ -1,6 +1,6 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-10
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-10 (Phase 5C-1)
 현재 기준 커밋: push 후 `git log --oneline -1 origin/main` 으로 확인
 
 ---
@@ -49,6 +49,7 @@
 - Phase 5A 집단 랭킹 RPC + UI 완료 (leaderboard v2, member ranking)
 - Profile 고도화 UI 1차 완료 (get_user_pick_stats 기반)
 - Phase 5B battle vote dedup 완료 (battle_votes + vote_battle RPC)
+- Phase 5C-1: battles.starter_hp / receiver_hp DB 컬럼 + CHECK 제약 적용 완료
 - ISSUE-01/02/03 repair 완료
 
 ---
@@ -234,23 +235,21 @@
 
 ---
 
-### Phase 5C — Battle Broadcast 보안 강화 (미구현, 설계 필요)
+### Phase 5C — Battle Broadcast 보안 강화
 
-목표: Realtime broadcast 스팸 / 클라이언트 HP 조작을 서버사이드로 차단한다.
+설계 완료: `docs/BATTLE_STATE_SERVER_PLAN.md`
+추천안: battles HP 컬럼 + finish_battle RPC + postgres_changes fallback
 
-배경:
-- Phase 5B는 DB 레벨 중복 투표만 해결
-- broadcast `vote_cast` 스팸은 아직 가능 (채널 가입자 누구나 전송 가능)
-- 클라이언트 HP 직접 조작 (`octagon.starterHp = 5`) 도 아직 가능
-
-후보 작업:
-- 후보 A (권장 1순위): HP snapshot 서버 저장 — `battles.hp_snapshot JSONB`에 라운드별 HP 기록, `_endBattle()` 시 DB snapshot 기준 winner 결정
-- 후보 B: vote 이벤트 서버 집계 — `vote_battle` RPC 직접 HP 계산, broadcast 제거
-- 후보 C: Realtime Channel Authorization — 참가자/등록 관전자만 채널 입장 허용
-
-결정 필요:
-- 배틀 HP를 완전 서버사이드로 이전할지 vs snapshot 저장 절충안 선택
-- 구현 전 `docs/BATTLE_VOTE_SECURITY_PLAN.md` Phase 5C 섹션에 설계 확정 후 진행
+진행 상황:
+- ✅ **5C-1**: `battles.starter_hp / receiver_hp` INTEGER NOT NULL DEFAULT 100 + CHECK 제약 추가
+  - migration: `supabase/migrations/20260510_battle_state_server.sql`
+- ⏳ **5C-2**: vote_battle RPC 확장 + 프론트 투표 흐름 변경
+  - vote_battle이 HP 갱신 후 starter_hp/receiver_hp 반환
+  - octagonVote() 서버 HP 값 적용, vote_cast payload 절대값 포함
+  - vote_cast 수신 ±3 계산 제거
+- ⏳ **5C-3**: finish_battle RPC 신규 + _endBattle() 서버 위임
+- ⏳ **5C-4**: postgres_changes 구독 추가 (broadcast 스팸 방어)
+- ⏳ **5C-5**: QA
 
 ---
 

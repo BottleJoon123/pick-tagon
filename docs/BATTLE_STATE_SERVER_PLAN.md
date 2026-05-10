@@ -1,7 +1,7 @@
 # Battle State Server Plan
 
 작성일: 2026-05-10
-Phase: 5C (설계 완료, 구현 대기)
+Phase: 5C (5C-1 완료 / 5C-2~5 구현 대기)
 전제: Phase 5B (battle_votes + vote_battle RPC) 완료 (`8c4d731`)
 
 ---
@@ -528,12 +528,29 @@ octagon.receiverHp = res.data.receiver_hp || 100; // 추가
 
 ## 9. 단계별 구현 계획
 
-### Phase 5C-1: DB Migration
+### Phase 5C-1: DB Migration ✅ (2026-05-10)
 
-1. `battles` 테이블에 `starter_hp INT NOT NULL DEFAULT 100`, `receiver_hp INT NOT NULL DEFAULT 100` 추가
-2. `vote_battle` RPC 확장 (HP 갱신 + 반환)
-3. `finish_battle` RPC 신규 생성
-4. migration 파일: `supabase/migrations/20260510_battle_state_server.sql`
+Migration: `supabase/migrations/20260510_battle_state_server.sql`
+
+완료 항목:
+- `battles.starter_hp INTEGER NOT NULL DEFAULT 100` 추가
+- `battles.receiver_hp INTEGER NOT NULL DEFAULT 100` 추가
+- CHECK 제약: `battles_starter_hp_range` (0 ≤ starter_hp ≤ 100)
+- CHECK 제약: `battles_receiver_hp_range` (0 ≤ receiver_hp ≤ 100)
+- 기존 6개 row: NULL 없음, 전체 100으로 backfill 확인
+
+QA 결과 (Supabase MCP):
+
+| 항목 | 결과 |
+|------|------|
+| starter_hp: INTEGER NOT NULL DEFAULT 100 | PASS |
+| receiver_hp: INTEGER NOT NULL DEFAULT 100 | PASS |
+| battles_starter_hp_range CHECK (0 ≤ hp ≤ 100) | PASS |
+| battles_receiver_hp_range CHECK (0 ≤ hp ≤ 100) | PASS |
+| 기존 row null_rows = 0 | PASS |
+| 기존 row min/max HP = 100/100 | PASS |
+
+다음: Phase 5C-2 — vote_battle RPC 확장 + 프론트 투표 흐름 변경
 
 ### Phase 5C-2: 프론트 투표 흐름 변경
 
