@@ -5117,6 +5117,7 @@ async function addCommentToDB(postDbId, userNick, text) {
         pendingBattleId: null,
         pendingStarterNick: null,
         votedThisBattle: false,
+        voteSubmitting: false,  // RPC 요청 중 중복 클릭 방지
         // 게임화 추가
         attackCooldown: false,
         foulCooldown: false,
@@ -5863,9 +5864,38 @@ async function addCommentToDB(postDbId, userNick, text) {
     }
 
     /* ──────────── 관전자 투표 ──────────── */
-    function octagonVote(forWho) {
+    async function octagonVote(forWho) {
         if (octagon.role !== 'spectator') return;
+        if (!currentUser) { showToast('⚠️ 로그인 후 투표 가능합니다'); return; }
         if (octagon.votedThisBattle) { showToast('이미 투표했습니다'); return; }
+        if (octagon.voteSubmitting) return;  // 중복 클릭 방지
+        octagon.voteSubmitting = true;
+
+        var res = await sb.rpc('vote_battle', {
+            p_battle_id: octagon.battleId,
+            p_side: forWho
+        });
+
+        octagon.voteSubmitting = false;
+
+        if (res.error || !res.data || !res.data.ok) {
+            var reason = res.data && res.data.reason;
+            if (reason === 'already_voted') {
+                octagon.votedThisBattle = true;  // 서버 기준으로 동기화
+                showToast('이미 투표했습니다');
+            } else if (reason === 'participant_cannot_vote') {
+                showToast('⚠️ 참가자는 투표할 수 없습니다');
+            } else if (reason === 'battle_not_active') {
+                showToast('⚠️ 진행 중인 배틀이 아닙니다');
+            } else if (reason === 'authentication_required') {
+                showToast('⚠️ 로그인 후 투표 가능합니다');
+            } else {
+                showToast('⚠️ 투표 실패: ' + (reason || ''));
+            }
+            return;
+        }
+
+        // RPC 성공 — HP 업데이트 및 broadcast
         octagon.votedThisBattle = true;
         octagon.votes[forWho]++;
         if (forWho === 'starter') {
@@ -6129,7 +6159,8 @@ async function addCommentToDB(postDbId, userNick, text) {
             starterHp: 100, receiverHp: 100, spectatorCount: 0,
             battleChannel: null, inviteChannel: octagon.inviteChannel,  // 수신 채널은 유지
             timerInterval: null, liveTypingOpponent: '',
-            pendingBattleId: null, pendingStarterNick: null, votedThisBattle: false,
+            pendingBattleId: null, pendingStarterNick: null,
+            votedThisBattle: false, voteSubmitting: false,
         };
         navigateTo('community');
     }
