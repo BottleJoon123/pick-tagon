@@ -5579,6 +5579,34 @@ async function addCommentToDB(postDbId, userNick, text) {
                 octagon.spectatorCount = Object.keys(s).length;
                 _updateSpectatorCount();
             })
+            /* ── DB 상태 정정: battles UPDATE → HP/votes/종료 보정 (Phase 5C-4) ── */
+            .on('postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'battles', filter: 'id=eq.' + battleId },
+                function(payload) {
+                    var b = payload.new;
+                    if (!b || b.id !== octagon.battleId || octagon.status === 'idle') return;
+
+                    // HP 정정: broadcast 스팸으로 흔들린 화면 값을 DB 공식값으로 덮어쓰기
+                    if (typeof b.starter_hp === 'number') octagon.starterHp = b.starter_hp;
+                    if (typeof b.receiver_hp === 'number') octagon.receiverHp = b.receiver_hp;
+                    _updateHpBars();
+
+                    // votes 동기화
+                    if (typeof b.starter_votes === 'number') octagon.votes.starter = b.starter_votes;
+                    if (typeof b.receiver_votes === 'number') octagon.votes.receiver = b.receiver_votes;
+
+                    // 종료 fallback: _endBattle/battle_ended broadcast가 누락된 경우 DB값으로 처리
+                    if (b.status === 'finished' && b.winner_nick && octagon.status !== 'finished') {
+                        octagon.status = 'finished';
+                        _stopTimer();
+                        _cleanupOctagonGame();
+                        var displayReason = (b.starter_hp !== b.receiver_hp)
+                            ? '투표 결과'
+                            : '동점 — 참여도 기준 Tie-break';
+                        renderOctagonResult(b.winner_nick, b.starter_hp, b.receiver_hp, displayReason);
+                    }
+                }
+            )
             .subscribe(function(state) {
                 if (state === 'SUBSCRIBED') {
                     octagon.battleChannel.track({ nick: myNick, role: role, at: Date.now() });

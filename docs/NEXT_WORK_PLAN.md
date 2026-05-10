@@ -1,6 +1,6 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-10 (Phase 5C-3)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-10 (Phase 5C-4)
 현재 기준 커밋: push 후 `git log --oneline -1 origin/main` 으로 확인
 
 ---
@@ -52,6 +52,7 @@
 - Phase 5C-1: battles.starter_hp / receiver_hp DB 컬럼 + CHECK 제약 적용 완료
 - Phase 5C-2: vote_battle RPC HP 갱신 확장 + octagonVote() 서버 HP 적용 완료
 - Phase 5C-3: finish_battle RPC 신규 + _endBattle() 서버 위임 완료
+- Phase 5C-4: postgres_changes 구독으로 battles DB 상태 HP/votes/종료 정정 완료
 - ISSUE-01/02/03 repair 완료
 
 ---
@@ -255,7 +256,11 @@
   - finish_battle: SELECT FOR UPDATE + already_finished 멱등성 + HP 기준 winner
   - _endBattle() async 전환, battle_messages INSERT 선행 후 RPC 호출
   - battle_ended broadcast: already_finished 시 생략
-- ⏳ **5C-4**: postgres_changes 구독 추가 (broadcast 스팸 방어)
+- ✅ **5C-4**: postgres_changes 구독 추가 (broadcast 스팸 방어)
+  - `octagon.battleChannel`에 battles UPDATE 구독 체이닝 (별도 채널 불필요)
+  - HP/votes DB 공식값으로 정정, 종료 fallback (battle_ended 누락 시 DB로 처리)
+  - 방어 조건: battleId 불일치, idle 상태, already finished 모두 skip
+  - exitOctagon removeChannel 한 번으로 postgres_changes 포함 전체 해제
 - ⏳ **5C-5**: QA
 
 ---

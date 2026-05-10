@@ -1,7 +1,7 @@
 # Battle State Server Plan
 
 작성일: 2026-05-10
-Phase: 5C (5C-1~3 완료 / 5C-4~5 구현 대기)
+Phase: 5C (5C-1~4 완료 / 5C-5 QA 대기)
 전제: Phase 5B (battle_votes + vote_battle RPC) 완료 (`8c4d731`)
 
 ---
@@ -550,7 +550,7 @@ QA 결과 (Supabase MCP):
 | 기존 row null_rows = 0 | PASS |
 | 기존 row min/max HP = 100/100 | PASS |
 
-다음: Phase 5C-4 — postgres_changes 구독 추가
+다음: Phase 5C-5 — Full QA
 
 ### Phase 5C-2: vote_battle RPC 확장 + 프론트 투표 흐름 변경 ✅ (2026-05-10)
 
@@ -618,11 +618,47 @@ QA 결과 (코드 레벨 — Node.js 검증 13/13):
 | displayReason: HP 동 → '동점 — 참여도 기준 Tie-break' | PASS |
 | npm run build PASS (371.19 kB) | PASS |
 
-### Phase 5C-4: postgres_changes 구독
+### Phase 5C-4: postgres_changes 구독 ✅ (2026-05-10)
 
-1. `_subscribeOctagonRoom()` 내 postgres_changes 핸들러 추가
-2. broadcast 스팸 시 DB 값으로 자동 수정
-3. 배틀 종료 서버 이벤트 처리
+완료 항목:
+- `_subscribeOctagonRoom()` 내 기존 `octagon.battleChannel`에 `.on('postgres_changes', ...)` 체이닝 추가
+  (별도 채널 불필요 — Supabase Realtime 채널은 broadcast/presence/postgres_changes 혼용 지원)
+- 필터: `event: 'UPDATE', schema: 'public', table: 'battles', filter: 'id=eq.' + battleId`
+- HP 정정: `b.starter_hp / b.receiver_hp`가 number이면 `octagon.starterHp/receiverHp`를 DB 공식값으로 덮어쓰고 `_updateHpBars()`
+- votes 동기화: `b.starter_votes / b.receiver_votes`가 number이면 `octagon.votes.starter/receiver` 갱신
+- 종료 fallback: `b.status === 'finished' && b.winner_nick && octagon.status !== 'finished'` 조건에서만 발동
+  - `_endBattle()` 또는 `battle_ended` broadcast가 이미 처리했으면 skip (guard 역할)
+  - `_stopTimer(); _cleanupOctagonGame(); renderOctagonResult(...)` 호출
+- 방어 조건: `!b || b.id !== octagon.battleId || octagon.status === 'idle'` → return
+- cleanup: `exitOctagon()`의 `sb.removeChannel(octagon.battleChannel)` 한 번으로 postgres_changes 포함 전체 해제
+
+한계:
+- attack/foul broadcast HP는 여전히 클라이언트 계산 — postgres_changes UPDATE가 다음 투표까지 도착하지 않으면 일시적 오차 가능 (Phase 5D 대상)
+- postgres_changes 구독 실패 시 broadcast UX는 그대로 작동 (fallback 역할이므로 기존 흐름 영향 없음)
+- Supabase Realtime postgres_changes는 RLS 정책 적용: battles SELECT를 anon/authenticated에게 허용 필요 (기존 정책 충족)
+
+QA 결과 (코드 레벨 — 18/18 PASS):
+
+| 항목 | 결과 |
+|------|------|
+| postgres_changes 등록 | PASS |
+| filter: id=eq.+battleId | PASS |
+| UPDATE event 지정 | PASS |
+| battleId 불일치 guard | PASS |
+| idle 상태 guard | PASS |
+| starter_hp typeof number 체크 | PASS |
+| receiver_hp typeof number 체크 | PASS |
+| _updateHpBars 핸들러 내 호출 (line 5592) | PASS |
+| votes.starter 동기화 | PASS |
+| votes.receiver 동기화 | PASS |
+| finished && winner_nick guard | PASS |
+| octagon.status = 'finished' 세팅 | PASS |
+| _cleanupOctagonGame 호출 | PASS |
+| renderOctagonResult(b.winner_nick, ...) 호출 | PASS |
+| .subscribe() 직전 체이닝 | PASS |
+| exitOctagon removeChannel 유지 | PASS |
+| broadcast vote_cast legacy fallback 유지 | PASS |
+| npm run build PASS (373.29 kB) | PASS |
 
 ### Phase 5C-5: QA
 
