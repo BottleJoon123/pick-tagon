@@ -1,7 +1,7 @@
 # Battle State Server Plan
 
 작성일: 2026-05-10
-Phase: 5C (5C-1~2 완료 / 5C-3~5 구현 대기)
+Phase: 5C (5C-1~3 완료 / 5C-4~5 구현 대기)
 전제: Phase 5B (battle_votes + vote_battle RPC) 완료 (`8c4d731`)
 
 ---
@@ -550,7 +550,7 @@ QA 결과 (Supabase MCP):
 | 기존 row null_rows = 0 | PASS |
 | 기존 row min/max HP = 100/100 | PASS |
 
-다음: Phase 5C-3 — finish_battle RPC + _endBattle() 서버 위임
+다음: Phase 5C-4 — postgres_changes 구독 추가
 
 ### Phase 5C-2: vote_battle RPC 확장 + 프론트 투표 흐름 변경 ✅ (2026-05-10)
 
@@ -582,12 +582,41 @@ QA 결과 (코드 레벨):
 | voteSubmitting guard 유지 | PASS |
 | npm run build PASS | PASS |
 
-### Phase 5C-3: 배틀 종료 서버화
+### Phase 5C-3: 배틀 종료 서버화 ✅ (2026-05-10)
 
-1. `_endBattle()` → `async function`으로 변환, `finish_battle` RPC 호출
-2. 클라이언트 HP 비교 로직 제거
-3. `already_finished` 응답 처리 (상대방 선행 종료 시 멱등성)
-4. `battle_messages` INSERT 유지 (round_info 저장 선택)
+Migration: `supabase/migrations/20260510_finish_battle_rpc.sql`
+
+완료 항목:
+- `finish_battle(p_battle_id UUID) RETURNS JSONB` RPC 신규 생성
+- `SELECT FOR UPDATE` 잠금으로 이중 종료 race condition 방지
+- DB HP (`starter_hp / receiver_hp`) 기준 winner 결정
+- `already_finished` 멱등성: 두 번 호출 시 ok:true + 기존 결과 반환
+- `participant_required`: 비참가자 호출 차단
+- Tie-break: battle_messages 발언 수 → 동수 시 starter 우선
+- `_endBattle()` async 전환 + `finish_battle` RPC 위임
+- battle_messages INSERT await 완료 후 finish_battle 호출 (tie-break 데이터 선행 확보)
+- battle_ended broadcast: reason='already_finished' 시 재전송 생략
+- `renderOctagonResult` displayReason 로직: HP 차 → '투표 결과' / HP 동 → '동점 — 참여도 기준 Tie-break'
+- `REVOKE ALL FROM PUBLIC; GRANT EXECUTE TO authenticated`
+
+QA 결과 (코드 레벨 — Node.js 검증 13/13):
+
+| 항목 | 결과 |
+|------|------|
+| _endBattle async function 선언 | PASS |
+| finish_battle RPC 호출 존재 | PASS |
+| p_battle_id: octagon.battleId 전달 | PASS |
+| res.error \|\| !res.data.ok 에러 처리 | PASS |
+| starterHp = d.starter_hp 절대값 적용 | PASS |
+| receiverHp = d.receiver_hp 절대값 적용 | PASS |
+| already_finished 시 broadcast 생략 | PASS |
+| battle_ended payload winnerNick 포함 | PASS |
+| battle_ended payload starterHp/receiverHp 포함 | PASS |
+| roundFinalMessages battle_messages INSERT 유지 | PASS |
+| displayReason: already_finished → '' | PASS |
+| displayReason: HP 차 → '투표 결과' | PASS |
+| displayReason: HP 동 → '동점 — 참여도 기준 Tie-break' | PASS |
+| npm run build PASS (371.19 kB) | PASS |
 
 ### Phase 5C-4: postgres_changes 구독
 

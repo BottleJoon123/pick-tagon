@@ -5822,52 +5822,52 @@ async function addCommentToDB(postDbId, userNick, text) {
         else _startTimerDisplay();
     }
 
-    /* ──────────── 배틀 종료 + Tie-break ──────────── */
-    function _endBattle() {
+    /* ──────────── 배틀 종료 + 서버 winner 결정 ──────────── */
+    async function _endBattle() {
         _stopTimer();
         _cleanupOctagonGame();
         octagon.status = 'finished';
 
-        var sHp = octagon.starterHp, rHp = octagon.receiverHp;
-        var winnerNick, reason;
-        if (sHp > rHp) {
-            winnerNick = octagon.starterNick; reason = '투표 결과';
-        } else if (rHp > sHp) {
-            winnerNick = octagon.receiverNick; reason = '투표 결과';
-        } else {
-            // Tie-break: 발언 수 기준
-            var sCount = octagon.messages.filter(function(m) { return m.nick === octagon.starterNick; }).length;
-            var rCount = octagon.messages.filter(function(m) { return m.nick === octagon.receiverNick; }).length;
-            winnerNick = sCount >= rCount ? octagon.starterNick : octagon.receiverNick;
-            reason = '동점 — 참여도 기준 Tie-break';
+        if (!sb) return;
+
+        // 라운드 최종 발언 battle_messages에 저장 (finish_battle tie-break 전에 완료)
+        var msgRows = [];
+        Object.keys(octagon.roundFinalMessages).forEach(function(r) {
+            var msgs = octagon.roundFinalMessages[r];
+            if (msgs.starter) msgRows.push({ battle_id: octagon.battleId, user_nick: octagon.starterNick, content: msgs.starter, round: parseInt(r) });
+            if (msgs.receiver) msgRows.push({ battle_id: octagon.battleId, user_nick: octagon.receiverNick, content: msgs.receiver, round: parseInt(r) });
+        });
+        if (msgRows.length) await sb.from('battle_messages').insert(msgRows);
+
+        // finish_battle RPC — 서버 DB HP 기준 winner 결정, 이중 종료 방지
+        var res = await sb.rpc('finish_battle', { p_battle_id: octagon.battleId });
+
+        if (res.error || !res.data || !res.data.ok) {
+            showToast('⚠️ 배틀 종료 처리 실패');
+            return;
         }
 
-        // DB 결과 저장
-        if (sb) {
-            sb.from('battles').update({
-                status: 'finished', winner_nick: winnerNick,
-                starter_votes: octagon.votes.starter,
-                receiver_votes: octagon.votes.receiver,
-                finished_at: new Date().toISOString(),
-            }).eq('id', octagon.battleId).then(function(){});
+        var d = res.data;
+        octagon.starterHp = d.starter_hp;
+        octagon.receiverHp = d.receiver_hp;
 
-            // 각 라운드 최종 발언 battle_messages에 저장
-            Object.keys(octagon.roundFinalMessages).forEach(function(r) {
-                var msgs = octagon.roundFinalMessages[r];
-                var rows = [];
-                if (msgs.starter) rows.push({ battle_id: octagon.battleId, user_nick: octagon.starterNick, content: msgs.starter, round: parseInt(r) });
-                if (msgs.receiver) rows.push({ battle_id: octagon.battleId, user_nick: octagon.receiverNick, content: msgs.receiver, round: parseInt(r) });
-                if (rows.length) sb.from('battle_messages').insert(rows).then(function(){});
-            });
-        }
-
-        if (octagon.battleChannel) {
+        if (d.reason !== 'already_finished' && octagon.battleChannel) {
             octagon.battleChannel.send({
                 type: 'broadcast', event: 'battle_ended',
-                payload: { winnerNick: winnerNick, starterHp: sHp, receiverHp: rHp, reason: reason }
+                payload: { winnerNick: d.winner_nick, starterHp: d.starter_hp, receiverHp: d.receiver_hp, reason: d.reason }
             });
         }
-        renderOctagonResult(winnerNick, sHp, rHp, reason);
+
+        // 표시용 reason: 서버 HP 비교 기준
+        var displayReason;
+        if (d.reason === 'already_finished') {
+            displayReason = '';
+        } else if (d.starter_hp !== d.receiver_hp) {
+            displayReason = '투표 결과';
+        } else {
+            displayReason = '동점 — 참여도 기준 Tie-break';
+        }
+        renderOctagonResult(d.winner_nick, d.starter_hp, d.receiver_hp, displayReason);
     }
 
     /* ──────────── 관전자 투표 ──────────── */
