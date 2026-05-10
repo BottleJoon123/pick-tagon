@@ -5118,6 +5118,7 @@ async function addCommentToDB(postDbId, userNick, text) {
         pendingStarterNick: null,
         votedThisBattle: false,
         voteSubmitting: false,  // RPC 요청 중 중복 클릭 방지
+        messagesInserted: false, // battle_messages 이중 insert 방지
         // 게임화 추가
         attackCooldown: false,
         foulCooldown: false,
@@ -5831,13 +5832,23 @@ async function addCommentToDB(postDbId, userNick, text) {
         if (!sb) return;
 
         // 라운드 최종 발언 battle_messages에 저장 (finish_battle tie-break 전에 완료)
-        var msgRows = [];
-        Object.keys(octagon.roundFinalMessages).forEach(function(r) {
-            var msgs = octagon.roundFinalMessages[r];
-            if (msgs.starter) msgRows.push({ battle_id: octagon.battleId, user_nick: octagon.starterNick, content: msgs.starter, round: parseInt(r) });
-            if (msgs.receiver) msgRows.push({ battle_id: octagon.battleId, user_nick: octagon.receiverNick, content: msgs.receiver, round: parseInt(r) });
-        });
-        if (msgRows.length) await sb.from('battle_messages').insert(msgRows);
+        // messagesInserted 플래그: 이중 _endBattle() 호출 시 중복 insert 방지
+        if (!octagon.messagesInserted) {
+            octagon.messagesInserted = true;  // await 전에 세팅 → 동시 호출 방어
+            var msgRows = [];
+            Object.keys(octagon.roundFinalMessages).forEach(function(r) {
+                var msgs = octagon.roundFinalMessages[r];
+                if (msgs.starter) msgRows.push({ battle_id: octagon.battleId, user_nick: octagon.starterNick, content: msgs.starter, round: parseInt(r) });
+                if (msgs.receiver) msgRows.push({ battle_id: octagon.battleId, user_nick: octagon.receiverNick, content: msgs.receiver, round: parseInt(r) });
+            });
+            if (msgRows.length) {
+                var insRes = await sb.from('battle_messages').insert(msgRows);
+                if (insRes.error) {
+                    showToast('⚠️ 배틀 메시지 저장 실패');
+                    return;
+                }
+            }
+        }
 
         // finish_battle RPC — 서버 DB HP 기준 winner 결정, 이중 종료 방지
         var res = await sb.rpc('finish_battle', { p_battle_id: octagon.battleId });
@@ -6169,7 +6180,7 @@ async function addCommentToDB(postDbId, userNick, text) {
             battleChannel: null, inviteChannel: octagon.inviteChannel,  // 수신 채널은 유지
             timerInterval: null, liveTypingOpponent: '',
             pendingBattleId: null, pendingStarterNick: null,
-            votedThisBattle: false, voteSubmitting: false,
+            votedThisBattle: false, voteSubmitting: false, messagesInserted: false,
         };
         navigateTo('community');
     }

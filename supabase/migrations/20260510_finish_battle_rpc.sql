@@ -59,7 +59,9 @@ BEGIN
     END IF;
 
     -- 5. 참가자 검증 (starter 또는 receiver만 종료 가능)
-    IF v_battle.starter_id <> v_uid AND v_battle.receiver_id <> v_uid THEN
+    --    IS DISTINCT FROM: NULL-safe 비교 (NULL = v_uid → false, NULL ≠ v_uid → true)
+    IF v_battle.starter_id IS DISTINCT FROM v_uid
+       AND v_battle.receiver_id IS DISTINCT FROM v_uid THEN
         RETURN jsonb_build_object('ok', false, 'reason', 'participant_required');
     END IF;
 
