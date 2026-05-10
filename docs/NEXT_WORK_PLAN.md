@@ -1,21 +1,38 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-10 (Phase 5C-5 QA)
-현재 기준 커밋: push 후 `git log --oneline -1 origin/main` 으로 확인
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-10 (Phase 5C 마감)
+현재 기준 커밋: `8bafccd` (origin/main = HEAD)
 
 ---
 
-## 2026-05-10 상태 업데이트
+## 2026-05-10 마감 상태
 
-**완료 (이번 세션):**
-- Phase 5A-4: 집단 멤버 랭킹 UI + QA 문서 push (`9c6df90`, `a4c718a`)
-- Profile 고도화 UI: `get_user_pick_stats` RPC 기반 통계 카드 개선 push (`fd595a6`)
-  - totalAll(pending 포함) 표시, accuracy null → '—', 업셋 비율, by_method 동적 렌더
-- Phase 5B: battle vote dedup DB 레벨 구현 push (`8c4d731`)
-  - `battle_votes` 테이블 + `vote_battle` RPC + `octagonVote()` RPC 전환
+**origin/main = HEAD = `8bafccd`** — ahead/behind 없음
+
+**오늘 완료:**
+- Phase 5B: `battle_votes` 테이블 + `vote_battle` RPC, DB 레벨 중복 투표 차단 (`8c4d731`)
+- Phase 5C-1: `battles.starter_hp / receiver_hp` 서버 HP 컬럼 추가 (`d970409`)
+- Phase 5C-2: `vote_battle` RPC 서버 HP 갱신, 프론트 서버 HP 절대값 적용 (`dafa456`)
+- Phase 5C-3: `finish_battle` RPC 신규, `_endBattle()` 서버 위임 (`361c942`, `dcfbfd7`)
+- Phase 5C-4: `battles` UPDATE `postgres_changes` fallback 추가 (`c947507`)
+- Phase 5C-5: Phase 5C 전체 코드 레벨 QA 59/59 PASS, 4개 Finding 문서화 (`8bafccd`)
 
 **현재 dirty:**
 - `.claude/settings.json`, `.claudeignore`: untracked, 커밋하지 않음
+
+**Known Limitations (Phase 5C 이후 잔존):**
+- attack/foul broadcast HP는 여전히 클라이언트 계산 — Phase 5D 대상
+- fake attack/foul broadcast로 화면 HP 일시 조작 가능 — Phase 5D 대상
+- `battle_messages.user_id` 컬럼 없음 (nick만 저장)
+- `vote_battle` 참가자 차단 조건 `=` (Finding-01 LOW) — 기능 영향 없음
+
+**다음 세션 후보 (우선순위 순):**
+A. Phase 5D read-only 설계 — attack/foul broadcast HP 서버화 조사/설계 (코드 수정 전 설계 먼저)
+B. Phase 5D-1 cleanup — `vote_battle` 참가자 차단 `IS DISTINCT FROM` 통일 (LOW, 단독 migration)
+C. Admin 고도화 설계 (뉴스 관리, 시즌 관리, 운영 대시보드)
+D. 랭킹/프로필 추가 고도화 (시즌 랭킹, 대표 배지)
+
+**추천: 다음 세션은 A부터. 바로 구현하지 말고 read-only 조사/설계 문서 먼저.**
 
 **완료 항목 참조 (이하 목록에서 완료된 것):**
 - 1번 KDI 데이터 정리 ✅
