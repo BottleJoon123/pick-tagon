@@ -1,7 +1,50 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-12 (Phase S2 시즌 관리 프론트 연결 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-12 (Phase D1 Admin 운영 대시보드 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-12 마감 상태 (6차)
+
+**origin/main = HEAD = push 후 최신 SHA 확인**
+
+**오늘 완료 (6차): Phase D1 — Admin 운영 대시보드**
+
+**변경 파일:**
+- `supabase/migrations/20260512_admin_dashboard_summary.sql` (신규)
+- `public/js/admin.js`, `dist/js/admin.js`
+- `index.html`, `dist/index.html`
+
+**DB:**
+- `get_admin_dashboard_summary()` RPC 추가
+- SECURITY DEFINER, `private.is_admin()` 검증, `GRANT authenticated`
+- 반환: event_counts(5종), pending_picks_total, active_battles, news_count, current_season, recent_audit_logs(5건)
+- news_count: `source='admin'` 기준 (news_admin UI 패턴 일치)
+
+**UI:**
+- Admin 탭 바에 "📊 대시보드" 탭 추가 (맨 앞, 기본 탭)
+- `admin-panel-dashboard` 패널 추가
+- `switchAdminTab()`: 'dashboard' 포함, `renderAdminDashboard()` 연결
+- `renderAdminDashboard()`: RPC 호출 → loading → 결과 렌더링, 새로고침 버튼
+- Admin 진입 시 `switchAdminTab('dashboard')` 기본 실행 (기존 fighters 기본 탭 교체)
+- fighters / ufc 탭은 lazy (탭 클릭 시 자동 렌더)
+
+**QA 결과:**
+- non-admin 호출 → `{ok:false, reason:'admin_required'}` ✓
+- 직접 집계 기준값: pending_picks=15, active_battles=1, news_count=0, event_counts={upcoming:2, archived:3}, Season 1 (0D), audit_logs 75건 ✓
+- `npm run build` PASS ✓
+- dist 동기화 완료 ✓
+- 기존 탭 전환 (fighters/ufc/archive/news/season/settings) 코드 유지 ✓
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
+
+**다음 세션 후보 (우선순위 순):**
+A. 결과 입력 QA 패널 (미정산 대진표 현황 + 정산 버튼 연동)
+B. Admin 대시보드 Phase D2 (7일 지급 포인트, 미결 matchup 수)
+C. 운영 이상 감지 알림 (pending_picks > N 경고, 미정산 이벤트 경고)
+D. deleteSeasonRecord DB 연동 (DB HOF 삭제 RPC)
 
 ---
 

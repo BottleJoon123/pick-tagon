@@ -1560,7 +1560,8 @@ textarea, select {
 
         <!-- Tab Bar -->
         <div class="flex gap-2 mb-5 lg:mb-8 border-b border-white/10 pb-4 flex-wrap">
-            <button onclick="switchAdminTab('fighters')" id="admin-tab-fighters" class="oswald-sharp admin-tab active-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all">🥊 파이터 DB</button>
+            <button onclick="switchAdminTab('dashboard')" id="admin-tab-dashboard" class="oswald-sharp admin-tab active-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all">📊 대시보드</button>
+            <button onclick="switchAdminTab('fighters')" id="admin-tab-fighters" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">🥊 파이터 DB</button>
             <button onclick="switchAdminTab('ufc')" id="admin-tab-ufc" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">📋 대진표 관리</button>
             <button onclick="switchAdminTab('archive')" id="admin-tab-archive" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">📊 아카이브</button>
             <button onclick="switchAdminTab('news')" id="admin-tab-news" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">📰 뉴스 관리</button>
@@ -1568,8 +1569,13 @@ textarea, select {
             <button onclick="switchAdminTab('settings')" id="admin-tab-settings" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">⚙ 설정</button>
         </div>
 
+        <!-- TAB: DASHBOARD -->
+        <div id="admin-panel-dashboard">
+            <!-- renderAdminDashboard()가 전체 내용 렌더링 -->
+        </div>
+
         <!-- TAB: FIGHTERS DB -->
-        <div id="admin-panel-fighters">
+        <div id="admin-panel-fighters" class="hidden">
             <div class="flex flex-col gap-3 mb-6">
                 <!-- Row 1: count + add button + scrape button -->
                 <div class="flex flex-wrap items-center justify-between gap-3">
@@ -2770,16 +2776,14 @@ textarea, select {
         if(id === 'community') { if (currentUser) loadMyBattles(); }
         if(id === 'profile') { setTimeout(() => renderProfileStats(), 100); }
         if(id === 'admin') {
-            renderAdminFighterList();
+            // 대시보드를 기본 탭으로 표시 (내부에서 renderAdminDashboard 호출)
+            switchAdminTab('dashboard');
+            // archive/news 패널 pre-load (숨겨진 상태; 탭 클릭 전 데이터 준비)
             renderArchiveAdminList();
             renderNewsAdminList();
-            renderSeasonAdminPanel();
-            fetchEventsForBuilder();
-            // DB에서 최신 시즌/HOF 로드 후 패널 재렌더 (fallback: 위 renderSeasonAdminPanel이 이미 localStorage 값 표시)
+            // Season DB pre-warm: 시즌 탭 방문 전에 seasonData 갱신
             if (typeof loadCurrentSeasonFromDB === 'function') {
-                Promise.all([loadCurrentSeasonFromDB(), loadHallOfFameFromDB()]).then(function() {
-                    renderSeasonAdminPanel();
-                });
+                Promise.all([loadCurrentSeasonFromDB(), loadHallOfFameFromDB()]);
             }
         }
         window.scrollTo({top: 0, behavior: 'smooth'});

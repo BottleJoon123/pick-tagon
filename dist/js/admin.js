@@ -129,20 +129,138 @@ function logoutAdmin() {
 
 // ----- ADMIN TAB -----
 function switchAdminTab(tab) {
-    ['fighters', 'archive', 'news', 'season', 'event', 'ufc', 'settings'].forEach(t => {
-        const panel = document.getElementById(`admin-panel-${t}`);
-        const tabEl = document.getElementById(`admin-tab-${t}`);
+    ['dashboard', 'fighters', 'archive', 'news', 'season', 'event', 'ufc', 'settings'].forEach(function(t) {
+        var panel = document.getElementById('admin-panel-' + t);
+        var tabEl = document.getElementById('admin-tab-'   + t);
         if (panel) panel.classList.add('hidden');
         if (tabEl) { tabEl.classList.remove('active-tab', 'text-ufcRed'); tabEl.classList.add('text-gray-500'); }
     });
-    const activePanel = document.getElementById(`admin-panel-${tab}`);
-    const activeTab = document.getElementById(`admin-tab-${tab}`);
+    var activePanel = document.getElementById('admin-panel-' + tab);
+    var activeTab   = document.getElementById('admin-tab-'   + tab);
     if (activePanel) activePanel.classList.remove('hidden');
-    if (activeTab) { activeTab.classList.add('active-tab'); activeTab.classList.remove('text-gray-500'); }
-    if (tab === 'fighters') renderAdminFighterList();
-    if (tab === 'season') renderSeasonAdminPanel();
-    if (tab === 'settings') { loadGeminiKeyToUI(); }
-    if (tab === 'ufc') { fetchEventsForBuilder(); }
+    if (activeTab)   { activeTab.classList.add('active-tab'); activeTab.classList.remove('text-gray-500'); }
+    if (tab === 'dashboard') renderAdminDashboard();
+    if (tab === 'fighters')  renderAdminFighterList();
+    if (tab === 'season')    renderSeasonAdminPanel();
+    if (tab === 'settings')  loadGeminiKeyToUI();
+    if (tab === 'ufc')       fetchEventsForBuilder();
+}
+
+// ── Admin Dashboard ──────────────────────────────────────────────────
+function renderAdminDashboard() {
+    var panel = document.getElementById('admin-panel-dashboard');
+    if (!panel) return;
+
+    if (!sb) {
+        panel.innerHTML = '<div class="glass-card p-8 text-center text-gray-600 oswald-sharp text-xs italic uppercase tracking-widest rounded-2xl">DB 연결 필요</div>';
+        return;
+    }
+
+    panel.innerHTML = [
+        '<div class="flex items-center justify-between mb-5">',
+        '  <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-widest italic">운영 현황 · 읽기 전용</p>',
+        '  <button onclick="renderAdminDashboard()" class="oswald-sharp border border-white/10 text-gray-400 hover:text-white font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">↻ 새로고침</button>',
+        '</div>',
+        '<div id="admin-dashboard-content">',
+        '  <div class="glass-card p-6 text-center text-gray-600 oswald-sharp text-xs italic uppercase tracking-widest rounded-2xl animate-pulse">로딩 중...</div>',
+        '</div>'
+    ].join('');
+
+    sb.rpc('get_admin_dashboard_summary').then(function(res) {
+        var content = document.getElementById('admin-dashboard-content');
+        if (!content) return;
+
+        if (res.error) {
+            content.innerHTML = '<div class="glass-card p-6 text-center text-ufcRed/70 oswald-sharp text-xs italic uppercase tracking-widest rounded-2xl">⚠ RPC 오류: ' + res.error.message + '</div>';
+            return;
+        }
+
+        var d = res.data;
+        if (!d || !d.ok) {
+            var reason = d && d.reason;
+            content.innerHTML = '<div class="glass-card p-6 text-center text-gray-600 oswald-sharp text-xs italic uppercase tracking-widest rounded-2xl">' + (reason === 'admin_required' ? '⚠ 관리자 권한 필요' : '⚠ 데이터 로드 실패') + '</div>';
+            return;
+        }
+
+        var ec = d.event_counts || {};
+        var STATUS_CFG = [
+            { key: 'upcoming',  label: 'UPCOMING',  num: 'text-emerald-400', border: 'border-emerald-500/20 bg-emerald-500/5' },
+            { key: 'locked',    label: 'LOCKED',    num: 'text-amber-400',   border: 'border-amber-500/20  bg-amber-500/5'  },
+            { key: 'completed', label: 'COMPLETED', num: 'text-blue-400',    border: 'border-blue-500/20   bg-blue-500/5'   },
+            { key: 'settled',   label: 'SETTLED',   num: 'text-green-400',   border: 'border-green-500/20  bg-green-500/5'  },
+            { key: 'archived',  label: 'ARCHIVED',  num: 'text-gray-500',    border: 'border-gray-600/20   bg-black/20'     }
+        ];
+
+        var eventCardsHtml = STATUS_CFG.map(function(cfg) {
+            return [
+                '<div class="glass-card rounded-2xl px-4 py-4 border ' + cfg.border + ' text-center">',
+                '  <p class="oswald-sharp text-2xl lg:text-3xl font-black italic ' + cfg.num + '">' + (ec[cfg.key] || 0) + '</p>',
+                '  <p class="oswald-sharp text-[8px] uppercase tracking-widest mt-1 text-gray-500">' + cfg.label + '</p>',
+                '</div>'
+            ].join('');
+        }).join('');
+
+        var cs = d.current_season || {};
+        var auditRows = d.recent_audit_logs || [];
+        var auditHtml = auditRows.length === 0
+            ? '<p class="oswald-sharp text-[9px] text-gray-700 italic uppercase tracking-widest text-center py-4">기록 없음</p>'
+            : auditRows.map(function(log) {
+                var dt = log.created_at ? log.created_at.slice(0, 16).replace('T', ' ') : '—';
+                return [
+                    '<div class="flex items-center justify-between py-2.5 border-b border-white/[0.04] last:border-0">',
+                    '  <div class="flex items-center gap-3 min-w-0">',
+                    '    <span class="oswald-sharp text-[9px] font-black italic text-ufcRed/80 uppercase tracking-widest flex-shrink-0">' + (log.action || '—') + '</span>',
+                    '    <span class="oswald-sharp text-[9px] text-gray-600 italic uppercase hidden lg:block">' + (log.entity_table || '—') + '</span>',
+                    '    <span class="oswald-sharp text-[9px] text-gray-700 truncate hidden lg:block" style="max-width:120px">' + (log.entity_id || '—') + '</span>',
+                    '  </div>',
+                    '  <span class="oswald-sharp text-[9px] text-gray-700 italic flex-shrink-0">' + dt + '</span>',
+                    '</div>'
+                ].join('');
+            }).join('');
+
+        content.innerHTML = [
+            '<!-- 이벤트 상태 -->',
+            '<div class="mb-5">',
+            '  <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-widest italic mb-3">이벤트 상태</p>',
+            '  <div class="grid grid-cols-5 gap-2 lg:gap-3">' + eventCardsHtml + '</div>',
+            '</div>',
+            '<!-- 핵심 지표 3종 -->',
+            '<div class="grid grid-cols-3 gap-3 lg:gap-4 mb-5">',
+            '  <div class="glass-card rounded-2xl p-4 lg:p-5 text-center">',
+            '    <p class="oswald-sharp text-2xl lg:text-3xl font-black italic text-white">' + (d.pending_picks_total || 0) + '</p>',
+            '    <p class="oswald-sharp text-[8px] uppercase tracking-widest mt-1 text-gray-500">Pending Picks</p>',
+            '  </div>',
+            '  <div class="glass-card rounded-2xl p-4 lg:p-5 text-center">',
+            '    <p class="oswald-sharp text-2xl lg:text-3xl font-black italic text-white">' + (d.active_battles || 0) + '</p>',
+            '    <p class="oswald-sharp text-[8px] uppercase tracking-widest mt-1 text-gray-500">Active Battles</p>',
+            '  </div>',
+            '  <div class="glass-card rounded-2xl p-4 lg:p-5 text-center">',
+            '    <p class="oswald-sharp text-2xl lg:text-3xl font-black italic text-white">' + (d.news_count || 0) + '</p>',
+            '    <p class="oswald-sharp text-[8px] uppercase tracking-widest mt-1 text-gray-500">News Items</p>',
+            '  </div>',
+            '</div>',
+            '<!-- 현재 시즌 -->',
+            '<div class="glass-card rounded-2xl p-4 lg:p-5 mb-5">',
+            '  <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-widest italic mb-2">Current Season</p>',
+            '  <div class="flex items-center justify-between">',
+            '    <p class="oswald-sharp font-black italic text-lg lg:text-2xl text-white uppercase tracking-tighter">' + (cs.name || '—') + '</p>',
+            '    <div class="text-right">',
+            '      <p class="oswald-sharp text-[9px] text-gray-600 italic uppercase">시작: ' + (cs.start_date || '—') + '</p>',
+            '      <p class="oswald-sharp text-sm font-black italic text-ufcRed">' + (cs.days_elapsed != null ? cs.days_elapsed + 'D' : '—') + '</p>',
+            '    </div>',
+            '  </div>',
+            '</div>',
+            '<!-- 최근 admin 작업 -->',
+            '<div class="glass-card rounded-2xl p-4 lg:p-5">',
+            '  <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-widest italic mb-3">Recent Admin Actions</p>',
+            auditHtml,
+            '</div>'
+        ].join('');
+
+    }).catch(function() {
+        var content = document.getElementById('admin-dashboard-content');
+        if (content) content.innerHTML = '<div class="glass-card p-6 text-center text-ufcRed/70 oswald-sharp text-xs italic uppercase tracking-widest rounded-2xl">⚠ 네트워크 오류</div>';
+    });
 }
 
 // ── Gemini API Key 관리 (어드민 설정 탭) ──
