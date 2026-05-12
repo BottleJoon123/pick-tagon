@@ -1122,7 +1122,11 @@ textarea, select {
                             <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 uppercase tracking-widest italic">내 순위</p>
                             <span id="current-season-badge" class="oswald-sharp text-[8px] bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 px-2 py-0.5 rounded font-black italic uppercase tracking-widest"></span>
                         </div>
-                        <p class="oswald-sharp text-lg lg:text-2xl font-black italic text-white uppercase tracking-tight" id="my-rank-nickname">MY RECORD</p>
+                        <div class="flex items-center gap-2">
+                            <p class="oswald-sharp text-lg lg:text-2xl font-black italic text-white uppercase tracking-tight" id="my-rank-nickname">—</p>
+                            <span id="my-rank-faction"></span>
+                        </div>
+                        <p id="my-rank-analyst" class="oswald-sharp text-[9px] italic tracking-widest mt-0.5 text-gray-400"></p>
                         <p id="my-rolling-info" class="oswald-sharp text-[9px] text-gray-600 italic uppercase tracking-widest mt-0.5"></p>
                     </div>
                 </div>
@@ -3509,6 +3513,26 @@ async function publishPost() {
         const badge = document.getElementById('current-season-badge');
         if (badge) badge.textContent = seasonData.current?.name || 'Season 1';
 
+        // my-rank-nickname
+        const nickEl = document.getElementById('my-rank-nickname');
+        if (nickEl) nickEl.textContent = myNickname;
+
+        // faction badge
+        const factionEl = document.getElementById('my-rank-faction');
+        if (factionEl) factionEl.innerHTML = getFactionBadge(currentFaction, 'sm');
+
+        // analyst type
+        const analystEl = document.getElementById('my-rank-analyst');
+        if (analystEl) {
+            const stateSettled = Object.values(state.settled || {});
+            const analystAcc = state.total === 0 ? null : Math.round(state.success / state.total * 100);
+            const methodBonusCount = stateSettled.filter(function(s) { return s.hadMethodBonus; }).length;
+            const upsetWins = stateSettled.filter(function(s) { return s.hadUpsetBonus && s.result === 'WIN'; }).length;
+            const analyst = getAnalystType(analystAcc, state.total, state.total, methodBonusCount, upsetWins);
+            analystEl.textContent = analyst.title;
+            analystEl.className = 'oswald-sharp text-[9px] italic tracking-widest mt-0.5 ' + analyst.color;
+        }
+
         // DB 랭킹 불러오기 시도
         if (sb) {
             loadRealRankings().then(function(res) {
@@ -3543,13 +3567,6 @@ async function publishPost() {
         // 내 데이터가 DB에 없으면 추가
         if (!all.find(u => u.isUser)) all.push(myEntry);
         else all = all.map(u => u.isUser ? myEntry : u);
-
-        // 목업 데이터 추가 (DB 유저가 적을 때)
-        if (all.length < 5) {
-            mockRankings.forEach(function(m) {
-                if (!all.find(u => u.name === m.name)) all.push(m);
-            });
-        }
 
         all.sort(function(a,b) { return b.points - a.points; });
         const userRank = all.findIndex(u => u.isUser) + 1;
@@ -3589,6 +3606,10 @@ async function publishPost() {
                 </div>
             </div>`;
         }).join('');
+
+        if (dbUsers.length === 0) {
+            list.innerHTML += '<div class="px-6 lg:px-10 py-8 text-center"><p class="oswald-sharp text-xs text-gray-600 italic uppercase tracking-widest">더 많은 파이터를 기다리는 중…</p></div>';
+        }
     }
     var _countdownInterval = null;
 

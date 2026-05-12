@@ -1,15 +1,33 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-12 (Phase 5D 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-12 (랭킹 my-rank-card 개선 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
 
 ---
 
-## 2026-05-12 마감 상태
+## 2026-05-12 마감 상태 (2차)
 
 **origin/main = HEAD = push 후 최신 SHA 확인**
 
-**오늘 완료:**
+**오늘 완료 (2차):**
+- `my-rank-nickname` 버그 수정: `renderLeaderboard()`에서 `getDisplayUsername()` 로 갱신
+- `my-rank-card`에 analyst type 표시 (`getAnalystType()` 결과 타이틀+색상)
+- `my-rank-card`에 faction badge 표시 (`getFactionBadge(currentFaction, 'sm')`)
+- mockRankings dummy injection 제거, 실제 DB 유저 없을 때 placeholder 표시
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`: untracked, 커밋하지 않음
+
+**다음 세션 후보 (우선순위 순):**
+A. Admin 고도화 설계 (뉴스 관리, 시즌 관리, 운영 대시보드)
+B. 랭킹/프로필 추가 고도화 (시즌 랭킹, 대표 배지)
+C. Phase 6: battle_actions 히스토리 / 리플레이 UI 설계
+
+---
+
+## 2026-05-12 마감 상태 (1차)
+
+**오늘 완료 (1차):**
 - Phase 5D 설계: `docs/BATTLE_ATTACK_SERVER_PLAN.md` (Finding-02 포함) (`9038169`)
 - Phase 5D-0: `advance_turn` RPC 신규, `_advanceTurn()` RPC 이전, `cancelBattleRequest()` RPC 이전, `battles_update_participant` DROP (`550ff5e`, `cebe600`, `ee2f49a`)
 - Phase 5D-1: `vote_battle` 참가자 차단 `IS NOT DISTINCT FROM` 통일 — DB 적용 완료
@@ -23,9 +41,6 @@
 - `cancelBattleRequest()`: `cancel_battle` RPC로 교체 (기존 직접 UPDATE 제거)
 - `battles_update_participant` 정책 DROP: HP 컬럼 직접 변조 경로 차단 (Finding-02 해소)
 
-**현재 dirty:**
-- `.claude/settings.json`, `.claudeignore`: untracked, 커밋하지 않음
-
 **Known Limitations (Phase 5D 전체 완료 이후 잔존):**
 - fake attack/foul broadcast frequency는 여전히 가능 (cosmetic — 다음 vote 시 DB값으로 자동 정정)
 - `battle_messages.user_id` 컬럼 없음 (nick만 저장)
@@ -35,11 +50,6 @@
 - 5D-1: vote_battle IS NOT DISTINCT FROM → NULL-safe 참가자 차단
 - 5D-2: attack/foul damage cap → 과장 damage 무력화
 - 5D-3: 결과 화면 cosmetic 명시화
-
-**다음 세션 후보 (우선순위 순):**
-A. Admin 고도화 설계 (뉴스 관리, 시즌 관리, 운영 대시보드)
-B. 랭킹/프로필 추가 고도화 (시즌 랭킹, 대표 배지)
-C. Phase 6: battle_actions 히스토리 / 리플레이 UI 설계
 
 **완료 항목 참조 (이하 목록에서 완료된 것):**
 - 1번 KDI 데이터 정리 ✅
