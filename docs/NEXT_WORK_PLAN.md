@@ -1,27 +1,42 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-12 (랭킹 my-rank-card 개선 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-12 (Admin UI gate repair 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
 
 ---
 
-## 2026-05-12 마감 상태 (2차)
+## 2026-05-12 마감 상태 (3차)
 
 **origin/main = HEAD = push 후 최신 SHA 확인**
+
+**오늘 완료 (3차): Admin UI gate repair**
+- `public/js/config.js`: `ADMIN_EMAILS` 화이트리스트 추가
+- `public/js/api/supabase.js` `loadUserFromDB()`: `is_admin` DB 컬럼 OR `ADMIN_EMAILS` 체크로 `adminUnlocked` 설정 (기존 hardcoded 이메일 제거)
+- `index.html` `navigateTo()`: admin 진입 guard 추가 — `adminUnlocked` 아닐 때 hash/popstate/직접호출 모두 home으로 리다이렉트
+
+**⚠️ 보안 범위 명시 (client-side gate):**
+- 이 작업은 Admin UI 진입만 차단하는 client-side gate임
+- 실제 데이터 보안은 Supabase SECURITY DEFINER RPC 레벨에서 별도 보호됨
+- Admin RPC 권한 체계 점검은 별도 Phase로 예정
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
+
+**다음 세션 후보 (우선순위 순):**
+A. 시즌 관리 DB 이전 (localStorage → `seasons` 테이블, Hall of Fame 영구 저장)
+B. 운영 대시보드 (미정산 이벤트, pending picks 현황 통합 뷰)
+C. 결과 입력 QA 패널 (정산 전 미입력 결과 검증)
+D. Admin RPC 서버 권한 체계 점검 (SECURITY DEFINER guard 일관성)
+
+---
+
+## 2026-05-12 마감 상태 (2차)
 
 **오늘 완료 (2차):**
 - `my-rank-nickname` 버그 수정: `renderLeaderboard()`에서 `getDisplayUsername()` 로 갱신
 - `my-rank-card`에 analyst type 표시 (`getAnalystType()` 결과 타이틀+색상)
 - `my-rank-card`에 faction badge 표시 (`getFactionBadge(currentFaction, 'sm')`)
 - mockRankings dummy injection 제거, 실제 DB 유저 없을 때 placeholder 표시
-
-**현재 dirty:**
-- `.claude/settings.json`, `.claudeignore`: untracked, 커밋하지 않음
-
-**다음 세션 후보 (우선순위 순):**
-A. Admin 고도화 설계 (뉴스 관리, 시즌 관리, 운영 대시보드)
-B. 랭킹/프로필 추가 고도화 (시즌 랭킹, 대표 배지)
-C. Phase 6: battle_actions 히스토리 / 리플레이 UI 설계
 
 ---
 

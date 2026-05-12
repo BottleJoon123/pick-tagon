@@ -273,9 +273,11 @@ function loadPostsFromDB() {
                 if (res.data.nickname) {
                     localStorage.setItem('picktagon_nickname', res.data.nickname);
                 }
-                // is_admin 체크 (currentUser null-safe)
+                // Admin UI gate: is_admin DB 컬럼 또는 ADMIN_EMAILS 화이트리스트 (client-side)
+                // 최종 보안은 DB SECURITY DEFINER RPC 레벨에서 별도 보호됨
                 var userEmail = (currentUser && currentUser.email) ? currentUser.email : '';
-                adminUnlocked = res.data.is_admin === true || userEmail === 'joonbyoung@naver.com';
+                adminUnlocked = res.data.is_admin === true
+                    || (typeof ADMIN_EMAILS !== 'undefined' && ADMIN_EMAILS.indexOf(userEmail) !== -1);
                 // faction 로드
                 currentFaction = res.data.factions || null;
                 save();

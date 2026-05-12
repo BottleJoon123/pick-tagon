@@ -2705,6 +2705,10 @@ textarea, select {
     var _currentPage = 'home';
 
     function navigateTo(id, fromPopState) {
+        // admin 직접 접근 차단 (hash, popstate, programmatic 모두 포함)
+        // admin 직접 접근 차단: adminUnlocked는 loadUserFromDB에서 ADMIN_EMAILS 체크 후 설정됨
+        if (id === 'admin' && !adminUnlocked) { id = 'home'; }
+
         var el = document.getElementById(id);
         if (!el) return;
 
