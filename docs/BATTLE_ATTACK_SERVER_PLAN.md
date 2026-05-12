@@ -248,16 +248,23 @@ damage 캡 클램핑만 추가하는 선에서 Phase 5D를 마무리하는 것�
 
 ## 5. 구현 범위 (Phase 5D)
 
-### 5D-0 (우선): battles_update_participant HP 변조 차단
+### 5D-0 (완료): battles_update_participant HP 변조 차단
 
-대상: `battles_update_participant` RLS 정책 (Finding-02)  
-전제: `_advanceTurn()` 직접 UPDATE → `advance_turn` RPC로 이전  
-변경: advance_turn RPC 생성 후 battles 직접 UPDATE 경로 제거 → RLS 정책 범위 축소 또는 삭제  
-Migration: 신규 파일 (5D-0 tag)  
-영향: 클라이언트 `_advanceTurn()` 수정 필요 — **5D-1 이전 구현 권장**
+**완료일**: 2026-05-12  
+**Migration**: `supabase/migrations/20260512_advance_turn_rpc.sql` — DB 적용 완료
+
+**작업 내용**:
+- `advance_turn(p_battle_id UUID)` RPC 신규 생성 (SECURITY DEFINER, IS DISTINCT FROM 참가자 검증, SELECT FOR UPDATE)
+- `_advanceTurn()`: 직접 `battles.update()` 제거 → `advance_turn` RPC 호출 (async, 서버 반환값 기준 로컬 상태 갱신)
+- `cancelBattleRequest()`: 직접 `battles.update()` 제거 → `cancel_battle` RPC 호출
+- `battles_update_participant` 정책 DROP — HP 컬럼 직접 변조 경로 완전 차단
+
+**직접 UPDATE 잔존 경로 검색 결과**: 0개 (index.html 기준)
+
+**Finding-02 해소**: `battles_update_participant` 정책 제거로 참가자 직접 HP 변조 불가
 
 > 참고: `_endBattle()`은 Phase 5C-3에서 이미 `finish_battle` RPC로 이전 완료.
-> 남은 직접 UPDATE 경로는 `_advanceTurn()` 하나.
+> `cancelBattleRequest()`는 이번 Phase에서 `cancel_battle` RPC로 이전 (Finding 추가 발견 → 함께 처리).
 
 ### 5D-1: vote_battle 참가자 차단 IS DISTINCT FROM 통일
 
@@ -295,26 +302,21 @@ Migration: 신규 파일 (5D-1 tag)
 ## 7. 다음 세션 시작 프롬프트
 
 ```
-Pick-tagon Phase 5D 구현을 진행하자.
+Pick-tagon Phase 5D-1 + 5D-2 구현을 진행하자.
 
 현재 상태:
 - origin/main = HEAD = push 후 최신 SHA 확인
 - Phase 5C 전체 완료
-- 설계 완료: docs/BATTLE_ATTACK_SERVER_PLAN.md (Finding-02 포함)
+- Phase 5D-0 완료: advance_turn RPC, battles_update_participant DROP
+- 설계 참조: docs/BATTLE_ATTACK_SERVER_PLAN.md
 
 작업 순서:
-1. 5D-0: advance_turn RPC 생성 + battles_update_participant HP 변조 차단
-   - supabase/migrations/20260510_advance_turn_rpc.sql 생성
-   - index.html _advanceTurn() → advance_turn RPC 호출로 교체
+1. 5D-1: vote_battle RPC 참가자 차단 IS DISTINCT FROM 통일
+   - supabase/migrations/20260512_vote_battle_fix_null_check.sql 생성
    - Supabase MCP apply_migration 적용
-2. 5D-1: vote_battle RPC 참가자 차단 IS DISTINCT FROM 통일
-   - supabase/migrations/20260510_vote_battle_fix_null_check.sql 생성
-   - Supabase MCP apply_migration 적용
-3. 5D-2: attack/foul damage 캡 클램핑 (수신 측)
+2. 5D-2: attack/foul damage 캡 클램핑 (수신 측)
    - index.html attack/foul_called 수신 핸들러 수정
    - npm run build
-4. docs 업데이트
-5. 커밋 후 push 대기
-
-설계 참조: docs/BATTLE_ATTACK_SERVER_PLAN.md
+3. docs 업데이트
+4. 커밋 후 push 대기
 ```

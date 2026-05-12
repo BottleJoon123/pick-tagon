@@ -1,38 +1,40 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-10 (Phase 5C 마감)
-현재 기준 커밋: `8bafccd` (origin/main = HEAD)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-12 (Phase 5D-0 완료)
+현재 기준 커밋: push 후 최신 SHA 확인
 
 ---
 
-## 2026-05-10 마감 상태
+## 2026-05-12 마감 상태
 
-**origin/main = HEAD = `8bafccd`** — ahead/behind 없음
+**origin/main = HEAD = push 후 최신 SHA 확인**
 
 **오늘 완료:**
-- Phase 5B: `battle_votes` 테이블 + `vote_battle` RPC, DB 레벨 중복 투표 차단 (`8c4d731`)
-- Phase 5C-1: `battles.starter_hp / receiver_hp` 서버 HP 컬럼 추가 (`d970409`)
-- Phase 5C-2: `vote_battle` RPC 서버 HP 갱신, 프론트 서버 HP 절대값 적용 (`dafa456`)
-- Phase 5C-3: `finish_battle` RPC 신규, `_endBattle()` 서버 위임 (`361c942`, `dcfbfd7`)
-- Phase 5C-4: `battles` UPDATE `postgres_changes` fallback 추가 (`c947507`)
-- Phase 5C-5: Phase 5C 전체 코드 레벨 QA 59/59 PASS, 4개 Finding 문서화 (`8bafccd`)
+- Phase 5D 설계: `docs/BATTLE_ATTACK_SERVER_PLAN.md` (Finding-02 포함) (`9038169`)
+- Phase 5D-0: `advance_turn` RPC 신규, `_advanceTurn()` RPC 이전, `cancelBattleRequest()` RPC 이전, `battles_update_participant` DROP
+
+**Phase 5D-0 상세:**
+- Migration: `supabase/migrations/20260512_advance_turn_rpc.sql` — DB 적용 완료
+- `advance_turn` RPC: SELECT FOR UPDATE, IS DISTINCT FROM 참가자 검증, 5라운드 완료 시 `battle_should_finish` 반환
+- `_advanceTurn()`: async RPC 호출, 서버 반환값으로 로컬 상태 갱신, RPC 실패 시 local 상태/broadcast 없음
+- `cancelBattleRequest()`: `cancel_battle` RPC로 교체 (기존 직접 UPDATE 제거)
+- `battles_update_participant` 정책 DROP: HP 컬럼 직접 변조 경로 차단 (Finding-02 해소)
+- 직접 UPDATE 잔존 경로: 0개 확인
 
 **현재 dirty:**
 - `.claude/settings.json`, `.claudeignore`: untracked, 커밋하지 않음
 
-**Known Limitations (Phase 5C 이후 잔존):**
-- attack/foul broadcast HP는 여전히 클라이언트 계산 — Phase 5D 대상
-- fake attack/foul broadcast로 화면 HP 일시 조작 가능 — Phase 5D 대상
+**Known Limitations (Phase 5D-0 이후 잔존):**
+- attack/foul broadcast HP는 여전히 클라이언트 계산 — Phase 5D-2 대상
+- fake attack/foul broadcast로 화면 HP 일시 조작 가능 — Phase 5D-2 대상
 - `battle_messages.user_id` 컬럼 없음 (nick만 저장)
-- `vote_battle` 참가자 차단 조건 `=` (Finding-01 LOW) — 기능 영향 없음
+- `vote_battle` 참가자 차단 조건 `=` (Finding-01 LOW) — Phase 5D-1 대상
 
 **다음 세션 후보 (우선순위 순):**
-A. Phase 5D read-only 설계 — attack/foul broadcast HP 서버화 조사/설계 (코드 수정 전 설계 먼저)
-B. Phase 5D-1 cleanup — `vote_battle` 참가자 차단 `IS DISTINCT FROM` 통일 (LOW, 단독 migration)
-C. Admin 고도화 설계 (뉴스 관리, 시즌 관리, 운영 대시보드)
-D. 랭킹/프로필 추가 고도화 (시즌 랭킹, 대표 배지)
-
-**추천: 다음 세션은 A부터. 바로 구현하지 말고 read-only 조사/설계 문서 먼저.**
+A. Phase 5D-1: `vote_battle` 참가자 차단 `IS DISTINCT FROM` 통일 (LOW, 단독 migration)
+B. Phase 5D-2: attack/foul damage cap 클램핑 (`Math.min(d.damage, 10)`, 수신 핸들러 2줄 수정)
+C. Phase 5D-3 (선택): attack/foul cosmetic 명시화 (결과 화면 UI 텍스트)
+D. Admin 고도화 설계 (뉴스 관리, 시즌 관리, 운영 대시보드)
 
 **완료 항목 참조 (이하 목록에서 완료된 것):**
 - 1번 KDI 데이터 정리 ✅

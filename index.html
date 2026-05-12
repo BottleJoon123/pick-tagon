@@ -5813,41 +5813,42 @@ async function addCommentToDB(postDbId, userNick, text) {
         _renderMessages();
         _advanceTurn();
     }
-    function _advanceTurn() {
-        var myNick = getDisplayUsername();
-        var cur = octagon.currentTurnNick;
-        var round = octagon.currentRound;
-        var nextTurn, nextRound;
+    async function _advanceTurn() {
+        if (!sb) return;
 
-        if (cur === octagon.starterNick) {
-            nextTurn = octagon.receiverNick; nextRound = round;
-        } else {
-            if (round >= 5) { _endBattle(); return; }
-            nextTurn = octagon.starterNick; nextRound = round + 1;
+        var res = await sb.rpc('advance_turn', { p_battle_id: octagon.battleId });
+
+        if (res.error) {
+            showToast('⚠️ 턴 전환 처리 실패');
+            return;
         }
 
-        octagon.currentTurnNick = nextTurn;
-        octagon.currentRound = nextRound;
+        var d = res.data;
 
-        // DB 턴 상태 갱신
-        if (sb) {
-            sb.from('battles').update({
-                current_turn_nick: nextTurn,
-                current_round: nextRound,
-                turn_started_at: new Date().toISOString(),
-            }).eq('id', octagon.battleId).then(function(){});
+        if (!d.ok) {
+            if (d.reason === 'battle_should_finish') {
+                _endBattle();
+            } else {
+                showToast('⚠️ 턴 전환 처리 실패');
+            }
+            return;
         }
+
+        // RPC 성공 — 서버 반환값으로 로컬 상태 갱신
+        octagon.currentTurnNick = d.current_turn_nick;
+        octagon.currentRound = d.current_round;
 
         // Broadcast 턴 교체
         if (octagon.battleChannel) {
             octagon.battleChannel.send({
                 type: 'broadcast', event: 'turn_changed',
-                payload: { currentTurnNick: nextTurn, currentRound: nextRound }
+                payload: { currentTurnNick: d.current_turn_nick, currentRound: d.current_round }
             });
         }
 
         _updateTurnUI();
-        if (nextTurn === myNick) _startTimer();
+        var myNick = getDisplayUsername();
+        if (d.current_turn_nick === myNick) _startTimer();
         else _startTimerDisplay();
     }
 
@@ -6191,7 +6192,7 @@ async function addCommentToDB(postDbId, userNick, text) {
     /* ──────────── 퇴장 / 취소 ──────────── */
     function cancelBattleRequest() {
         if (octagon.battleId && sb) {
-            sb.from('battles').update({ status: 'cancelled' }).eq('id', octagon.battleId).then(function(){});
+            sb.rpc('cancel_battle', { p_battle_id: octagon.battleId }).then(function(){});
         }
         exitOctagon();
     }
