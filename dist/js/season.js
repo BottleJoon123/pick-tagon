@@ -1,4 +1,4 @@
-﻿/* ==============================
+/* ==============================
    SEASON SYSTEM
    (extracted from index.html – global functions, no import/export)
    의존성: state.js (seasonData, mockRankings, state, sb, currentUser)
@@ -25,6 +25,8 @@ var seasonData = {
     hallOfFame: []  // array of { seasonName, endDate, top3: [{rank, name, points, accuracy, belt}] }
 };
 
+var seasonResetSubmitting = false;
+
 function loadSeason() {
     const s = localStorage.getItem('picktagon_season');
     if (s) seasonData = JSON.parse(s);
@@ -34,6 +36,56 @@ function saveSeason() {
     localStorage.setItem('picktagon_season', JSON.stringify(seasonData));
 }
 
+// ---- DB HELPERS ----
+
+// get_current_season() → seasonData.current 갱신 + badge 업데이트
+// sb 없거나 실패 시 localStorage 값 유지 (fallback)
+function loadCurrentSeasonFromDB() {
+    if (!sb) return Promise.resolve();
+    return sb.rpc('get_current_season').then(function(res) {
+        if (res.error || !res.data || res.data.length === 0) return;
+        var row = res.data[0];
+        seasonData.current = { name: row.name, startDate: row.start_date, id: row.id };
+        saveSeason();
+        var badge = document.getElementById('current-season-badge');
+        if (badge) badge.textContent = row.name;
+    }).catch(function() {});
+}
+
+// get_hall_of_fame() → seasonData.hallOfFame 갱신 + renderHallOfFame() 호출
+// sb 없거나 실패 시 기존 seasonData 유지 후 renderHallOfFame 호출
+function loadHallOfFameFromDB() {
+    if (!sb) { renderHallOfFame(); return Promise.resolve(); }
+    return sb.rpc('get_hall_of_fame').then(function(res) {
+        if (!res.error && res.data && res.data.length > 0) {
+            // DB는 season_id DESC 순 반환 → 그룹화 후 oldest-first로 저장
+            // (renderHallOfFame이 .reverse()로 newest-first 표시)
+            var grouped = [];
+            var idxMap = {};
+            res.data.forEach(function(row) {
+                if (!(row.season_id in idxMap)) {
+                    idxMap[row.season_id] = grouped.length;
+                    grouped.push({ seasonName: row.season_name, endDate: row.end_date, top3: [] });
+                }
+                grouped[idxMap[row.season_id]].top3.push({
+                    rank:    row.rank,
+                    name:    row.nickname,
+                    points:  row.points,
+                    total:   row.total_picks,
+                    success: row.success_picks,
+                    accuracy: row.accuracy !== null ? row.accuracy + '%' : '0%',
+                    belt:    row.belt
+                });
+            });
+            seasonData.hallOfFame = grouped.reverse();
+            saveSeason();
+        }
+    }).catch(function() {}).then(function() {
+        renderHallOfFame();
+    });
+}
+
+// 시즌 종료 모달 미리보기 전용 — 실제 Top3는 admin_end_season RPC가 서버에서 계산
 function getCurrentSeasonRankings() {
     const userEntry = { name: 'YOU', points: state.points, total: state.total, success: state.success, isUser: true };
     return [...mockRankings, userEntry].sort((a, b) => b.points - a.points);
@@ -118,7 +170,7 @@ function renderSeasonAdminPanel() {
     const hofList = document.getElementById('admin-hof-list');
     if (!nameEl) return;
 
-    // Current season info
+    // Current season info (DB 기반; loadCurrentSeasonFromDB 이후 갱신됨)
     nameEl.textContent = cur.name || 'Season 1';
     const startDate = cur.startDate ? new Date(cur.startDate + 'T00:00:00') : new Date();
     const daysPassed = Math.floor((Date.now() - startDate.getTime()) / 86400000);
@@ -136,7 +188,7 @@ function renderSeasonAdminPanel() {
     // Top 3 preview
     renderAdminSeasonTop3(rankings);
 
-    // Past seasons
+    // Past seasons (DB 기반; loadHallOfFameFromDB 이후 갱신됨)
     hofCountEl.textContent = (seasonData.hallOfFame || []).length;
     const hof = [...(seasonData.hallOfFame || [])].reverse();
     if (hof.length === 0) {
@@ -179,14 +231,31 @@ function renderAdminSeasonTop3(rankings) {
     }).join('');
 }
 
+// ---- ADMIN: Update Season Name via RPC ----
 function updateSeasonName() {
     const val = document.getElementById('new-season-name-input').value.trim();
     if (!val) { showToast('⚠ 시즌 이름을 입력하세요'); return; }
-    seasonData.current.name = val;
-    saveSeason();
-    renderSeasonAdminPanel();
-    renderHallOfFame();
-    showToast(`✅ 시즌명 변경: "${val}"`);
+    if (!sb) { showToast('⚠ DB 연결 필요'); return; }
+
+    sb.rpc('admin_update_season_name', { p_name: val }).then(function(res) {
+        if (res.error) { showToast('⚠ RPC 오류: ' + res.error.message); return; }
+        const data = res.data;
+        if (!data || !data.ok) {
+            const reason = data && data.reason;
+            if (reason === 'admin_required')    showToast('⚠ 관리자 권한 필요');
+            else if (reason === 'name_required') showToast('⚠ 시즌 이름을 입력하세요');
+            else if (reason === 'no_active_season') showToast('⚠ 활성 시즌 없음');
+            else showToast('⚠ 시즌명 변경 실패');
+            return;
+        }
+        seasonData.current.name = data.name;
+        saveSeason();
+        renderSeasonAdminPanel();
+        renderHallOfFame();
+        showToast(`✅ 시즌명 변경: "${data.name}"`);
+    }).catch(function() {
+        showToast('⚠ RPC 오류');
+    });
 }
 
 function confirmSeasonReset() {
@@ -216,43 +285,64 @@ function closeSeasonResetModal() {
     document.getElementById('season-reset-modal').classList.add('hidden');
 }
 
+// ---- ADMIN: Execute Season Reset via RPC ----
+// 주의: 호출 시 전체 users.points 1000P 리셋, 되돌릴 수 없음
 function executeSeasonReset() {
-    const rankings = getCurrentSeasonRankings();
-    const now = new Date().toISOString().slice(0, 10);
+    if (seasonResetSubmitting) return;
+    if (!sb) { showToast('⚠ DB 연결 필요'); return; }
 
-    // Build top 3 snapshot
-    const top3 = rankings.slice(0, 3).map(u => {
-        const belt = getBeltInfo(u.points);
-        const acc = u.total === 0 ? '0%' : Math.round(u.success / u.total * 100) + '%';
-        return { name: u.name, points: u.points, total: u.total, success: u.success, accuracy: acc, belt: belt.name };
+    seasonResetSubmitting = true;
+    const btn = document.querySelector('#season-reset-modal button[onclick="executeSeasonReset()"]');
+    if (btn) { btn.disabled = true; btn.textContent = '처리 중...'; }
+
+    function cleanup() {
+        seasonResetSubmitting = false;
+        if (btn) { btn.disabled = false; btn.textContent = '확정 종료'; }
+    }
+
+    // 다음 시즌명은 서버 자동 증가 (p_next_season_name = '')
+    sb.rpc('admin_end_season', { p_next_season_name: '' }).then(function(res) {
+        if (res.error) {
+            showToast('⚠ RPC 오류: ' + res.error.message);
+            cleanup();
+            return;
+        }
+        const data = res.data;
+        if (!data || !data.ok) {
+            const reason = data && data.reason;
+            if (reason === 'admin_required')      showToast('⚠ 관리자 권한 필요');
+            else if (reason === 'no_active_season') showToast('⚠ 활성 시즌 없음');
+            else showToast('⚠ 시즌 종료 실패');
+            cleanup();
+            return;
+        }
+
+        // 로컬 state 동기화 (서버가 points=1000으로 리셋했으므로 로컬도 맞춤)
+        state.points = 1000;
+        state.total  = 0;
+        state.success = 0;
+        state.history = [];
+        state.pendings = {};
+        state.settled  = {};
+        save();
+
+        closeSeasonResetModal();
+
+        // DB에서 최신 season/HOF 재로드 → 렌더
+        loadCurrentSeasonFromDB().then(function() {
+            return loadHallOfFameFromDB();
+        }).then(function() {
+            renderSeasonAdminPanel();
+            refreshUI();
+            cleanup();
+            showToast('🏆 시즌 종료! ' + data.new_season + ' 시작');
+        }).catch(function() {
+            cleanup();
+        });
+    }).catch(function() {
+        showToast('⚠ RPC 오류');
+        cleanup();
     });
-
-    // Save to hall of fame
-    seasonData.hallOfFame.push({
-        seasonName: seasonData.current?.name || 'Season 1',
-        endDate: now,
-        top3
-    });
-
-    // Increment season number
-    const curNum = parseInt((seasonData.current?.name || 'Season 1').match(/\d+/)?.[0] || '1');
-    seasonData.current = { name: `Season ${curNum + 1}`, startDate: now };
-    saveSeason();
-
-    // Reset user state
-    state.points = 1000;
-    state.total = 0;
-    state.success = 0;
-    state.history = [];
-    state.pendings = {};
-    state.settled = {};
-    save();
-    refreshUI();
-
-    closeSeasonResetModal();
-    renderSeasonAdminPanel();
-    renderHallOfFame();
-    showToast(`🏆 시즌 종료! ${seasonData.current.name} 시작`);
 }
 
 function deleteSeasonRecord(idx) {
@@ -263,4 +353,3 @@ function deleteSeasonRecord(idx) {
     renderHallOfFame();
     showToast('🗑 시즌 기록 삭제됨');
 }
-

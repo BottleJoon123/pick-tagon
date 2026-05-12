@@ -2765,7 +2765,7 @@ textarea, select {
             renderEventSidebar();
             startRealtimeSubscription();
         }
-        if(id === 'rankings') setTimeout(() => { renderLeaderboard(); renderHallOfFame(); }, 100);
+        if(id === 'rankings') setTimeout(function() { renderLeaderboard(); loadHallOfFameFromDB(); loadCurrentSeasonFromDB(); }, 100);
         if(id === 'archive') { if (archiveDB.length === 0) fetchArchive(); else renderArchive(); }
         if(id === 'community') { if (currentUser) loadMyBattles(); }
         if(id === 'profile') { setTimeout(() => renderProfileStats(), 100); }
@@ -2775,6 +2775,12 @@ textarea, select {
             renderNewsAdminList();
             renderSeasonAdminPanel();
             fetchEventsForBuilder();
+            // DB에서 최신 시즌/HOF 로드 후 패널 재렌더 (fallback: 위 renderSeasonAdminPanel이 이미 localStorage 값 표시)
+            if (typeof loadCurrentSeasonFromDB === 'function') {
+                Promise.all([loadCurrentSeasonFromDB(), loadHallOfFameFromDB()]).then(function() {
+                    renderSeasonAdminPanel();
+                });
+            }
         }
         window.scrollTo({top: 0, behavior: 'smooth'});
         refreshUI();

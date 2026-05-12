@@ -1,7 +1,51 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-12 (Phase S1 시즌 관리 DB 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-12 (Phase S2 시즌 관리 프론트 연결 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-12 마감 상태 (5차)
+
+**origin/main = HEAD = push 후 최신 SHA 확인**
+
+**오늘 완료 (5차): Phase S2 — 시즌 관리 프론트 연결**
+
+**변경 파일:**
+- `public/js/season.js`, `dist/js/season.js`
+- `index.html`, `dist/index.html`
+
+**DB helper 추가:**
+- `loadCurrentSeasonFromDB()`: `get_current_season()` 호출 → `seasonData.current` 갱신 → badge 업데이트
+- `loadHallOfFameFromDB()`: `get_hall_of_fame()` 호출 → row 그룹화 → `seasonData.hallOfFame` 갱신 → `renderHallOfFame()` 호출
+- 두 함수 모두 `sb` 없거나 RPC 실패 시 localStorage fallback 유지
+
+**읽기 경로 전환:**
+- rankings 페이지: `renderHallOfFame()` 직접 호출 제거 → `loadHallOfFameFromDB() + loadCurrentSeasonFromDB()` 호출 (비동기, fallback 먼저 표시 후 DB 덮어쓰기)
+- admin 페이지: `renderSeasonAdminPanel()` 즉시 표시 후 `Promise.all([loadCurrentSeasonFromDB, loadHallOfFameFromDB])` → `renderSeasonAdminPanel()` 재렌더
+
+**쓰기 경로 전환:**
+- `updateSeasonName()`: `admin_update_season_name(p_name)` RPC 호출 → ok/reason 분기 toast → localStorage fallback 제거
+- `executeSeasonReset()`: `admin_end_season('')` RPC 호출 → `seasonResetSubmitting` 중복 클릭 방지 → 버튼 disabled/텍스트 변경 → 성공 시 state 동기화(points=1000) + DB 재로드 → localStorage-only 종료 경로 완전 제거
+
+**검증:**
+- `mockRankings`는 `getCurrentSeasonRankings()` (모달 미리보기 전용)에서만 사용, `executeSeasonReset()` 에서 참조 없음 ✓
+- localStorage-only 시즌 종료 코드 (`hallOfFame.push`, 로컬 시즌 증가) 완전 제거 ✓
+- `seasonResetSubmitting` 중복 클릭 방지 구현 ✓
+- 성공 후 `state.points=1000` 동기화 ✓
+- `sb` 없을 때 조기 반환 + toast ✓
+- `npm run build` PASS ✓
+- dist 동기화 완료 ✓
+- `admin_end_season` 실제 호출 QA 금지 준수
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
+
+**다음 세션 후보 (우선순위 순):**
+A. 운영 대시보드 (미정산 이벤트, pending picks 현황 통합 뷰)
+B. 결과 입력 QA 패널 (정산 전 미입력 결과 검증)
+C. Admin RPC 서버 권한 체계 점검 (SECURITY DEFINER guard 일관성)
+D. deleteSeasonRecord localStorage 전용 함수 — DB 연결 고려
 
 ---
 
