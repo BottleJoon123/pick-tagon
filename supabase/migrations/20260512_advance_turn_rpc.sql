@@ -62,13 +62,20 @@ BEGIN
         RETURN jsonb_build_object('ok', false, 'reason', 'participant_required');
     END IF;
 
-    -- 5. 턴 전환 계산
+    -- 5. 현재 턴 소유자 검증 + 턴 전환 계산
+    --    IS DISTINCT FROM: NULL-safe 비교 (NULL = v_uid → false)
     IF v_battle.current_turn_nick = v_battle.starter_nick THEN
-        -- starter 턴 완료 → receiver 턴 (같은 라운드)
+        -- starter 턴: starter_id가 호출자여야 함
+        IF v_battle.starter_id IS DISTINCT FROM v_uid THEN
+            RETURN jsonb_build_object('ok', false, 'reason', 'not_current_turn');
+        END IF;
         v_next_turn  := v_battle.receiver_nick;
         v_next_round := v_battle.current_round;
     ELSIF v_battle.current_turn_nick = v_battle.receiver_nick THEN
-        -- receiver 턴 완료 → 라운드 종료 검사
+        -- receiver 턴: receiver_id가 호출자여야 함
+        IF v_battle.receiver_id IS DISTINCT FROM v_uid THEN
+            RETURN jsonb_build_object('ok', false, 'reason', 'not_current_turn');
+        END IF;
         IF v_battle.current_round >= 5 THEN
             -- 5라운드 완료 → 종료 신호, 프론트가 _endBattle() 호출
             RETURN jsonb_build_object('ok', false, 'reason', 'battle_should_finish');

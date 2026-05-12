@@ -5828,6 +5828,8 @@ async function addCommentToDB(postDbId, userNick, text) {
         if (!d.ok) {
             if (d.reason === 'battle_should_finish') {
                 _endBattle();
+            } else if (d.reason === 'not_current_turn') {
+                showToast('⚠️ 현재 내 턴이 아닙니다');
             } else {
                 showToast('⚠️ 턴 전환 처리 실패');
             }

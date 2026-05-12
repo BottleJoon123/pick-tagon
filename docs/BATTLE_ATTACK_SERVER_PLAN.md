@@ -259,7 +259,11 @@ damage 캡 클램핑만 추가하는 선에서 Phase 5D를 마무리하는 것�
 - `cancelBattleRequest()`: 직접 `battles.update()` 제거 → `cancel_battle` RPC 호출
 - `battles_update_participant` 정책 DROP — HP 컬럼 직접 변조 경로 완전 차단
 
-**직접 UPDATE 잔존 경로 검색 결과**: 0개 (index.html 기준)
+**직접 UPDATE 잔존 경로 검색 결과**: 0개 (현재 앱 기준: `index.html` / `dist/index.html`)
+
+> **Finding 2 [P3]**: `picktagon_v5_9_7.html` (commit `3f238f5`, v5.9.7 스냅샷)에 battles 직접 UPDATE 3개 잔존.
+> 이 파일은 Vite 빌드 입력에 포함되지 않으며 (`vite.config.js` entry: `index.html` 기본값) 배포되지 않는 legacy artifact.
+> `battles_update_participant` DROP의 실질적 영향 범위: **현재 앱(index.html/dist)** — legacy 파일은 범위 외.
 
 **Finding-02 해소**: `battles_update_participant` 정책 제거로 참가자 직접 HP 변조 불가
 
