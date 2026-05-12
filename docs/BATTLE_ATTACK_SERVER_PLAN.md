@@ -270,19 +270,23 @@ damage 캡 클램핑만 추가하는 선에서 Phase 5D를 마무리하는 것�
 > 참고: `_endBattle()`은 Phase 5C-3에서 이미 `finish_battle` RPC로 이전 완료.
 > `cancelBattleRequest()`는 이번 Phase에서 `cancel_battle` RPC로 이전 (Finding 추가 발견 → 함께 처리).
 
-### 5D-1: vote_battle 참가자 차단 IS DISTINCT FROM 통일
+### 5D-1 (완료): vote_battle 참가자 차단 IS NOT DISTINCT FROM 통일
 
-대상: `20260510_vote_battle_server_hp.sql`  
-변경: `starter_id = v_uid OR receiver_id = v_uid` → `IS DISTINCT FROM` (Finding-01)  
-Migration: 신규 파일 (5D-1 tag)  
-영향: 없음 (active 배틀에서 이미 안전, 단순 일관성)
+**완료일**: 2026-05-12  
+**Migration**: `supabase/migrations/20260512_vote_battle_fix_null_check.sql` — DB 적용 완료
 
-### 5D-2: damage 캡 클램핑 (수신 측)
+- 변경: `starter_id = v_uid OR receiver_id = v_uid` → `IS NOT DISTINCT FROM v_uid` (NULL-safe)
+- 기타 동작 유지: HP 갱신 로직, votes 단일 UPDATE, GRANT/REVOKE
 
-대상: `index.html` `attack` 수신 핸들러 + `foul_called` 수신 핸들러  
-변경: `d.damage` → `Math.min(d.damage, MAX_ATTACK_DAMAGE)` / `Math.min(d.damage, MAX_FOUL_DAMAGE)`  
-상수: `MAX_ATTACK_DAMAGE = 10` (SPECIAL 기준), `MAX_FOUL_DAMAGE = 10`  
-영향: damage 과장 broadcast 무력화. fake broadcast 자체는 여전히 가능하나 damage 제한됨.
+### 5D-2 (완료): damage 캡 클램핑 (수신 측)
+
+**완료일**: 2026-05-12
+
+- `attack` 수신: `var safeDmg = Math.min(Number(d.damage) || 0, 10); if (safeDmg <= 0) return;`
+- `foul_called` 수신: 동일 패턴 적용
+- `d.damage` 직접 HP 차감: 0개 (safeDmg만 사용)
+- 영향: damage 과장 broadcast(999 등) 무력화, invalid/NaN/음수 무시
+- **남은 한계**: fake broadcast frequency는 여전히 가능 (cosmetic issue, 다음 vote 시 DB값으로 자동 정정)
 
 ### 5D-3 (선택): attack/foul cosmetic 명시화
 

@@ -11,30 +11,28 @@
 
 **오늘 완료:**
 - Phase 5D 설계: `docs/BATTLE_ATTACK_SERVER_PLAN.md` (Finding-02 포함) (`9038169`)
-- Phase 5D-0: `advance_turn` RPC 신규, `_advanceTurn()` RPC 이전, `cancelBattleRequest()` RPC 이전, `battles_update_participant` DROP
+- Phase 5D-0: `advance_turn` RPC 신규, `_advanceTurn()` RPC 이전, `cancelBattleRequest()` RPC 이전, `battles_update_participant` DROP (`550ff5e`, `cebe600`, `ee2f49a`)
+- Phase 5D-1: `vote_battle` 참가자 차단 `IS NOT DISTINCT FROM` 통일 — DB 적용 완료
+- Phase 5D-2: attack/foul 수신 damage cap 클램핑 (`safeDmg = Math.min(Number(d.damage)||0, 10)`)
 
 **Phase 5D-0 상세:**
-- Migration: `supabase/migrations/20260512_advance_turn_rpc.sql` — DB 적용 완료
-- `advance_turn` RPC: SELECT FOR UPDATE, IS DISTINCT FROM 참가자 검증, 5라운드 완료 시 `battle_should_finish` 반환
+- Migration: `supabase/migrations/20260512_advance_turn_rpc.sql` + `_fix.sql` — DB 적용 완료
+- `advance_turn` RPC: SELECT FOR UPDATE, IS DISTINCT FROM 참가자 검증, 턴 소유자 검증, 5라운드 완료 시 `battle_should_finish` 반환
 - `_advanceTurn()`: async RPC 호출, 서버 반환값으로 로컬 상태 갱신, RPC 실패 시 local 상태/broadcast 없음
 - `cancelBattleRequest()`: `cancel_battle` RPC로 교체 (기존 직접 UPDATE 제거)
 - `battles_update_participant` 정책 DROP: HP 컬럼 직접 변조 경로 차단 (Finding-02 해소)
-- 직접 UPDATE 잔존 경로: 0개 확인
 
 **현재 dirty:**
 - `.claude/settings.json`, `.claudeignore`: untracked, 커밋하지 않음
 
-**Known Limitations (Phase 5D-0 이후 잔존):**
-- attack/foul broadcast HP는 여전히 클라이언트 계산 — Phase 5D-2 대상
-- fake attack/foul broadcast로 화면 HP 일시 조작 가능 — Phase 5D-2 대상
+**Known Limitations (Phase 5D-2 이후 잔존):**
+- fake attack/foul broadcast frequency는 여전히 가능 (cosmetic — 다음 vote 시 DB값으로 자동 정정)
 - `battle_messages.user_id` 컬럼 없음 (nick만 저장)
-- `vote_battle` 참가자 차단 조건 `=` (Finding-01 LOW) — Phase 5D-1 대상
 
 **다음 세션 후보 (우선순위 순):**
-A. Phase 5D-1: `vote_battle` 참가자 차단 `IS DISTINCT FROM` 통일 (LOW, 단독 migration)
-B. Phase 5D-2: attack/foul damage cap 클램핑 (`Math.min(d.damage, 10)`, 수신 핸들러 2줄 수정)
-C. Phase 5D-3 (선택): attack/foul cosmetic 명시화 (결과 화면 UI 텍스트)
-D. Admin 고도화 설계 (뉴스 관리, 시즌 관리, 운영 대시보드)
+A. Phase 5D-3 (선택): attack/foul cosmetic 명시화 (결과 화면 "투표 기준" UI 텍스트)
+B. Admin 고도화 설계 (뉴스 관리, 시즌 관리, 운영 대시보드)
+C. 랭킹/프로필 추가 고도화 (시즌 랭킹, 대표 배지)
 
 **완료 항목 참조 (이하 목록에서 완료된 것):**
 - 1번 KDI 데이터 정리 ✅

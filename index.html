@@ -5497,13 +5497,15 @@ async function addCommentToDB(postDbId, userNick, text) {
             .on('broadcast', { event: 'attack' }, function(p) {
                 var d = p.payload;
                 if (d.attackerNick === myNick) return; // 내가 보낸 것 무시
+                var safeDmg = Math.min(Number(d.damage) || 0, 10);
+                if (safeDmg <= 0) return;
                 var oppRole = d.attackerRole;
                 var victimRole = oppRole === 'starter' ? 'receiver' : 'starter';
-                // HP 차감 (상대방 기준)
+                // HP 차감 (cap 적용값 사용)
                 if (victimRole === 'starter') {
-                    octagon.starterHp = Math.max(5, octagon.starterHp - d.damage);
+                    octagon.starterHp = Math.max(5, octagon.starterHp - safeDmg);
                 } else {
-                    octagon.receiverHp = Math.max(5, octagon.receiverHp - d.damage);
+                    octagon.receiverHp = Math.max(5, octagon.receiverHp - safeDmg);
                 }
                 _updateHpBars();
                 // 애니메이션 재생
@@ -5523,16 +5525,18 @@ async function addCommentToDB(postDbId, userNick, text) {
                     hitEl.classList.add(ha);
                     setTimeout(function() { hitEl.classList.remove(ha); }, 500);
                 }
-                _showAttackEffect(d.emoji, d.attackName, d.damage);
+                _showAttackEffect(d.emoji, d.attackName, safeDmg);
             })
             /* ── 반칙 수신 ── */
             .on('broadcast', { event: 'foul_called' }, function(p) {
                 var d = p.payload;
                 if (d.nick === myNick) return; // 내가 발동한 것은 이미 처리됨
+                var safeDmg = Math.min(Number(d.damage) || 0, 10);
+                if (safeDmg <= 0) return;
                 if (d.role === 'starter') {
-                    octagon.starterHp = Math.max(5, octagon.starterHp - d.damage);
+                    octagon.starterHp = Math.max(5, octagon.starterHp - safeDmg);
                 } else {
-                    octagon.receiverHp = Math.max(5, octagon.receiverHp - d.damage);
+                    octagon.receiverHp = Math.max(5, octagon.receiverHp - safeDmg);
                 }
                 _updateHpBars();
                 _showRefereeModal(d.foul, d.nick);
