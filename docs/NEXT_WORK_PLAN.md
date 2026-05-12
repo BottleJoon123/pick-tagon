@@ -1,13 +1,62 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-12 (Admin UI gate repair 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-12 (Phase S1 시즌 관리 DB 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
 
 ---
 
-## 2026-05-12 마감 상태 (3차)
+## 2026-05-12 마감 상태 (4차)
 
 **origin/main = HEAD = push 후 최신 SHA 확인**
+
+**오늘 완료 (4차): Phase S1 — 시즌 관리 DB 이전 (DB/RPC)**
+- `supabase/migrations/20260512_season_management_rpc.sql` — DB 적용 완료
+- `public.seasons` 테이블: id, name, start_date, end_date, is_active, partial unique index (활성 시즌 1개 제한), RLS enabled
+- `public.season_hof` 테이블: season_id, rank(1~3), user_id, nickname, points, total_picks, success_picks, accuracy, belt, faction_id, UNIQUE(season_id, rank), RLS enabled
+- 초기 시드: Season 1 생성 (is_active=TRUE, start_date=2026-05-12)
+- `get_current_season()`: anon/authenticated 공개 읽기
+- `get_hall_of_fame()`: anon/authenticated 공개 읽기 (종료 시즌 × Top3)
+- `admin_update_season_name(p_name)`: private.is_admin() 검증, authenticated 전용
+- `admin_end_season(p_next_season_name)`: private.is_admin() 검증, FOR UPDATE 잠금, Top3 스냅샷, points만 1000 리셋, authenticated 전용
+
+**⚠️ 포인트 리셋 정책:**
+- `users.points`만 1000으로 리셋 (all users)
+- `total_picks`, `success_picks`: all-time 커리어 지표 — 유지
+- `picks` row: 유지
+
+**⚠️ 알려진 기존 데이터 이상값:**
+- `KINGBOTTLE`: success_picks(18) > total_picks(16) → accuracy 113% — 기존 DB 데이터 무결성 문제
+- `admin_end_season`은 있는 값 그대로 스냅샷하므로 동작에는 영향 없음
+
+**QA 결과:**
+- 테이블 생성 + RLS enabled ✓
+- 초기 시드 Season 1 (1행) ✓
+- `get_current_season()` 반환 정상 ✓
+- `get_hall_of_fame()` 빈 배열 반환 ✓
+- 비admin `admin_update_season_name` → `admin_required` ✓
+- 비admin `admin_end_season` → `admin_required` ✓
+- partial unique index: 활성 시즌 중복 INSERT 차단 ✓
+- Top3 스냅샷 로직 ROLLBACK 검증 ✓
+- `admin_end_season` 실제 실행 안 함 — 운영 points 리셋 보호
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
+
+**다음 세션 후보 (우선순위 순):**
+A. **Phase S2: 시즌 관리 프론트 연결**
+   - `renderHallOfFame()` → `get_hall_of_fame()` DB 기반으로 전환
+   - `renderLeaderboard()` 시즌 badge → `get_current_season()` 사용
+   - `renderSeasonAdminPanel()` → DB 기반으로 전환
+   - `updateSeasonName()` → `admin_update_season_name()` RPC 호출
+   - `executeSeasonReset()` → `admin_end_season()` RPC 호출
+   - localStorage `seasonData` fallback → 점진적 제거
+B. 운영 대시보드 (미정산 이벤트, pending picks 현황 통합 뷰)
+C. 결과 입력 QA 패널 (정산 전 미입력 결과 검증)
+D. Admin RPC 서버 권한 체계 점검 (SECURITY DEFINER guard 일관성)
+
+---
+
+## 2026-05-12 마감 상태 (3차)
 
 **오늘 완료 (3차): Admin UI gate repair**
 - `public/js/config.js`: `ADMIN_EMAILS` 화이트리스트 추가
@@ -18,15 +67,6 @@
 - 이 작업은 Admin UI 진입만 차단하는 client-side gate임
 - 실제 데이터 보안은 Supabase SECURITY DEFINER RPC 레벨에서 별도 보호됨
 - Admin RPC 권한 체계 점검은 별도 Phase로 예정
-
-**현재 dirty:**
-- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
-
-**다음 세션 후보 (우선순위 순):**
-A. 시즌 관리 DB 이전 (localStorage → `seasons` 테이블, Hall of Fame 영구 저장)
-B. 운영 대시보드 (미정산 이벤트, pending picks 현황 통합 뷰)
-C. 결과 입력 QA 패널 (정산 전 미입력 결과 검증)
-D. Admin RPC 서버 권한 체계 점검 (SECURITY DEFINER guard 일관성)
 
 ---
 
