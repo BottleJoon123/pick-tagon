@@ -21,6 +21,10 @@ attack/foul broadcast는 이 컬럼을 건드리지 않는다.
 
 → **attack/foul은 이미 winner에 영향을 줄 수 없다.**
 
+> ⚠️ **전제 보정 (Finding-02)**: 위 전제는 HP 컬럼이 `vote_battle` RPC 외 경로로 변경되지 않음을 전제한다.
+> 그러나 `battles_update_participant` RLS 정책이 참가자의 직접 `battles` UPDATE를 허용하므로
+> HP 컬럼 직접 변조 경로가 별도로 존재한다. → 1-3 참조.
+
 ### 1-2. 남은 위협: cosmetic HP 조작
 
 | 위협 | 영향 | Phase 5C 이후 상태 |
@@ -33,6 +37,45 @@ attack/foul broadcast는 이 컬럼을 건드리지 않는다.
 | 내 턴이 아닐 때 `attack` broadcast 전송 | 화면 조작 | ❌ 서버 턴 검증 없음 |
 
 → **winner 결정은 안전하지만, 화면 HP 표시는 조작 가능하다.**
+
+### 1-3. Finding-02: battles_update_participant RLS — HP 직접 변조 경로
+
+**정책 현황** (`20260501_battle_rls_phase2.sql`):
+
+```sql
+CREATE POLICY battles_update_participant
+    ON public.battles FOR UPDATE
+    TO authenticated
+    USING (starter_id = auth.uid() OR receiver_id = auth.uid());
+```
+
+컬럼 수준 제한 없이 battles row 전체 UPDATE를 허용한다.
+→ starter 또는 receiver가 `starter_hp` / `receiver_hp`를 직접 UPDATE할 수 있다.
+
+**위협 경로**:
+
+```
+authenticated user (participant)
+  → supabase-js .from('battles').update({ starter_hp: 100, receiver_hp: 1 }).eq('id', ...)
+  → battles_update_participant USING 통과
+  → DB HP 변조 → finish_battle이 변조된 HP 기준으로 winner 결정
+```
+
+**영향도**: 높음 — Phase 5C의 "DB HP = votes 기준" 전제를 무력화할 수 있다.
+
+**해결 후보**:
+
+| 후보 | 방법 | 비용 | 비고 |
+|------|------|------|------|
+| A | `battles_update_participant` 정책 범위 축소 + 필요한 직접 UPDATE를 RPC로 이전 | 중간 | `_advanceTurn()`이 직접 UPDATE 사용 중 → RPC 이전 필요 |
+| B | `starter_hp` / `receiver_hp` 컬럼에 별도 제한 정책 추가 (컬럼 수준 RLS) | 해당 없음 | PostgreSQL은 컬럼 수준 RLS 미지원 — 트리거/RPC로만 가능 |
+| C | BEFORE UPDATE 트리거로 HP 변경 경로를 vote_battle 계열로 제한 | 높음 | 트리거 내 경로 검증 복잡, 유지보수 부담 |
+| D | battles 직접 UPDATE 완전 차단 + 모든 UPDATE를 SECURITY DEFINER RPC로 이전 | 높음 | 장기적으로 가장 안전 — Phase 5E 적합 |
+
+**현실적 권고**:
+`_advanceTurn()` 직접 UPDATE를 RPC로 이전(후보 A)하는 것이 선행되어야
+battles 직접 UPDATE RLS를 제거할 수 있다.
+Phase 5D 구현 범위에 5D-0으로 포함.
 
 ---
 
@@ -205,6 +248,17 @@ damage 캡 클램핑만 추가하는 선에서 Phase 5D를 마무리하는 것�
 
 ## 5. 구현 범위 (Phase 5D)
 
+### 5D-0 (우선): battles_update_participant HP 변조 차단
+
+대상: `battles_update_participant` RLS 정책 (Finding-02)  
+전제: `_advanceTurn()` 직접 UPDATE → `advance_turn` RPC로 이전  
+변경: advance_turn RPC 생성 후 battles 직접 UPDATE 경로 제거 → RLS 정책 범위 축소 또는 삭제  
+Migration: 신규 파일 (5D-0 tag)  
+영향: 클라이언트 `_advanceTurn()` 수정 필요 — **5D-1 이전 구현 권장**
+
+> 참고: `_endBattle()`은 Phase 5C-3에서 이미 `finish_battle` RPC로 이전 완료.
+> 남은 직접 UPDATE 경로는 `_advanceTurn()` 하나.
+
 ### 5D-1: vote_battle 참가자 차단 IS DISTINCT FROM 통일
 
 대상: `20260510_vote_battle_server_hp.sql`  
@@ -244,19 +298,23 @@ Migration: 신규 파일 (5D-1 tag)
 Pick-tagon Phase 5D 구현을 진행하자.
 
 현재 상태:
-- origin/main = HEAD = aeab46f
+- origin/main = HEAD = 7e3c554 (push 후 확인)
 - Phase 5C 전체 완료
-- 설계 완료: docs/BATTLE_ATTACK_SERVER_PLAN.md
+- 설계 완료: docs/BATTLE_ATTACK_SERVER_PLAN.md (Finding-02 포함)
 
 작업 순서:
-1. 5D-1: vote_battle RPC 참가자 차단 IS DISTINCT FROM 통일
+1. 5D-0: advance_turn RPC 생성 + battles_update_participant HP 변조 차단
+   - supabase/migrations/20260510_advance_turn_rpc.sql 생성
+   - index.html _advanceTurn() → advance_turn RPC 호출로 교체
+   - Supabase MCP apply_migration 적용
+2. 5D-1: vote_battle RPC 참가자 차단 IS DISTINCT FROM 통일
    - supabase/migrations/20260510_vote_battle_fix_null_check.sql 생성
    - Supabase MCP apply_migration 적용
-2. 5D-2: attack/foul damage 캡 클램핑 (수신 측)
+3. 5D-2: attack/foul damage 캡 클램핑 (수신 측)
    - index.html attack/foul_called 수신 핸들러 수정
    - npm run build
-3. docs 업데이트
-4. 커밋 후 push 대기
+4. docs 업데이트
+5. 커밋 후 push 대기
 
 설계 참조: docs/BATTLE_ATTACK_SERVER_PLAN.md
 ```
