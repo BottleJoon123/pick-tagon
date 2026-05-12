@@ -298,7 +298,7 @@ Migration: 신규 파일 (5D-1 tag)
 Pick-tagon Phase 5D 구현을 진행하자.
 
 현재 상태:
-- origin/main = HEAD = 7e3c554 (push 후 확인)
+- origin/main = HEAD = push 후 최신 SHA 확인
 - Phase 5C 전체 완료
 - 설계 완료: docs/BATTLE_ATTACK_SERVER_PLAN.md (Finding-02 포함)
 
