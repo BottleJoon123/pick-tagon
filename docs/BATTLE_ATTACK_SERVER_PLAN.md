@@ -288,11 +288,14 @@ damage 캡 클램핑만 추가하는 선에서 Phase 5D를 마무리하는 것�
 - 영향: damage 과장 broadcast(999 등) 무력화, invalid/NaN/음수 무시
 - **남은 한계**: fake broadcast frequency는 여전히 가능 (cosmetic issue, 다음 vote 시 DB값으로 자동 정정)
 
-### 5D-3 (선택): attack/foul cosmetic 명시화
+### 5D-3 (완료): attack/foul cosmetic 명시화
 
-`renderOctagonResult` 결과 화면에 "HP 결과는 투표 기준" 주석 추가  
-또는 결과 화면 UI에 "(투표 기준)" 텍스트 표시  
-목적: 화면 HP와 결과 HP 차이를 사용자가 이해하도록
+**완료일**: 2026-05-12
+
+- `renderOctagonResult()` HP 카드 하단에 캡션 추가:
+  `"투표 기준 HP · 공격/반칙은 화면 연출"`
+- 스타일: `oswald-sharp text-gray-600 text-xs uppercase tracking-widest italic`
+- winner 결정/HP 표시 로직 변경 없음 — UI 텍스트만 추가
 
 ---
 
@@ -310,21 +313,15 @@ damage 캡 클램핑만 추가하는 선에서 Phase 5D를 마무리하는 것�
 ## 7. 다음 세션 시작 프롬프트
 
 ```
-Pick-tagon Phase 5D-1 + 5D-2 구현을 진행하자.
+Pick-tagon Phase 5D 전체 완료 상태에서 이어서 진행하자.
 
 현재 상태:
 - origin/main = HEAD = push 후 최신 SHA 확인
-- Phase 5C 전체 완료
-- Phase 5D-0 완료: advance_turn RPC, battles_update_participant DROP
+- Phase 5D 전체 완료 (5D-0 ~ 5D-3)
 - 설계 참조: docs/BATTLE_ATTACK_SERVER_PLAN.md
 
-작업 순서:
-1. 5D-1: vote_battle RPC 참가자 차단 IS DISTINCT FROM 통일
-   - supabase/migrations/20260512_vote_battle_fix_null_check.sql 생성
-   - Supabase MCP apply_migration 적용
-2. 5D-2: attack/foul damage 캡 클램핑 (수신 측)
-   - index.html attack/foul_called 수신 핸들러 수정
-   - npm run build
-3. docs 업데이트
-4. 커밋 후 push 대기
+다음 후보:
+A. Admin 고도화 설계 (뉴스 관리, 시즌 관리, 운영 대시보드)
+B. 랭킹/프로필 고도화 (시즌 랭킹, 대표 배지)
+C. Phase 6: battle_actions 히스토리 / 리플레이 UI 설계
 ```

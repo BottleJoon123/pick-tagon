@@ -1,6 +1,6 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-12 (Phase 5D-0 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-12 (Phase 5D 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
 
 ---
@@ -14,6 +14,7 @@
 - Phase 5D-0: `advance_turn` RPC 신규, `_advanceTurn()` RPC 이전, `cancelBattleRequest()` RPC 이전, `battles_update_participant` DROP (`550ff5e`, `cebe600`, `ee2f49a`)
 - Phase 5D-1: `vote_battle` 참가자 차단 `IS NOT DISTINCT FROM` 통일 — DB 적용 완료
 - Phase 5D-2: attack/foul 수신 damage cap 클램핑 (`safeDmg = Math.min(Number(d.damage)||0, 10)`)
+- Phase 5D-3: 결과 화면에 "투표 기준 HP · 공격/반칙은 화면 연출" 캡션 추가
 
 **Phase 5D-0 상세:**
 - Migration: `supabase/migrations/20260512_advance_turn_rpc.sql` + `_fix.sql` — DB 적용 완료
@@ -25,14 +26,20 @@
 **현재 dirty:**
 - `.claude/settings.json`, `.claudeignore`: untracked, 커밋하지 않음
 
-**Known Limitations (Phase 5D-2 이후 잔존):**
+**Known Limitations (Phase 5D 전체 완료 이후 잔존):**
 - fake attack/foul broadcast frequency는 여전히 가능 (cosmetic — 다음 vote 시 DB값으로 자동 정정)
 - `battle_messages.user_id` 컬럼 없음 (nick만 저장)
 
+**Phase 5D 완료 요약:**
+- 5D-0: advance_turn RPC, battles_update_participant DROP → HP 직접 변조 경로 차단
+- 5D-1: vote_battle IS NOT DISTINCT FROM → NULL-safe 참가자 차단
+- 5D-2: attack/foul damage cap → 과장 damage 무력화
+- 5D-3: 결과 화면 cosmetic 명시화
+
 **다음 세션 후보 (우선순위 순):**
-A. Phase 5D-3 (선택): attack/foul cosmetic 명시화 (결과 화면 "투표 기준" UI 텍스트)
-B. Admin 고도화 설계 (뉴스 관리, 시즌 관리, 운영 대시보드)
-C. 랭킹/프로필 추가 고도화 (시즌 랭킹, 대표 배지)
+A. Admin 고도화 설계 (뉴스 관리, 시즌 관리, 운영 대시보드)
+B. 랭킹/프로필 추가 고도화 (시즌 랭킹, 대표 배지)
+C. Phase 6: battle_actions 히스토리 / 리플레이 UI 설계
 
 **완료 항목 참조 (이하 목록에서 완료된 것):**
 - 1번 KDI 데이터 정리 ✅
