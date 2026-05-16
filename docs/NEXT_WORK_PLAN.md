@@ -1,7 +1,44 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (Phase P2 audit 강화 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (Season HOF Admin 설계 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-17 마감 상태 (20차)
+
+**origin/main = HEAD = ab3a808 (push 예정)**
+
+**오늘 완료 (20차): deleteSeasonRecord DB 연동 설계 — read-only 조사 + 정책 문서화**
+
+**변경 파일:**
+- `docs/SEASON_HOF_ADMIN_PLAN.md` (신규)
+- `docs/NEXT_WORK_PLAN.md`
+
+**조사 결과:**
+- `deleteSeasonRecord`: 현재 완전 비활성화 (토스트만 표시), UI 버튼 없음
+- `renderSeasonAdminPanel` HOF 목록: "DB 관리 예정" 라벨만, 삭제 버튼 없음
+- `season_hof` 테이블: `is_hidden`/`is_visible` 컬럼 없음 — soft hide 미구현 상태
+- RLS 활성화, 모든 mutation은 SECURITY DEFINER RPC 경유, 직접 접근 불가
+- `get_hall_of_fame`: `is_active = FALSE` 시즌만 반환 (종료 시즌 전용)
+- active season HOF 행은 구조상 존재하지 않음 (admin_end_season 호출 시점에 생성)
+- localStorage는 DB fallback 용도로 유지, DB 로드 성공 시 항상 갱신
+
+**정책 추천: 후보 B (soft hide)**
+- `season_hof.is_hidden` 컬럼 추가 → `get_hall_of_fame` WHERE 필터
+- `admin_hide_hof_entry` / `admin_restore_hof_entry` RPC
+- active season HOF 숨기기 RPC 레벨 차단
+- audit_logs 기록 필수
+- hard delete 비추천 (운영 이력 보존 원칙)
+
+**다음 세션 후보 (우선순위 순):**
+A. Phase S3-A: `season_hof.is_hidden` schema + hide/restore RPC migration
+B. Phase S3-B: admin UI 연결 (숨김/복구 버튼, `deleteSeasonRecord` 교체)
+C. Phase P3 (선택): settled 이벤트 force 재정산 UI confirm 경고 강화
+D. localStorage settleBet/simulateFight 정리
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 
