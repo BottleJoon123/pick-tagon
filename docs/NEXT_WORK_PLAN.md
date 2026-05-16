@@ -1,7 +1,55 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-16 (Path B RPC 직접 호출 전환 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-16 (QA/마감 문서화 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-16 마감 상태 (10차)
+
+**origin/main = HEAD = push 후 최신 SHA 확인**
+
+**오늘 완료 (10차): Admin 결과 입력 Path B 전환 QA/마감 문서화**
+
+**변경 파일:**
+- `docs/ADMIN_RESULT_SETTLEMENT_PATH_PLAN.md`
+- `docs/NEXT_WORK_PLAN.md`
+
+**내용:**
+- `ADMIN_RESULT_SETTLEMENT_PATH_PLAN.md` 전면 업데이트:
+  - Section 1: 현재 운영 경로(Path B) + legacy fallback 경로 분리 기술
+  - Section 4: 비교표 연결 상태 반영
+  - Section 5-5: 미연결 이슈 해소 처리
+  - Section 6: force=true confirm 완료(8903621) 처리
+  - Section 7: Path B 완료 표시
+  - Section 8: 구현 순서 완료 기록
+  - Section 9: QA 패널 호환성 Path B 현재 기준
+  - Section 10: QA 체크리스트 완료/미완료 구분
+  - Section 11 (신규): Known Limitations
+  - 이력 테이블 추가
+
+**Known Limitations (요약):**
+- legacy `submitMatchupResult()` / Edge Function fallback 코드 잔류
+- toast/갱신 로직 일부 중복
+- archived 이벤트 결과 수정 정책 미확정
+- force=true 고위험 경로 — 실제 사용 시 주의 필요
+- localStorage `settleBet()` legacy 경로 미제거
+- 브라우저 smoke QA(audit_log, admin_required) 미실시
+
+**다음 세션 후보 (우선순위 순):**
+A. 실제 브라우저 smoke QA
+   - force confirm / QA guard / RPC 직접 호출 동작 확인
+   - admin_audit_logs set_matchup_result 기록 확인
+   - admin_required 차단 동작 확인
+B. Admin 대시보드 Phase D2
+   - 최근 7일 지급 포인트 / 미결 matchup 수 / 이상 감지 지표
+C. 결과 입력 경로 후속 정리
+   - submitMatchupResult legacy fallback 제거 여부 판단
+   - toast/갱신 공통 helper 추출
+   - archived 이벤트 수정 정책 확정
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 

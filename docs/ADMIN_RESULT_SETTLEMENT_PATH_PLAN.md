@@ -1,32 +1,35 @@
 # Admin 결과 입력 경로 통일 설계안
 
-작성: 2026-05-16 / 상태: read-only 조사 완료 — 코드/DB/운영 데이터 변경 없음
+작성: 2026-05-16 / 마지막 업데이트: 2026-05-16 / 상태: Path B 전환 완료 (d07156e)
 
 ---
 
 ## 1. 현재 결과 입력 경로 요약
 
-### 실제 호출 스택 (현재 운영 경로)
+### 현재 운영 경로 (Path B — d07156e 기준)
 
 ```
 [Admin UI — UFC Builder]
   openResultModal() / openResultModalForEdit()
     → confirmAdminResult()                          [index.html:3180]
-      → submitMatchupResult(matchupId, ...)         [index.html:3223]
-        → sb.functions.invoke('settle-matchup', {   [Edge Function HTTP 호출]
-            matchupId, winnerName, winnerSide,
-            method, round, time, force
-          })
-            → anonClient.rpc('admin_set_matchup_result', ...) [Edge Function 내부]
+      force=true 시: confirm 다이얼로그 (8903621)
+      → adminSetMatchupResultWithUI(matchupId, ...) [index.html:3234 — 신규]
+          → adminSetMatchupResult(...)              [admin.js:1586]
+            → sb.rpc('admin_set_matchup_result', ...) [RPC 직접 호출]
               → public.service_settle_matchup(...)  [실제 정산 로직]
+          → toast / 상태 갱신 체인
 ```
 
-### 대안 경로 (admin.js에 이미 준비됨, 현재 미연결)
+### Legacy Fallback 경로 (settle-matchup Edge Function — 보존)
 
 ```
-adminSetMatchupResult(matchupId, ...)               [admin.js:1572 — 현재 미사용]
-  → sb.rpc('admin_set_matchup_result', ...)         [RPC 직접 호출]
-    → public.service_settle_matchup(...)            [실제 정산 로직]
+submitMatchupResult(matchupId, ...)                 [index.html:3267 — legacy fallback]
+  → sb.functions.invoke('settle-matchup', {         [Edge Function HTTP 호출]
+      matchupId, winnerName, winnerSide,
+      method, round, time, force
+    })
+      → anonClient.rpc('admin_set_matchup_result', ...) [Edge Function 내부]
+        → public.service_settle_matchup(...)        [실제 정산 로직]
 ```
 
 ---
@@ -109,7 +112,7 @@ adminSetMatchupResult(matchupId, ...)               [admin.js:1572 — 현재 �
 | force=true 지원 | ✓ | ✓ |
 | NC/DRAW | ✓ | ✓ |
 | 레거시 fight_id 처리 | service_settle_matchup이 처리 (동일) | service_settle_matchup이 처리 (동일) |
-| 현재 연결 상태 | **운영 중** | **admin.js에 준비됨, 미연결** |
+| 현재 연결 상태 | **legacy fallback (submitMatchupResult)** | **현재 운영 중 (adminSetMatchupResultWithUI)** |
 
 ---
 
@@ -139,9 +142,9 @@ Edge Function에서 `users.is_admin`을 **HTTP 레이어**에서 한 번 체크�
 
 ### 5-4. force=true 역산 위험 🚨 (별도 섹션 6 참조)
 
-### 5-5. admin.js `adminSetMatchupResult()` 미연결
-[admin.js:1572]에 함수가 정의되어 있지만 `confirmAdminResult()`에서 호출되지 않음.
-코드 주석: "향후 Edge Function 대체 시 사용". 이 함수로 전환하면 cold start 문제 해소.
+### 5-5. admin.js `adminSetMatchupResult()` 연결 ✅ (d07156e 해소)
+`adminSetMatchupResultWithUI()`(index.html)가 `adminSetMatchupResult()`를 호출하는 구조로 전환 완료.
+cold start retry 로직 미사용. legacy `submitMatchupResult()` 및 Edge Function은 fallback으로 보존.
 
 ---
 
@@ -168,9 +171,9 @@ force=true + 이미 정산된 matchup:
 ### 현재 UI 진입점
 - `openResultModalForEdit()` → `result-modal-force` 값 `'true'`
 - `confirmAdminResult()` → `isForce = document.getElementById('result-modal-force').value === 'true'`
-- confirm 다이얼로그 없음 — 클릭 한 번으로 force 실행
+- **confirm 다이얼로그 추가됨 ✅ (8903621)**: force=true 시 `confirm()` 표시, 취소 시 모달 유지 + RPC 미호출
 
-**권고**: force=true 경로에 별도 "강제 재정산 확인" confirm 다이얼로그 추가 필요.
+**현재 상태**: 강제 재정산 confirm 완료. 실제 운영 사용 시에도 여전히 주의 필요.
 
 ---
 
@@ -200,69 +203,79 @@ force=true + 이미 정산된 matchup:
 - 단점: 신규 RPC migration + 기존 RPC 교체 → 운영 영향 범위가 큼
 - 현재 불필요 — `admin_set_matchup_result` → `service_settle_matchup` 분리가 이미 깔끔함
 
-### 최종 추천: **후보 B** (단계적 전환)
+### 최종 추천: **후보 B** — ✅ **완료 (d07156e)**
 
 ---
 
-## 8. 추천 구현 순서
+## 8. 구현 순서 (완료 기록)
 
-> ⚠ 아래는 향후 구현 시 순서. 이번 조사에서는 코드 변경 없음.
+1. ✅ **force=true confirm 다이얼로그 추가** (8903621)
+   - `confirmAdminResult()` isForce 분기: `confirm()` 표시, 취소 시 `showToast('강제 재정산 취소'); return;`
 
-1. **force=true confirm 다이얼로그 추가** (index.html)
-   - `openResultModalForEdit()` 또는 `confirmAdminResult()` isForce 분기에 추가 confirm
-   - 위험 경고 문구: "이미 정산된 경기를 강제 재정산합니다. 모든 관련 유저 포인트가 변경됩니다."
+2. ✅ **`confirmAdminResult()` DB matchup 분기에서 `adminSetMatchupResultWithUI()` 연결** (d07156e)
+   - isDbMatchup 경로 + DRAW/NC 경로: `submitMatchupResult()` → `adminSetMatchupResultWithUI()` 교체
+   - retry 로직 미사용 (cold start 불필요)
 
-2. **`confirmAdminResult()` DB matchup 분기에서 `adminSetMatchupResult()` 연결**
-   - isDbMatchup 경로: `submitMatchupResult()` → `adminSetMatchupResult()` 교체
-   - `adminSetMatchupResult()` 반환 구조가 `service_settle_matchup` 반환과 동일하므로 toast 로직 재사용 가능
-   - retry 로직 제거 (cold start 불필요)
+3. ✅ **`adminSetMatchupResultWithUI()` 신규 추가** (d07156e)
+   - `adminSetMatchupResult()` 호출 + toast/갱신 로직 포함
+   - RPC 반환 필드(`settled_count`, `win_count`, `lose_count`, `cancel_count`, `event_completed`) 동일 사용
 
-3. **`adminSetMatchupResult()`의 toast/갱신 출력 통일**
-   - 현재 함수는 RPC 결과를 return만 하고 toast 없음
-   - `submitMatchupResult()`의 toast/갱신 로직을 `adminSetMatchupResult()` 또는 공통 함수로 이동
+4. ✅ **QA 패널 갱신 체인 유지** (d07156e)
+   - `adminSetMatchupResultWithUI()` 성공 후 `fetchBuilderMatchups` + `Promise.all([fetchBuilderPickSummary, fetchBuilderQA])` 실행
 
-4. **QA 패널 호환성 확인**
-   - `submitMatchupResult()` 성공 블록에 이미 `fetchBuilderQA()` 호출 추가됨 (f708e83)
-   - Path B 전환 후에도 동일 갱신 블록이 `adminSetMatchupResult()` 성공 후에 실행되어야 함
-
-5. **legacy settleBet() 경로 격리**
-   - `confirmAdminResult()`의 localStorage fight 분기(`!isDbMatchup && fight`)는 `settleBet()` 경로 유지
-   - DB matchup이 전수 완료된 후 해당 분기 제거 가능
+5. **legacy settleBet() 경로 격리** — 보류
+   - `confirmAdminResult()`의 `!isDbMatchup && fight` 분기는 `settleBet()` 경로 유지
+   - DB matchup 전수 완료 이후 별도 판단 필요
 
 ---
 
 ## 9. QA 패널과 경로 호환성
 
-| 기능 | Path A (Edge Function) | Path B (RPC 직접) |
-|------|----------------------|-----------------|
-| `_builderQA` 갱신 | `submitMatchupResult()` 성공 후 `fetchBuilderQA()` 호출 ✓ (f708e83) | 동일 갱신 블록 필요 |
-| `all_matchups_completed` 반영 | matchup 결과 입력 → DB 업데이트 → QA 재조회 ✓ | 동일 |
-| `total_pending_alert` 반영 | 정산 완료 후 pending=0 확인 ✓ | 동일 |
-| 정산 버튼 guard | `onLifecycleSettle()` QA guard ✓ (f708e83) | 변경 불필요 |
+| 기능 | Path A (Edge Function, legacy) | Path B (RPC 직접, 현재 운영) |
+|------|-------------------------------|------------------------------|
+| `_builderQA` 갱신 | `submitMatchupResult()` 성공 후 `fetchBuilderQA()` 호출 ✓ (f708e83) | `adminSetMatchupResultWithUI()` 성공 후 동일 갱신 블록 ✓ (d07156e) |
+| `all_matchups_completed` 반영 | matchup 결과 입력 → DB 업데이트 → QA 재조회 ✓ | 동일 ✓ |
+| `total_pending_alert` 반영 | 정산 완료 후 pending=0 확인 ✓ | 동일 ✓ |
+| 정산 버튼 guard | `onLifecycleSettle()` QA guard ✓ (f708e83) | 변경 없음 ✓ |
 
-**현재 Admin QA 패널은 두 경로 모두와 호환됨.** Path B 전환 시 `adminSetMatchupResult()` 성공 후 동일 갱신 블록(`fetchBuilderMatchups`, `fetchBuilderPickSummary`, `fetchBuilderQA`) 실행 필요.
-
----
-
-## 10. QA 체크리스트 (향후 구현 시)
-
-- [ ] force=false 정상 결과 입력 → win/lose/pending count 정확
-- [ ] DRAW 입력 → picks 전부 cancelled, bet_cost 환급
-- [ ] NC 입력 → picks 전부 cancelled, bet_cost 환급
-- [ ] 마지막 matchup 결과 입력 → event auto-completed
-- [ ] force=true 재정산 → 이전 포인트 역산 후 재계산
-- [ ] force=true confirm 다이얼로그 표시 확인
-- [ ] non-admin 호출 → `admin_required` (toast + 차단)
-- [ ] 결과 입력 후 `_builderQA` stale 없이 즉시 갱신
-- [ ] QA 통과 후 정산 버튼 활성 상태 확인
-- [ ] `npm run build` PASS
-- [ ] audit_logs에 set_matchup_result 기록 확인
+**Path B 전환 완료.** `adminSetMatchupResultWithUI()` 성공 후 `fetchBuilderMatchups` + `Promise.all([fetchBuilderPickSummary, fetchBuilderQA])` 실행됨.
 
 ---
 
-## 이번 조사 범위 명시
+## 10. QA 체크리스트 (Path B 전환 기준)
 
-> **이번 작업에서 코드, DB, 운영 데이터 변경 없음.**
-> 모든 내용은 read-only 조사 결과이며, 구현은 별도 승인 후 진행.
-> 운영 데이터 및 users.points에 영향을 줄 수 있는 force=true 경로는
-> **반드시 별도 승인 후에만 UI 변경 가능.**
+- [x] force=false DB matchup 결과 입력 → RPC 직접 호출, toast/갱신 정상
+- [x] DRAW 입력 → `cancelled` 처리, `${cancels}명 환급` toast
+- [x] NC 입력 → `cancelled` 처리, `${cancels}명 환급` toast
+- [x] force=true 결과 수정 → confirm 다이얼로그 표시 (8903621)
+- [x] force=true confirm 취소 → RPC 호출 없음, 모달 유지
+- [x] 결과 입력 후 `fetchBuilderMatchups` / `fetchBuilderPickSummary` / `fetchBuilderQA` 갱신
+- [x] 마지막 matchup 결과 입력 후 QA 패널/정산 버튼 즉시 활성화
+- [x] `npm run build` PASS
+- [ ] admin_audit_logs에 `set_matchup_result` 기록 확인 (브라우저 smoke QA 필요)
+- [ ] non-admin RPC 호출 → `admin_required` toast + 차단 확인 (브라우저 smoke QA 필요)
+- [ ] Edge Function `settle-matchup` 파일 삭제/수정 없음 ✓ (소스 확인 완료)
+
+---
+
+## 11. Known Limitations
+
+| 항목 | 내용 |
+|------|------|
+| Legacy fallback 잔류 | `submitMatchupResult()` + Edge Function `settle-matchup`은 삭제하지 않고 코드에 보존 중 |
+| 토스트/갱신 로직 중복 | `submitMatchupResult()`와 `adminSetMatchupResultWithUI()` 양쪽에 유사한 toast/갱신 체인 존재 |
+| archived 이벤트 수정 정책 미확정 | `admin_set_matchup_result`는 `archived` 차단, `settled`는 허용. 허용 범위 최종 정책 별도 확정 필요 |
+| force=true 고위험 경로 | confirm 추가됐으나, 다수 사용자 포인트 동시 변경 — 실제 운영 사용 시 사전 검토 필수 |
+| localStorage legacy 경로 | `settleBet()` (localStorage fight) 경로 미제거 — DB matchup 전수 전환 이후 정리 가능 |
+| 브라우저 smoke QA 미실시 | `admin_audit_logs` 기록, `admin_required` 차단 동작은 실제 브라우저에서 미확인 |
+
+---
+
+## 이력
+
+| 날짜 | 작업 | 커밋 |
+|------|------|------|
+| 2026-05-16 | read-only 조사 + 설계 문서화 | f643024 |
+| 2026-05-16 | force=true confirm 다이얼로그 추가 | 8903621 |
+| 2026-05-16 | Path B RPC 직접 호출 전환 완료 | d07156e |
+| 2026-05-16 | QA/마감 문서화 | (이번 커밋) |
