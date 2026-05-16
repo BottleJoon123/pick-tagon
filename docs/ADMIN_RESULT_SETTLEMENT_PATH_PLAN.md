@@ -266,6 +266,7 @@ force=true + 이미 정산된 matchup:
 | 토스트/갱신 로직 중복 | `submitMatchupResult()`와 `adminSetMatchupResultWithUI()` 양쪽에 유사한 toast/갱신 체인 존재 |
 | archived 이벤트 수정 정책 미확정 | `admin_set_matchup_result`는 `archived` 차단, `settled`는 허용. 허용 범위 최종 정책 별도 확정 필요 |
 | force=true 고위험 경로 | confirm 추가됐으나, 다수 사용자 포인트 동시 변경 — 실제 운영 사용 시 사전 검토 필수 |
+| **⚠ service_settle_matchup 직접 호출 가능** | **DB proacl이 authenticated 포함 — 마이그레이션 REVOKE 미반영. 비관리자 직접 호출 가능. 수정 migration 필요 (별도 승인).** |
 | localStorage legacy 경로 | `settleBet()` (localStorage fight) 경로 미제거 — DB matchup 전수 전환 이후 정리 가능 |
 | 브라우저 smoke QA 미실시 | `admin_audit_logs` 기록, `admin_required` 차단 동작은 실제 브라우저에서 미확인 |
 
@@ -278,4 +279,5 @@ force=true + 이미 정산된 matchup:
 | 2026-05-16 | read-only 조사 + 설계 문서화 | f643024 |
 | 2026-05-16 | force=true confirm 다이얼로그 추가 | 8903621 |
 | 2026-05-16 | Path B RPC 직접 호출 전환 완료 | d07156e |
-| 2026-05-16 | QA/마감 문서화 | (이번 커밋) |
+| 2026-05-16 | QA/마감 문서화 | d90b1ea |
+| 2026-05-16 | smoke QA 실행 + FINDING-01 발견 | (이번 커밋) |

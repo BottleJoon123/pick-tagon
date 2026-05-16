@@ -1,7 +1,45 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-16 (QA/마감 문서화 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-16 (smoke QA 실행 + FINDING-01)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-16 마감 상태 (11차)
+
+**origin/main = HEAD = push 후 최신 SHA 확인**
+
+**오늘 완료 (11차): Admin 결과 입력 Path B 브라우저 smoke QA**
+
+**변경 파일:**
+- `docs/QA_RUN_2026-05-16_ADMIN_RESULT_PATH_B.md` (신규)
+- `docs/ADMIN_RESULT_SETTLEMENT_PATH_PLAN.md` (Known Limitations + 이력 업데이트)
+- `docs/NEXT_WORK_PLAN.md`
+
+**QA 결과 요약:**
+- 코드 경로 검증 15항목 중 12 PASS, 2 NOT RUN, 1 CODE VERIFIED
+- DB/RPC: admin_set_matchup_result, get_admin_event_qa, private.is_admin(), audit_logs 모두 PASS
+- 운영 데이터 변경 없음
+
+**⚠️ FINDING-01 — service_settle_matchup 직접 호출 가능 (HIGH RISK)**
+- 마이그레이션 의도: `REVOKE ALL FROM PUBLIC; GRANT TO service_role`
+- 실제 DB 상태: `authenticated`, `anon` 포함 전 역할 EXECUTE 가능
+- `service_settle_matchup` 본문에 `is_admin` 체크 없음
+- 비관리자가 RPC 직접 호출로 matchup 결과 입력 + points 변경 가능
+- **이번 작업 도입이 아님** — 기존 권한 설정 문제
+- 수정 migration 필요 (별도 승인 후 진행)
+
+**다음 세션 후보 (우선순위 순):**
+A. ⚠️ FINDING-01 수정 — service_settle_matchup 권한 수정 migration
+   - `REVOKE authenticated/anon; GRANT service_role only`
+   - 또는 함수 본문에 admin 체크 추가 (설계상 비권장)
+B. 실제 브라우저 smoke QA (NOT RUN 항목)
+   - force confirm / audit_log 신규 기록 / DevTools network 확인
+C. Admin 대시보드 Phase D2
+   - 최근 7일 지급 포인트 / 미결 matchup 수 / 이상 감지 지표
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 
