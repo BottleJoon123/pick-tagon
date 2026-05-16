@@ -1,7 +1,49 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (Phase P1 버그 수정 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (Phase P2 audit 강화 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-17 마감 상태 (19차)
+
+**origin/main = HEAD = push 후 최신 SHA 확인**
+
+**오늘 완료 (19차): Phase P2 — force=true audit before snapshot 강화**
+
+**변경 파일:**
+- `supabase/migrations/20260517_admin_set_matchup_result_force_audit.sql` (신규)
+- `docs/ADMIN_RESULT_EDIT_POLICY_PLAN.md` (Phase P2 완료 기록)
+- `docs/NEXT_WORK_PLAN.md`
+
+**수정 내용:**
+- `admin_set_matchup_result`에 `v_force_snapshot JSONB` 수집 로직 추가
+- `p_force=true` 시 `service_settle_matchup` 호출 전에 역산 대상 picks 집계:
+  - `win_count` / `lose_count` / `cancelled_count`
+  - `total_settled_payout` (회수될 총 포인트 합계)
+- audit log metadata = `v_result || v_force_snapshot` (force 시)
+- 기존 동작(is_admin guard, archived guard, service_settle_matchup 호출, 반환값) 전혀 변경 없음
+
+**DB 검증:**
+- `SECURITY DEFINER` ✓
+- `FORCE SNAPSHOT OK` (v_force_snapshot 코드 존재) ✓
+- `PICKS SUMMARY OK` (picks_before_reversal 구조 존재) ✓
+- `ARCHIVED GUARD OK` ✓ / `ADMIN GUARD OK` ✓
+- acl: `{postgres=X, anon=X, authenticated=X, service_role=X}` ✓
+- apply_migration 성공 ✓ / 운영 데이터 수정 없음 ✓
+
+**Phase P1+P2 완료 요약:**
+- P1: settled 이벤트 상태 역행 버그 수정 (`service_settle_matchup`)
+- P2: force=true audit before snapshot 강화 (`admin_set_matchup_result`)
+
+**다음 세션 후보 (우선순위 순):**
+A. Phase P3 (선택): settled 이벤트 force 재정산 UI confirm 경고 강화
+   - `editMatchupResult()` 호출 시 이벤트 status 확인 후 "settled 이벤트입니다" 경고 추가
+B. deleteSeasonRecord DB 연동 (DB HOF 삭제 RPC)
+C. localStorage settleBet/simulateFight 정리
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 

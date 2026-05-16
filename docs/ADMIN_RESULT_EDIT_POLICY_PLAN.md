@@ -1,7 +1,7 @@
 # Admin 결과 수정/force 재정산 정책 설계
 
 작성: 2026-05-17 (read-only 조사 기반)
-상태: Phase P1 완료 (2026-05-17) / Phase P2 구현 미착수
+상태: Phase P1 완료 (2026-05-17) / Phase P2 완료 (2026-05-17) / Phase P3 미착수
 
 ---
 
@@ -269,21 +269,20 @@ WHERE id = v_matchup.event_id
 
 ---
 
-### Phase P2: force=true audit before snapshot 강화
+### Phase P2: force=true audit before snapshot 강화 ✅ DONE (2026-05-17)
 
 **파일:** `supabase/migrations/20260517_admin_set_matchup_result_force_audit.sql`
 
-**내용:** `admin_set_matchup_result`에서 force=true 시 추가 before snapshot 수집:
+**수정 내용:** `admin_set_matchup_result`에서 `p_force=true` 시 `service_settle_matchup` 호출 전에 역산 대상 picks 집계 수집:
 
 ```sql
--- force=true일 때 역산 대상 picks 집계를 audit metadata에 추가
 IF p_force THEN
     SELECT jsonb_build_object(
-        'force',                  true,
-        'picks_before_reversal',  jsonb_build_object(
-            'win_count',          SUM(CASE WHEN status='win'       THEN 1 ELSE 0 END),
-            'lose_count',         SUM(CASE WHEN status='lose'      THEN 1 ELSE 0 END),
-            'cancelled_count',    SUM(CASE WHEN status='cancelled' THEN 1 ELSE 0 END),
+        'force', true,
+        'picks_before_reversal', jsonb_build_object(
+            'win_count',            COALESCE(SUM(CASE WHEN status='win'       THEN 1 ELSE 0 END), 0),
+            'lose_count',           COALESCE(SUM(CASE WHEN status='lose'      THEN 1 ELSE 0 END), 0),
+            'cancelled_count',      COALESCE(SUM(CASE WHEN status='cancelled' THEN 1 ELSE 0 END), 0),
             'total_settled_payout', COALESCE(SUM(CASE WHEN status='win' THEN settled_payout ELSE 0 END), 0)
         )
     ) INTO v_force_snapshot
@@ -291,11 +290,19 @@ IF p_force THEN
     WHERE (matchup_id = p_matchup_id OR fight_id = p_matchup_id::TEXT)
       AND status IN ('win', 'lose', 'cancelled');
 END IF;
+-- metadata = v_result || v_force_snapshot (force 시)
+--          = v_result                      (non-force 시, 기존 동작)
 ```
 
-audit log metadata에 `v_force_snapshot` 병합하여 저장.
-
-**예상 작업량:** 2시간 (migration + 검증)
+**검증 결과:**
+- `SECURITY DEFINER` ✓
+- `FORCE SNAPSHOT OK` (v_force_snapshot 수집 코드 존재) ✓
+- `PICKS SUMMARY OK` (picks_before_reversal 구조 존재) ✓
+- `ARCHIVED GUARD OK` ✓
+- `ADMIN GUARD OK` ✓
+- acl: `{postgres=X, anon=X, authenticated=X, service_role=X}` ✓
+- apply_migration 성공 ✓
+- 운영 데이터 수정 없음 ✓
 
 ---
 
@@ -347,7 +354,7 @@ audit log metadata에 `v_force_snapshot` 병합하여 저장.
 - force 재정산 실행 없음
 - 운영 points 변경 없음
 
-Phase P1 완료. Phase P2~P3는 별도 세션에서 수행 예정.
+Phase P1 완료, Phase P2 완료. Phase P3는 별도 세션에서 수행 예정.
 
 ---
 
@@ -357,3 +364,4 @@ Phase P1 완료. Phase P2~P3는 별도 세션에서 수행 예정.
 |------|------|
 | 2026-05-17 | 초안 작성 (read-only 조사, settled/archived 이벤트 결과 수정 정책 설계) |
 | 2026-05-17 | Phase P1 완료: service_settle_matchup 상태 역행 버그 수정 migration apply |
+| 2026-05-17 | Phase P2 완료: admin_set_matchup_result force=true audit before snapshot 강화 |
