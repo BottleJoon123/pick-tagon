@@ -1,7 +1,44 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-16 (Phase QA1 Admin 결과 입력 QA 패널 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-16 (QA 패널 정산 버튼 연동 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-16 마감 상태 (8차)
+
+**origin/main = HEAD = push 후 최신 SHA 확인**
+
+**오늘 완료 (8차): QA 패널 정산 버튼 연동**
+
+**변경 파일:**
+- `public/js/admin.js`, `dist/js/admin.js`
+
+**UI:**
+- `_renderLifecyclePanel(ev)`: QA 상태 기반 정산 버튼 분기
+  - `_builderQA.all_matchups_completed === false` → 버튼 disabled 스타일 + "⚠ 결과 미입력 경기 있음" 보조 문구
+  - `_builderQA.total_pending_alert > 0` → 버튼 disabled 스타일 + "⚠ pending N건 잔류" 보조 문구
+  - `_builderQA === null` → 기존 활성 버튼 유지 (서버 RPC guard 있음)
+  - QA 통과 시 → 기존 green 정산 버튼
+- `onLifecycleSettle(eventId)`: QA guard 추가
+  - `all_matchups_completed === false` → toast + return (RPC 호출 없음)
+  - `total_pending_alert > 0` → toast + return (RPC 호출 없음)
+  - QA 통과 시 → 기존 confirm + adminSettleEvent 흐름 유지
+  - 정산 완료 후 `Promise.all([fetchBuilderPickSummary(), fetchBuilderQA()])` 병렬 갱신
+
+**검증:**
+- 미입력/pending 차단: toast만 표시, RPC 미호출 ✓
+- QA null: 기존 동작 유지 ✓
+- 정산 완료 후 QA 패널 재조회 ✓
+- `npm run build` PASS ✓
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
+
+**다음 세션 후보 (우선순위 순):**
+A. Admin 대시보드 Phase D2 (7일 지급 포인트, 미결 matchup 수)
+B. 운영 이상 감지 알림 (pending_picks > N 경고, 미정산 이벤트 경고)
+C. deleteSeasonRecord DB 연동 (DB HOF 삭제 RPC)
 
 ---
 

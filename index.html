@@ -3260,6 +3260,11 @@ textarea, select {
             if (typeof loadUserFromDB === 'function' && currentUser) loadUserFromDB(currentUser.id);
             if (typeof fetchUpcomingMatchups === 'function') await fetchUpcomingMatchups();
             renderAdminFightCardList();
+            // builder QA 갱신 — 결과 입력 후 _builderQA stale 방지
+            if (typeof fetchBuilderMatchups === 'function') await fetchBuilderMatchups();
+            if (typeof fetchBuilderPickSummary === 'function' && typeof fetchBuilderQA === 'function') {
+                await Promise.all([fetchBuilderPickSummary(), fetchBuilderQA()]);
+            }
         } catch (e) {
             console.error('[submitMatchupResult]', e);
             showToast(`❌ 정산 실패: ${e.message ?? e}`);

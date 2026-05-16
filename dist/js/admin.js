@@ -1113,14 +1113,25 @@ function _renderLifecyclePanel(ev) {
     else if (s === 'settled'  && ev.settled_at)  sub = `<span class="text-gray-600 text-[9px]">정산 ${ev.settled_at.slice(0,10)}</span>`;
     else if (s === 'archived' && ev.archived_at) sub = `<span class="text-gray-600 text-[9px]">아카이브 ${ev.archived_at.slice(0,10)}</span>`;
 
+    // QA 상태 기반 정산 버튼 결정 (_builderQA null이면 기존 활성 버튼 유지)
+    const _qaBlockUnresolved = _builderQA && _builderQA.all_matchups_completed === false;
+    const _qaBlockPending    = _builderQA && _builderQA.total_pending_alert > 0;
+    const _qaBlocked         = _qaBlockUnresolved || _qaBlockPending;
+    const _qaMsg             = _qaBlockUnresolved
+        ? '결과 미입력 경기 있음'
+        : (_qaBlockPending ? ('pending ' + _builderQA.total_pending_alert + '건 잔류') : '');
+    const _settleBtn = _qaBlocked
+        ? `<button onclick="onLifecycleSettle('${eid}')" class="${b} border-gray-700 text-gray-600 cursor-not-allowed" title="${_qaMsg}">✅ 정산</button><span class="oswald-sharp text-[8px] italic text-amber-500/80">⚠ ${_qaMsg}</span>`
+        : `<button onclick="onLifecycleSettle('${eid}')" class="${b} border-green-500/40 text-green-400 hover:bg-green-500/10">✅ 정산</button>`;
+
     let btns = '';
     if (s === 'upcoming') {
         btns = `<button onclick="onLifecycleLock('${eid}')" class="${b} border-amber-500/40 text-amber-400 hover:bg-amber-500/10">🔒 픽 마감</button>`;
     } else if (s === 'locked') {
         btns = `<button onclick="onLifecycleReopen('${eid}')" class="${b} border-white/20 text-gray-400 hover:bg-white/5 hover:text-white">🔓 재오픈</button>`;
-        btns += `<button onclick="onLifecycleSettle('${eid}')" class="${b} border-green-500/40 text-green-400 hover:bg-green-500/10">✅ 정산</button>`;
+        btns += _settleBtn;
     } else if (s === 'completed') {
-        btns = `<button onclick="onLifecycleSettle('${eid}')" class="${b} border-green-500/40 text-green-400 hover:bg-green-500/10">✅ 정산</button>`;
+        btns = _settleBtn;
     } else if (s === 'settled') {
         btns = `<button onclick="onLifecycleArchive('${eid}')" class="${b} border-gray-500/40 text-gray-400 hover:bg-gray-500/10 hover:text-white">📦 아카이브</button>`;
     }
@@ -1633,9 +1644,18 @@ async function onLifecycleReopen(eventId) {
 }
 
 async function onLifecycleSettle(eventId) {
+    // QA guard: 결과 미입력 또는 pending 잔류 시 RPC 호출 없이 차단
+    if (_builderQA && _builderQA.all_matchups_completed === false) {
+        showToast('⚠ 결과 미입력 경기가 있습니다. QA 패널에서 확인하세요.');
+        return;
+    }
+    if (_builderQA && _builderQA.total_pending_alert > 0) {
+        showToast('⚠ pending 픽 ' + _builderQA.total_pending_alert + '건 잔류. 정산 전 확인이 필요합니다.');
+        return;
+    }
     if (!confirm('모든 경기 결과 입력을 확인했나요?\n이벤트를 정산할까요?')) return;
     await adminSettleEvent(eventId);
-    await fetchBuilderPickSummary();
+    await Promise.all([fetchBuilderPickSummary(), fetchBuilderQA()]);
     renderBuilderWorkspace();  // adminSettleEvent는 fetchBuilderMatchups를 호출하지 않으므로 직접 갱신
 }
 
