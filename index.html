@@ -3187,6 +3187,16 @@ textarea, select {
 
         if (!winner) { showToast('⚠ 결과를 선택하세요'); return; }
 
+        // force=true 강제 재정산: modal close 전에 별도 확인 (취소 시 모달 유지)
+        if (isForce) {
+            const confirmed = confirm(
+                '이미 정산된 경기 결과를 강제 재정산합니다.\n' +
+                '관련 유저 포인트와 성공 픽 수가 역산 후 다시 계산됩니다.\n' +
+                '정말 진행할까요?'
+            );
+            if (!confirmed) { showToast('강제 재정산 취소'); return; }
+        }
+
         closeResultModal();
 
         // 무승부 / 경기취소
