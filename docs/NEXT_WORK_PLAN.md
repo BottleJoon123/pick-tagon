@@ -1,7 +1,61 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-16 (결과 입력 경로 기술 부채 분석)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (기술 부채 Phase 1 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-17 마감 상태 (16차)
+
+**origin/main = HEAD = push 후 최신 SHA 확인**
+
+**오늘 완료 (16차): 기술 부채 Phase 1 — submitMatchupResult dead code 제거 + helper 추출**
+
+**변경 파일:**
+- `index.html`, `dist/index.html`
+- `docs/NEXT_WORK_PLAN.md`
+
+**변경 내용:**
+
+제거:
+- `submitMatchupResult()` 함수 정의 삭제 (index.html ~50줄)
+  - `sb.functions.invoke('settle-matchup')` 호출 완전 제거
+  - 3-retry cold start 로직 제거
+  - 중복 toast/갱신 체인 제거
+
+추가:
+- `_showMatchupSettleToast(data, winnerName, winnerSide, method, round)`: 결과 toast 포맷 단일 관리
+- `_runPostSettleRefresh()`: 6단계 갱신 체인 단일 관리
+
+단순화:
+- `adminSetMatchupResultWithUI()`: 4줄로 축약 (showToast → RPC → toast helper → refresh helper)
+
+유지:
+- `settle-matchup` Edge Function 파일(`supabase/functions/settle-matchup/index.ts`) 삭제 안 함 — 보존
+- `settleBet()`, `simulateFight()` 미변경
+- force=true confirm 다이얼로그 유지
+- DRAW/NC 경로 유지
+- Path B 동작 동일
+
+**검증:**
+- `submitMatchupResult(` index.html/dist: 0건 ✓
+- `functions.invoke('settle-matchup')` index.html/dist: 0건 ✓
+- `_showMatchupSettleToast`, `_runPostSettleRefresh` dist: 4건 ✓
+- `supabase/functions/settle-matchup/index.ts` EXISTS ✓
+- `npm run build` PASS (376.13 kB) ✓
+- dist/index.html 동기화 ✓
+- 코드 외 변경 없음 (DB/migration/운영 데이터 없음) ✓
+
+**다음 세션 후보 (우선순위 순):**
+A. Edge Function deprecation 판단
+   - settle-matchup 배포 삭제 여부 (Path B 안정 확인 후)
+B. archived/settled 결과 수정 정책 설계
+   - before 스냅샷 audit log 저장 (DB migration)
+C. localStorage settleBet/simulateFight 정리
+   - simulateFight 테스트 전용 여부 확인 후 제거 판단
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 
