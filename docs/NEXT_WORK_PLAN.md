@@ -1,7 +1,48 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-16 (force 재정산 confirm 추가 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-16 (Path B RPC 직접 호출 전환 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-16 마감 상태 (9차)
+
+**origin/main = HEAD = push 후 최신 SHA 확인**
+
+**오늘 완료 (9차): Admin 결과 입력 Path B 전환 (RPC 직접 호출)**
+
+**변경 파일:**
+- `index.html`, `dist/index.html`
+
+**내용:**
+- `confirmAdminResult()` DB matchup 경로: `submitMatchupResult()` (Edge Function) → `adminSetMatchupResultWithUI()` (RPC 직접 호출)
+- DRAW/NC 경로 동일 전환
+- `adminSetMatchupResultWithUI()` 신규 추가:
+  - `adminSetMatchupResult()` (admin.js) 호출 → `admin_set_matchup_result` RPC 직접 호출
+  - 성공 toast: 승패/DRAW/NC 포맷 동일 유지
+  - 갱신 체인 유지: loadUserPicksFromDB → loadUserFromDB → fetchUpcomingMatchups → renderAdminFightCardList → fetchBuilderMatchups → Promise.all([fetchBuilderPickSummary, fetchBuilderQA])
+- `submitMatchupResult()` legacy 주석 추가 후 보존 (Edge Function 경로, 삭제 안 함)
+- force=true confirm 다이얼로그(8903621) 유지
+- QA 패널 갱신(f708e83) 유지
+
+**Edge Function `settle-matchup`:**
+- 삭제하지 않음, legacy fallback으로 보존
+- 현재 DB matchup 기본 경로는 RPC 직접 호출, Edge Function은 legacy fallback
+
+**검증:**
+- force=false RPC 직접 호출, toast/갱신 유지 ✓
+- force=true confirm 다이얼로그 → RPC 직접 호출 ✓
+- DRAW/NC → cancels 환급 toast ✓
+- QA 패널 마지막 결과 입력 후 즉시 갱신 ✓
+- `npm run build` PASS ✓
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
+
+**다음 세션 후보 (우선순위 순):**
+A. Admin 대시보드 Phase D2 (7일 지급 포인트, 미결 matchup 수)
+B. 운영 이상 감지 알림 (pending_picks > N 경고, 미정산 이벤트 경고)
+C. deleteSeasonRecord DB 연동 (DB HOF 삭제 RPC)
 
 ---
 

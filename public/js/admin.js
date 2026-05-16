@@ -1560,7 +1560,7 @@ async function saveNewEvent() {
 // ── EVENT LIFECYCLE RPCs ──────────────────────────────────────────
 // UI 연결 위치: renderBuilderWorkspace() 이벤트 헤더 버튼 영역
 //   - 픽 마감/재오픈: 이벤트 선택 후 상단 액션 버튼
-//   - 결과 입력: 매치업 카드 🏆 버튼 (현재 submitMatchupResult → Edge Function 경유)
+//   - 결과 입력: 매치업 카드 🏆 버튼 → adminSetMatchupResultWithUI() → adminSetMatchupResult() RPC 직접 호출
 //   - 정산/아카이브: 이벤트 상태 뱃지 옆 버튼 (Phase 2 UI에서 추가 예정)
 
 async function adminLockEventPicks(eventId) {
@@ -1581,8 +1581,8 @@ async function adminReopenEventPicks(eventId) {
     if (_builderState.eventId === eventId) await fetchBuilderMatchups();
 }
 
-// 현재 결과 입력은 submitMatchupResult() → settle-matchup Edge Function 경유
-// 이 함수는 audit log 포함 RPC 경로 — 향후 Edge Function 대체 시 사용
+// DB matchup 기본 경로: adminSetMatchupResultWithUI()(index.html)에서 호출 → admin_set_matchup_result RPC (audit log 포함)
+// settle-matchup Edge Function 경로는 submitMatchupResult()에 legacy fallback으로 보존
 async function adminSetMatchupResult(matchupId, winnerName, winnerSide, method, round, time, force = false) {
     if (!sb) return null;
     const { data, error } = await sb.rpc('admin_set_matchup_result', {

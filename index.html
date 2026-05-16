@@ -3203,7 +3203,7 @@ textarea, select {
         if (winner === 'DRAW' || winner === 'NC') {
             const dbSide = winner === 'DRAW' ? 'draw' : 'nc';
             const autoMethod = winner === 'NC' ? 'NC' : method;
-            await submitMatchupResult(fightId, winner, dbSide, autoMethod, parseInt(round), time, isForce);
+            await adminSetMatchupResultWithUI(fightId, winner, dbSide, autoMethod, parseInt(round), time, isForce);
             return;
         }
 
@@ -3219,7 +3219,7 @@ textarea, select {
                 const opts = document.getElementById('result-winner-select').options;
                 dbSide = opts[1] && opts[1].value === winner ? 'red' : 'blue';
             }
-            await submitMatchupResult(fightId, winner, dbSide, method, parseInt(round), time, isForce);
+            await adminSetMatchupResultWithUI(fightId, winner, dbSide, method, parseInt(round), time, isForce);
         } else if (fight) {
             const winnerSide = fight.f1.name === winner ? 'left' : 'right';
             settleBet(fightId, winner, method, winnerSide, round, time);
@@ -3230,6 +3230,40 @@ textarea, select {
         }
     }
 
+    // DB matchup 기본 경로: admin_set_matchup_result RPC 직접 호출
+    async function adminSetMatchupResultWithUI(matchupId, winnerName, winnerSide, method, round, time, force = false) {
+        try {
+            showToast('⏳ 결과 정산 중...');
+            const data = await adminSetMatchupResult(matchupId, winnerName, winnerSide, method, round, time, force);
+            if (!data) return; // error already toasted by adminSetMatchupResult
+
+            const settled   = data?.settled_count ?? 0;
+            const wins      = data?.win_count ?? 0;
+            const losses    = data?.lose_count ?? 0;
+            const cancels   = data?.cancel_count ?? 0;
+            const eventDone = data?.event_completed ?? false;
+
+            const isDrawNc = winnerSide === 'draw' || winnerSide === 'nc';
+            const label    = isDrawNc
+                ? `${winnerName} (${method}, R${round}) — ${cancels}명 환급`
+                : `${winnerName} 승 (${method}, R${round}) — ${settled}명 정산 (${wins}승 ${losses}패)`;
+            showToast(`✅ ${label}${eventDone ? ' · 이벤트 완료!' : ''}`);
+
+            if (typeof loadUserPicksFromDB === 'function') await loadUserPicksFromDB();
+            if (typeof loadUserFromDB === 'function' && currentUser) loadUserFromDB(currentUser.id);
+            if (typeof fetchUpcomingMatchups === 'function') await fetchUpcomingMatchups();
+            renderAdminFightCardList();
+            if (typeof fetchBuilderMatchups === 'function') await fetchBuilderMatchups();
+            if (typeof fetchBuilderPickSummary === 'function' && typeof fetchBuilderQA === 'function') {
+                await Promise.all([fetchBuilderPickSummary(), fetchBuilderQA()]);
+            }
+        } catch (e) {
+            console.error('[adminSetMatchupResultWithUI]', e);
+            showToast(`❌ 정산 실패: ${e.message ?? e}`);
+        }
+    }
+
+    // Legacy fallback: Edge Function(settle-matchup) 경로. DB matchup 기본 경로는 adminSetMatchupResultWithUI() (RPC 직접 호출) 사용.
     async function submitMatchupResult(matchupId, winnerName, winnerSide, method, round, time, force = false) {
         try {
             showToast('⏳ 결과 정산 중...');
