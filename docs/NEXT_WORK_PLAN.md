@@ -1,7 +1,52 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-16 (Admin 대시보드 D2 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-16 (결과 입력 경로 기술 부채 분석)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-16 마감 상태 (15차)
+
+**origin/main = HEAD = push 후 최신 SHA 확인**
+
+**오늘 완료 (15차): 결과 입력 경로 기술 부채 분석 (read-only 조사)**
+
+**변경 파일:**
+- `docs/ADMIN_RESULT_PATH_TECH_DEBT_PLAN.md` (신규)
+- `docs/NEXT_WORK_PLAN.md`
+
+**조사 결과 요약:**
+
+현재 경로:
+- **운영 경로 (Path B)**: `confirmAdminResult → adminSetMatchupResultWithUI → adminSetMatchupResult → sb.rpc('admin_set_matchup_result')`
+- **Dead code**: `submitMatchupResult()` (index.html:3267) — 어디서도 호출 안 됨
+- **Dead code**: `settle-matchup` Edge Function — 현재 미호출 (배포 유지 중)
+- **Legacy 경로**: `settleBet()` — localStorage fight 전용, 운영 환경 사용 없음
+
+핵심 발견:
+- `submitMatchupResult()`와 `adminSetMatchupResultWithUI()`가 toast 포맷 + 6단계 갱신 체인을 동일하게 중복
+- `settle-matchup` Edge Function은 내부에서 `admin_set_matchup_result` RPC를 호출 (동일 최종 경로)
+- `service_settle_matchup` 직접 호출 없음 — 보안 경로 정상
+- archived/settled 이벤트 force 재정산 정책 미확정 (before 스냅샷 없음)
+
+추천 구현 순서 (상세: docs/ADMIN_RESULT_PATH_TECH_DEBT_PLAN.md):
+- Phase 1: `submitMatchupResult` 제거 + 공통 갱신 헬퍼 추출
+- Phase 2: `settle-matchup` Edge Function 제거 (Path B 안정 확인 후)
+- Phase 3: archived/settled 수정 정책 (before 스냅샷, DB migration)
+- Phase 4: `settleBet` / `simulateFight` 정리 (판단 후)
+
+**코드/DB/운영 데이터 변경 없음:**
+- read-only 조사 전용, 코드 수정 없음, migration 없음
+
+**다음 세션 후보 (우선순위 순):**
+A. 기술 부채 Phase 1 실행
+   - `submitMatchupResult()` 제거 (dead code, index.html:3266-3316)
+   - 공통 갱신 헬퍼 `_runPostSettleRefresh()` 추출
+B. deleteSeasonRecord DB 연동 (DB HOF 삭제 RPC)
+C. 실제 브라우저 D2 UI smoke QA (브라우저 접근 시)
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 
