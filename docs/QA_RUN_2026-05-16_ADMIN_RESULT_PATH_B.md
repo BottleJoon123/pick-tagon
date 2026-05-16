@@ -108,32 +108,34 @@ DB 내 `set_matchup_result` 액션 로그 5건 확인 (2026-05-07, 모두 matchu
 
 ## 3. ⚠️ 보안 발견 사항
 
-### [FINDING-01] service_settle_matchup 직접 호출 가능 (HIGH RISK)
+### [FINDING-01] service_settle_matchup 직접 호출 가능 → ✅ FIX APPLIED
 
 **발견 경위**: Supabase MCP read-only SQL 조회 (QA-3b, QA-7)
+**수정 커밋**: Fix: Restrict service settle matchup execution
 
-**내용**:
-- 마이그레이션 의도: `REVOKE ALL ON FUNCTION public.service_settle_matchup FROM PUBLIC; GRANT EXECUTE TO service_role`
-- 실제 DB 상태: `authenticated`, `anon` 포함 모든 역할이 EXECUTE 권한 보유
-- `service_settle_matchup` 함수 본문에 `private.is_admin()` 체크 **없음**
-- 결과: **인증된 비관리자 사용자가 직접 `service_settle_matchup` RPC를 호출해 matchup 결과를 입력하고 points를 변경할 수 있음**
+**발견 당시 상태**:
+- 마이그레이션 의도: `REVOKE ALL FROM PUBLIC; GRANT TO service_role`
+- 실제 DB 상태: `authenticated`, `anon` 포함 모든 역할 EXECUTE 가능
+- `service_settle_matchup` 본문에 `private.is_admin()` 체크 없음
+- 결과: 인증된 비관리자가 직접 RPC 호출로 matchup 결과/포인트 변경 가능
 
 **이번 작업 도입 여부**: **아님.** Path B 전환 이전부터 존재하던 권한 설정.
-마이그레이션 파일 3곳(20260426_event_lifecycle.sql, 20260426_settle_matchup_v3.sql, 20260503_fix_service_settle_matchup_archive_date_cast.sql) 모두 동일한 REVOKE/GRANT가 적용됐으나 DB에는 반영되지 않은 상태.
+마이그레이션 파일 3곳에서 REVOKE/GRANT를 정의했으나 DB에 미반영된 상태였음.
 
-**현재 위험도**:
-- `admin_set_matchup_result` 경로는 안전 (admin 체크 + audit log ✓)
-- `service_settle_matchup` 직접 호출 경로는 가드 없음
-
-**권고 조치**:
+**수정 내용** (`20260516_revoke_service_settle_matchup_public_execute.sql`):
 ```sql
--- migration 필요 (별도 승인 후 진행)
-REVOKE ALL ON FUNCTION public.service_settle_matchup(UUID, TEXT, TEXT, TEXT, INTEGER, TEXT, BOOLEAN) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.service_settle_matchup(UUID, TEXT, TEXT, TEXT, INTEGER, TEXT, BOOLEAN) FROM anon;
-REVOKE ALL ON FUNCTION public.service_settle_matchup(UUID, TEXT, TEXT, TEXT, INTEGER, TEXT, BOOLEAN) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.service_settle_matchup(UUID, TEXT, TEXT, TEXT, INTEGER, TEXT, BOOLEAN) TO service_role;
+REVOKE ALL ON FUNCTION public.service_settle_matchup(...) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.service_settle_matchup(...) FROM anon;
+REVOKE ALL ON FUNCTION public.service_settle_matchup(...) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.service_settle_matchup(...) TO service_role;
 ```
-또는 함수 본문에 admin 체크 추가 (단, 설계 의도와 다름 — service_settle_matchup은 내부 전용).
+
+**수정 후 DB proacl** (검증 완료):
+- `service_settle_matchup`: `{postgres=X/postgres, service_role=X/postgres}` ✅
+- `admin_set_matchup_result`: `{postgres=X, anon=X, authenticated=X, service_role=X}` ✅ (유지)
+
+**내부 호출 경로 안전성**:
+`admin_set_matchup_result`는 `SECURITY DEFINER` → 실행 컨텍스트가 `postgres` → `service_settle_matchup`(postgres EXECUTE 보유) 호출 가능 ✅
 
 ---
 
@@ -175,15 +177,15 @@ GRANT EXECUTE ON FUNCTION public.service_settle_matchup(UUID, TEXT, TEXT, TEXT, 
 
 ## 6. 다음 권장 작업
 
-### 우선순위 1 — 보안 수정 (별도 승인 필요)
-- `service_settle_matchup` 직접 호출 권한 수정 migration 작성
-  - `REVOKE` + 함수 본문 admin 체크 추가 또는 `service_role`만 EXECUTE
-  - **이번 세션에서 코드/DB 변경 금지 — 별도 보고 후 진행**
+### ~~우선순위 1 — 보안 수정~~ ✅ 완료 (Fix: Restrict service settle matchup execution)
+- `service_settle_matchup` proacl: `{postgres=X, service_role=X}` 로 수정 완료
+- migration: `20260516_revoke_service_settle_matchup_public_execute.sql`
 
-### 우선순위 2 — 브라우저 smoke QA
+### 우선순위 1 — 브라우저 smoke QA
 - 실제 브라우저에서 force confirm / QA guard / audit_log 항목 확인
 - 새 결과 입력 1건 (test matchup 또는 별도 승인 후 실 matchup)
+- DevTools Network — `functions.invoke` 미호출 확인
 
-### 우선순위 3 — 기술 부채 정리
+### 우선순위 2 — 기술 부채 정리
 - `submitMatchupResult()` legacy fallback 제거 여부 판단
 - toast/갱신 공통 helper 추출 검토

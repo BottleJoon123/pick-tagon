@@ -1,7 +1,42 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-16 (smoke QA 실행 + FINDING-01)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-16 (FINDING-01 보안 수정 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-16 마감 상태 (12차)
+
+**origin/main = HEAD = push 후 최신 SHA 확인**
+
+**오늘 완료 (12차): service_settle_matchup 직접 호출 권한 차단 (FINDING-01 보안 수정)**
+
+**변경 파일:**
+- `supabase/migrations/20260516_revoke_service_settle_matchup_public_execute.sql` (신규)
+- `docs/QA_RUN_2026-05-16_ADMIN_RESULT_PATH_B.md` (FINDING-01 fix 반영)
+- `docs/NEXT_WORK_PLAN.md`
+
+**수정 내용:**
+- `service_settle_matchup` proacl에서 `anon`, `authenticated` EXECUTE 제거
+- `service_role` GRANT 유지
+- `admin_set_matchup_result` SECURITY DEFINER → postgres 컨텍스트 → 내부 호출 경로 정상
+
+**수정 후 DB 검증:**
+- `service_settle_matchup` proacl: `{postgres=X, service_role=X}` ✅
+- `admin_set_matchup_result` proacl: `{postgres=X, anon=X, authenticated=X, service_role=X}` ✅ 유지
+- Supabase apply_migration 성공
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
+
+**다음 세션 후보 (우선순위 순):**
+A. 실제 브라우저 smoke QA (NOT RUN 항목)
+   - force confirm / audit_log 신규 기록 / DevTools network 확인
+B. Admin 대시보드 Phase D2
+   - 최근 7일 지급 포인트 / 미결 matchup 수 / 이상 감지 지표
+C. 결과 입력 경로 후속 정리
+   - submitMatchupResult legacy fallback 제거 여부 판단
+   - toast/갱신 공통 helper 추출
 
 ---
 
