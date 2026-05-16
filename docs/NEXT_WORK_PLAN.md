@@ -1,7 +1,71 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (기술 부채 Phase 1 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (결과 수정 정책 설계 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-17 마감 상태 (17차)
+
+**origin/main = HEAD = push 후 최신 SHA 확인**
+
+**오늘 완료 (17차): settled/archived 결과 수정 정책 설계 (read-only 조사)**
+
+**변경 파일:**
+- `docs/ADMIN_RESULT_EDIT_POLICY_PLAN.md` (신규)
+- `docs/NEXT_WORK_PLAN.md`
+
+**주요 발견:**
+
+1. **archived 이벤트 차단 이미 구현됨** (20260503 migration):
+   - `admin_set_matchup_result`에서 `archived` 이벤트는 `event_already_archived` 예외로 차단
+   - 추가 구현 불필요
+
+2. **CRITICAL 버그 발견: settled 이벤트 상태 역행**
+   - 시나리오: `settled` 이벤트 matchup에 force=true 재정산 실행
+   - `service_settle_matchup` 내부: 모든 matchup 완료 시 `events.status = 'completed'` 무조건 SET
+   - 결과: `settled` → `completed` 상태 역행 발생
+   - 대시보드 `unsettled_events` 카운트 증가 (이상 감지 알림 오작동)
+   - archive_fights 스냅샷도 재작성됨
+   - **수정 필요: `WHERE status NOT IN ('settled','archived')` 조건 추가**
+
+3. **audit before snapshot 부분적 부족**:
+   - `before_data` = matchup 전체 row (✓ 충분)
+   - `after_data` = 입력 파라미터만 (실제 after DB row 아님)
+   - `metadata` = 재정산 집계 (settled_count 등) — 역산 집계 없음
+   - force=true 여부가 audit log에 기록되지 않음
+   - 강화 필요: force 재정산 시 역산 대상 picks 집계 + 총 포인트 회수 합계
+
+4. **settled 이벤트 force 재정산 정책**:
+   - 허용 유지 (KDI류 수정 필요 사례 존재)
+   - Phase P1 버그 수정 + Phase P2 audit 강화로 안전성 보완
+
+**추천 정책 (B + D + 버그 수정):**
+- B: archived 차단 ✓ 이미 구현됨
+- 버그 수정 (CRITICAL): settled 이벤트 상태 역행 패치
+- D: force=true audit before snapshot 강화
+- Phase P3 (선택): settled 이벤트 confirm 경고 강화
+
+**구현 계획 (상세: docs/ADMIN_RESULT_EDIT_POLICY_PLAN.md):**
+- Phase P1: `service_settle_matchup` 상태 역행 버그 수정 (migration)
+- Phase P2: `admin_set_matchup_result` force=true audit before snapshot 강화 (migration)
+- Phase P3 (선택): UI reason/second confirm 추가
+
+**코드/DB/운영 데이터 변경 없음** (read-only 조사)
+
+**settle-matchup Edge Function:**
+- 삭제하지 않고 보존 유지 (Phase 1 dead code 제거 완료, EF 파일은 보존)
+
+**다음 세션 후보 (우선순위 순):**
+A. Phase P1 버그 수정 (CRITICAL)
+   - `service_settle_matchup` settled 이벤트 상태 역행 패치
+   - migration: `20260517_fix_settle_matchup_event_status_regression.sql`
+B. Phase P2 audit before snapshot 강화
+   - force=true 시 역산 picks 집계 + 포인트 영향 audit metadata 추가
+C. deleteSeasonRecord DB 연동 (DB HOF 삭제 RPC)
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 
