@@ -1,7 +1,59 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-12 (Phase D1 Admin 운영 대시보드 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-16 (Phase QA1 Admin 결과 입력 QA 패널 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-16 마감 상태 (7차)
+
+**origin/main = HEAD = push 후 최신 SHA 확인**
+
+**오늘 완료 (7차):**
+
+### Fix: Improve home text contrast
+**변경 파일:**
+- `index.html`, `dist/index.html`
+
+홈 hero 섹션 저대비 텍스트 개선:
+- Next Event / Total Fights / Your Picks / Points: `text-gray-600` → `text-gray-500`
+- Red Corner / Blue Corner: `text-gray-600` → `text-gray-400`
+
+---
+
+### Feat: Add admin event QA panel (Phase QA1)
+**변경 파일:**
+- `supabase/migrations/20260516_admin_event_qa_rpc.sql` (신규)
+- `public/js/admin.js`, `dist/js/admin.js`
+
+**DB:**
+- `get_admin_event_qa(p_event_id UUID)` RPC 추가
+- SECURITY DEFINER, `private.is_admin()` 검증, `GRANT authenticated`
+- 반환: event_id, event_status, all_matchups_completed, total_pending_alert, matchups[]
+- matchups[]: matchup_id, red/blue_name, result_status, result_winner, result_round, red/blue/win/lose/pending/cancelled_picks
+
+**UI:**
+- `_builderQA` 상태 변수 추가
+- `fetchBuilderQA()`: `get_admin_event_qa` RPC 호출, 실패 시 silent fallback
+- `renderBuilderQAPanel()`: 픽 현황 패널 하단에 QA 패널 렌더링
+  - 전체 상태 배너: ✅ 정산 가능 / ⚠ pending 잔류 경보 / ℹ 미입력 경기
+  - 매치업별: 레드/블루 픽 비율 바, 결과 입력 여부, W/L/P/C 카운트
+- `selectBuilderEvent()`: `fetchBuilderPickSummary()`와 `fetchBuilderQA()` 병렬 호출
+
+**QA 결과:**
+- non-admin 호출 → `{ok:false, reason:'admin_required'}` ✓
+- archived 이벤트 (13 matchups, 0 unresolved, 0 pending) → all_matchups_completed=true ✓
+- `npm run build` PASS ✓
+- dist 동기화 완료 ✓
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
+
+**다음 세션 후보 (우선순위 순):**
+A. QA 패널 정산 버튼 연동 (all_matchups_completed=false 시 onLifecycleSettle 비활성화/경고)
+B. Admin 대시보드 Phase D2 (7일 지급 포인트, 미결 matchup 수)
+C. 운영 이상 감지 알림 (pending_picks > N 경고, 미정산 이벤트 경고)
+D. deleteSeasonRecord DB 연동 (DB HOF 삭제 RPC)
 
 ---
 

@@ -1002,6 +1002,7 @@ var _builderState = {
 var _builderEvents = [];
 var _builderMatchups = [];
 var _builderPickSummary = null; // get_event_pick_summary RPC 캐시
+var _builderQA = null;          // get_admin_event_qa RPC 캐시
 var _allFightersCache = [];
 
 // 매치업 편집 모달 상태
@@ -1065,10 +1066,11 @@ function renderBuilderEventList() {
 async function selectBuilderEvent(eventId) {
     _builderState.eventId = eventId;
     _builderPickSummary = null;
+    _builderQA = null;
     renderBuilderEventList();
     renderBuilderWorkspace();
     await fetchBuilderMatchups();
-    await fetchBuilderPickSummary();
+    await Promise.all([fetchBuilderPickSummary(), fetchBuilderQA()]);
 }
 
 async function fetchBuilderMatchups() {
@@ -1237,6 +1239,7 @@ function renderBuilderWorkspace() {
             </div>
             ${_renderLifecyclePanel(ev)}
             ${renderPickSummaryPanel(_builderPickSummary)}
+            ${renderBuilderQAPanel(_builderQA)}
         </div>
         ${!_builderMatchups.length
             ? '<div class="flex flex-col items-center justify-center py-12 text-center"><p class="oswald-sharp text-gray-700 italic text-sm uppercase tracking-widest mb-3">등록된 경기 없음</p><button onclick="openMatchupEditModal(null)" class="oswald-sharp border border-white/10 text-gray-400 hover:text-white text-xs px-4 py-2 rounded-xl italic uppercase tracking-widest transition-all">+ 첫 번째 경기 추가</button></div>'
@@ -1640,4 +1643,101 @@ async function onLifecycleArchive(eventId) {
     if (!confirm('정산 완료 이벤트를 아카이브할까요?')) return;
     await adminArchiveEvent(eventId);
     renderBuilderWorkspace();  // adminArchiveEvent는 fetchBuilderMatchups를 호출하지 않으므로 직접 갱신
+}
+
+// ── 이벤트 QA 패널 ─────────────────────────────────────────────────
+
+async function fetchBuilderQA() {
+    if (!sb || !_builderState.eventId) return;
+    const { data, error } = await sb.rpc('get_admin_event_qa', { p_event_id: _builderState.eventId });
+    if (!error && data && data.ok) {
+        _builderQA = data;
+    } else {
+        _builderQA = null;
+    }
+    renderBuilderWorkspace();
+}
+
+function renderBuilderQAPanel(qa) {
+    if (!qa) return '';
+
+    const allDone = qa.all_matchups_completed;
+    const pendingAlert = qa.total_pending_alert || 0;
+    const matchups = qa.matchups || [];
+
+    if (!matchups.length) return '';
+
+    // 상태 배너
+    let statusBanner = '';
+    if (pendingAlert > 0) {
+        statusBanner = `
+        <div class="flex items-center gap-2 px-3 py-2 rounded-xl border border-amber-500/30 bg-amber-500/5 mb-2">
+            <span class="text-amber-400 text-xs">⚠</span>
+            <p class="oswald-sharp text-[9px] italic uppercase tracking-widest text-amber-400 font-black">pending 픽 ${pendingAlert}건 잔류 — settle-matchup 재확인 필요</p>
+        </div>`;
+    } else if (!allDone) {
+        statusBanner = `
+        <div class="flex items-center gap-2 px-3 py-2 rounded-xl border border-blue-500/20 bg-blue-500/5 mb-2">
+            <span class="text-blue-400 text-xs">ℹ</span>
+            <p class="oswald-sharp text-[9px] italic uppercase tracking-widest text-blue-400">결과 미입력 경기 있음 — 정산 전 모든 경기 결과 입력 필요</p>
+        </div>`;
+    } else {
+        statusBanner = `
+        <div class="flex items-center gap-2 px-3 py-2 rounded-xl border border-green-500/20 bg-green-500/5 mb-2">
+            <span class="text-green-400 text-xs">✅</span>
+            <p class="oswald-sharp text-[9px] italic uppercase tracking-widest text-green-400 font-black">모든 경기 결과 입력 완료 — 정산 가능</p>
+        </div>`;
+    }
+
+    // 매치업 QA 행
+    const rows = matchups.map(function(m) {
+        const totalSidePicks = (m.red_picks || 0) + (m.blue_picks || 0);
+        const redPct = totalSidePicks > 0 ? Math.round((m.red_picks / totalSidePicks) * 100) : 0;
+        const bluePct = totalSidePicks > 0 ? (100 - redPct) : 0;
+
+        const resultDone = m.result_status && m.result_status !== 'scheduled';
+        const resultBadge = resultDone
+            ? `<span class="oswald-sharp text-[8px] font-black italic uppercase text-green-400">✅ ${escapeHtml(m.result_winner || 'DRAW/NC')}</span>`
+            : `<span class="oswald-sharp text-[8px] italic uppercase text-gray-600">미입력</span>`;
+
+        const pendingBadge = m.pending_picks > 0
+            ? `<span class="oswald-sharp text-[8px] font-black italic text-amber-400">P${m.pending_picks}</span>`
+            : '';
+
+        return `
+        <div class="grid grid-cols-[1fr_auto_auto] items-start gap-2 px-2 py-2 border-b border-white/5 last:border-0">
+            <div class="min-w-0">
+                <p class="oswald-sharp text-[9px] font-black italic uppercase truncate">
+                    <span class="text-red-400">${escapeHtml(m.red_name || '?')}</span>
+                    <span class="text-gray-600 mx-0.5">vs</span>
+                    <span class="text-blue-400">${escapeHtml(m.blue_name || '?')}</span>
+                </p>
+                <div class="flex items-center gap-1 mt-1">
+                    <div class="flex h-1 rounded-full overflow-hidden w-16 bg-white/5">
+                        <div class="bg-red-500/60 h-full" style="width:${redPct}%"></div>
+                        <div class="bg-blue-500/60 h-full" style="width:${bluePct}%"></div>
+                    </div>
+                    <span class="oswald-sharp text-[8px] text-red-400/70">${redPct}%</span>
+                    <span class="oswald-sharp text-[8px] text-gray-700">/</span>
+                    <span class="oswald-sharp text-[8px] text-blue-400/70">${bluePct}%</span>
+                </div>
+            </div>
+            <div class="text-right shrink-0">
+                ${resultBadge}
+            </div>
+            <div class="flex gap-1 items-center shrink-0">
+                ${m.win_picks > 0 ? `<span class="oswald-sharp text-[8px] italic text-green-400">W${m.win_picks}</span>` : ''}
+                ${m.lose_picks > 0 ? `<span class="oswald-sharp text-[8px] italic text-gray-500">L${m.lose_picks}</span>` : ''}
+                ${pendingBadge}
+                ${m.cancelled_picks > 0 ? `<span class="oswald-sharp text-[8px] italic text-gray-700">C${m.cancelled_picks}</span>` : ''}
+            </div>
+        </div>`;
+    }).join('');
+
+    return `
+    <div class="mt-3 rounded-xl border border-white/5 bg-black/10 px-3 py-2.5">
+        <p class="oswald-sharp text-[8px] italic uppercase tracking-widest text-gray-600 mb-2">결과 QA</p>
+        ${statusBanner}
+        <div>${rows}</div>
+    </div>`;
 }
