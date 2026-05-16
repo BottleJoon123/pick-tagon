@@ -1,7 +1,7 @@
 # Admin 결과 수정/force 재정산 정책 설계
 
 작성: 2026-05-17 (read-only 조사 기반)
-상태: 분석 완료 / 구현 미착수
+상태: Phase P1 완료 (2026-05-17) / Phase P2 구현 미착수
 
 ---
 
@@ -164,7 +164,7 @@ END IF;
 - 대시보드 `unsettled_events` 카운트가 증가 (이상 감지 알림)
 - archive_fights 스냅샷은 재작성됨 (force 재정산 결과 반영)
 
-**이 버그는 현재 미수정 상태이다.**
+**이 버그는 Phase P1에서 수정 완료됐다. 자세한 내용은 Section 8 참고.**
 
 ### archive_fights 재작성 조건
 
@@ -189,7 +189,7 @@ force 재정산 후 해당 matchup이 다시 `completed`로 설정되면 → `v_
 |-|-|
 | **내용** | force=true이면 settled 이벤트 matchup도 수정 가능. archived는 이미 차단. |
 | **장점** | 운영 유연성, KDI류 결과 수정 가능 |
-| **단점** | settled→completed 상태 역행 버그 미수정. audit log에 force 여부/역산 범위 미기록. |
+| **단점** | audit log에 force 여부/역산 범위 미기록. (상태 역행 버그는 Phase P1에서 수정 완료) |
 | **위험도** | MEDIUM — 사고 시 추적 어려움 |
 
 ### 후보 B: archived 전면 차단 (이미 구현됨)
@@ -198,7 +198,7 @@ force 재정산 후 해당 matchup이 다시 `completed`로 설정되면 → `v_
 |-|-|
 | **내용** | archived 이벤트 결과 수정 RPC 레벨 차단. settled는 force=true 허용. |
 | **상태** | ✅ 이미 구현됨 (20260503_admin_set_matchup_archived_guard.sql) |
-| **남은 문제** | settled 이벤트 force 재정산 시 상태 역행 버그 미수정 |
+| **남은 문제** | force=true audit 강화 미완료 (Phase P2 예정). 상태 역행 버그는 Phase P1에서 수정 완료 |
 
 ### 후보 C: settled 이벤트 별도 override token 요구
 
@@ -244,24 +244,28 @@ force 재정산 후 해당 matchup이 다시 `completed`로 설정되면 → `v_
 
 ## 8. 구현 계획
 
-### Phase P1: settled 이벤트 상태 역행 버그 수정 (CRITICAL)
+### Phase P1: settled 이벤트 상태 역행 버그 수정 ✅ DONE (2026-05-17)
 
 **파일:** `supabase/migrations/20260517_fix_settle_matchup_event_status_regression.sql`
 
-**내용:** `service_settle_matchup` 내 이벤트 자동 완료 UPDATE를 조건부로 변경:
+**수정 내용:** `service_settle_matchup` 내 이벤트 자동 완료 UPDATE에 상태 보호 조건 추가:
 
 ```sql
--- 현재 (버그):
+-- 수정 전 (버그):
 UPDATE public.events SET status = 'completed', completed_at = NOW()
 WHERE id = v_matchup.event_id;
 
--- 수정안: settled/archived 이벤트는 completed로 역행하지 않음
+-- 수정 후 (FIX APPLIED):
 UPDATE public.events SET status = 'completed', completed_at = NOW()
 WHERE id = v_matchup.event_id
   AND status NOT IN ('settled', 'archived');
 ```
 
-**예상 작업량:** 1시간 이내 (migration + apply + 검증)
+**검증 결과:**
+- DB 함수 본문 `AND status NOT IN ('settled', 'archived')` 존재: `FIX PRESENT` ✓
+- `service_settle_matchup` proacl: `{postgres=X, service_role=X}` — anon/authenticated 없음 ✓
+- `admin_set_matchup_result`: `SECURITY DEFINER`, `ARCHIVED GUARD OK`, authenticated GRANT 유지 ✓
+- 운영 데이터 수정 없음 ✓
 
 ---
 
@@ -343,7 +347,7 @@ audit log metadata에 `v_force_snapshot` 병합하여 저장.
 - force 재정산 실행 없음
 - 운영 points 변경 없음
 
-실제 구현은 Phase P1~P3 각 별도 세션에서 수행 예정.
+Phase P1 완료. Phase P2~P3는 별도 세션에서 수행 예정.
 
 ---
 
@@ -352,3 +356,4 @@ audit log metadata에 `v_force_snapshot` 병합하여 저장.
 | 날짜 | 내용 |
 |------|------|
 | 2026-05-17 | 초안 작성 (read-only 조사, settled/archived 이벤트 결과 수정 정책 설계) |
+| 2026-05-17 | Phase P1 완료: service_settle_matchup 상태 역행 버그 수정 migration apply |

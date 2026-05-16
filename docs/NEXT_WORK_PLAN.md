@@ -1,7 +1,46 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (결과 수정 정책 설계 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (Phase P1 버그 수정 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-17 마감 상태 (18차)
+
+**origin/main = HEAD = push 후 최신 SHA 확인**
+
+**오늘 완료 (18차): Phase P1 — settled 이벤트 상태 역행 버그 수정**
+
+**변경 파일:**
+- `supabase/migrations/20260517_fix_settle_matchup_event_status_regression.sql` (신규)
+- `docs/ADMIN_RESULT_EDIT_POLICY_PLAN.md` (Phase P1 완료 기록)
+- `docs/NEXT_WORK_PLAN.md`
+
+**수정 내용:**
+- `service_settle_matchup` 이벤트 자동 완료 UPDATE에 조건 추가:
+  ```sql
+  WHERE id = v_matchup.event_id
+    AND status NOT IN ('settled', 'archived')   -- 추가
+  ```
+- settled/archived 이벤트에 force 재정산 후에도 events.status가 역행하지 않음
+- 정산/포인트/역산/archive snapshot 로직 변경 없음
+
+**DB 검증:**
+- `service_settle_matchup` 본문 `FIX PRESENT` ✓
+- `service_settle_matchup` proacl: `{postgres=X, service_role=X}` — anon/authenticated 없음 ✓
+- `admin_set_matchup_result`: `SECURITY DEFINER`, `ARCHIVED GUARD OK`, authenticated GRANT 유지 ✓
+- apply_migration 성공 ✓
+- 운영 데이터 수정 없음 ✓
+
+**다음 세션 후보 (우선순위 순):**
+A. Phase P2: force=true audit before snapshot 강화
+   - force=true 시 역산 picks 집계 + 총 포인트 회수 합계를 audit log metadata에 추가
+   - `admin_set_matchup_result` 수정 migration 필요
+B. deleteSeasonRecord DB 연동 (DB HOF 삭제 RPC)
+C. localStorage settleBet/simulateFight 정리
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 
