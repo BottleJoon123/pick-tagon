@@ -9,36 +9,38 @@
 
 **origin/main = HEAD = push 후 최신 SHA 확인**
 
-**오늘 완료 (19차): Phase P2 — force=true audit before snapshot 강화**
+**오늘 완료 (19차): Phase P2 — force=true audit before snapshot 강화 (fix 포함)**
 
 **변경 파일:**
 - `supabase/migrations/20260517_admin_set_matchup_result_force_audit.sql` (신규)
-- `docs/ADMIN_RESULT_EDIT_POLICY_PLAN.md` (Phase P2 완료 기록)
+- `supabase/migrations/20260517_admin_set_matchup_result_force_audit_fix.sql` (신규)
+- `docs/ADMIN_RESULT_EDIT_POLICY_PLAN.md`
 - `docs/NEXT_WORK_PLAN.md`
 
-**수정 내용:**
-- `admin_set_matchup_result`에 `v_force_snapshot JSONB` 수집 로직 추가
-- `p_force=true` 시 `service_settle_matchup` 호출 전에 역산 대상 picks 집계:
-  - `win_count` / `lose_count` / `cancelled_count`
-  - `total_settled_payout` (회수될 총 포인트 합계)
-- audit log metadata = `v_result || v_force_snapshot` (force 시)
-- 기존 동작(is_admin guard, archived guard, service_settle_matchup 호출, 반환값) 전혀 변경 없음
+**수정 내용 (fix 포함 최종):**
+- `admin_set_matchup_result`에 `p_force=true` 시 역산 대상 picks 집계 추가
+- picks_before_reversal 필드:
+  - `win_count` / `lose_count` / `cancelled_count` / `total_count`
+  - `affected_user_count` — 영향받는 고유 유저 수
+  - `win_settled_payout_total` / `lose_bet_cost_total` / `cancelled_bet_cost_total`
+  - `net_reversal_points_delta` — 역산 순 포인트 변화량 (`-win + lose - cancelled`)
+  - `total_settled_payout` — 하위 호환 유지
+- anon EXECUTE 명시적 REVOKE (`admin_set_matchup_result` acl에서 anon 제거)
+- 기존 동작(is_admin guard, archived guard, service_settle_matchup, 반환값) 변경 없음
 
 **DB 검증:**
-- `SECURITY DEFINER` ✓
-- `FORCE SNAPSHOT OK` (v_force_snapshot 코드 존재) ✓
-- `PICKS SUMMARY OK` (picks_before_reversal 구조 존재) ✓
-- `ARCHIVED GUARD OK` ✓ / `ADMIN GUARD OK` ✓
-- acl: `{postgres=X, anon=X, authenticated=X, service_role=X}` ✓
-- apply_migration 성공 ✓ / 운영 데이터 수정 없음 ✓
+- `net_reversal_points_delta` / `affected_user_count` / `lose_bet_cost_total` / `cancelled_bet_cost_total` 존재 ✓
+- `ARCHIVED GUARD OK` / `ADMIN GUARD OK` / `SECURITY DEFINER` ✓
+- `admin_set_matchup_result` acl: `{postgres=X, authenticated=X, service_role=X}` ✓
+- `service_settle_matchup` acl: `{postgres=X, service_role=X}` 유지 ✓
+- apply_migration 성공 (2회) ✓ / 운영 데이터 수정 없음 ✓
 
 **Phase P1+P2 완료 요약:**
-- P1: settled 이벤트 상태 역행 버그 수정 (`service_settle_matchup`)
-- P2: force=true audit before snapshot 강화 (`admin_set_matchup_result`)
+- P1: `service_settle_matchup` settled 이벤트 상태 역행 버그 수정
+- P2: `admin_set_matchup_result` force=true audit before snapshot 강화
 
 **다음 세션 후보 (우선순위 순):**
 A. Phase P3 (선택): settled 이벤트 force 재정산 UI confirm 경고 강화
-   - `editMatchupResult()` 호출 시 이벤트 status 확인 후 "settled 이벤트입니다" 경고 추가
 B. deleteSeasonRecord DB 연동 (DB HOF 삭제 RPC)
 C. localStorage settleBet/simulateFight 정리
 

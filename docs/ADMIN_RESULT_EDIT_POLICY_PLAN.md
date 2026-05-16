@@ -124,7 +124,7 @@ created_at
 - ❌ 역산된 picks의 개별 before 상태 (어떤 픽이 win→pending 됐는지)
 - ❌ 역산으로 회수된 총 포인트 합계
 - ❌ 역산 전 영향받은 사용자 목록
-- ❌ force 재정산 여부 (audit log에 `p_force` 값 기록 없음)
+- ✅ force 재정산 여부 (metadata.force=true 기록, Phase P2 완료)
 
 ---
 
@@ -198,7 +198,7 @@ force 재정산 후 해당 matchup이 다시 `completed`로 설정되면 → `v_
 |-|-|
 | **내용** | archived 이벤트 결과 수정 RPC 레벨 차단. settled는 force=true 허용. |
 | **상태** | ✅ 이미 구현됨 (20260503_admin_set_matchup_archived_guard.sql) |
-| **남은 문제** | force=true audit 강화 미완료 (Phase P2 예정). 상태 역행 버그는 Phase P1에서 수정 완료 |
+| **남은 문제** | Phase P1/P2 완료. Phase P3 UI confirm 강화 미착수 (선택 사항) |
 
 ### 후보 C: settled 이벤트 별도 override token 요구
 
@@ -294,15 +294,23 @@ END IF;
 --          = v_result                      (non-force 시, 기존 동작)
 ```
 
-**검증 결과:**
+**검증 결과 (fix migration 포함 최종):**
 - `SECURITY DEFINER` ✓
-- `FORCE SNAPSHOT OK` (v_force_snapshot 수집 코드 존재) ✓
-- `PICKS SUMMARY OK` (picks_before_reversal 구조 존재) ✓
-- `ARCHIVED GUARD OK` ✓
-- `ADMIN GUARD OK` ✓
-- acl: `{postgres=X, anon=X, authenticated=X, service_role=X}` ✓
-- apply_migration 성공 ✓
-- 운영 데이터 수정 없음 ✓
+- `net_reversal_points_delta` / `affected_user_count` / `lose_bet_cost_total` / `cancelled_bet_cost_total` 존재 ✓
+- `ARCHIVED GUARD OK` / `ADMIN GUARD OK` ✓
+- `admin_set_matchup_result` acl: `{postgres=X, authenticated=X, service_role=X}` — anon 제거 ✓
+- `service_settle_matchup` acl: `{postgres=X, service_role=X}` 유지 ✓
+- apply_migration 성공 (2회) ✓ / 운영 데이터 수정 없음 ✓
+
+**fix migration:** `supabase/migrations/20260517_admin_set_matchup_result_force_audit_fix.sql`
+
+추가 필드 (기존 win_count/lose_count/cancelled_count/total_settled_payout 유지):
+- `total_count` — 역산 대상 총 픽 수
+- `affected_user_count` — 영향받는 고유 유저 수
+- `win_settled_payout_total` — 회수될 포인트 합계 (win picks)
+- `lose_bet_cost_total` — 환급될 포인트 합계 (lose picks)
+- `cancelled_bet_cost_total` — 재차감될 포인트 합계 (cancelled picks)
+- `net_reversal_points_delta` — 역산 순 포인트 변화량 (`-win + lose - cancelled`)
 
 ---
 
@@ -347,14 +355,13 @@ END IF;
 
 **이 문서는 read-only 조사 결과를 기록한 설계 문서입니다.**
 
-조사 과정에서:
-- 코드 수정 없음
-- DB migration 없음
-- 운영 데이터 수정 없음
-- force 재정산 실행 없음
-- 운영 points 변경 없음
+초기 조사 과정에서 코드/DB/운영 데이터 수정 없음. 이후 별도 세션에서 Phase P1/P2 migration 적용:
+- Phase P1: `20260517_fix_settle_matchup_event_status_regression.sql` — settled 이벤트 상태 역행 버그 수정
+- Phase P2: `20260517_admin_set_matchup_result_force_audit.sql` + `20260517_admin_set_matchup_result_force_audit_fix.sql` — force audit metadata 강화
 
-Phase P1 완료, Phase P2 완료. Phase P3는 별도 세션에서 수행 예정.
+운영 데이터 수정 없음. force 재정산 실행 없음. 운영 points 변경 없음.
+
+Phase P1/P2 완료. Phase P3(UI confirm 강화)는 미착수 (선택 사항).
 
 ---
 
@@ -365,3 +372,4 @@ Phase P1 완료, Phase P2 완료. Phase P3는 별도 세션에서 수행 예정.
 | 2026-05-17 | 초안 작성 (read-only 조사, settled/archived 이벤트 결과 수정 정책 설계) |
 | 2026-05-17 | Phase P1 완료: service_settle_matchup 상태 역행 버그 수정 migration apply |
 | 2026-05-17 | Phase P2 완료: admin_set_matchup_result force=true audit before snapshot 강화 |
+| 2026-05-17 | Phase P2 fix: audit metadata 보강 (net_reversal_points_delta, affected_user_count 등) + anon REVOKE |
