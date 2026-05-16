@@ -1,7 +1,53 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-16 (browser smoke QA 코드 보완 검증)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-16 (Admin 대시보드 D2 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-16 마감 상태 (14차)
+
+**origin/main = HEAD = push 후 최신 SHA 확인**
+
+**오늘 완료 (14차): Admin 대시보드 Phase D2 — 운영 이상 감지 지표**
+
+**변경 파일:**
+- `supabase/migrations/20260516_admin_dashboard_summary_d2.sql` (신규)
+- `public/js/admin.js`, `dist/js/admin.js`
+- `docs/NEXT_WORK_PLAN.md`
+
+**RPC 확장 (get_admin_dashboard_summary CREATE OR REPLACE):**
+- D1 기존 필드 하위 호환 유지
+- D2 신규 필드 5개 추가:
+  - `points_paid_7d`: 최근 7일 win pick 지급 포인트 합계
+  - `unresolved_matchups`: locked/completed 이벤트 내 결과 미입력 matchup 수
+  - `unsettled_events`: locked/completed 이벤트 수 (정산 전)
+  - `pending_picks_alert`: 전체 pending picks 수 (pending_picks_total과 동일 값)
+  - `health_flags`: { has_pending_picks, has_unresolved_matchups, has_unsettled_events, has_active_battles }
+
+**UI 추가 (admin.js):**
+- health flags 경고 strip: 이상 감지 시 amber 경고, 정상 시 green "✓ 운영 이상 없음"
+- D2 지표 카드 3종 grid (Unresolved / Unsettled Events / Points 7D)
+  - 0이면 green, 이상 시 amber 강조
+- 기존 D1 레이아웃 순서 유지 (이벤트 상태 → D2 카드 → D1 핵심 지표 3종 → 시즌 → 감사 로그)
+
+**검증:**
+- apply_migration 성공 ✓
+- non-admin: `{ok:false, reason:'admin_required'}` ✓
+- D1 + D2 필드 모두 함수 본문에 존재 확인 ✓
+- `npm run build` PASS (378.71 kB) ✓
+- `dist/js/admin.js` 동기화 확인 ✓
+- 운영 데이터 수정 없음 ✓
+
+**다음 세션 후보 (우선순위 순):**
+A. 결과 입력 경로 기술 부채 정리
+   - submitMatchupResult legacy fallback 제거 여부 판단
+   - toast/갱신 공통 helper 추출
+B. deleteSeasonRecord DB 연동 (DB HOF 삭제 RPC)
+C. 실제 브라우저 D2 UI smoke QA (브라우저 접근 시)
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 

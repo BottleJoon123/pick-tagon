@@ -183,6 +183,31 @@ function renderAdminDashboard() {
         }
 
         var ec = d.event_counts || {};
+        var hf = d.health_flags || {};
+        var pointsPaid7d      = d.points_paid_7d      || 0;
+        var unresolvedMatchups = d.unresolved_matchups || 0;
+        var unsettledEvents   = d.unsettled_events     || 0;
+        var pendingPicksAlert = d.pending_picks_alert  || 0;
+
+        // health flags 경고 strip
+        var healthWarnings = [];
+        if (hf.has_unresolved_matchups) healthWarnings.push('⚠ 결과 미입력 ' + unresolvedMatchups + '건');
+        if (hf.has_unsettled_events)    healthWarnings.push('⚠ 정산 대기 ' + unsettledEvents + '건');
+        if (hf.has_pending_picks)       healthWarnings.push('⚠ Pending ' + pendingPicksAlert + '건');
+        if (hf.has_active_battles)      healthWarnings.push('ℹ 배틀 ' + (d.active_battles || 0) + '건');
+        var healthStripHtml = healthWarnings.length > 0
+            ? [
+                '<div class="glass-card rounded-2xl px-4 py-3 mb-5 border border-amber-500/20 bg-amber-500/5 flex flex-wrap items-center gap-3">',
+                '  <span class="oswald-sharp text-[9px] font-black italic uppercase tracking-widest text-amber-400 flex-shrink-0">운영 알림</span>',
+                healthWarnings.map(function(w) {
+                    return '<span class="oswald-sharp text-[9px] italic uppercase tracking-widest text-amber-300/80">' + w + '</span>';
+                }).join(''),
+                '</div>'
+              ].join('')
+            : '<div class="glass-card rounded-2xl px-4 py-3 mb-5 border border-green-500/10 bg-green-500/5">'
+              + '<span class="oswald-sharp text-[9px] font-black italic uppercase tracking-widest text-green-400/70">✓ 운영 이상 없음</span>'
+              + '</div>';
+
         var STATUS_CFG = [
             { key: 'upcoming',  label: 'UPCOMING',  num: 'text-emerald-400', border: 'border-emerald-500/20 bg-emerald-500/5' },
             { key: 'locked',    label: 'LOCKED',    num: 'text-amber-400',   border: 'border-amber-500/20  bg-amber-500/5'  },
@@ -219,10 +244,26 @@ function renderAdminDashboard() {
             }).join('');
 
         content.innerHTML = [
+            healthStripHtml,
             '<!-- 이벤트 상태 -->',
             '<div class="mb-5">',
             '  <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-widest italic mb-3">이벤트 상태</p>',
             '  <div class="grid grid-cols-5 gap-2 lg:gap-3">' + eventCardsHtml + '</div>',
+            '</div>',
+            '<!-- D2: 운영 이상 감지 지표 -->',
+            '<div class="grid grid-cols-3 gap-3 lg:gap-4 mb-5">',
+            '  <div class="glass-card rounded-2xl p-4 lg:p-5 text-center ' + (unresolvedMatchups > 0 ? 'border border-amber-500/20 bg-amber-500/5' : '') + '">',
+            '    <p class="oswald-sharp text-2xl lg:text-3xl font-black italic ' + (unresolvedMatchups > 0 ? 'text-amber-400' : 'text-green-400') + '">' + unresolvedMatchups + '</p>',
+            '    <p class="oswald-sharp text-[8px] uppercase tracking-widest mt-1 text-gray-500">Unresolved</p>',
+            '  </div>',
+            '  <div class="glass-card rounded-2xl p-4 lg:p-5 text-center ' + (unsettledEvents > 0 ? 'border border-amber-500/20 bg-amber-500/5' : '') + '">',
+            '    <p class="oswald-sharp text-2xl lg:text-3xl font-black italic ' + (unsettledEvents > 0 ? 'text-amber-400' : 'text-green-400') + '">' + unsettledEvents + '</p>',
+            '    <p class="oswald-sharp text-[8px] uppercase tracking-widest mt-1 text-gray-500">Unsettled Events</p>',
+            '  </div>',
+            '  <div class="glass-card rounded-2xl p-4 lg:p-5 text-center">',
+            '    <p class="oswald-sharp text-2xl lg:text-3xl font-black italic text-white">' + pointsPaid7d.toLocaleString() + '</p>',
+            '    <p class="oswald-sharp text-[8px] uppercase tracking-widest mt-1 text-gray-500">Points (7D)</p>',
+            '  </div>',
             '</div>',
             '<!-- 핵심 지표 3종 -->',
             '<div class="grid grid-cols-3 gap-3 lg:gap-4 mb-5">',
