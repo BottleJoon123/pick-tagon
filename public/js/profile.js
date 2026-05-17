@@ -4,7 +4,8 @@
    의존성: state.js (state), community.js (getBeltInfo, getRollingScore), utils.js (escapeHtml)
 ============================== */
 
-let _rpcStats = null; // get_user_pick_stats RPC 캐시 (null = 미로드 또는 실패 → state fallback)
+let _rpcStats = null;        // get_user_pick_stats RPC 캐시 (null = 미로드 또는 실패 → state fallback)
+let _rpcStatsLoading = false; // RPC 진행 중 플래그 — empty CTA 조기 표시 방지용
 
 // weight_class 단축키 → 표시 레이블
 const WEIGHT_CLASS_LABEL = {
@@ -28,22 +29,28 @@ const METHOD_CONFIG = {
 const METHOD_DEFAULT_CONFIG = { icon: '⚔️', color: 'bg-white/30' };
 
 async function renderProfileStats() {
-    // 1차: state 기반 즉시 렌더 (현재 이벤트 범위 fallback)
     _rpcStats = null;
+    const shouldLoadRpc = !!currentUser?.id;
+    _rpcStatsLoading = shouldLoadRpc; // 1차 렌더 전에 설정 — empty CTA 조기 표시 방지
+
+    // 1차: state 기반 즉시 렌더 (현재 이벤트 범위 fallback)
     renderProfileReport();
     renderDivisionStats();
     renderFormChart();
     renderMethodStats();
     renderBonusSummary();
+
     // 2차: RPC 데이터 수신 후 해당 섹션 덮어쓰기 (전체 이벤트, cross-session)
-    if (currentUser?.id) {
-        const { data, error } = await sb.rpc('get_user_pick_stats', { p_user_id: currentUser.id });
-        if (!error && data) {
-            _rpcStats = data;
-            renderProfileReport();
-            renderDivisionStats();
-            renderMethodStats();
+    if (shouldLoadRpc) {
+        try {
+            const { data, error } = await sb.rpc('get_user_pick_stats', { p_user_id: currentUser.id });
+            if (!error && data) _rpcStats = data;
+        } finally {
+            _rpcStatsLoading = false;
         }
+        renderProfileReport();
+        renderDivisionStats();
+        renderMethodStats();
     }
 }
 
@@ -105,6 +112,64 @@ function renderProfileReport() {
     }
 
     const analyst = getAnalystType(acc, settledCount, totalAll, methodBonusCount, upsetWins);
+
+    // ── 빈 상태 / 정산 대기 상태 분기 ────────────────────────────
+    // _rpcStatsLoading 중에는 empty CTA를 보여주지 않음 (로그인 유저 깜빡임 방지)
+    if (totalAll === 0 && !_rpcStatsLoading) {
+        const streakEl = document.getElementById('profile-streak-badge');
+        if (streakEl) streakEl.innerHTML = '';
+        const reportEl = document.getElementById('profile-report-grid');
+        if (reportEl) {
+            reportEl.innerHTML = `
+            <div class="col-span-full flex flex-col items-center justify-center py-8 gap-4 text-center">
+                <p class="oswald-sharp text-xl font-black italic text-gray-500 uppercase">아직 예측 기록이 없습니다</p>
+                <p class="text-gray-600 text-sm italic">첫 픽을 등록하고 파이터 IQ를 쌓아보세요</p>
+                <button onclick="navigateTo('matchups')"
+                    class="oswald-sharp mt-2 px-6 py-3 rounded-xl font-black italic text-sm uppercase tracking-widest bg-ufcRed hover:bg-red-700 text-white transition-colors">
+                    픽하러 가기
+                </button>
+            </div>`;
+        }
+        const typeEl = document.getElementById('profile-analyst-type');
+        if (typeEl) {
+            typeEl.innerHTML = `
+            <div class="flex items-center gap-4">
+                <div>
+                    <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-widest italic mb-1">나의 예측가 유형</p>
+                    <p class="oswald-sharp text-lg lg:text-xl font-black italic ${analyst.color}">${analyst.title}</p>
+                    <p class="text-gray-400 text-xs mt-1 italic">${analyst.desc}</p>
+                </div>
+            </div>`;
+        }
+        return;
+    }
+
+    if (pendingCount > 0 && settledCount === 0) {
+        const streakEl = document.getElementById('profile-streak-badge');
+        if (streakEl) streakEl.innerHTML = '';
+        const reportEl = document.getElementById('profile-report-grid');
+        if (reportEl) {
+            reportEl.innerHTML = `
+            <div class="col-span-full flex flex-col items-center justify-center py-8 gap-3 text-center">
+                <p class="oswald-sharp text-lg font-black italic text-white uppercase tracking-widest">예측 등록 완료</p>
+                <p class="text-gray-400 text-sm italic">경기 결과를 기다리는 중 · ${pendingCount}개 픽 대기</p>
+                <p class="oswald-sharp text-[10px] text-gray-600 italic uppercase tracking-widest mt-1">결과 확정 후 통계가 업데이트됩니다</p>
+            </div>`;
+        }
+        const typeEl = document.getElementById('profile-analyst-type');
+        if (typeEl) {
+            typeEl.innerHTML = `
+            <div class="flex items-center gap-4">
+                <div>
+                    <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-widest italic mb-1">나의 예측가 유형</p>
+                    <p class="oswald-sharp text-lg lg:text-xl font-black italic ${analyst.color}">${analyst.title}</p>
+                    <p class="text-gray-400 text-xs mt-1 italic">${analyst.desc}</p>
+                </div>
+            </div>`;
+        }
+        return;
+    }
+    // ─────────────────────────────────────────────────────────────
 
     // 적중률 표시 (null = 정산 픽 없음 → "—")
     const accText  = acc === null ? '—' : acc + '%';
