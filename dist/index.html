@@ -3220,19 +3220,8 @@ textarea, select {
                 dbSide = opts[1] && opts[1].value === winner ? 'red' : 'blue';
             }
             await adminSetMatchupResultWithUI(fightId, winner, dbSide, method, parseInt(round), time, isForce);
-        } else if (fight) {
-            // DB fight가 _fromDB 누락 등 이상 상태로 이 분기에 들어오는 것을 차단
-            const isLegacyLocalFight = !fight._fromDB && !uuidRe.test(String(fightId));
-            if (!isLegacyLocalFight) {
-                showToast('⚠ DB 경기 결과는 RPC 경로로만 정산할 수 있습니다');
-                return;
-            }
-            const winnerSide = fight.f1.name === winner ? 'left' : 'right';
-            settleBet(fightId, winner, method, winnerSide, round, time);
-            renderAdminFightCardList();
-            showToast(`✅ ${winner} 승리 (${method}, R${round} ${time}) 결과 확정!`);
         } else {
-            showToast('⚠ 경기 정보를 찾을 수 없습니다');
+            showToast('⚠ DB 경기만 결과 입력을 지원합니다');
         }
     }
 
@@ -3272,82 +3261,6 @@ textarea, select {
             console.error('[adminSetMatchupResultWithUI]', e);
             showToast(`❌ 정산 실패: ${e.message ?? e}`);
         }
-    }
-
-    async function settleBet(fightId, actualWinner, actualMethod, winnerSide, round, time) {
-        const pending = state.pendings[fightId];
-        if (!pending) return;
-
-        const userWon = pending.side === winnerSide;
-        const historyEntry = findHistoryEntry(fightId);
-
-        if (userWon) {
-            // 기본 배당 계산
-            let finalPayout = pending.payout;
-
-            // 방식 예측 보너스
-            const methodMatch = pending.method && pending.method !== 'ANY' && pending.method === actualMethod;
-            if (methodMatch) {
-                const bonus = Math.round(pending.payout * pending.methodBonus);
-                finalPayout += bonus;
-            }
-
-            // 라운드 예측 보너스
-            const roundMatch = pending.predictedRound && pending.predictedRound > 0
-                && parseInt(round) === pending.predictedRound;
-            if (roundMatch) {
-                const roundBonus = Math.round(pending.payout * 0.2);
-                finalPayout += roundBonus;
-            }
-
-            // 업셋 보너스 (배당 2.0 이상 → +20%)
-            if (pending.isUpset) {
-                const upsetBonus = Math.round(pending.payout * 0.2);
-                finalPayout += upsetBonus;
-            }
-
-            state.points += finalPayout;
-            state.success += 1;
-            if (historyEntry) {
-                historyEntry.res = 'WIN';
-                historyEntry.payout = finalPayout;
-            }
-
-            const bonusMsg = [];
-            if (methodMatch) bonusMsg.push(`방식 보너스`);
-            if (roundMatch) bonusMsg.push(`라운드 보너스`);
-            if (pending.isUpset) bonusMsg.push(`업셋 보너스`);
-            const bonusStr = bonusMsg.length > 0 ? ` (${bonusMsg.join(' + ')})` : '';
-            showToast(`🏆 승리! ${actualWinner} 적중 · +${finalPayout}P${bonusStr}`);
-
-            state.settled[fightId] = {
-                result: 'WIN', actualWinner, actualMethod,
-                payout: finalPayout, pick: pending.pick,
-                side: pending.side, resolvedAt: new Date().toISOString(),
-                hadMethodBonus: methodMatch,
-                hadRoundBonus: roundMatch,
-                hadUpsetBonus: pending.isUpset
-            };
-        } else {
-            if (historyEntry) historyEntry.res = 'LOSE';
-            showToast(`💀 예측 실패 · 실제 승자: ${actualWinner} (${actualMethod})`);
-
-            state.settled[fightId] = {
-                result: 'LOSE', actualWinner, actualMethod,
-                payout: 0, pick: pending.pick,
-                side: pending.side, resolvedAt: new Date().toISOString()
-            };
-        }
-
-        delete state.pendings[fightId];
-        updateAllFightCards();
-        updateEventTotalPicks();
-        save();
-        // DB 동기화
-        if (sb && currentUser) {
-            await updatePickResult(fightId, userWon ? 'WIN' : 'LOSE', actualWinner, actualMethod, userWon ? state.settled[fightId]?.payout : 0);
-        }
-        refreshUI();
     }
 
     /* [커뮤니티 인터랙션 로직] */

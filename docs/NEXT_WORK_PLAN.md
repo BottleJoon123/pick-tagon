@@ -1,7 +1,51 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (L3-repair 실행 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (L3-a/b 완료 — settleBet 제거)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-17 마감 상태 (35차)
+
+**origin/main = 33655af, HEAD = push 후 최신 SHA 확인 (push 예정)**
+
+**오늘 완료 (35차): Phase L3-a/b — settleBet() + confirmAdminResult() localStorage 분기 제거**
+
+**변경 파일:**
+- `index.html`
+- `dist/index.html`
+- `docs/LOCAL_STORAGE_FIGHT_LEGACY_PLAN.md`
+- `docs/NEXT_WORK_PLAN.md`
+
+**변경 내용:**
+
+L3-a: `confirmAdminResult()` else if (fight) 분기 전체 삭제
+- `isLegacyLocalFight` guard 포함 삭제
+- non-DB fight 결과 입력 시 `showToast('⚠ DB 경기만 결과 입력을 지원합니다')` toast + 종료
+- DB matchup(isDbMatchup=true) → `adminSetMatchupResultWithUI()` RPC 경로만 유지
+
+L3-b: `settleBet()` 함수 정의 전체 삭제 (index.html, dist/index.html)
+- 75행 제거 (각 파일)
+
+**검증 결과:**
+- `settleBet` 0건 (index.html, dist/index.html) ✅
+- `simulateFight` 0건 ✅
+- `adminSetMatchupResultWithUI` 정상 존재 (호출 2건 + 정의 1건) ✅
+- `settle-matchup` Edge Function 호출 0건 ✅
+- `npm run build` PASS (432ms) ✅
+
+**잔존 dead code (후속 cleanup 후보):**
+- `updatePickResult()` (index.html:~4915) — settleBet 삭제로 호출자 0건
+- `renderAdminFightCardList()` + `admin-panel-fights` — UI 접근 불가 hidden 패널
+- `FIGHTS` 정적 배열 (data/fights.js) — _dbMatchups 활성 시 무시, leftBias 미사용
+
+**다음 세션 후보 (우선순위 순):**
+A. Admin 결과 입력 브라우저 smoke QA (typed confirm, audit_log, admin_required)
+B. `updatePickResult` / `renderAdminFightCardList` / `admin-panel-fights` cleanup 조사
+C. HOF hide/restore 실제 브라우저 QA
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 
