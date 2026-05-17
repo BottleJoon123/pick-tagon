@@ -22,7 +22,8 @@ var mockRankings = [
 
 var seasonData = {
     current: { name: 'Season 1', startDate: new Date().toISOString().slice(0, 10) },
-    hallOfFame: []  // array of { seasonName, endDate, top3: [{rank, name, points, accuracy, belt}] }
+    hallOfFame: [],       // array of { seasonName, endDate, top3: [{rank, name, points, accuracy, belt}] }
+    adminHallOfFame: []   // admin-only: includes hidden entries, each top3 entry has hofId/isHidden/hiddenReason
 };
 
 var seasonResetSubmitting = false;
@@ -92,6 +93,37 @@ function loadHallOfFameFromDB() {
     });
 }
 
+// admin_get_hall_of_fame() → seasonData.adminHallOfFame 갱신 (숨김 항목 포함, hofId 포함)
+// is_admin() guard가 있으므로 non-admin에서는 RPC 오류 → adminHallOfFame 빈 배열 유지
+function loadAdminHallOfFameFromDB() {
+    if (!sb) return Promise.resolve();
+    return sb.rpc('admin_get_hall_of_fame').then(function(res) {
+        if (!res.error && Array.isArray(res.data)) {
+            var grouped = [];
+            var idxMap = {};
+            res.data.forEach(function(row) {
+                if (!(row.season_id in idxMap)) {
+                    idxMap[row.season_id] = grouped.length;
+                    grouped.push({ seasonName: row.season_name, endDate: row.end_date, top3: [] });
+                }
+                grouped[idxMap[row.season_id]].top3.push({
+                    hofId:        row.hof_id,
+                    rank:         row.rank,
+                    name:         row.nickname,
+                    points:       row.points,
+                    total:        row.total_picks,
+                    success:      row.success_picks,
+                    accuracy:     row.accuracy !== null ? row.accuracy + '%' : '0%',
+                    belt:         row.belt,
+                    isHidden:     row.is_hidden,
+                    hiddenReason: row.hidden_reason
+                });
+            });
+            seasonData.adminHallOfFame = grouped.reverse();
+        }
+    }).catch(function() {});
+}
+
 // 시즌 종료 모달 미리보기 전용 — 실제 Top3는 admin_end_season RPC가 서버에서 계산
 function getCurrentSeasonRankings() {
     const userEntry = { name: 'YOU', points: state.points, total: state.total, success: state.success, isUser: true };
@@ -143,19 +175,20 @@ function renderHallOfFame() {
             <!-- Top 3 -->
             <div class="divide-y divide-white/[0.04]">
                 ${(season.top3 || []).map((p, i) => {
+                    const rankNum   = Number(p.rank) || (i + 1);
                     const beltStyle = BELT_STYLES[p.belt] || 'text-white';
-                    const bgGlow = i === 0 ? 'bg-yellow-500/[0.03]' : '';
+                    const bgGlow    = rankNum === 1 ? 'bg-yellow-500/[0.03]' : '';
                     return `
                     <div class="flex items-center justify-between px-6 lg:px-10 py-4 lg:py-5 ${bgGlow} hover:bg-white/[0.02] transition">
                         <div class="flex items-center gap-4">
-                            <span class="text-lg lg:text-2xl w-8 text-center flex-shrink-0">${MEDAL[i] || `#${i+1}`}</span>
+                            <span class="text-lg lg:text-2xl w-8 text-center flex-shrink-0">${MEDAL[rankNum - 1] || `#${rankNum}`}</span>
                             <div>
-                                <p class="oswald-sharp font-black italic text-sm lg:text-xl uppercase tracking-tighter ${i === 0 ? 'text-white' : 'text-gray-300'}">${p.name}</p>
+                                <p class="oswald-sharp font-black italic text-sm lg:text-xl uppercase tracking-tighter ${rankNum === 1 ? 'text-white' : 'text-gray-300'}">${p.name}</p>
                                 <p class="oswald-sharp text-[9px] text-gray-600 italic uppercase tracking-widest">${p.total}전 ${p.success}승 · 적중률 ${p.accuracy}</p>
                             </div>
                         </div>
                         <div class="flex items-center gap-3 lg:gap-5">
-                            <p class="oswald-sharp font-black italic text-base lg:text-2xl ${i === 0 ? 'text-ufcRed' : 'text-gray-400'}">${p.points.toLocaleString()}<span class="text-[9px] ml-1">P</span></p>
+                            <p class="oswald-sharp font-black italic text-base lg:text-2xl ${rankNum === 1 ? 'text-ufcRed' : 'text-gray-400'}">${p.points.toLocaleString()}<span class="text-[9px] ml-1">P</span></p>
                             <span class="oswald-sharp text-[9px] lg:text-[10px] ${beltStyle} font-black italic uppercase hidden lg:block">${p.belt} Belt</span>
                         </div>
                     </div>`;
@@ -195,24 +228,35 @@ function renderSeasonAdminPanel() {
     // Top 3 preview
     renderAdminSeasonTop3(rankings);
 
-    // Past seasons (DB 기반; loadHallOfFameFromDB 이후 갱신됨)
-    hofCountEl.textContent = (seasonData.hallOfFame || []).length;
-    const hof = [...(seasonData.hallOfFame || [])].reverse();
-    if (hof.length === 0) {
+    // Past seasons (DB 기반; loadAdminHallOfFameFromDB 이후 갱신됨)
+    const adminHof = seasonData.adminHallOfFame || [];
+    hofCountEl.textContent = adminHof.length;
+    if (adminHof.length === 0) {
         hofList.innerHTML = `<div class="glass-card p-6 text-center text-gray-700 oswald-sharp text-xs italic uppercase tracking-widest rounded-2xl">기록된 시즌 없음</div>`;
     } else {
-        hofList.innerHTML = hof.map((s, i) => `
-            <div class="glass-card rounded-2xl p-4 flex items-center justify-between hover:border-yellow-500/20 transition">
+        hofList.innerHTML = adminHof.map((s) => {
+            const allHidden = s.top3.length > 0 && s.top3.every(e => e.isHidden);
+            const champion = s.top3.find(e => e.rank === 1);
+            const visibleEntries = s.top3.filter(e => !e.isHidden);
+            const hiddenEntries  = s.top3.filter(e =>  e.isHidden);
+            const hideButtons = visibleEntries.map(e =>
+                `<button onclick="hideSeasonHofEntry(${e.hofId})" class="oswald-sharp text-[9px] text-gray-500 hover:text-red-400 italic uppercase tracking-widest px-2 py-1 border border-white/10 rounded-lg hover:border-red-500/30 transition">숨김 #${e.rank}</button>`
+            ).join('');
+            const restoreButtons = hiddenEntries.map(e =>
+                `<button onclick="restoreSeasonHofEntry(${e.hofId})" class="oswald-sharp text-[9px] text-yellow-600 hover:text-yellow-400 italic uppercase tracking-widest px-2 py-1 border border-yellow-600/20 rounded-lg hover:border-yellow-400/40 transition">복구 #${e.rank}</button>`
+            ).join('');
+            return `
+            <div class="glass-card rounded-2xl p-4 flex items-center justify-between hover:border-yellow-500/20 transition ${allHidden ? 'opacity-40' : ''}">
                 <div class="flex items-center gap-3">
-                    <span class="text-xl">🏆</span>
+                    <span class="text-xl">${allHidden ? '👻' : '🏆'}</span>
                     <div>
-                        <p class="oswald-sharp font-black italic text-sm text-white uppercase tracking-tighter">${s.seasonName}</p>
-                        <p class="oswald-sharp text-[9px] text-gray-600 italic uppercase">종료: ${s.endDate} · 우승: ${s.top3?.[0]?.name || '—'}</p>
+                        <p class="oswald-sharp font-black italic text-sm ${allHidden ? 'text-gray-500 line-through' : 'text-white'} uppercase tracking-tighter">${escapeHtml(s.seasonName)}${allHidden ? ' <span class="no-underline not-italic text-gray-600">[숨김]</span>' : ''}</p>
+                        <p class="oswald-sharp text-[9px] text-gray-600 italic uppercase">종료: ${s.endDate} · 우승: ${escapeHtml(champion?.name || '—')}</p>
                     </div>
                 </div>
-                <span class="oswald-sharp text-[9px] text-gray-700 italic uppercase tracking-widest px-3 py-1.5">DB 관리 예정</span>
-            </div>
-        `).join('');
+                <div class="flex flex-wrap gap-1.5 justify-end max-w-[160px]">${hideButtons}${restoreButtons}</div>
+            </div>`;
+        }).join('');
     }
 }
 
@@ -347,7 +391,42 @@ function executeSeasonReset() {
     });
 }
 
-function deleteSeasonRecord(idx) {
-    // DB HOF 연결 완료 전까지 localStorage-only 삭제 비활성
-    showToast('⚠ DB 시즌 기록 삭제는 아직 지원하지 않습니다');
+function hideSeasonHofEntry(hofId) {
+    if (!sb) { showToast('⚠ DB 연결 필요'); return; }
+    if (!confirm('이 HOF 항목을 숨기시겠습니까?\n숨긴 항목은 일반 사용자에게 표시되지 않습니다.')) return;
+    sb.rpc('admin_hide_hof_entry', { p_hof_id: hofId }).then(function(res) {
+        if (res.error) { showToast('⚠ RPC 오류: ' + res.error.message); return; }
+        const data = res.data;
+        if (!data || !data.ok) {
+            const reason = data && data.reason;
+            if (reason === 'admin_required')             showToast('⚠ 관리자 권한 필요');
+            else if (reason === 'active_season_not_allowed') showToast('⚠ 활성 시즌은 숨길 수 없습니다');
+            else if (reason === 'hof_entry_not_found')   showToast('⚠ 항목을 찾을 수 없습니다');
+            else showToast('⚠ 숨김 처리 실패');
+            return;
+        }
+        if (data.idempotent) { showToast('ℹ 이미 숨김 처리된 항목입니다'); return; }
+        showToast('✅ HOF 항목 숨김 처리됨');
+        loadAdminHallOfFameFromDB().then(renderSeasonAdminPanel);
+        loadHallOfFameFromDB();
+    }).catch(function() { showToast('⚠ RPC 오류'); });
+}
+
+function restoreSeasonHofEntry(hofId) {
+    if (!sb) { showToast('⚠ DB 연결 필요'); return; }
+    sb.rpc('admin_restore_hof_entry', { p_hof_id: hofId }).then(function(res) {
+        if (res.error) { showToast('⚠ RPC 오류: ' + res.error.message); return; }
+        const data = res.data;
+        if (!data || !data.ok) {
+            const reason = data && data.reason;
+            if (reason === 'admin_required')           showToast('⚠ 관리자 권한 필요');
+            else if (reason === 'hof_entry_not_found') showToast('⚠ 항목을 찾을 수 없습니다');
+            else showToast('⚠ 복구 실패');
+            return;
+        }
+        if (data.idempotent) { showToast('ℹ 이미 공개 상태입니다'); return; }
+        showToast('✅ HOF 항목 복구됨');
+        loadAdminHallOfFameFromDB().then(renderSeasonAdminPanel);
+        loadHallOfFameFromDB();
+    }).catch(function() { showToast('⚠ RPC 오류'); });
 }

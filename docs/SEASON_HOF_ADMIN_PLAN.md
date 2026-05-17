@@ -2,7 +2,7 @@
 
 **작성일:** 2026-05-17  
 **대상 브랜치:** main (ab3a808)  
-**상태:** Phase S3-A 완료 (2026-05-17) / Phase S3-B 미착수
+**상태:** Phase S3-A 완료 (2026-05-17) / Phase S3-B 완료 (2026-05-17)
 
 ---
 
@@ -385,16 +385,23 @@ ORDER BY s.id DESC, h.rank ASC;
 - [x] `admin_hide_hof_entry` acl: authenticated ✓ / anon ✗ 확인
 - [x] `admin_restore_hof_entry` acl: authenticated ✓ / anon ✗ 확인
 - [x] `get_hall_of_fame` acl: anon ✓ / authenticated ✓ 유지 확인
-- [ ] `admin_hide_hof_entry` 실제 호출 — active season guard 동작 확인 (Phase S3-B 또는 별도)
-- [ ] `admin_hide_hof_entry` 호출 후 `get_hall_of_fame`에서 해당 항목 미반환 확인 (Phase S3-B)
-- [ ] `admin_restore_hof_entry` 호출 후 복원 확인 (Phase S3-B)
+- [ ] `admin_hide_hof_entry` 실제 호출 — active season guard 동작 확인 (통합 테스트)
+- [ ] `admin_hide_hof_entry` 호출 후 `get_hall_of_fame`에서 해당 항목 미반환 확인 (통합 테스트)
+- [ ] `admin_restore_hof_entry` 호출 후 복원 확인 (통합 테스트)
 
-### Phase S3-B (UI)
+### Phase S3-B (UI) — 완료 (2026-05-17, migration: 20260517_season_hof_admin_get_rpc.sql)
 
-- [ ] admin-hof-list 숨김 버튼 클릭 → 성공 토스트 + 목록 새로고침 확인
-- [ ] 숨긴 항목이 일반 hof-list에서 사라지는지 확인
-- [ ] 복구 버튼 클릭 → 성공 토스트 + 항목 복원 확인
-- [ ] localStorage fallback 시 숨김 항목 처리 확인
+- [x] `admin_get_hall_of_fame()` RPC 추가 — hof_id + is_hidden + hidden_reason 포함, is_admin guard ✓
+- [x] `admin_get_hall_of_fame` acl: authenticated ✓ / anon ✗ 확인
+- [x] `loadAdminHallOfFameFromDB()` — `seasonData.adminHallOfFame` 갱신 (season.js)
+- [x] `renderSeasonAdminPanel()` — adminHallOfFame 기반 렌더, 숨김/복구 버튼 per-rank entry
+- [x] `hideSeasonHofEntry(hofId)` — admin_hide_hof_entry RPC 호출, 성공 시 admin/공개 HOF 새로고침
+- [x] `restoreSeasonHofEntry(hofId)` — admin_restore_hof_entry RPC 호출, 성공 시 재로드
+- [x] `deleteSeasonRecord()` 제거 — no-op toast 코드 삭제됨
+- [x] admin.js: season 탭 진입 시 `loadAdminHallOfFameFromDB().then(renderSeasonAdminPanel)` 로 변경
+- [x] `npm run build` PASS
+- [x] dist에서 `deleteSeasonRecord` / `DB 관리 예정` 문구 없음 확인
+- [ ] admin UI 실제 숨김/복구 흐름 확인 (운영 데이터 hide 없이 통합 테스트)
 
 ---
 
@@ -409,7 +416,15 @@ Phase S3-A (2026-05-17, 별도 세션):
 - `get_hall_of_fame` 필터 추가
 - 운영 데이터 수정 없음 / 실제 HOF hide/restore 실행 없음
 
-Phase S3-B (미착수): admin UI 연결 — 별도 세션 예정
+Phase S3-B (2026-05-17):
+- migration 적용: `20260517_season_hof_admin_get_rpc.sql`
+- RPC 추가: `admin_get_hall_of_fame()` (hof_id + is_hidden + hidden_reason, is_admin guard)
+- `loadAdminHallOfFameFromDB()` 추가 (season.js)
+- `renderSeasonAdminPanel()` 개선: adminHallOfFame 기반, per-rank 숨김/복구 버튼
+- `hideSeasonHofEntry()` / `restoreSeasonHofEntry()` 추가 (season.js)
+- `deleteSeasonRecord()` 제거
+- admin.js season 탭: `loadAdminHallOfFameFromDB().then(renderSeasonAdminPanel)`
+- 운영 데이터 수정 없음 / 실제 hide/restore 실행 없음
 
 ---
 
@@ -419,3 +434,4 @@ Phase S3-B (미착수): admin UI 연결 — 별도 세션 예정
 |---|---|
 | 2026-05-17 | read-only 조사 + 설계 문서 작성 (main ab3a808) |
 | 2026-05-17 | Phase S3-A: season_hof soft hide migration 적용 + RPC 추가 |
+| 2026-05-17 | Phase S3-B: admin_get_hall_of_fame RPC + admin UI 숨김/복구 버튼 연결 |

@@ -141,7 +141,7 @@ function switchAdminTab(tab) {
     if (activeTab)   { activeTab.classList.add('active-tab'); activeTab.classList.remove('text-gray-500'); }
     if (tab === 'dashboard') renderAdminDashboard();
     if (tab === 'fighters')  renderAdminFighterList();
-    if (tab === 'season')    renderSeasonAdminPanel();
+    if (tab === 'season')    loadAdminHallOfFameFromDB().then(renderSeasonAdminPanel);
     if (tab === 'settings')  loadGeminiKeyToUI();
     if (tab === 'ufc')       fetchEventsForBuilder();
 }

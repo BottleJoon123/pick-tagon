@@ -1,7 +1,53 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (Phase S3-A soft hide migration 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (Phase S3-B admin HOF UI 연결 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-17 마감 상태 (22차)
+
+**origin/main = HEAD = 8e7a967 (push 예정)**
+
+**오늘 완료 (22차): Phase S3-B — admin HOF soft hide UI 연결**
+
+**변경 파일:**
+- `supabase/migrations/20260517_season_hof_admin_get_rpc.sql` (신규)
+- `public/js/season.js`
+- `public/js/admin.js`
+- `dist/index.html` (빌드 산출물)
+- `docs/SEASON_HOF_ADMIN_PLAN.md`
+- `docs/NEXT_WORK_PLAN.md`
+
+**DB 변경:**
+- `admin_get_hall_of_fame()` RPC 추가: hof_id + is_hidden + hidden_at + hidden_reason 포함, is_admin guard, authenticated only, anon REVOKE
+
+**JS 변경:**
+- `seasonData.adminHallOfFame` 필드 추가
+- `loadAdminHallOfFameFromDB()` 추가 — admin_get_hall_of_fame RPC 기반
+- `renderSeasonAdminPanel()` 개선 — adminHallOfFame 기반 렌더, per-rank 숨김(빨간)/복구(노란) 버튼
+- `hideSeasonHofEntry(hofId)` 추가 — admin_hide_hof_entry RPC + confirm dialog
+- `restoreSeasonHofEntry(hofId)` 추가 — admin_restore_hof_entry RPC
+- `deleteSeasonRecord()` 완전 제거 (no-op toast 삭제)
+- admin.js: season 탭 → `loadAdminHallOfFameFromDB().then(renderSeasonAdminPanel)`
+
+**DB 검증:**
+- `admin_get_hall_of_fame` 함수 존재, is_admin guard ✓
+- `admin_get_hall_of_fame` acl: authenticated ✓ / anon ✗ ✓
+- apply_migration 성공 ✓
+
+**빌드 검증:**
+- `npm run build` PASS ✓
+- dist에서 `deleteSeasonRecord` / `DB 관리 예정` 문구 없음 ✓
+- 운영 데이터 수정 없음 ✓
+
+**다음 세션 후보 (우선순위 순):**
+A. Phase P3 (선택): settled 이벤트 force 재정산 UI confirm 경고 강화
+B. localStorage settleBet/simulateFight 정리
+C. Phase S3-C (선택): admin HOF 숨김/복구 통합 테스트
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 
