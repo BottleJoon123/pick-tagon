@@ -1,43 +1,54 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (L3-pre SELECT 완료 — repair 필요)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (L3-repair dry-run 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
 
 ---
 
-## 2026-05-17 마감 상태 (31차)
+## 2026-05-17 마감 상태 (32차)
 
-**origin/main = f3a7a42, HEAD = push 후 최신 SHA 확인 (push 예정)**
+**origin/main = 6674b68, HEAD = push 후 최신 SHA 확인 (push 예정)**
 
-**오늘 완료 (31차): Phase L3-pre — legacy pending pick SELECT 실행**
+**오늘 완료 (32차): L3-repair dry-run — legacy pending pick 10건 설계**
 
 **변경 파일:**
 - `docs/LOCAL_STORAGE_FIGHT_LEGACY_PLAN.md`
 - `docs/NEXT_WORK_PLAN.md`
 
-**SELECT 결과:**
+**dry-run 결과 요약:**
 
-| fight_id | cnt |
-|----------|-----|
-| f1 | 2 |
-| f2 | 1 |
-| f3 | 1 |
-| f4 | 2 |
-| f5 | 2 |
-| f6 | 1 |
-| f7 | 1 |
-| **합계** | **10** |
+| user_id (앞8) | 현재 points | 환급 | repair 후 |
+|--------------|------------|------|----------|
+| 275cb9d4 | 635 | +500 | 1135 |
+| ed396e42 | 3379 | +400 | 3779 |
+| 974fe018 | 1000 | +100 | 1100 |
+| **합계** | — | **+1000** | — |
 
-**판정: legacy_pending_total = 10 → L3 실행 보류**
+- 안전성: matchup_id=NULL 10/10, bet_cost>0 10/10, status='pending' 10/10 ✅
+- repair 정책: `status='cancelled'`, `actual_method='LEGACY_CANCELLED'`, `payout=0`, bet_cost 환급
+- repair SQL 초안 작성 완료 (LOCAL_STORAGE_FIGHT_LEGACY_PLAN.md 섹션 12-5)
+- **실제 UPDATE 미실행 — 승인 대기**
 
-`settleBet()` 제거 전 이 10건 처리 필요.
-
-**코드/DB 변경:** 없음 (SELECT only)
+**코드/DB 변경:** 없음 (dry-run SELECT + 문서화만)
 
 **다음 세션 후보 (우선순위 순):**
-A. legacy pending 10건 repair 정책 결정 (cancel / NC 보정) → repair 후 L3 실행
+A. legacy pending repair 실행 승인 → execute_sql 적용 → L3 (settleBet 제거) 진행
 B. Admin 결과 입력 브라우저 smoke QA (typed confirm, audit_log, admin_required)
 C. HOF hide/restore 실제 브라우저 QA
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
+
+---
+
+## 2026-05-17 마감 상태 (31차)
+
+**origin/main = f3a7a42 → 6674b68 (push 완료)**
+
+**오늘 완료 (31차): Phase L3-pre — legacy pending pick SELECT 실행**
+
+**SELECT 결과:** f1(2), f2(1), f3(1), f4(2), f5(2), f6(1), f7(1) — 합계 10건  
+**판정: legacy_pending_total = 10 → L3 실행 보류, repair 필요**
 
 **현재 dirty:**
 - `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음

@@ -388,7 +388,112 @@ GROUP BY fight_id;
 
 ---
 
-## 12. 이력
+## 12. Phase L3-repair Dry-run (2026-05-17, NOT RUN)
+
+### 12-1. 대상 row 목록 (10건)
+
+| id | user_id (앞8) | fight_id | pick_name | bet_cost | payout | matchup_id |
+|----|--------------|----------|-----------|----------|--------|------------|
+| 6 | 974fe018 | f1 | 더스틴 포이리에 | 100 | 280 | NULL |
+| 42 | 275cb9d4 | f1 | 지리 프로차스카 | 100 | 175 | NULL |
+| 43 | 275cb9d4 | f2 | 아자마트 무르자카노프 | 100 | 155 | NULL |
+| 44 | 275cb9d4 | f3 | 커티스 블레이즈 | 100 | 135 | NULL |
+| 4 | ed396e42 | f4 | 질베르 번스 | 100 | 190 | NULL |
+| 21 | 275cb9d4 | f4 | 닐 마그니 | 100 | 195 | NULL |
+| 20 | 275cb9d4 | f5 | 알리아킴 카말로프 | 100 | 155 | NULL |
+| 51 | ed396e42 | f5 | 컵 스완슨 | 100 | 175 | NULL |
+| 52 | ed396e42 | f6 | 에런 피코 | 100 | 165 | NULL |
+| 47 | ed396e42 | f7 | 케빈 홀랜드 | 100 | 170 | NULL |
+
+### 12-2. 안전성 확인
+
+| 항목 | 결과 |
+|------|------|
+| matchup_id = NULL | 10/10 ✅ |
+| matchup_id ≠ NULL | 0 ✅ |
+| bet_cost > 0 | 10/10 ✅ |
+| bet_cost = 0 또는 NULL | 0 ✅ |
+| status = 'pending' 외 다른 값 | 없음 ✅ |
+
+→ **모든 안전성 조건 충족. repair 실행 시 이상 케이스 없음.**
+
+### 12-3. 유저별 환급 합계 및 repair 전후 points
+
+| user_id (앞8) | 현재 points | pick_count | 환급 | repair 후 points |
+|--------------|------------|------------|------|----------------|
+| 275cb9d4 | 635 | 5 | +500 | 1135 |
+| ed396e42 | 3379 | 4 | +400 | 3779 |
+| 974fe018 | 1000 | 1 | +100 | 1100 |
+
+**총 환급: 1000P / 3 users / 10 picks**
+
+※ ed396e42는 `success_picks(18) > total_picks(16)` 기존 데이터 이상값 존재 — repair와 무관, 별도 이슈.
+
+### 12-4. actual_method 정책 후보
+
+| 후보 | actual_winner | actual_method | 비고 |
+|------|--------------|---------------|------|
+| **A (추천)** | NULL | `'LEGACY_CANCELLED'` | legacy 구분 마커, 일반 취소와 명확 구분 |
+| B | NULL | `'CANCELLED'` | 일반 취소와 동일 표기 |
+
+**추천: A** — 추후 레거시 픽만 필터할 때 `actual_method = 'LEGACY_CANCELLED'`로 식별 가능.
+
+### 12-5. Repair SQL 초안 (NOT RUN — 승인 후 execute_sql로 실행)
+
+```sql
+-- ⚠ 실제 실행 전 반드시 승인 받을 것
+-- 멱등성: WHERE status = 'pending' 조건으로 재실행 시 0건 처리
+BEGIN;
+
+WITH legacy_picks AS (
+    SELECT id, user_id, bet_cost
+    FROM picks
+    WHERE fight_id !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      AND status = 'pending'
+),
+refund AS (
+    UPDATE users u
+    SET points = u.points + lp.refund
+    FROM (
+        SELECT user_id, SUM(bet_cost) AS refund
+        FROM legacy_picks
+        GROUP BY user_id
+    ) lp
+    WHERE u.id = lp.user_id
+    RETURNING u.id AS user_id, u.points AS points_after
+),
+cancelled AS (
+    UPDATE picks
+    SET status      = 'cancelled',
+        actual_winner = NULL,
+        actual_method = 'LEGACY_CANCELLED',
+        payout      = 0,
+        settled_at  = now()
+    WHERE id IN (SELECT id FROM legacy_picks)
+    RETURNING id, user_id, fight_id, pick_name, bet_cost
+)
+SELECT
+    c.id,
+    c.user_id,
+    c.fight_id,
+    c.pick_name,
+    c.bet_cost  AS refunded,
+    r.points_after
+FROM cancelled c
+LEFT JOIN refund r ON c.user_id = r.user_id
+ORDER BY c.user_id, c.id;
+
+COMMIT;
+```
+
+**실행 결과 예상:**
+- `picks` 10행: `status → 'cancelled'`, `actual_method → 'LEGACY_CANCELLED'`, `payout → 0`, `settled_at → now()`
+- `users` 3행: 275cb9d4 +500, ed396e42 +400, 974fe018 +100
+- RETURNING: 10행 audit 레코드 반환
+
+---
+
+## 13. 이력
 
 | 날짜 | 커밋 | 내용 |
 |------|------|------|
@@ -397,3 +502,4 @@ GROUP BY fight_id;
 | 2026-05-17 | 607bec5 | **L2**: `confirmAdminResult()` localStorage 분기에 `isLegacyLocalFight` guard 추가 |
 | 2026-05-17 | f3a7a42 | **L3 준비**: admin 결과 입력 경로, DB 실패 fallback, legacy 픽 정산 문제 read-only 재확인 |
 | 2026-05-17 | (L3-pre) | **L3-pre SELECT**: legacy pending pick 10건 확인 (f1~f7) → L3 실행 보류, repair 필요 |
+| 2026-05-17 | (L3-repair-design) | **L3-repair dry-run**: 10건 / 1000P 환급 / 3 users 확인, repair SQL 초안 작성 |
