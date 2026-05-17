@@ -1,36 +1,39 @@
 # Admin 결과 입력 경로 통일 설계안
 
-작성: 2026-05-16 / 마지막 업데이트: 2026-05-16 / 상태: Path B 전환 완료 (d07156e)
+작성: 2026-05-16 / 마지막 업데이트: 2026-05-17 / 상태: Path B 운영 중 (491c4c2 dead code 제거 / 79ffbf7 typed confirm)
 
 ---
 
 ## 1. 현재 결과 입력 경로 요약
 
-### 현재 운영 경로 (Path B — d07156e 기준)
+### 현재 운영 경로 (Path B — 2026-05-17 기준)
 
 ```
 [Admin UI — UFC Builder]
-  openResultModal() / openResultModalForEdit()
+  adminSetResult(fightId)          → 신규 결과 입력 (result-modal-force = 'false')
+  editMatchupResult(fightId)       → 기존 결과 수정 (result-modal-force = 'true')
     → confirmAdminResult()                          [index.html:3180]
-      force=true 시: confirm 다이얼로그 (8903621)
-      → adminSetMatchupResultWithUI(matchupId, ...) [index.html:3234 — 신규]
-          → adminSetMatchupResult(...)              [admin.js:1586]
+      force=true 시: typed confirm — prompt() (79ffbf7)
+        기존 결과 + 새 결과 표시, "재정산" 입력 필수
+        불일치/취소 → toast + return (RPC 미호출)
+      → adminSetMatchupResultWithUI(matchupId, ...) [index.html:3258]
+          → adminSetMatchupResult(...)              [admin.js]
             → sb.rpc('admin_set_matchup_result', ...) [RPC 직접 호출]
               → public.service_settle_matchup(...)  [실제 정산 로직]
-          → toast / 상태 갱신 체인
+          → _showMatchupSettleToast()               [toast helper]
+          → _runPostSettleRefresh()                 [갱신 체인 helper]
 ```
 
-### Legacy Fallback 경로 (settle-matchup Edge Function — 보존)
+### 제거된 경로 (Legacy — 491c4c2에서 제거됨)
 
 ```
-submitMatchupResult(matchupId, ...)                 [index.html:3267 — legacy fallback]
-  → sb.functions.invoke('settle-matchup', {         [Edge Function HTTP 호출]
-      matchupId, winnerName, winnerSide,
-      method, round, time, force
-    })
-      → anonClient.rpc('admin_set_matchup_result', ...) [Edge Function 내부]
-        → public.service_settle_matchup(...)        [실제 정산 로직]
+submitMatchupResult()  — 제거됨 (491c4c2)
+  → sb.functions.invoke('settle-matchup', ...)  — app bundle 미호출
+  → 3-retry cold start 로직  — 제거됨
 ```
+
+**`settle-matchup` Edge Function 파일** (`supabase/functions/settle-matchup/index.ts`):
+repo artifact로 보존 중. 현재 운영 UI 경로에서는 호출되지 않음.
 
 ---
 
@@ -112,16 +115,18 @@ submitMatchupResult(matchupId, ...)                 [index.html:3267 — legacy 
 | force=true 지원 | ✓ | ✓ |
 | NC/DRAW | ✓ | ✓ |
 | 레거시 fight_id 처리 | service_settle_matchup이 처리 (동일) | service_settle_matchup이 처리 (동일) |
-| 현재 연결 상태 | **legacy fallback (submitMatchupResult)** | **현재 운영 중 (adminSetMatchupResultWithUI)** |
+| 현재 연결 상태 | **제거됨 (491c4c2) — app bundle 미호출** | **현재 운영 중 (adminSetMatchupResultWithUI)** |
 
 ---
 
 ## 5. 중복·불일치·위험 포인트
 
-### 5-1. 이중 인증 (중복)
-Edge Function에서 `users.is_admin`을 **HTTP 레이어**에서 한 번 체크하고,
-`admin_set_matchup_result` RPC에서 `private.is_admin()`을 **DB 레이어**에서 또 체크한다.
-기능상 문제는 없지만 불필요한 중복.
+### 5-1. ~~이중 인증 (중복)~~ ✅ 해소 (491c4c2)
+~~Edge Function에서 `users.is_admin`을 **HTTP 레이어**에서 한 번 체크하고,
+`admin_set_matchup_result` RPC에서 `private.is_admin()`을 **DB 레이어**에서 또 체크한다.~~
+
+**현재 상태**: `submitMatchupResult()` + Edge Function 호출 경로 제거됨 (491c4c2).
+현재 app bundle은 `admin_set_matchup_result` RPC 직접 호출 (DB 레이어 단일 인증). 이중 인증 문제 해소.
 
 ### 5-2. 보너스 계산 불일치 위험 ⚠
 `service_settle_matchup`의 보너스 계산:
@@ -142,9 +147,10 @@ Edge Function에서 `users.is_admin`을 **HTTP 레이어**에서 한 번 체크�
 
 ### 5-4. force=true 역산 위험 🚨 (별도 섹션 6 참조)
 
-### 5-5. admin.js `adminSetMatchupResult()` 연결 ✅ (d07156e 해소)
+### 5-5. admin.js `adminSetMatchupResult()` 연결 ✅ (d07156e 해소 → 491c4c2 완료)
 `adminSetMatchupResultWithUI()`(index.html)가 `adminSetMatchupResult()`를 호출하는 구조로 전환 완료.
-cold start retry 로직 미사용. legacy `submitMatchupResult()` 및 Edge Function은 fallback으로 보존.
+`submitMatchupResult()` + 3-retry cold start 로직 제거됨 (491c4c2). Edge Function repo artifact는 보존, app bundle 미호출.
+`_showMatchupSettleToast()` / `_runPostSettleRefresh()` 헬퍼 추출로 toast/갱신 체인 단일화.
 
 ---
 
@@ -169,22 +175,24 @@ force=true + 이미 정산된 matchup:
 - **롤백**: 트랜잭션 안에서 실행되므로 실패 시 원자적 롤백
 
 ### 현재 UI 진입점
-- `openResultModalForEdit()` → `result-modal-force` 값 `'true'`
+- `editMatchupResult(fightId)` → `adminSetResult(fightId)` 호출 후 `result-modal-force = 'true'` 설정
 - `confirmAdminResult()` → `isForce = document.getElementById('result-modal-force').value === 'true'`
-- **confirm 다이얼로그 추가됨 ✅ (8903621)**: force=true 시 `confirm()` 표시, 취소 시 모달 유지 + RPC 미호출
+- **typed confirm 강화됨 ✅ (79ffbf7)**: force=true 시 `prompt()` 표시
+  - 기존 결과 (`fight._resultWinner / _resultMethod / _resultRound`) + 새 입력 결과 함께 표시
+  - "기존 정산 역산 + audit log 기록" 안내 문구 포함
+  - `"재정산"` 정확히 입력해야만 진행, 불일치/취소 시 `showToast('강제 재정산 취소')` + return
 
-**현재 상태**: 강제 재정산 confirm 완료. 실제 운영 사용 시에도 여전히 주의 필요.
+**현재 상태**: typed confirm 완료. 실수 클릭 방지. 실제 운영 사용 시에도 여전히 주의 필요.
 
 ---
 
 ## 7. 추천 통일 방향
 
 ### 후보 A: Edge Function 유지 + RPC는 보조
-**현재 상태 유지.**
-- `confirmAdminResult()` → `submitMatchupResult()` → Edge Function 경로 유지
-- `adminSetMatchupResult()` (admin.js)는 fallback용으로만 보존
-- 장점: 추가 변경 불필요
-- 단점: cold start retry 코드 유지, 이중 인증, 불필요한 네트워크 홉
+~~**현재 상태 유지.**~~
+- `submitMatchupResult()` 제거됨 (491c4c2) — 선택지 소멸
+- `settle-matchup` Edge Function 파일은 repo에 남아 있으나 현재 app bundle에서 미호출
+- 이 후보는 더 이상 유효하지 않음
 
 ### 후보 B: RPC 직접 호출로 전환 (추천 ⭐)
 **Edge Function을 우회하고 `admin_set_matchup_result` RPC를 직접 호출.**
@@ -223,7 +231,17 @@ force=true + 이미 정산된 matchup:
 4. ✅ **QA 패널 갱신 체인 유지** (d07156e)
    - `adminSetMatchupResultWithUI()` 성공 후 `fetchBuilderMatchups` + `Promise.all([fetchBuilderPickSummary, fetchBuilderQA])` 실행
 
-5. **legacy settleBet() 경로 격리** — 보류
+5. ✅ **`submitMatchupResult()` dead code 제거 + 헬퍼 추출** (491c4c2)
+   - `submitMatchupResult()` 함수 삭제 (Edge Function 3-retry 경로)
+   - `_showMatchupSettleToast()` / `_runPostSettleRefresh()` 헬퍼 추출로 toast/갱신 체인 단일화
+   - `settle-matchup` Edge Function 파일 보존 (app bundle 미호출)
+
+6. ✅ **force=true typed confirm 강화** (79ffbf7)
+   - `confirm()` → `prompt()` 교체
+   - 기존 결과(`_resultWinner / _resultMethod / _resultRound`) + 새 입력 결과 prompt 문구에 표시
+   - `"재정산"` 정확히 입력해야 진행, 불일치/취소 시 RPC 미호출
+
+7. **legacy settleBet() 경로 격리** — 보류
    - `confirmAdminResult()`의 `!isDbMatchup && fight` 분기는 `settleBet()` 경로 유지
    - DB matchup 전수 완료 이후 별도 판단 필요
 
@@ -231,14 +249,16 @@ force=true + 이미 정산된 matchup:
 
 ## 9. QA 패널과 경로 호환성
 
-| 기능 | Path A (Edge Function, legacy) | Path B (RPC 직접, 현재 운영) |
-|------|-------------------------------|------------------------------|
-| `_builderQA` 갱신 | `submitMatchupResult()` 성공 후 `fetchBuilderQA()` 호출 ✓ (f708e83) | `adminSetMatchupResultWithUI()` 성공 후 동일 갱신 블록 ✓ (d07156e) |
-| `all_matchups_completed` 반영 | matchup 결과 입력 → DB 업데이트 → QA 재조회 ✓ | 동일 ✓ |
-| `total_pending_alert` 반영 | 정산 완료 후 pending=0 확인 ✓ | 동일 ✓ |
-| 정산 버튼 guard | `onLifecycleSettle()` QA guard ✓ (f708e83) | 변경 없음 ✓ |
+> Path A는 491c4c2에서 제거됨. 현재 QA 대상은 Path B만.
 
-**Path B 전환 완료.** `adminSetMatchupResultWithUI()` 성공 후 `fetchBuilderMatchups` + `Promise.all([fetchBuilderPickSummary, fetchBuilderQA])` 실행됨.
+| 기능 | Path A (제거됨 — 491c4c2, app bundle 미호출) | Path B (RPC 직접, 현재 운영) |
+|------|-------------------------------|------------------------------|
+| `_builderQA` 갱신 | N/A — `submitMatchupResult()` 제거됨 | `adminSetMatchupResultWithUI()` 성공 후 동일 갱신 블록 ✓ (d07156e) |
+| `all_matchups_completed` 반영 | N/A | matchup 결과 입력 → DB 업데이트 → QA 재조회 ✓ |
+| `total_pending_alert` 반영 | N/A | 정산 완료 후 pending=0 확인 ✓ |
+| 정산 버튼 guard | N/A | `onLifecycleSettle()` QA guard ✓ (f708e83) |
+
+**Path B 현재 운영 중.** `adminSetMatchupResultWithUI()` 성공 후 `fetchBuilderMatchups` + `Promise.all([fetchBuilderPickSummary, fetchBuilderQA])` 실행됨.
 
 ---
 
@@ -247,8 +267,8 @@ force=true + 이미 정산된 matchup:
 - [x] force=false DB matchup 결과 입력 → RPC 직접 호출, toast/갱신 정상
 - [x] DRAW 입력 → `cancelled` 처리, `${cancels}명 환급` toast
 - [x] NC 입력 → `cancelled` 처리, `${cancels}명 환급` toast
-- [x] force=true 결과 수정 → confirm 다이얼로그 표시 (8903621)
-- [x] force=true confirm 취소 → RPC 호출 없음, 모달 유지
+- [x] force=true 결과 수정 → typed confirm(prompt) 표시 (79ffbf7) — 기존/새 결과 + "재정산" 입력 요구
+- [x] force=true typed confirm 취소/불일치 → RPC 호출 없음, toast 표시
 - [x] 결과 입력 후 `fetchBuilderMatchups` / `fetchBuilderPickSummary` / `fetchBuilderQA` 갱신
 - [x] 마지막 matchup 결과 입력 후 QA 패널/정산 버튼 즉시 활성화
 - [x] `npm run build` PASS
@@ -262,13 +282,13 @@ force=true + 이미 정산된 matchup:
 
 | 항목 | 내용 |
 |------|------|
-| Legacy fallback 잔류 | `submitMatchupResult()` + Edge Function `settle-matchup`은 삭제하지 않고 코드에 보존 중 |
-| 토스트/갱신 로직 중복 | `submitMatchupResult()`와 `adminSetMatchupResultWithUI()` 양쪽에 유사한 toast/갱신 체인 존재 |
-| archived 이벤트 수정 정책 미확정 | `admin_set_matchup_result`는 `archived` 차단, `settled`는 허용. 허용 범위 최종 정책 별도 확정 필요 |
-| force=true 고위험 경로 | confirm 추가됐으나, 다수 사용자 포인트 동시 변경 — 실제 운영 사용 시 사전 검토 필수 |
-| **⚠ service_settle_matchup 직접 호출 가능** | **DB proacl이 authenticated 포함 — 마이그레이션 REVOKE 미반영. 비관리자 직접 호출 가능. 수정 migration 필요 (별도 승인).** |
-| localStorage legacy 경로 | `settleBet()` (localStorage fight) 경로 미제거 — DB matchup 전수 전환 이후 정리 가능 |
-| 브라우저 smoke QA 미실시 | `admin_audit_logs` 기록, `admin_required` 차단 동작은 실제 브라우저에서 미확인 |
+| ~~Legacy fallback 잔류~~ | ✅ 해소 (491c4c2): `submitMatchupResult()` 제거됨. `settle-matchup` EF 파일은 repo artifact 보존, app bundle 미호출 |
+| ~~토스트/갱신 로직 중복~~ | ✅ 해소 (491c4c2): `submitMatchupResult()` 제거로 중복 해소. `_showMatchupSettleToast` / `_runPostSettleRefresh` 헬퍼로 단일화 |
+| archived 이벤트 수정 정책 | `admin_set_matchup_result`는 `archived` 차단(RPC guard), `settled`는 허용. 정책 확정 완료. |
+| force=true 고위험 경로 | typed confirm 강화됨 (79ffbf7). 그래도 다수 사용자 포인트 동시 변경 — 실제 운영 사용 시 사전 검토 필수 |
+| ~~⚠ service_settle_matchup 직접 호출 가능~~ | ✅ 해소 (12차): `20260516_revoke_service_settle_matchup_public_execute.sql` — anon/authenticated EXECUTE REVOKE 완료 |
+| localStorage legacy 경로 | `settleBet()` (localStorage fight) 경로 잔존 — DB matchup 전수 완료 이후 별도 정리 판단 필요 |
+| 브라우저 smoke QA 미실시 | `admin_audit_logs` 기록, `admin_required` 차단, typed confirm UI 동작은 실제 브라우저에서 NOT RUN |
 
 ---
 
@@ -280,4 +300,8 @@ force=true + 이미 정산된 matchup:
 | 2026-05-16 | force=true confirm 다이얼로그 추가 | 8903621 |
 | 2026-05-16 | Path B RPC 직접 호출 전환 완료 | d07156e |
 | 2026-05-16 | QA/마감 문서화 | d90b1ea |
-| 2026-05-16 | smoke QA 실행 + FINDING-01 발견 | (이번 커밋) |
+| 2026-05-16 | smoke QA 실행 + FINDING-01 발견 | (12차) |
+| 2026-05-16 | FINDING-01 수정: service_settle_matchup REVOKE migration | (12차) |
+| 2026-05-17 | submitMatchupResult() dead code 제거, _showMatchupSettleToast/_runPostSettleRefresh 헬퍼 추출 | 491c4c2 |
+| 2026-05-17 | force=true typed confirm 강화: confirm() → prompt(), 기존/새 결과 표시, "재정산" 입력 필수 | 79ffbf7 |
+| 2026-05-17 | 문서 최신화: 현재 코드 상태 반영 (stale 문구 정리) | (이번 커밋) |

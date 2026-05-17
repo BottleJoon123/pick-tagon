@@ -1,7 +1,41 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (Phase P3 force 재정산 confirm 강화 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (admin result path 문서 정리 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-17 마감 상태 (26차)
+
+**origin/main = 79ffbf7, HEAD = push 후 최신 SHA 확인 (push 예정)**
+
+**오늘 완료 (26차): Admin result settlement path 문서 정리**
+
+**변경 파일:**
+- `docs/ADMIN_RESULT_SETTLEMENT_PATH_PLAN.md`
+- `docs/NEXT_WORK_PLAN.md`
+
+**문서 변경 내용:**
+- Section 1 현재 운영 경로: 함수명 `openResultModal/openResultModalForEdit` → `adminSetResult/editMatchupResult` 수정, typed confirm 반영
+- Legacy Fallback 경로 설명: `submitMatchupResult()` 제거됨(491c4c2) + EF repo artifact 보존 표기로 갱신
+- Section 4 비교표: Path A 연결 상태 "제거됨 (491c4c2)" 반영
+- Section 5-5: dead code 제거 + 헬퍼 추출 완료로 갱신
+- Section 6 force confirm: typed confirm (79ffbf7) 반영
+- Section 7 후보 A: submitMatchupResult() 제거로 선택지 소멸 명시
+- Section 8 구현 순서: 5번(491c4c2 dead code 제거), 6번(79ffbf7 typed confirm) 추가
+- Section 10 QA 체크리스트: force confirm 항목 → typed confirm 기준으로 갱신
+- Section 11 Known Limitations: 해소된 3항목 취소선 처리 (Legacy fallback, toast 중복, service_settle_matchup REVOKE)
+- 이력 섹션: 491c4c2, 79ffbf7, 현재 커밋 추가
+
+**코드/DB 변경:** 없음
+
+**다음 세션 후보 (우선순위 순):**
+A. localStorage settleBet/simulateFight read-only 조사
+B. HOF hide/restore 실제 브라우저 QA
+C. Admin 결과 입력 브라우저 smoke QA (typed confirm UI, audit_log 기록, admin_required 차단)
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 
