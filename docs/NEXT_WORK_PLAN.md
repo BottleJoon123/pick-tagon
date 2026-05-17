@@ -1,13 +1,48 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (localStorage fight legacy 조사 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (Phase L1 — simulateFight dead code 제거)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-17 마감 상태 (28차)
+
+**origin/main = 3bc05f9, HEAD = push 후 최신 SHA 확인 (push 예정)**
+
+**오늘 완료 (28차): Phase L1 — simulateFight() dead code 제거**
+
+**변경 파일:**
+- `index.html`
+- `dist/index.html` (빌드 산출물)
+- `docs/LOCAL_STORAGE_FIGHT_LEGACY_PLAN.md`
+- `docs/NEXT_WORK_PLAN.md`
+
+**변경 내용:**
+- `simulateFight()` 함수 정의 제거 (index.html 구 3140~3151 / dist 동일)
+- 호출자 없음 — 함수만 정의된 순수 dead code
+- `settleBet()` / `confirmAdminResult()` localStorage 분기 유지
+- 빌드 PASS (vite build 350ms, 에러 없음)
+
+**코드/DB 변경:** index.html, dist/index.html 각 12줄 제거
+
+**검증 결과:**
+- `simulateFight` 0건 (index.html, dist/index.html) ✅
+- `settleBet` 2건 잔존 (정의 + 호출) ✅
+- npm run build PASS ✅
+
+**다음 세션 후보 (우선순위 순):**
+A. `confirmAdminResult()` localStorage 분기에 `_fromDB` 가드 추가 (Phase L2)
+B. HOF hide/restore 실제 브라우저 QA
+C. Admin 결과 입력 브라우저 smoke QA (typed confirm UI, audit_log, admin_required)
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 
 ## 2026-05-17 마감 상태 (27차)
 
-**origin/main = a8bf1e7, HEAD = push 후 최신 SHA 확인 (push 예정)**
+**origin/main = a8bf1e7 → 3bc05f9 (push 완료)**
 
 **오늘 완료 (27차): localStorage settleBet / simulateFight legacy 경로 read-only 조사**
 
@@ -24,12 +59,6 @@
 - 권장 순서: ① simulateFight() 제거 → ② _fromDB 가드 추가 → ③ settleBet() 전체 제거
 
 **코드/DB 변경:** 없음 (read-only 조사)
-
-**다음 세션 후보 (우선순위 순):**
-A. `simulateFight()` 제거 (dead code, 호출자 없음, 안전)
-B. `confirmAdminResult()` localStorage 분기에 `_fromDB` 가드 추가
-C. HOF hide/restore 실제 브라우저 QA
-D. Admin 결과 입력 브라우저 smoke QA (typed confirm UI, audit_log, admin_required)
 
 **현재 dirty:**
 - `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음

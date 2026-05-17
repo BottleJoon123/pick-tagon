@@ -3137,19 +3137,6 @@ textarea, select {
         refreshUI();
     }
 
-    function simulateFight(fightId) {
-        const pending = state.pendings[fightId];
-        if (!pending) return;
-        const fight = getActiveFights().find(f => f.id === fightId);
-        if (!fight) return;
-
-        const leftWon = Math.random() < fight.leftBias;
-        const actualWinner = leftWon ? fight.f1.name : fight.f2.name;
-        const methods = ['KO/TKO', 'SUB', 'UD', 'UD'];
-        const actualMethod = methods[Math.floor(Math.random() * methods.length)];
-        settleBet(fightId, actualWinner, actualMethod, leftWon ? 'left' : 'right');
-    }
-
     // 어드민이 실제 결과를 입력하면 자동 정산
     function adminSetResult(fightId) {
         document.getElementById('result-modal-fight-id').value = fightId;
