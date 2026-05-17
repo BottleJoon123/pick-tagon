@@ -1,7 +1,39 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (Phase S3-B admin HOF UI 연결 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (Phase S3-C HOF soft hide smoke QA 문서화 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-17 마감 상태 (23차)
+
+**origin/main = 01ad6cb, HEAD = push 후 최신 SHA 확인 (push 예정)**
+
+**오늘 완료 (23차): Phase S3-C — Season HOF soft hide smoke QA 문서화**
+
+**변경 파일:**
+- `docs/SEASON_HOF_ADMIN_PLAN.md`
+- `docs/NEXT_WORK_PLAN.md`
+
+**QA 결과 (static 구조 검증):**
+- DB/RPC 16항목 PASS: is_hidden 컬럼 타입·디폴트·NOT NULL ✓, get_hall_of_fame is_hidden 필터 ✓, admin_hide/restore_hof_entry is_admin guard·active_season guard·idempotent·audit_logs ✓, admin_get_hall_of_fame hof_id·is_hidden·hidden_at·hidden_reason 반환·is_admin guard ✓, ACL anon REVOKE·authenticated GRANT 전 RPC ✓
+- JS/UI 13항목 PASS: seasonData.adminHallOfFame ✓, loadAdminHallOfFameFromDB ✓, admin.js season 탭 async 로드 ✓, hideSeasonHofEntry·restoreSeasonHofEntry 구현·confirm dialog ✓, deleteSeasonRecord 제거 ✓, renderHallOfFame rankNum 버그 수정 ✓
+- 빌드 3항목 PASS: npm run build ✓, dist 동기화 ✓, 운영 데이터 수정 없음 ✓
+- NOT RUN 5항목 (DB mutation 필요): 실제 숨김 처리, 복구 처리, 공개 HOF 미노출, 재숨김 idempotent, 감사 로그 기록 — 운영 데이터 변경 금지로 실행 보류
+
+**Known Limitations (문서화 완료):**
+- reason 입력 UX 없음: p_reason 항상 null (confirm dialog에 입력 필드 없음)
+- 숨김 항목 필터 UI 없음: 숨김만/전체 토글 미구현
+- 부분 숨김 시즌 표시 미구현: 일부 hidden된 시즌에 별도 상태 표시 없음
+
+**다음 세션 후보 (우선순위 순):**
+A. HOF hide/restore 실제 브라우저 QA (NOT RUN 5항목 — 운영 데이터 적용 시)
+B. Admin 시즌 UX 고도화: reason 입력 UI, 숨김/전체 필터 토글, 부분 숨김 표시
+C. Phase P3 (선택): settled 이벤트 force 재정산 UI confirm 경고 강화
+D. localStorage settleBet/simulateFight 정리
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 

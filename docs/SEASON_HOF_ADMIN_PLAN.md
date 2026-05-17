@@ -357,18 +357,11 @@ GRANT EXECUTE ON FUNCTION public.admin_restore_hof_entry(INTEGER) TO authenticat
 - 일반 사용자(hof-list): `get_hall_of_fame` 기반, `is_hidden=TRUE` 항목 미표시
 - 어드민 패널(admin-hof-list): 숨김 항목도 표시 (회색/취소선), 복구 버튼 제공
 
-이를 위해 별도 `admin_get_all_seasons_hof` RPC 필요 (is_hidden 무관 전체 반환).
+→ `admin_get_hall_of_fame()` RPC로 S3-B에서 구현 완료. (hof_id + is_hidden + hidden_at + hidden_reason 반환, is_hidden 필터 없음, is_admin guard, anon REVOKE)
 
-### Phase S3-C: 숨김 항목 어드민 전용 조회 RPC (선택)
+### Phase S3-C: smoke QA 문서화 (완료)
 
-```sql
-CREATE OR REPLACE FUNCTION public.admin_get_all_season_hof()
-...
-WHERE s.is_active = FALSE
--- is_hidden 필터 없음 (is_hidden 상태도 반환)
-ORDER BY s.id DESC, h.rank ASC;
--- authenticated + is_admin() guard
-```
+→ S3-A/S3-B 구현에 대한 정적 구조 검증. DB/RPC/JS/빌드 전 항목 PASS. NOT RUN 항목 및 Known Limitations 문서화. 운영 데이터 변경 없음.
 
 ---
 
@@ -385,9 +378,9 @@ ORDER BY s.id DESC, h.rank ASC;
 - [x] `admin_hide_hof_entry` acl: authenticated ✓ / anon ✗ 확인
 - [x] `admin_restore_hof_entry` acl: authenticated ✓ / anon ✗ 확인
 - [x] `get_hall_of_fame` acl: anon ✓ / authenticated ✓ 유지 확인
-- [ ] `admin_hide_hof_entry` 실제 호출 — active season guard 동작 확인 (통합 테스트)
-- [ ] `admin_hide_hof_entry` 호출 후 `get_hall_of_fame`에서 해당 항목 미반환 확인 (통합 테스트)
-- [ ] `admin_restore_hof_entry` 호출 후 복원 확인 (통합 테스트)
+- [NOT RUN] `admin_hide_hof_entry` 실제 호출 — 운영 데이터 변경이므로 미실행
+- [NOT RUN] `admin_hide_hof_entry` 호출 후 `get_hall_of_fame` 미반환 확인 — 미실행
+- [NOT RUN] `admin_restore_hof_entry` 호출 후 복원 확인 — 미실행
 
 ### Phase S3-B (UI) — 완료 (2026-05-17, migration: 20260517_season_hof_admin_get_rpc.sql)
 
@@ -401,7 +394,75 @@ ORDER BY s.id DESC, h.rank ASC;
 - [x] admin.js: season 탭 진입 시 `loadAdminHallOfFameFromDB().then(renderSeasonAdminPanel)` 로 변경
 - [x] `npm run build` PASS
 - [x] dist에서 `deleteSeasonRecord` / `DB 관리 예정` 문구 없음 확인
-- [ ] admin UI 실제 숨김/복구 흐름 확인 (운영 데이터 hide 없이 통합 테스트)
+- [NOT RUN] admin UI 실제 숨김/복구 버튼 클릭 — 운영 데이터 변경이므로 미실행
+
+### Phase S3-C (Smoke QA) — 완료 (2026-05-17, 정적 구조 검증)
+
+> 운영 데이터 변경 없이 DB/코드 구조를 정적으로 검증함.
+
+#### DB/RPC 구조 검증
+
+| 항목 | 결과 |
+|---|---|
+| `20260517_season_hof_soft_hide_rpc.sql` 파일 존재 | ✅ PASS |
+| `20260517_season_hof_admin_get_rpc.sql` 파일 존재 | ✅ PASS |
+| `get_hall_of_fame()` 본문에 `AND h.is_hidden = FALSE` 존재 | ✅ PASS |
+| `admin_get_hall_of_fame()` 반환 컬럼: `hof_id`, `is_hidden`, `hidden_at`, `hidden_reason` 포함 | ✅ PASS |
+| `admin_get_hall_of_fame()` 본문에 `private.is_admin()` guard 존재 | ✅ PASS |
+| `admin_get_hall_of_fame()` is_hidden 필터 없음 (숨김 포함 전체 반환) | ✅ PASS |
+| `admin_hide_hof_entry` 본문: `is_admin()` guard ✓ | ✅ PASS |
+| `admin_hide_hof_entry` 본문: `active_season_not_allowed` guard (`v_season.is_active = TRUE`) ✓ | ✅ PASS |
+| `admin_hide_hof_entry` 본문: idempotent (`is_hidden = TRUE → {ok:true, idempotent:true}`) ✓ | ✅ PASS |
+| `admin_hide_hof_entry` 본문: `admin_audit_logs` INSERT ✓ | ✅ PASS |
+| `admin_restore_hof_entry` 본문: `is_admin()` guard ✓ | ✅ PASS |
+| `admin_restore_hof_entry` 본문: idempotent ✓ | ✅ PASS |
+| `admin_restore_hof_entry` 본문: `admin_audit_logs` INSERT ✓ | ✅ PASS |
+| `get_hall_of_fame` acl: anon ✓ / authenticated ✓ | ✅ PASS |
+| `admin_get_hall_of_fame` acl: authenticated ✓ / anon ✗ | ✅ PASS |
+| `admin_hide_hof_entry` acl: authenticated ✓ / anon ✗ | ✅ PASS |
+| `admin_restore_hof_entry` acl: authenticated ✓ / anon ✗ | ✅ PASS |
+
+#### JS/UI 구조 검증
+
+| 항목 | 결과 |
+|---|---|
+| `seasonData.adminHallOfFame` 필드 선언 (season.js:26) | ✅ PASS |
+| `loadAdminHallOfFameFromDB()` 선언 + `admin_get_hall_of_fame` 호출 (season.js:98,100) | ✅ PASS |
+| `renderSeasonAdminPanel()` — `adminHallOfFame` 기반 렌더 (season.js:232) | ✅ PASS |
+| `renderSeasonAdminPanel()` — per-rank 숨김 버튼 `hideSeasonHofEntry(hofId)` (season.js:243) | ✅ PASS |
+| `renderSeasonAdminPanel()` — per-rank 복구 버튼 `restoreSeasonHofEntry(hofId)` (season.js:246) | ✅ PASS |
+| `hideSeasonHofEntry()` — `admin_hide_hof_entry` RPC 호출 (season.js:397) | ✅ PASS |
+| `hideSeasonHofEntry()` — 성공 후 `loadAdminHallOfFameFromDB().then(renderSeasonAdminPanel)` + `loadHallOfFameFromDB()` (season.js:410) | ✅ PASS |
+| `restoreSeasonHofEntry()` — `admin_restore_hof_entry` RPC 호출 (season.js:417) | ✅ PASS |
+| `restoreSeasonHofEntry()` — 성공 후 동일 재로드 패턴 (season.js:429) | ✅ PASS |
+| `deleteSeasonRecord` 문자열 없음 | ✅ PASS |
+| `DB 관리 예정` 문자열 없음 | ✅ PASS |
+| `renderHallOfFame()` 메달/강조: `rankNum = Number(p.rank) || (i+1)` 기준 (season.js:178) | ✅ PASS |
+| admin.js season 탭: `loadAdminHallOfFameFromDB().then(renderSeasonAdminPanel)` (admin.js:144) | ✅ PASS |
+
+#### Build/dist 검증
+
+| 항목 | 결과 |
+|---|---|
+| `npm run build` PASS | ✅ PASS |
+| `public/js/season.js` ↔ `dist/js/season.js` 동기화 (`diff` 출력 없음) | ✅ PASS |
+| `public/js/admin.js` ↔ `dist/js/admin.js` 동기화 (`diff` 출력 없음) | ✅ PASS |
+
+#### NOT RUN 항목 (운영 데이터 변경 방지)
+
+| 항목 | 이유 |
+|---|---|
+| `admin_hide_hof_entry` 실제 RPC 호출 | 운영 HOF 데이터 변경 |
+| `admin_restore_hof_entry` 실제 RPC 호출 | 운영 HOF 데이터 변경 |
+| 브라우저에서 숨김/복구 버튼 클릭 | 운영 HOF 데이터 변경 |
+| hide 후 `get_hall_of_fame` 미반환 확인 | RPC 실행 필요 |
+| restore 후 재표시 확인 | RPC 실행 필요 |
+
+#### Known Limitations
+
+- **reason 입력 UX**: `hideSeasonHofEntry`는 `confirm()` dialog만 사용, `p_reason`은 항상 `null`. reason 입력 UI는 미구현 (Phase S3-D 선택 사항)
+- **숨김 항목 필터 UI**: 어드민 HOF 목록에서 "숨김만 보기" / "전체 보기" 토글 없음 (현재 전체 표시)
+- **partial hide 표시**: rank 1~3 중 일부만 숨겨진 시즌의 경우 시즌 카드 상태 표시 없음 (allHidden 여부만 체크)
 
 ---
 
@@ -424,7 +485,13 @@ Phase S3-B (2026-05-17):
 - `hideSeasonHofEntry()` / `restoreSeasonHofEntry()` 추가 (season.js)
 - `deleteSeasonRecord()` 제거
 - admin.js season 탭: `loadAdminHallOfFameFromDB().then(renderSeasonAdminPanel)`
+- 공개 `renderHallOfFame()` 메달 버그 수정: index i → rankNum 기준
 - 운영 데이터 수정 없음 / 실제 hide/restore 실행 없음
+
+Phase S3-C (2026-05-17):
+- 정적 구조 smoke QA 실행 — DB/RPC/JS/빌드 전 항목 PASS
+- 운영 데이터 변경이 필요한 항목 NOT RUN 명시
+- Known Limitations 문서화
 
 ---
 
@@ -435,3 +502,4 @@ Phase S3-B (2026-05-17):
 | 2026-05-17 | read-only 조사 + 설계 문서 작성 (main ab3a808) |
 | 2026-05-17 | Phase S3-A: season_hof soft hide migration 적용 + RPC 추가 |
 | 2026-05-17 | Phase S3-B: admin_get_hall_of_fame RPC + admin UI 숨김/복구 버튼 연결 |
+| 2026-05-17 | Phase S3-C: smoke QA 정적 검증 + Known Limitations 문서화 |
