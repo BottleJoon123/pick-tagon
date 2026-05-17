@@ -1,7 +1,40 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (LEGACY_CANCELLED 마커 영향 확인)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (L3-repair 실행 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-17 마감 상태 (34차)
+
+**origin/main = 199c9e6, HEAD = push 후 최신 SHA 확인 (push 예정)**
+
+**오늘 완료 (34차): Phase L3-repair — legacy pending 10건 cancel + bet_cost 환급**
+
+**변경 파일:**
+- `docs/LOCAL_STORAGE_FIGHT_LEGACY_PLAN.md` (12-6 실행 결과 + 이력 갱신)
+- `docs/NEXT_WORK_PLAN.md`
+
+**DB 변경 내용 (운영 적용 완료):**
+- `picks` 10행: `status → 'cancelled'`, `actual_method → 'LEGACY_CANCELLED'`, `payout → 0`, `settled_at → now()`
+- `users` 3행: 275cb9d4 +500P(→1135), 974fe018 +100P(→1100), ed396e42 +400P(→3779)
+
+**사후 검증:**
+- legacy pending 잔존: **0건** ✅
+- cancelled + LEGACY_CANCELLED rows: 10건 ✅
+- users.points: 예상값과 완전 일치 ✅
+
+**L3 실행 조건 충족** — `settleBet()` 제거 가능
+
+**코드 변경:** 없음 (DB repair + 문서화만)
+
+**다음 세션 후보 (우선순위 순):**
+A. **Phase L3-a/b**: `confirmAdminResult()` localStorage 분기 삭제 + `settleBet()` 함수 삭제
+B. Admin 결과 입력 브라우저 smoke QA (typed confirm, audit_log, admin_required)
+C. HOF hide/restore 실제 브라우저 QA
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 

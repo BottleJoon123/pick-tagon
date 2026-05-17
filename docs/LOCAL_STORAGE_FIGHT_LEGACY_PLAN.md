@@ -1,7 +1,7 @@
 # localStorage Fight Legacy 경로 조사 및 정리 계획
 
-최초 작성: 2026-05-17 / 마지막 업데이트: 2026-05-17 (LEGACY_CANCELLED 마커 영향 확인)  
-기준 커밋: f451486
+최초 작성: 2026-05-17 / 마지막 업데이트: 2026-05-17 (L3-repair 실행 완료)  
+기준 커밋: 199c9e6
 
 **현재 잔존 legacy:**
 - `settleBet()` (index.html:3277) — 정의 및 `confirmAdminResult()` 내 호출 1건 남아 있음
@@ -491,6 +491,37 @@ COMMIT;
 - `users` 3행: 275cb9d4 +500, ed396e42 +400, 974fe018 +100
 - RETURNING: 10행 audit 레코드 반환
 
+### 12-6. 실제 실행 결과 (2026-05-17 ✅ EXECUTED)
+
+**실행 시각**: 2026-05-17 (세션 내)
+
+**RETURNING 결과 (10행):**
+
+| id | user_prefix | fight_id | pick_name | refunded | points_after |
+|----|-------------|----------|-----------|----------|-------------|
+| 20 | 275cb9d4 | f5 | 알리아킴 카말로프 | 100 | 1135 |
+| 21 | 275cb9d4 | f4 | 닐 마그니 | 100 | 1135 |
+| 42 | 275cb9d4 | f1 | 지리 프로차스카 | 100 | 1135 |
+| 43 | 275cb9d4 | f2 | 아자마트 무르자카노프 | 100 | 1135 |
+| 44 | 275cb9d4 | f3 | 커티스 블레이즈 | 100 | 1135 |
+| 6 | 974fe018 | f1 | 더스틴 포이리에 | 100 | 1100 |
+| 4 | ed396e42 | f4 | 질베르 번스 | 100 | 3779 |
+| 47 | ed396e42 | f7 | 케빈 홀랜드 | 100 | 3779 |
+| 51 | ed396e42 | f5 | 컵 스완슨 | 100 | 3779 |
+| 52 | ed396e42 | f6 | 에런 피코 | 100 | 3779 |
+
+**사후 검증 결과:**
+
+| 검증 항목 | 기대 | 실제 | |
+|----------|------|------|--|
+| legacy pending 잔존 | 0건 | 0건 | ✅ |
+| cancelled + LEGACY_CANCELLED rows | 10건 | 10건 | ✅ |
+| 275cb9d4 points | 1135 | 1135 | ✅ |
+| 974fe018 points | 1100 | 1100 | ✅ |
+| ed396e42 points | 3779 | 3779 | ✅ |
+
+→ **repair 완전 성공. L3 실행 조건 충족.**
+
 ---
 
 ## 13. 이력
@@ -503,7 +534,8 @@ COMMIT;
 | 2026-05-17 | f3a7a42 | **L3 준비**: admin 결과 입력 경로, DB 실패 fallback, legacy 픽 정산 문제 read-only 재확인 |
 | 2026-05-17 | 6674b68 | **L3-pre SELECT**: legacy pending pick 10건 확인 (f1~f7) → L3 실행 보류, repair 필요 |
 | 2026-05-17 | f451486 | **L3-repair dry-run**: 10건 / 1000P 환급 / 3 users 확인, repair SQL 초안 작성 |
-| 2026-05-17 | (marker-check) | **LEGACY_CANCELLED 마커 영향 확인**: 모든 RPC + profile.js 안전 확인 → 마커 유지 가능 |
+| 2026-05-17 | 199c9e6 | **LEGACY_CANCELLED 마커 영향 확인**: 모든 RPC + profile.js 안전 확인 → 마커 유지 가능 |
+| 2026-05-17 | (L3-repair-exec) | **L3-repair 실행**: picks 10건 cancelled / users 3명 +1000P — 사후 검증 전체 ✅ |
 
 ---
 
