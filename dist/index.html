@@ -3221,6 +3221,12 @@ textarea, select {
             }
             await adminSetMatchupResultWithUI(fightId, winner, dbSide, method, parseInt(round), time, isForce);
         } else if (fight) {
+            // DB fight가 _fromDB 누락 등 이상 상태로 이 분기에 들어오는 것을 차단
+            const isLegacyLocalFight = !fight._fromDB && !uuidRe.test(String(fightId));
+            if (!isLegacyLocalFight) {
+                showToast('⚠ DB 경기 결과는 RPC 경로로만 정산할 수 있습니다');
+                return;
+            }
             const winnerSide = fight.f1.name === winner ? 'left' : 'right';
             settleBet(fightId, winner, method, winnerSide, round, time);
             renderAdminFightCardList();

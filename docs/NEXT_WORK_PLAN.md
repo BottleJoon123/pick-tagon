@@ -1,13 +1,50 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (Phase L1 — simulateFight dead code 제거)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (Phase L2 — settleBet guard 추가)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-17 마감 상태 (29차)
+
+**origin/main = 586bf66, HEAD = push 후 최신 SHA 확인 (push 예정)**
+
+**오늘 완료 (29차): Phase L2 — confirmAdminResult() localStorage 분기 guard 추가**
+
+**변경 파일:**
+- `index.html`
+- `dist/index.html` (빌드 산출물)
+- `docs/LOCAL_STORAGE_FIGHT_LEGACY_PLAN.md`
+- `docs/NEXT_WORK_PLAN.md`
+
+**변경 내용:**
+- `confirmAdminResult()` `else if (fight)` 분기 안에 `isLegacyLocalFight` guard 삽입
+- `!fight._fromDB && !uuidRe.test(String(fightId))` — false면 toast 차단 + return
+- UUID fightId 또는 `_fromDB` 이상 케이스는 `settleBet()` 진입 불가
+- 정상 localStorage fight(non-UUID, !_fromDB)는 기존대로 통과
+- 빌드 PASS (vite build 354ms, 에러 없음)
+
+**코드/DB 변경:** index.html, dist/index.html guard 5줄 추가
+
+**검증 결과:**
+- `simulateFight` 0건 유지 ✅
+- `settleBet` 정의(3277) + 호출(3231) 2건 잔존 ✅
+- `isLegacyLocalFight` guard 양쪽 파일 확인 ✅
+- npm run build PASS ✅
+
+**다음 세션 후보 (우선순위 순):**
+A. Phase L3 read-only 재확인 또는 `settleBet()` 제거 + localStorage 분기 삭제
+B. HOF hide/restore 실제 브라우저 QA
+C. Admin 결과 입력 브라우저 smoke QA (typed confirm UI, audit_log, admin_required)
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 
 ## 2026-05-17 마감 상태 (28차)
 
-**origin/main = 3bc05f9, HEAD = push 후 최신 SHA 확인 (push 예정)**
+**origin/main = 3bc05f9 → 586bf66 (push 완료)**
 
 **오늘 완료 (28차): Phase L1 — simulateFight() dead code 제거**
 
@@ -24,19 +61,6 @@
 - 빌드 PASS (vite build 350ms, 에러 없음)
 
 **코드/DB 변경:** index.html, dist/index.html 각 12줄 제거
-
-**검증 결과:**
-- `simulateFight` 0건 (index.html, dist/index.html) ✅
-- `settleBet` 2건 잔존 (정의 + 호출) ✅
-- npm run build PASS ✅
-
-**다음 세션 후보 (우선순위 순):**
-A. `confirmAdminResult()` localStorage 분기에 `_fromDB` 가드 추가 (Phase L2)
-B. HOF hide/restore 실제 브라우저 QA
-C. Admin 결과 입력 브라우저 smoke QA (typed confirm UI, audit_log, admin_required)
-
-**현재 dirty:**
-- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 

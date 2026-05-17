@@ -1,14 +1,14 @@
 # localStorage Fight Legacy 경로 조사 및 정리 계획
 
-최초 작성: 2026-05-17 / 마지막 업데이트: 2026-05-17 (L1 완료)  
-기준 커밋: 24f2b83
+최초 작성: 2026-05-17 / 마지막 업데이트: 2026-05-17 (L2 완료)  
+기준 커밋: 586bf66 → (L2)
 
 **현재 잔존 legacy:**
-- `settleBet()` (index.html:3271) — 정의 및 `confirmAdminResult()` 내 호출 1건 남아 있음
-- `confirmAdminResult()` localStorage 분기 (`!isDbMatchup && fight` → `settleBet()`)
+- `settleBet()` (index.html:3277) — 정의 및 `confirmAdminResult()` 내 호출 1건 남아 있음
+- `confirmAdminResult()` localStorage 분기 — L2 guard 추가됨, UUID/`_fromDB` 이상 케이스 차단
 
 **제거 완료:**
-- `simulateFight()` — L1 (24f2b83)에서 제거, 현재 정의·호출 모두 0건
+- `simulateFight()` — L1 (586bf66)에서 제거, 현재 정의·호출 모두 0건
 
 ---
 
@@ -45,7 +45,7 @@ function getActiveFights() {
 
 ---
 
-## 3. simulateFight() — ✅ 제거됨 (L1, 24f2b83)
+## 3. simulateFight() — ✅ 제거됨 (L1, 586bf66)
 
 **현재 상태: 정의·호출 모두 0건**
 
@@ -121,7 +121,7 @@ sb.from('picks')
 - `matchups.result_status` 가 `'scheduled'`로 유지됨 (DB 경기 미정산 상태)
 - 다른 유저의 `picks` rows는 그대로 → 불완전 정산
 
-### 호출 경로 (L1 이후 현재)
+### 호출 경로 (L2 이후 현재)
 
 ```
 confirmAdminResult()      (index.html:3167)
@@ -129,7 +129,10 @@ confirmAdminResult()      (index.html:3167)
   ├── isDbMatchup=true  → adminSetMatchupResultWithUI() [DB RPC 경로]
   │
   └── isDbMatchup=false && fight 존재
-        └── settleBet()  [localStorage 경로]  ← index.html:3225
+        ├── isLegacyLocalFight=false (UUID 또는 _fromDB 이상)
+        │     └── showToast 차단  [L2 guard]
+        └── isLegacyLocalFight=true (non-UUID && !_fromDB)
+              └── settleBet()  [localStorage 경로]  ← index.html:3231
 ```
 
 ### isDbMatchup 판정 로직
@@ -200,16 +203,16 @@ _dbMatchups.length > 0
 
 ### ~~A. 현행 유지~~ (simulateFight 잔존 문제 → L1에서 해소)
 
-### B. confirmAdminResult() localStorage 분기에 _fromDB 가드 추가 (Phase L2 후보)
-- `else if (fight)` 분기 진입 전에 `if (fight._fromDB)` 차단 추가
-- ✅ 낮은 위험, DB fight이 localStorage 경로로 잘못 진입하는 경우 방어
-- ⚠️ settleBet() 자체는 남음
+### ~~B. confirmAdminResult() localStorage 분기에 _fromDB 가드 추가~~ → ✅ **L2 완료**
+- `isLegacyLocalFight` guard 삽입: `!fight._fromDB && !uuidRe.test(String(fightId))`
+- UUID / `_fromDB` 이상 케이스 → toast 차단, return
+- 정상 localStorage fight(non-UUID, !_fromDB)만 통과
 
-### ~~C. simulateFight()만 제거~~ → ✅ **L1 (24f2b83)에서 완료**
+### ~~C. simulateFight()만 제거~~ → ✅ **L1 (586bf66)에서 완료**
 
 ### D. settleBet() 전체 제거 + confirmAdminResult() localStorage 분기 삭제 (Phase L3 후보)
 - `settleBet()` 삭제
-- `confirmAdminResult()`에서 `else if (fight)` 분기 삭제
+- `confirmAdminResult()`에서 `else if (fight)` 분기 전체 삭제
 - ✅ 코드베이스 정리 효과 큼
 - ⚠️ `customFights` admin 워크플로우가 완전히 DB로 이전된 것을 먼저 확인 필요
 - ⚠️ FIGHTS 정적 배열도 함께 제거 대상
@@ -220,9 +223,9 @@ _dbMatchups.length > 0
 
 | 단계 | 작업 | 위험도 | 상태 |
 |------|------|--------|------|
-| ~~1~~ | ~~`simulateFight()` 제거~~ | 낮음 | ✅ **L1 완료 (24f2b83)** |
-| 2 (L2) | `confirmAdminResult()` localStorage 분기에 `_fromDB` 가드 추가 | 매우 낮음 | 대기 |
-| 3 (L3) | `settleBet()` 제거 + `else if (fight)` 분기 삭제 | 중간 | DB matchup 100% 전환 확인 후 |
+| ~~1~~ | ~~`simulateFight()` 제거~~ | 낮음 | ✅ **L1 완료 (586bf66)** |
+| ~~2 (L2)~~ | ~~`confirmAdminResult()` localStorage 분기에 `_fromDB` 가드 추가~~ | 매우 낮음 | ✅ **L2 완료** |
+| 3 (L3) | `settleBet()` 제거 + `else if (fight)` 분기 전체 삭제 | 중간 | DB matchup 100% 전환 확인 후 |
 | 4 | `FIGHTS` 정적 배열 제거 | 중간 | L3 완료 후 |
 
 ---
@@ -234,9 +237,9 @@ _dbMatchups.length > 0
 | `getActiveFights()` | public/js/admin.js | 79 | |
 | `customFights` 로드 | public/js/admin.js | 64-71 | |
 | `_dbMatchups` 채우기 | public/js/api/supabase.js | 343-388 | |
-| ~~`simulateFight()`~~ | ~~index.html~~ | ~~3140~~ | **제거됨 (L1, 24f2b83)** |
-| `confirmAdminResult()` | index.html | 3167 | |
-| `settleBet()` | index.html | 3271 | |
+| ~~`simulateFight()`~~ | ~~index.html~~ | ~~3140~~ | **제거됨 (L1, 586bf66)** |
+| `confirmAdminResult()` | index.html | 3167 | L2 guard 추가됨 |
+| `settleBet()` | index.html | 3277 | |
 | `updatePickResult()` | index.html | 4934 | |
 | `renderAdminFightCardList()` | public/js/admin.js | 850 | |
 | `FIGHTS` 정적 배열 | public/js/data/fights.js | 1 | |
@@ -249,4 +252,5 @@ _dbMatchups.length > 0
 | 날짜 | 커밋 | 내용 |
 |------|------|------|
 | 2026-05-17 | 3bc05f9 | 초기 read-only 조사 완료, 문서 작성 |
-| 2026-05-17 | 24f2b83 | **L1**: `simulateFight()` 제거 — index.html, dist/index.html (dead code, 정의·호출 0건) |
+| 2026-05-17 | 586bf66 | **L1**: `simulateFight()` 제거 — index.html, dist/index.html (dead code, 정의·호출 0건) |
+| 2026-05-17 | (L2) | **L2**: `confirmAdminResult()` localStorage 분기에 `isLegacyLocalFight` guard 추가 |
