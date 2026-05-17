@@ -1,7 +1,47 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (updatePickResult dead code 제거)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (핵심 플로우 Smoke QA)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-17 마감 상태 (38차)
+
+**origin/main = 98ef6a7, HEAD = push 후 최신 SHA 확인 (push 예정)**
+
+**오늘 완료 (38차): 핵심 플로우 Smoke QA — 회귀 없음 확인**
+
+**변경 파일:**
+- `docs/QA_RUN_2026-05-17_CORE_FLOWS.md` (신규)
+- `docs/NEXT_WORK_PLAN.md`
+
+**QA 결과 요약:**
+
+| 영역 | 결과 |
+|------|------|
+| npm run build | ✅ PASS (372ms) |
+| 레거시 회귀 (settleBet/simulateFight/updatePickResult/settle-matchup) | ✅ 전부 0건 |
+| 사용자 화면 (Pick/Profile/Rankings 경로) | ✅ PASS (CODE) |
+| 관리자 화면 (Dashboard/대진표관리/결과입력/settle guard) | ✅ PASS (CODE) |
+| admin-panel-fights hidden 유지 | ✅ PASS (CODE) |
+| 버그 발견 | 없음 |
+| 코드 수정 | 없음 |
+
+**NOT RUN (운영 데이터 변경 방지 / 도구 제한):**
+- 모바일 폭 텍스트 겹침 (DevTools 에뮬레이션)
+- 실제 Pick 등록 / 결과 submit / 정산 실행
+- admin_required RPC 차단 실측
+
+**코드/DB 변경:** 없음 (docs only)
+
+**다음 세션 후보 (우선순위 순):**
+A. 유저-facing UI/UX 개선 — Profile/Ranking/Home/Pick 카드 중심, Figma 참고 가능
+B. Admin 운영 고도화 — audit log UI, dashboard health, QA 패널 개선
+C. 실제 브라우저/모바일 QA 보강 — 모바일 폭, HOF hide/restore, admin_required 실측
+D. 남은 cleanup — renderAdminFightCardList/admin-panel-fights/FIGHTS/customFights는 후순위
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 
