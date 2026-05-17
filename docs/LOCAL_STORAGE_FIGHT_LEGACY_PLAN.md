@@ -350,12 +350,39 @@ GROUP BY fight_id;
 - **선행 조건**: 11-6 DB 쿼리 실행 → legacy pending 픽 0건 확인 필수
 - 위험도: 중간 (선행 조건 충족 시 낮음)
 
-### 11-8. 권장 L3 실행 순서
+### 11-8. L3-pre SELECT 결과 (2026-05-17)
+
+```sql
+-- 실행 결과
+SELECT fight_id, COUNT(*) AS cnt
+FROM picks
+WHERE fight_id !~ '^[0-9a-f]{8}-...' AND status = 'pending'
+GROUP BY fight_id;
+```
+
+| fight_id | cnt |
+|----------|-----|
+| f1 | 2 |
+| f2 | 1 |
+| f3 | 1 |
+| f4 | 2 |
+| f5 | 2 |
+| f6 | 1 |
+| f7 | 1 |
+| **합계** | **10** |
+
+**판정: legacy_pending_total = 10 → L3 실행 보류**
+
+`settleBet()` 제거 전에 이 10건을 처리해야 한다.  
+처리 방안은 별도 설계 필요 (cancel/NC 처리, 수동 보정 등).
+
+### 11-9. 권장 L3 실행 순서 (개정)
 
 | 단계 | 작업 | 선행 조건 |
 |------|------|-----------|
-| L3-pre | DB 쿼리: legacy pending 픽 0건 확인 | — |
-| L3-a | `confirmAdminResult()` else if 분기 삭제 | L3-pre |
+| L3-pre ✅ | DB 쿼리: legacy pending 픽 확인 | — |
+| **L3-repair** | legacy pending 10건 처리 (cancel or NC 보정) | 정책 결정 필요 |
+| L3-a | `confirmAdminResult()` else if 분기 삭제 | L3-repair 완료 |
 | L3-b | `settleBet()` 함수 삭제 | L3-a |
 | L3-c | `FIGHTS` 정적 배열 제거 판단 | L3-b 완료 + 이벤트 종료 후 |
 
@@ -368,4 +395,5 @@ GROUP BY fight_id;
 | 2026-05-17 | 3bc05f9 | 초기 read-only 조사 완료, 문서 작성 |
 | 2026-05-17 | 586bf66 | **L1**: `simulateFight()` 제거 — index.html, dist/index.html (dead code, 정의·호출 0건) |
 | 2026-05-17 | 607bec5 | **L2**: `confirmAdminResult()` localStorage 분기에 `isLegacyLocalFight` guard 추가 |
-| 2026-05-17 | (L3-pre) | **L3 준비**: admin 결과 입력 경로, DB 실패 fallback, legacy 픽 정산 문제 read-only 재확인 |
+| 2026-05-17 | f3a7a42 | **L3 준비**: admin 결과 입력 경로, DB 실패 fallback, legacy 픽 정산 문제 read-only 재확인 |
+| 2026-05-17 | (L3-pre) | **L3-pre SELECT**: legacy pending pick 10건 확인 (f1~f7) → L3 실행 보류, repair 필요 |
