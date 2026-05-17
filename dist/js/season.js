@@ -28,6 +28,13 @@ var seasonData = {
 
 var seasonResetSubmitting = false;
 
+// adminHofFilter: 'all' | 'visible' | 'hidden'  — persists across re-renders
+var adminHofFilter = 'all';
+function setAdminHofFilter(f) {
+    adminHofFilter = f;
+    renderSeasonAdminPanel();
+}
+
 function loadSeason() {
     const s = localStorage.getItem('picktagon_season');
     if (s) seasonData = JSON.parse(s);
@@ -234,29 +241,57 @@ function renderSeasonAdminPanel() {
     if (adminHof.length === 0) {
         hofList.innerHTML = `<div class="glass-card p-6 text-center text-gray-700 oswald-sharp text-xs italic uppercase tracking-widest rounded-2xl">기록된 시즌 없음</div>`;
     } else {
-        hofList.innerHTML = adminHof.map((s) => {
-            const allHidden = s.top3.length > 0 && s.top3.every(e => e.isHidden);
-            const champion = s.top3.find(e => e.rank === 1);
-            const visibleEntries = s.top3.filter(e => !e.isHidden);
-            const hiddenEntries  = s.top3.filter(e =>  e.isHidden);
-            const hideButtons = visibleEntries.map(e =>
+        const totalVisible = adminHof.reduce((n, s) => n + s.top3.filter(e => !e.isHidden).length, 0);
+        const totalHidden  = adminHof.reduce((n, s) => n + s.top3.filter(e =>  e.isHidden).length, 0);
+        const fBtn = (f, label) => {
+            const active = adminHofFilter === f;
+            return `<button onclick="setAdminHofFilter('${f}')" class="oswald-sharp text-[9px] italic uppercase tracking-widest px-3 py-1.5 rounded-lg border transition ${active ? 'text-white border-white/30 bg-white/10' : 'text-gray-600 border-white/10 hover:text-gray-400 hover:border-white/20'}">${label}</button>`;
+        };
+        const filterBar = `<div class="flex items-center gap-2 mb-3">${fBtn('all', '전체 ' + adminHof.length + '시즌')}${fBtn('visible', '공개 ' + totalVisible + '건')}${fBtn('hidden', '숨김 ' + totalHidden + '건')}</div>`;
+
+        const cardHtml = adminHof.map((s) => {
+            const filteredTop3 = s.top3.filter(e => {
+                if (adminHofFilter === 'visible') return !e.isHidden;
+                if (adminHofFilter === 'hidden')  return  e.isHidden;
+                return true;
+            });
+            if (filteredTop3.length === 0) return null;
+
+            const allHidden     = s.top3.length > 0 && s.top3.every(e => e.isHidden);
+            const partialHidden = !allHidden && s.top3.some(e => e.isHidden);
+            const champion      = s.top3.find(e => e.rank === 1);
+            const championName  = champion
+                ? (champion.isHidden ? '(숨김 처리됨)' : escapeHtml(champion.name))
+                : '—';
+            const hiddenCount   = s.top3.filter(e => e.isHidden).length;
+
+            const hideButtons = filteredTop3.filter(e => !e.isHidden).map(e =>
                 `<button onclick="hideSeasonHofEntry(${e.hofId})" class="oswald-sharp text-[9px] text-gray-500 hover:text-red-400 italic uppercase tracking-widest px-2 py-1 border border-white/10 rounded-lg hover:border-red-500/30 transition">숨김 #${e.rank}</button>`
             ).join('');
-            const restoreButtons = hiddenEntries.map(e =>
+            const restoreButtons = filteredTop3.filter(e => e.isHidden).map(e =>
                 `<button onclick="restoreSeasonHofEntry(${e.hofId})" class="oswald-sharp text-[9px] text-yellow-600 hover:text-yellow-400 italic uppercase tracking-widest px-2 py-1 border border-yellow-600/20 rounded-lg hover:border-yellow-400/40 transition">복구 #${e.rank}</button>`
             ).join('');
+
+            const titleBadge = allHidden
+                ? ` <span class="not-italic font-normal text-gray-600 text-[9px] tracking-normal">[숨김]</span>`
+                : partialHidden
+                ? ` <span class="not-italic font-normal text-yellow-600/70 text-[9px] tracking-normal">[일부 숨김 ${hiddenCount}/${s.top3.length}]</span>`
+                : '';
+
             return `
             <div class="glass-card rounded-2xl p-4 flex items-center justify-between hover:border-yellow-500/20 transition ${allHidden ? 'opacity-40' : ''}">
                 <div class="flex items-center gap-3">
                     <span class="text-xl">${allHidden ? '👻' : '🏆'}</span>
                     <div>
-                        <p class="oswald-sharp font-black italic text-sm ${allHidden ? 'text-gray-500 line-through' : 'text-white'} uppercase tracking-tighter">${escapeHtml(s.seasonName)}${allHidden ? ' <span class="no-underline not-italic text-gray-600">[숨김]</span>' : ''}</p>
-                        <p class="oswald-sharp text-[9px] text-gray-600 italic uppercase">종료: ${s.endDate} · 우승: ${escapeHtml(champion?.name || '—')}</p>
+                        <p class="oswald-sharp font-black italic text-sm ${allHidden ? 'text-gray-500 line-through' : 'text-white'} uppercase tracking-tighter">${escapeHtml(s.seasonName)}${titleBadge}</p>
+                        <p class="oswald-sharp text-[9px] text-gray-600 italic uppercase">종료: ${s.endDate} · 우승: ${championName}</p>
                     </div>
                 </div>
                 <div class="flex flex-wrap gap-1.5 justify-end max-w-[160px]">${hideButtons}${restoreButtons}</div>
             </div>`;
-        }).join('');
+        }).filter(Boolean).join('');
+
+        hofList.innerHTML = filterBar + (cardHtml || `<div class="glass-card p-6 text-center text-gray-700 oswald-sharp text-xs italic uppercase tracking-widest rounded-2xl">조건에 맞는 HOF 항목 없음</div>`);
     }
 }
 
@@ -393,8 +428,10 @@ function executeSeasonReset() {
 
 function hideSeasonHofEntry(hofId) {
     if (!sb) { showToast('⚠ DB 연결 필요'); return; }
-    if (!confirm('이 HOF 항목을 숨기시겠습니까?\n숨긴 항목은 일반 사용자에게 표시되지 않습니다.')) return;
-    sb.rpc('admin_hide_hof_entry', { p_hof_id: hofId }).then(function(res) {
+    const reasonInput = prompt('숨김 사유 입력 (선택)\n빈칸이면 사유 없이 숨김됩니다.\n취소 버튼 클릭 시 실행되지 않습니다.');
+    if (reasonInput === null) return;
+    const reason = reasonInput.trim() || null;
+    sb.rpc('admin_hide_hof_entry', { p_hof_id: hofId, p_reason: reason }).then(function(res) {
         if (res.error) { showToast('⚠ RPC 오류: ' + res.error.message); return; }
         const data = res.data;
         if (!data || !data.ok) {

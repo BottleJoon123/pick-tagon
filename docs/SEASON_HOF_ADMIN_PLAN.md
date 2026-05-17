@@ -2,7 +2,7 @@
 
 **작성일:** 2026-05-17  
 **대상 브랜치:** main (ab3a808)  
-**상태:** Phase S3-A 완료 (2026-05-17) / Phase S3-B 완료 (2026-05-17)
+**상태:** Phase S3-A 완료 (2026-05-17) / Phase S3-B 완료 (2026-05-17) / Phase S3-C 완료 (2026-05-17) / Admin HOF UX 고도화 완료 (2026-05-17)
 
 ---
 
@@ -458,11 +458,11 @@ GRANT EXECUTE ON FUNCTION public.admin_restore_hof_entry(INTEGER) TO authenticat
 | hide 후 `get_hall_of_fame` 미반환 확인 | RPC 실행 필요 |
 | restore 후 재표시 확인 | RPC 실행 필요 |
 
-#### Known Limitations
+#### Known Limitations (S3-C 기준 — Admin HOF UX 고도화 이후 해소된 항목 표시)
 
-- **reason 입력 UX**: `hideSeasonHofEntry`는 `confirm()` dialog만 사용, `p_reason`은 항상 `null`. reason 입력 UI는 미구현 (Phase S3-D 선택 사항)
-- **숨김 항목 필터 UI**: 어드민 HOF 목록에서 "숨김만 보기" / "전체 보기" 토글 없음 (현재 전체 표시)
-- **partial hide 표시**: rank 1~3 중 일부만 숨겨진 시즌의 경우 시즌 카드 상태 표시 없음 (allHidden 여부만 체크)
+- ~~**reason 입력 UX**~~: `hideSeasonHofEntry`가 `prompt()`로 사유 입력 UI 제공. `p_reason` 전달됨. **(Admin HOF UX 고도화에서 해소)**
+- ~~**숨김 항목 필터 UI**~~: 전체/공개/숨김 3단계 필터 토글 구현됨. **(Admin HOF UX 고도화에서 해소)**
+- ~~**partial hide 표시**~~: `[일부 숨김 N/N]` 뱃지 + 우승자 `(숨김 처리됨)` 표시 구현됨. **(Admin HOF UX 고도화에서 해소)**
 
 ---
 
@@ -493,6 +493,47 @@ Phase S3-C (2026-05-17):
 - 운영 데이터 변경이 필요한 항목 NOT RUN 명시
 - Known Limitations 문서화
 
+Admin HOF UX 고도화 (2026-05-17):
+- `hideSeasonHofEntry()` — `confirm()` → `prompt()` 교체, `p_reason` 전달 추가 (season.js)
+- `adminHofFilter` 전역 변수 + `setAdminHofFilter()` 함수 추가 (season.js)
+- `renderSeasonAdminPanel()` HOF 목록 개선:
+  - 전체/공개/숨김 3단계 필터 토글 + 항목 수 표시
+  - 필터 결과 없을 때 "조건에 맞는 HOF 항목 없음" 안내
+  - `[일부 숨김 N/N]` 뱃지 (allHidden이 아닌 partial 상태)
+  - 우승자(rank=1)가 숨김 처리 시 `(숨김 처리됨)` 표시
+- DB/migration/운영 데이터 변경 없음
+
+---
+
+## 10. Admin HOF UX 고도화 QA
+
+### 구조 검증
+
+| 항목 | 결과 |
+|---|---|
+| `adminHofFilter` 전역 변수 선언 (`var adminHofFilter = 'all'`) | ✅ PASS |
+| `setAdminHofFilter(f)` 함수: `adminHofFilter = f` 후 `renderSeasonAdminPanel()` 호출 | ✅ PASS |
+| `hideSeasonHofEntry()` — `prompt()` 사용, `reasonInput === null` 취소 처리 | ✅ PASS |
+| `hideSeasonHofEntry()` — `p_reason: reason` (trim 후 빈값이면 null) RPC에 전달 | ✅ PASS |
+| `renderSeasonAdminPanel()` — 필터 토글 버튼 3개 (전체/공개/숨김) + 항목 수 | ✅ PASS |
+| 필터: `adminHofFilter === 'visible'` 시 `!e.isHidden` entries만 | ✅ PASS |
+| 필터: `adminHofFilter === 'hidden'` 시 `e.isHidden` entries만 | ✅ PASS |
+| 필터 결과 없는 시즌 카드: `null` 반환 후 `.filter(Boolean)` 제거 | ✅ PASS |
+| 전체 필터 후 빈 목록: "조건에 맞는 HOF 항목 없음" | ✅ PASS |
+| `partialHidden`: `!allHidden && s.top3.some(e => e.isHidden)` | ✅ PASS |
+| `[일부 숨김 N/N]` 뱃지: `partialHidden === true` 시 노란색 표시 | ✅ PASS |
+| 우승자 hidden 시 `(숨김 처리됨)` 표시 (champion.isHidden) | ✅ PASS |
+| `renderHallOfFame()` — `adminHofFilter` 참조 없음 (공개 HOF 영향 없음) | ✅ PASS |
+| `deleteSeasonRecord` 문자열 없음 | ✅ PASS |
+| `npm run build` PASS (376.13 kB) | ✅ PASS |
+| `public/js/season.js` ↔ `dist/js/season.js` 동기화 | ✅ PASS |
+
+### Known Limitations (Admin HOF UX 고도화 이후)
+
+- **reason 복구 표시**: `restoreSeasonHofEntry`는 reason 입력 없음 유지 (설계 의도)
+- **필터 상태 미저장**: 페이지/탭 이동 후 adminHofFilter = 'all'로 리셋됨 (전역 변수이므로 세션 내 유지)
+- **브라우저 QA**: 실제 운영 HOF 데이터로 숨김/복구 버튼 동작은 NOT RUN (운영 데이터 변경 금지)
+
 ---
 
 ## 이력
@@ -503,3 +544,4 @@ Phase S3-C (2026-05-17):
 | 2026-05-17 | Phase S3-A: season_hof soft hide migration 적용 + RPC 추가 |
 | 2026-05-17 | Phase S3-B: admin_get_hall_of_fame RPC + admin UI 숨김/복구 버튼 연결 |
 | 2026-05-17 | Phase S3-C: smoke QA 정적 검증 + Known Limitations 문서화 |
+| 2026-05-17 | Admin HOF UX 고도화: reason prompt, 필터 토글, 부분 숨김 표시 |

@@ -1,7 +1,52 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (Phase S3-C HOF soft hide smoke QA 문서화 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (Admin 시즌 HOF 관리 UX 고도화 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-17 마감 상태 (24차)
+
+**origin/main = 2aa15b2, HEAD = push 후 최신 SHA 확인 (push 예정)**
+
+**오늘 완료 (24차): Admin 시즌 HOF 관리 UX 고도화**
+
+**변경 파일:**
+- `public/js/season.js`
+- `dist/js/season.js`
+- `docs/SEASON_HOF_ADMIN_PLAN.md`
+- `docs/NEXT_WORK_PLAN.md`
+
+**JS 변경:**
+- `adminHofFilter` 전역 변수 추가 (`'all' | 'visible' | 'hidden'`, 기본값 `'all'`)
+- `setAdminHofFilter(f)` 함수 추가 — 필터 변경 후 `renderSeasonAdminPanel()` 재호출
+- `hideSeasonHofEntry()` 개선:
+  - `confirm()` → `prompt()` 교체 (사유 입력 + 취소 처리 통합)
+  - `p_reason: reason` (trim 후 빈값 → null) RPC에 전달
+- `renderSeasonAdminPanel()` HOF 목록 개선:
+  - 전체/공개/숨김 3단계 필터 토글 버튼 (항목 수 표시)
+  - 필터 기반 `filteredTop3` — 시즌별 버튼도 필터 결과만 표시
+  - 전체 필터 후 빈 목록: "조건에 맞는 HOF 항목 없음" 안내
+  - `partialHidden` 뱃지: `[일부 숨김 N/N]` 노란색 표시
+  - 우승자(rank=1)가 hidden 시 `(숨김 처리됨)` 표시
+
+**DB 변경:** 없음 (migration 없음)
+
+**빌드 검증:**
+- `npm run build` PASS (376.13 kB) ✓
+- `public/js/season.js` ↔ `dist/js/season.js` 동기화 ✓
+- `deleteSeasonRecord` 없음 ✓
+- `renderHallOfFame()` rankNum 기준 유지 ✓
+- `adminHofFilter` 참조가 admin HOF 경로에만 존재 ✓
+- 운영 데이터 수정 없음 ✓
+
+**다음 세션 후보 (우선순위 순):**
+A. HOF hide/restore 실제 브라우저 QA (NOT RUN 5항목 — 운영 데이터 적용 시)
+B. Phase P3 (선택): settled 이벤트 force 재정산 UI confirm 경고 강화
+C. localStorage settleBet/simulateFight 정리
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 
