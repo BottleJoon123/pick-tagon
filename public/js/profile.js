@@ -240,7 +240,7 @@ function renderDivisionStats() {
     if (_rpcStats) {
         const wcs = _rpcStats.by_weight_class || [];
         if (wcs.length === 0) {
-            el.innerHTML = `<p class="oswald-sharp text-xs text-gray-700 italic uppercase text-center py-4">결과 확정된 예측 없음</p>`;
+            el.innerHTML = `<p class="oswald-sharp text-xs text-gray-500 italic uppercase text-center py-4">체급별 기록은 정산 후 표시됩니다</p>`;
             return;
         }
         el.innerHTML = wcs.map(wc => {
@@ -261,11 +261,11 @@ function renderDivisionStats() {
                 <div class="flex justify-between items-center mb-1.5">
                     <span class="oswald-sharp text-[10px] lg:text-xs font-black italic text-gray-300 uppercase truncate max-w-[55%]">${label}</span>
                     <div class="flex items-center gap-2 shrink-0">
-                        <span class="oswald-sharp text-[9px] text-gray-600 italic">${ratioText}${totalNote}</span>
+                        <span class="oswald-sharp text-[9px] text-gray-500 italic">${ratioText}${totalNote}</span>
                         <span class="oswald-sharp text-xs font-black italic ${accColor}">${accText}</span>
                     </div>
                 </div>
-                <div class="h-2 rounded-full bg-white/5 overflow-hidden">
+                <div class="h-2 rounded-full bg-white/[0.08] overflow-hidden">
                     <div class="h-full rounded-full transition-all duration-700 ${barColor}" style="width:${barW}%"></div>
                 </div>
             </div>`;
@@ -293,7 +293,7 @@ function renderDivisionStats() {
     });
 
     if (entries.length === 0) {
-        el.innerHTML = `<p class="oswald-sharp text-xs text-gray-700 italic uppercase text-center py-4">결과 확정된 예측 없음</p>`;
+        el.innerHTML = `<p class="oswald-sharp text-xs text-gray-500 italic uppercase text-center py-4">체급별 기록은 정산 후 표시됩니다</p>`;
         return;
     }
 
@@ -306,11 +306,11 @@ function renderDivisionStats() {
             <div class="flex justify-between items-center mb-1.5">
                 <span class="oswald-sharp text-[10px] lg:text-xs font-black italic text-gray-300 uppercase truncate max-w-[55%]">${shortDiv}</span>
                 <div class="flex items-center gap-2 shrink-0">
-                    <span class="oswald-sharp text-[9px] text-gray-600 italic">${stat.wins}W ${loses}L</span>
+                    <span class="oswald-sharp text-[9px] text-gray-500 italic">${stat.wins}W ${loses}L</span>
                     <span class="oswald-sharp text-xs font-black italic ${acc >= 70 ? 'text-ufcRed' : acc >= 50 ? 'text-white' : 'text-gray-500'}">${acc}%</span>
                 </div>
             </div>
-            <div class="h-2 rounded-full bg-white/5 overflow-hidden">
+            <div class="h-2 rounded-full bg-white/[0.08] overflow-hidden">
                 <div class="h-full rounded-full transition-all duration-700 ${acc >= 70 ? 'bg-ufcRed' : acc >= 50 ? 'bg-blue-500' : 'bg-white/20'}"
                     style="width:${acc}%"></div>
             </div>
@@ -364,7 +364,7 @@ function renderMethodStats() {
     if (_rpcStats) {
         const byMethod = _rpcStats.by_method || [];
         if (byMethod.length === 0) {
-            methodEl.innerHTML = `<p class="oswald-sharp text-xs text-gray-700 italic uppercase text-center">결과 확정된 예측 없음</p>`;
+            methodEl.innerHTML = `<p class="oswald-sharp text-xs text-gray-500 italic uppercase text-center">승리 방식 통계는 적중 픽 정산 후 표시됩니다</p>`;
             return;
         }
         methodEl.innerHTML = byMethod.map(m => {
@@ -377,13 +377,13 @@ function renderMethodStats() {
             return `
             <div>
                 <div class="flex justify-between items-center mb-1.5">
-                    <span class="oswald-sharp text-xs font-black italic text-gray-300 uppercase">${cfg.icon} ${m.method}</span>
-                    <span class="oswald-sharp text-xs font-black italic ${pctColor}">${pctText}</span>
+                    <span class="oswald-sharp text-xs font-black italic text-gray-300 uppercase min-w-0 truncate max-w-[55%]">${cfg.icon} ${m.method}</span>
+                    <span class="oswald-sharp text-xs font-black italic shrink-0 ${pctColor}">${pctText}</span>
                 </div>
-                <div class="h-2 rounded-full bg-white/5 overflow-hidden">
+                <div class="h-2 rounded-full bg-white/[0.08] overflow-hidden">
                     <div class="h-full rounded-full ${cfg.color} transition-all duration-700" style="width:${pct}%"></div>
                 </div>
-                <p class="oswald-sharp text-[9px] text-gray-600 italic mt-1">${wins}승 / ${total}정산</p>
+                <p class="oswald-sharp text-[10px] text-gray-500 italic mt-1">${wins}승 / ${total}정산</p>
             </div>`;
         }).join('');
         return;
@@ -399,7 +399,7 @@ function renderMethodStats() {
     const settled = Object.values(state.settled || {});
 
     if (settled.length === 0) {
-        methodEl.innerHTML = `<p class="oswald-sharp text-xs text-gray-700 italic uppercase text-center">결과 확정된 예측 없음</p>`;
+        methodEl.innerHTML = `<p class="oswald-sharp text-xs text-gray-500 italic uppercase text-center">승리 방식 통계는 적중 픽 정산 후 표시됩니다</p>`;
         return;
     }
 
@@ -411,15 +411,15 @@ function renderMethodStats() {
         return `
         <div>
             <div class="flex justify-between items-center mb-1.5">
-                <span class="oswald-sharp text-xs font-black italic text-gray-300 uppercase">${m.icon} ${m.key}</span>
-                <span class="oswald-sharp text-xs font-black italic ${pct >= 70 ? 'text-ufcRed' : pct >= 50 ? 'text-white' : 'text-gray-500'}">
+                <span class="oswald-sharp text-xs font-black italic text-gray-300 uppercase min-w-0 truncate max-w-[55%]">${m.icon} ${m.key}</span>
+                <span class="oswald-sharp text-xs font-black italic shrink-0 ${pct >= 70 ? 'text-ufcRed' : pct >= 50 ? 'text-white' : 'text-gray-500'}">
                     ${total === 0 ? '—' : pct + '%'}
                 </span>
             </div>
-            <div class="h-2 rounded-full bg-white/5 overflow-hidden">
+            <div class="h-2 rounded-full bg-white/[0.08] overflow-hidden">
                 <div class="h-full rounded-full ${m.color} transition-all duration-700" style="width:${pct}%"></div>
             </div>
-            <p class="oswald-sharp text-[9px] text-gray-600 italic mt-1">${total === 0 ? '데이터 없음' : `${wins}승 / ${total}경기`}</p>
+            <p class="oswald-sharp text-[10px] text-gray-500 italic mt-1">${total === 0 ? '데이터 없음' : `${wins}승 / ${total}경기`}</p>
         </div>`;
     }).join('');
 }
