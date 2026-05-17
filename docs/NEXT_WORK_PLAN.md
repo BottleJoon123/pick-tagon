@@ -1,13 +1,42 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (Phase L2 — settleBet guard 추가)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (Phase L3 준비 — settleBet 제거 가능성 재확인)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-17 마감 상태 (30차)
+
+**origin/main = 607bec5, HEAD = push 후 최신 SHA 확인 (push 예정)**
+
+**오늘 완료 (30차): Phase L3 준비 — settleBet 제거 가능성 read-only 재확인**
+
+**변경 파일:**
+- `docs/LOCAL_STORAGE_FIGHT_LEGACY_PLAN.md`
+- `docs/NEXT_WORK_PLAN.md`
+
+**조사 결과 요약:**
+- admin 결과 입력 실제 경로: `openResultModal()` (builder) → `confirmAdminResult()` → DB RPC — `settleBet()` 도달 경로 없음
+- `admin-panel-fights`(`fight-card-admin-list`)는 `switchAdminTab()` 목록에 없어 UI 접근 불가
+- DB 실패 fallback 시 `getActiveFights()` = FIGHTS/customFights이지만 admin-panel-fights 접근 불가로 무관
+- `settleBet()`은 현재 실질적으로 완전 dead code (L2 guard 후 도달 경로 없음)
+- **L3 필수 선행 조건**: DB에 `fight_id !~ UUID` + `status='pending'`인 legacy 픽 0건 확인
+
+**다음 세션 후보 (우선순위 순):**
+A. L3-pre DB 쿼리 실행 → legacy pending 픽 0건이면 settleBet 전체 제거
+B. Admin 결과 입력 브라우저 smoke QA (typed confirm, audit_log, admin_required)
+C. HOF hide/restore 실제 브라우저 QA
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
+
+**코드/DB 변경:** 없음 (read-only 조사)
 
 ---
 
 ## 2026-05-17 마감 상태 (29차)
 
-**origin/main = 586bf66, HEAD = push 후 최신 SHA 확인 (push 예정)**
+**origin/main = 586bf66 → 607bec5 (push 완료)**
 
 **오늘 완료 (29차): Phase L2 — confirmAdminResult() localStorage 분기 guard 추가**
 

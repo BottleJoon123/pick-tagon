@@ -1,11 +1,12 @@
 # localStorage Fight Legacy 경로 조사 및 정리 계획
 
-최초 작성: 2026-05-17 / 마지막 업데이트: 2026-05-17 (L2 완료)  
-기준 커밋: 586bf66 → (L2)
+최초 작성: 2026-05-17 / 마지막 업데이트: 2026-05-17 (L3 준비 — settleBet 제거 가능성 재확인)  
+기준 커밋: 607bec5
 
 **현재 잔존 legacy:**
 - `settleBet()` (index.html:3277) — 정의 및 `confirmAdminResult()` 내 호출 1건 남아 있음
 - `confirmAdminResult()` localStorage 분기 — L2 guard 추가됨, UUID/`_fromDB` 이상 케이스 차단
+- `admin-panel-fights` + `fight-card-admin-list` — 접근 불가 hidden 패널, `renderAdminFightCardList()` 존재
 
 **제거 완료:**
 - `simulateFight()` — L1 (586bf66)에서 제거, 현재 정의·호출 모두 0건
@@ -247,10 +248,124 @@ _dbMatchups.length > 0
 
 ---
 
-## 11. 이력
+## 11. Phase L3 준비 — settleBet 제거 가능성 재확인 (read-only)
+
+### 조사 기준 커밋: 607bec5
+
+### 11-1. 프로덕션 admin 결과 입력 실제 경로
+
+```
+admin → 대진표 관리 탭 (switchAdminTab('ufc'))
+  → fetchEventsForBuilder()
+    → _builderMatchups (DB 직접 fetch)
+      → 🏆 버튼 클릭 → openResultModal(matchupId)  [admin.js:1303]
+        ├── getActiveFights().find(f => f.id === matchupId) 있으면
+        │     → adminSetResult(matchupId) → confirmAdminResult()
+        │         → isDbMatchup=true → adminSetMatchupResultWithUI() [DB RPC]
+        └── 없으면 _builderMatchups에서 직접 모달 채움 → confirmAdminResult()
+              → isDbMatchup=true (UUID fightId) → adminSetMatchupResultWithUI() [DB RPC]
+```
+
+**결론**: 현재 admin UI에서 결과 입력은 100% DB RPC 경로. `settleBet()` 도달 경로 없음.
+
+### 11-2. fight-card-admin-list 패널 접근 가능성
+
+- `admin-panel-fights` (HTML:1622) — `fight-card-admin-list` 포함
+- `switchAdminTab()` 목록: `['dashboard', 'fighters', 'archive', 'news', 'season', 'event', 'ufc', 'settings']`
+- **'fights'는 목록에 없음** → 탭 버튼 없음 → UI에서 접근 불가
+- `renderAdminFightCardList()`는 `_runPostSettleRefresh()` 후 호출되지만 패널이 hidden이므로 무효
+
+### 11-3. DB 실패 시 fallback 경로
+
+`fetchUpcomingMatchups()` 실패 시나리오:
+| 실패 원인 | 결과 |
+|----------|------|
+| `sb` undefined | `_dbMatchups = []` 유지, return |
+| `allEvRes.error` | `_dbMatchups = []` 유지, renderFightCards + return |
+| `event` 없음 (upcoming 없음) | `_dbMatchups = []` 유지, renderFightCards + return |
+| `mRes.error / !mRes.data` | `_dbMatchups = []` 유지, renderFightCards + return |
+| catch(e) | console.warn만, `_dbMatchups = []` 유지 |
+
+→ 실패 시 `getActiveFights()` = `customFights` → `FIGHTS` 순으로 fallback  
+→ 그러나 admin-panel-fights는 UI 접근 불가 → admin이 결과 입력 버튼에 도달하는 경로 없음
+
+### 11-4. 일반 유저 pick 등록의 legacy fightId 처리
+
+`castVote()` → `savePick()` (index.html:4903):
+```javascript
+const matchupId = (fight && fight._fromDB) ? fightId : null;
+```
+- `_dbMatchups` 활성 시: `matchupId = UUID fightId` → `picks.matchup_id = UUID`
+- `FIGHTS`/`customFights` 활성 시: `matchupId = null` → `picks.matchup_id = null`, `fight_id = 'f1'`
+
+**레거시 픽 정산 문제**:
+- `admin_set_matchup_result` RPC는 `matchup_id` 기준 정산 → `matchup_id = null`인 픽 정산 불가
+- `settleBet()`은 `fight_id = 'f1'` 픽을 직접 `picks.update()` → 유일한 정산 경로
+- 그러나 `_dbMatchups` 활성 상태에서 legacy fightId로 신규 pick 등록 불가 (fight 카드 미표시)
+
+### 11-5. state.history / state.pendings / state.settled — legacy fightId 영향
+
+| 필드 | legacy fightId ('f1'~'f11') 있을 때 영향 |
+|------|----------------------------------------|
+| `state.history` | profile.js 렌더링 — 항목 표시되지만 기존 fight 이름 텍스트만 (crash 없음) |
+| `state.pendings` | `loadUserPicksFromDB()` 재구성 시 UUID fightIds만 처리 → legacy는 남아 있음 (invisible) |
+| `state.settled` | profile.js `divMap[fightId]` miss → `division = '기타'` 표시 (cosmetic degradation) |
+
+### 11-6. L3 실행 전 필수 선행 확인 (DB 쿼리)
+
+**settleBet() 제거 전 반드시 확인:**
+
+```sql
+-- DB에 legacy fightId (non-UUID) + status='pending'인 픽이 있는지 확인
+SELECT fight_id, COUNT(*) AS cnt
+FROM picks
+WHERE fight_id !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+  AND status = 'pending'
+GROUP BY fight_id;
+```
+
+- 결과 0건 → L3 실행 안전
+- 결과 있음 → 먼저 해당 픽 `status = 'cancelled'` 처리 후 L3 실행
+
+### 11-7. L3 제거 후보 재평가
+
+#### A. settleBet() 유지 + 경고 문서화
+- ✅ 회귀 0
+- ⚠️ 완전 dead code 잔존 (L2 guard 후 도달 경로 없음)
+
+#### B. admin-panel-fights 숨김 처리 + renderAdminFightCardList() 제거
+- 이미 탭 접근 불가 → 별도 작업 가치 낮음
+- `renderAdminFightCardList()`는 hidden 패널에 렌더링 → 무해하지만 낭비
+
+#### C. confirmAdminResult() localStorage 분기 삭제 + settleBet() 유지 ← **단기 안전 선택**
+- `else if (fight)` 전체 삭제 (isLegacyLocalFight guard 포함)
+- `settleBet()` 정의는 남겨 둠 → 완전 dead code (호출자 0)
+- DB 선행 쿼리 불필요
+- 위험도: 낮음
+
+#### D. settleBet() 함수 삭제 + confirmAdminResult() localStorage 분기 삭제 ← **권장 최종 목표**
+- `settleBet()` 삭제
+- `confirmAdminResult()` else if 분기 전체 삭제
+- `FIGHTS` leftBias 미사용 → `FIGHTS` 제거도 가능 (별도 판단)
+- **선행 조건**: 11-6 DB 쿼리 실행 → legacy pending 픽 0건 확인 필수
+- 위험도: 중간 (선행 조건 충족 시 낮음)
+
+### 11-8. 권장 L3 실행 순서
+
+| 단계 | 작업 | 선행 조건 |
+|------|------|-----------|
+| L3-pre | DB 쿼리: legacy pending 픽 0건 확인 | — |
+| L3-a | `confirmAdminResult()` else if 분기 삭제 | L3-pre |
+| L3-b | `settleBet()` 함수 삭제 | L3-a |
+| L3-c | `FIGHTS` 정적 배열 제거 판단 | L3-b 완료 + 이벤트 종료 후 |
+
+---
+
+## 12. 이력
 
 | 날짜 | 커밋 | 내용 |
 |------|------|------|
 | 2026-05-17 | 3bc05f9 | 초기 read-only 조사 완료, 문서 작성 |
 | 2026-05-17 | 586bf66 | **L1**: `simulateFight()` 제거 — index.html, dist/index.html (dead code, 정의·호출 0건) |
-| 2026-05-17 | (L2) | **L2**: `confirmAdminResult()` localStorage 분기에 `isLegacyLocalFight` guard 추가 |
+| 2026-05-17 | 607bec5 | **L2**: `confirmAdminResult()` localStorage 분기에 `isLegacyLocalFight` guard 추가 |
+| 2026-05-17 | (L3-pre) | **L3 준비**: admin 결과 입력 경로, DB 실패 fallback, legacy 픽 정산 문제 read-only 재확인 |
