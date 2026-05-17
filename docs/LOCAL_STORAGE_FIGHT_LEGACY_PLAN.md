@@ -1,7 +1,7 @@
 # localStorage Fight Legacy 경로 조사 및 정리 계획
 
-최초 작성: 2026-05-17 / 마지막 업데이트: 2026-05-17 (L3 준비 — settleBet 제거 가능성 재확인)  
-기준 커밋: 607bec5
+최초 작성: 2026-05-17 / 마지막 업데이트: 2026-05-17 (LEGACY_CANCELLED 마커 영향 확인)  
+기준 커밋: f451486
 
 **현재 잔존 legacy:**
 - `settleBet()` (index.html:3277) — 정의 및 `confirmAdminResult()` 내 호출 1건 남아 있음
@@ -501,5 +501,116 @@ COMMIT;
 | 2026-05-17 | 586bf66 | **L1**: `simulateFight()` 제거 — index.html, dist/index.html (dead code, 정의·호출 0건) |
 | 2026-05-17 | 607bec5 | **L2**: `confirmAdminResult()` localStorage 분기에 `isLegacyLocalFight` guard 추가 |
 | 2026-05-17 | f3a7a42 | **L3 준비**: admin 결과 입력 경로, DB 실패 fallback, legacy 픽 정산 문제 read-only 재확인 |
-| 2026-05-17 | (L3-pre) | **L3-pre SELECT**: legacy pending pick 10건 확인 (f1~f7) → L3 실행 보류, repair 필요 |
-| 2026-05-17 | (L3-repair-design) | **L3-repair dry-run**: 10건 / 1000P 환급 / 3 users 확인, repair SQL 초안 작성 |
+| 2026-05-17 | 6674b68 | **L3-pre SELECT**: legacy pending pick 10건 확인 (f1~f7) → L3 실행 보류, repair 필요 |
+| 2026-05-17 | f451486 | **L3-repair dry-run**: 10건 / 1000P 환급 / 3 users 확인, repair SQL 초안 작성 |
+| 2026-05-17 | (marker-check) | **LEGACY_CANCELLED 마커 영향 확인**: 모든 RPC + profile.js 안전 확인 → 마커 유지 가능 |
+
+---
+
+## 14. LEGACY_CANCELLED 마커 영향 확인 (read-only, 2026-05-17)
+
+### 목적
+
+repair SQL의 `actual_method = 'LEGACY_CANCELLED'` 마커가 기존 RPC/UI에 의도치 않은 값으로 노출되는지 확인한다.
+
+### 14-1. 검토 RPC / UI 목록
+
+| 대상 | 마커 영향 경로 후보 |
+|------|-------------------|
+| `get_user_pick_stats` | `by_method` 집계에 LEGACY_CANCELLED 노출 여부 |
+| `get_event_pick_summary` | `actual_method` 집계에 노출 여부 |
+| `get_event_pick_ratios` | legacy 픽 포함 여부 |
+| `get_event_leaderboard` | legacy 픽 포인트 산정 포함 여부 |
+| `get_faction_leaderboard` | 취소 픽 포함 여부 |
+| `get_admin_dashboard_summary` | `pending_picks_total` 변화 |
+| `get_admin_event_qa` | cancelled 픽 처리 방식 |
+| `profile.js` METHOD_CONFIG | `by_method` UI 렌더링 |
+
+### 14-2. RPC별 분석
+
+#### get_user_pick_stats (by_method)
+
+```sql
+-- 내부 서브쿼리 (p3)
+AND p3.status IN ('win', 'lose')
+```
+
+- `status = 'cancelled'` 행은 이 필터에서 **완전 제외**
+- `by_method` 집계에 LEGACY_CANCELLED 절대 등장 불가 ✅
+
+#### get_event_pick_summary
+
+- `actual_method` 참조 없음 — `status` 카운트(pending/win/lose/cancelled)만 집계
+- cancelled 픽은 `cancelled_picks` 카운트에만 포함 (actual_method 불노출) ✅
+
+#### get_event_pick_ratios
+
+```sql
+WHERE p.status IN ('pending', 'win', 'lose')
+```
+
+- `cancelled` 제외 필터 + `matchup_id JOIN` → legacy 픽(matchup_id=NULL) 이중 제외 ✅
+
+#### get_event_leaderboard
+
+```sql
+JOIN public.matchups m ON m.id = p.matchup_id
+```
+
+- `matchup_id = NULL`인 legacy 픽은 JOIN 실패 → 리더보드에서 완전 제외 ✅
+
+#### get_faction_leaderboard
+
+```sql
+WHERE status IN ('pending', 'win', 'lose')   -- total_picks 집계 기준
+```
+
+- cancelled 제외 → LEGACY_CANCELLED 마커 영향 없음 ✅
+
+#### get_admin_dashboard_summary
+
+```sql
+SELECT COUNT(*) FROM picks WHERE status = 'pending'  -- pending_picks_total
+```
+
+- repair 후 10건이 `'pending'` → `'cancelled'`로 전환
+- `pending_picks_total` **10 감소** (15→5 예상) — **긍정적 효과** ✅
+
+#### get_admin_event_qa
+
+```sql
+JOIN public.matchups m ON m.id = p.matchup_id
+-- cancelled_picks: status = 'cancelled' 카운트만
+```
+
+- legacy 픽은 matchup JOIN 실패로 매치업별 집계에 미포함
+- `cancelled_picks` 카운트 증가(+10)는 있으나 `actual_method` 노출 없음 ✅
+
+### 14-3. profile.js METHOD_CONFIG
+
+```javascript
+// public/js/profile.js:19
+const METHOD_CONFIG = { 'KO/TKO': ..., 'SUB': ..., 'UD': ..., ... };
+const METHOD_DEFAULT_CONFIG = { ... };  // 미정의 method 폴백
+```
+
+- `renderMethodStats()`는 `_rpcStats.by_method`를 순회 → by_method는 `status IN ('win','lose')`만 포함
+- cancelled 행은 by_method에 절대 포함 안 됨 → LEGACY_CANCELLED가 METHOD_CONFIG 키로 참조될 일 없음 ✅
+- METHOD_DEFAULT_CONFIG 폴백도 발동 안 됨
+
+### 14-4. 결론
+
+**판정: LEGACY_CANCELLED 마커 유지 가능 (안전)**
+
+| 항목 | 결과 |
+|------|------|
+| profile by_method UI 노출 | ✅ 없음 (`status IN (win,lose)` 필터) |
+| 이벤트 픽 비율 포함 | ✅ 없음 (`cancelled` + `matchup_id=NULL` 이중 제외) |
+| 리더보드 포인트 포함 | ✅ 없음 (`matchup_id JOIN`) |
+| admin QA 패널 actual_method 노출 | ✅ 없음 (cancelled 카운트만) |
+| pending_picks_total | ✅ 10 감소 (긍정적) |
+
+repair SQL 실행 후 `LEGACY_CANCELLED` 값은 `picks.actual_method` 컬럼에만 저장되며,  
+어떤 RPC도 이 값을 집계·UI에 노출하지 않는다. NULL 대신 마커 사용 추천 이유 유지.
+
+**다음 단계**: repair SQL 실행 승인 → execute_sql 적용 → L3-a/b (settleBet 제거)

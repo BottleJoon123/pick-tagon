@@ -1,7 +1,44 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (L3-repair dry-run 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (LEGACY_CANCELLED 마커 영향 확인)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-17 마감 상태 (33차)
+
+**origin/main = f451486, HEAD = push 후 최신 SHA 확인 (push 예정)**
+
+**오늘 완료 (33차): LEGACY_CANCELLED 마커 영향 read-only 확인**
+
+**변경 파일:**
+- `docs/LOCAL_STORAGE_FIGHT_LEGACY_PLAN.md` (섹션 14 추가, 이력 갱신)
+- `docs/NEXT_WORK_PLAN.md`
+
+**확인 결과 요약:**
+
+| RPC / UI | LEGACY_CANCELLED 노출 여부 |
+|----------|--------------------------|
+| `get_user_pick_stats` by_method | ✅ 없음 (`status IN (win,lose)`) |
+| `get_event_pick_summary` | ✅ 없음 (actual_method 참조 없음) |
+| `get_event_pick_ratios` | ✅ 없음 (`cancelled`+`matchup_id=NULL` 이중 제외) |
+| `get_event_leaderboard` | ✅ 없음 (`matchup_id JOIN`) |
+| `get_faction_leaderboard` | ✅ 없음 (`status IN (pending,win,lose)`) |
+| `get_admin_dashboard_summary` | ✅ pending_picks_total 10 감소 (긍정적) |
+| `get_admin_event_qa` | ✅ actual_method 미노출, cancelled 카운트만 |
+| `profile.js` METHOD_CONFIG | ✅ by_method에 cancelled 행 없음 |
+
+**판정: LEGACY_CANCELLED 마커 유지 가능 (안전)**
+
+**코드/DB 변경:** 없음 (read-only 확인 + 문서화만)
+
+**다음 세션 후보 (우선순위 순):**
+A. **legacy pending repair 실행 승인** → execute_sql 적용 (picks 10건 cancelled, users 3명 +1000P) → L3-a/b (settleBet + confirmAdminResult() localStorage 분기 제거)
+B. Admin 결과 입력 브라우저 smoke QA (typed confirm, audit_log, admin_required)
+C. HOF hide/restore 실제 브라우저 QA
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 
