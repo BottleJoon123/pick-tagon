@@ -91,12 +91,18 @@ async function initHomeData() {
         startCountdown(event.event_date);
         var bias = matchup.left_bias != null ? Number(matchup.left_bias) : 0.5;
         renderFaceOffGlow(isNaN(bias) ? 0.5 : bias);
+        // _dbMatchups가 없을 때만 ticker 갱신 (_dbMatchups 기반 renderHomeTicker가 더 풍부)
+        if (typeof _dbMatchups === 'undefined' || !Array.isArray(_dbMatchups) || !_dbMatchups.length) {
+            renderHomeTickerFromMainEvent(event, matchup);
+        }
     } catch(e) {
         console.warn('initHomeData error:', e);
     }
 }
 
 // ── Ticker ────────────────────────────────────────────────────────
+
+var _homeTickerSource = 'static'; // 'static' | 'news' | 'event'
 
 async function fetchTickerKeywords() {
     if (typeof sb === 'undefined' || !sb) return [];
@@ -112,7 +118,7 @@ async function fetchTickerKeywords() {
     } catch(e) { return []; }
 }
 
-function injectTickerItems(keywords) {
+function injectTickerItems(keywords, source) {
     var ticker = document.querySelector('.animate-ticker');
     if (!ticker) return;
     if (!Array.isArray(keywords) || !keywords.length) return;
@@ -120,6 +126,53 @@ function injectTickerItems(keywords) {
     ticker.innerHTML = keywords.map(k =>
         `<span class="barlow font-bold italic tracking-widest text-[11px] uppercase text-gray-400">${String(k).replace(/</g,'&lt;')}</span>`
     ).join(sep);
+    if (source) _homeTickerSource = source;
+}
+
+function renderHomeTickerFromMainEvent(event, matchup) {
+    var eventTitle = (event && event.title) ? event.title : '';
+    var redName = (matchup && matchup.red_fighter_name) ? matchup.red_fighter_name : '';
+    var blueName = (matchup && matchup.blue_fighter_name) ? matchup.blue_fighter_name : '';
+    var items = [];
+    if (eventTitle && redName && blueName) {
+        items.push(eventTitle + ' · ' + redName + ' VS ' + blueName);
+    } else if (redName && blueName) {
+        items.push('NEXT FIGHT · ' + redName + ' VS ' + blueName);
+    }
+    items.push('PICK-TAGON · 픽 등록하고 포인트 적립');
+    items.push('파이터 IQ 랭킹 도전 · 지금 시작하세요');
+    if (items.length) injectTickerItems(items, 'event');
+}
+
+function renderHomeTicker() {
+    var fights = (typeof _dbMatchups !== 'undefined' && Array.isArray(_dbMatchups)) ? _dbMatchups : [];
+    var mainFight = fights.find(function(f) { return f.tag === 'MAIN EVENT'; }) || fights[0];
+    var items = [];
+
+    if (mainFight) {
+        var eventTitle = mainFight._eventTitle || '';
+        var redName = (mainFight.f1 && mainFight.f1.name) ? mainFight.f1.name : '';
+        var blueName = (mainFight.f2 && mainFight.f2.name) ? mainFight.f2.name : '';
+        if (eventTitle && redName && blueName) {
+            items.push(eventTitle + ' · ' + redName + ' VS ' + blueName);
+        } else if (redName && blueName) {
+            items.push('NEXT FIGHT · ' + redName + ' VS ' + blueName);
+        }
+    }
+
+    fights.slice(1, 4).forEach(function(f) {
+        if (!f.f1 || !f.f2) return;
+        var divShort = (f.division || '').replace(' CHAMPIONSHIP', '').replace("WOMEN'S", 'W').trim();
+        var label = divShort
+            ? divShort + ' · ' + f.f1.name + ' VS ' + f.f2.name
+            : f.f1.name + ' VS ' + f.f2.name;
+        items.push(label);
+    });
+
+    items.push('PICK-TAGON · 픽 등록하고 포인트 적립');
+    items.push('파이터 IQ 랭킹 도전 · 지금 시작하세요');
+
+    if (items.length) injectTickerItems(items, 'event');
 }
 
 // ── News Rendering ────────────────────────────────────────────────
@@ -182,11 +235,15 @@ async function initHome() {
     // DB-driven data (non-blocking)
     initHomeData();
 
-    // Ticker: DB keywords → fallback to static
-    fetchTickerKeywords().then(keywords => {
-        if (keywords.length) injectTickerItems(keywords);
-        // else static HTML already in place
-    });
+    // Ticker: 이벤트 데이터(로드 완료 시) → 뉴스 키워드 → static fallback
+    if (typeof _dbMatchups !== 'undefined' && Array.isArray(_dbMatchups) && _dbMatchups.length > 0) {
+        renderHomeTicker();
+    } else {
+        fetchTickerKeywords().then(function(keywords) {
+            if (keywords.length && _homeTickerSource !== 'event') injectTickerItems(keywords, 'news');
+            // else event ticker already rendered, or static fallback in place
+        });
+    }
 
     // 뉴스 스켈레톤은 renderHomeNews() 내부에서 처리
 }

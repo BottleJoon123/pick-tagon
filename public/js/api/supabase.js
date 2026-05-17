@@ -386,6 +386,7 @@ async function fetchUpcomingMatchups() {
         });
 
         if (typeof renderFightCards === 'function') renderFightCards();
+        if (typeof renderHomeTicker === 'function') renderHomeTicker();
         if (typeof renderEventSidebar === 'function') renderEventSidebar();
         // 로그인 유저이면 DB에서 픽 상태 복원 (서버 정산 결과 반영)
         if (typeof currentUser !== 'undefined' && currentUser && typeof loadUserPicksFromDB === 'function') {
