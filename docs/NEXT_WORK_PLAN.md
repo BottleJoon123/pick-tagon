@@ -1,7 +1,43 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (L3-a/b 완료 — settleBet 제거)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (Admin 결과 입력 브라우저 smoke QA)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-17 마감 상태 (36차)
+
+**origin/main = d6acbb4, HEAD = push 후 최신 SHA 확인 (push 예정)**
+
+**오늘 완료 (36차): Admin 결과 입력 브라우저 smoke QA (코드 레벨)**
+
+**변경 파일:**
+- `docs/ADMIN_RESULT_SETTLEMENT_PATH_PLAN.md` (Section 12 smoke QA 추가, Known Limitations 갱신, 이력 추가)
+- `docs/NEXT_WORK_PLAN.md`
+
+**QA 결과 요약:**
+
+| 항목 | 결과 |
+|------|------|
+| dev server 기동 (localhost:5174) | ✅ PASS |
+| admin guard (비로그인 redirect) | ✅ PASS (CODE) |
+| 대진표 관리 탭 + 결과 입력/수정 버튼 구조 | ✅ PASS (CODE) |
+| 결과 입력 모달 (winner/method/round/time) | ✅ PASS (CODE) |
+| force=false default / force=true typed confirm | ✅ PASS (CODE) |
+| `settleBet` / `simulateFight` / `settle-matchup` 0건 | ✅ PASS (GREP) |
+| `confirmAdminResult()` non-DB → toast only | ✅ PASS (CODE) |
+| QA 패널 / settle 버튼 guard | ✅ PASS (CODE) |
+| 실제 결과 submit / audit_log / admin_required 실측 | ⬜ NOT RUN (운영 데이터 보호) |
+
+**코드/DB 변경:** 없음 (문서화만)
+
+**다음 세션 후보 (우선순위 순):**
+A. `updatePickResult` / `renderAdminFightCardList` / `admin-panel-fights` cleanup 조사
+B. HOF hide/restore 실제 브라우저 QA
+C. `FIGHTS` 정적 배열 / `customFights` fallback 정리 조사
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 

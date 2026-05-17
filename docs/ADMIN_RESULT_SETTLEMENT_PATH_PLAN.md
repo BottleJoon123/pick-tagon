@@ -287,8 +287,83 @@ force=true + 이미 정산된 matchup:
 | archived 이벤트 수정 정책 | `admin_set_matchup_result`는 `archived` 차단(RPC guard), `settled`는 허용. 정책 확정 완료. |
 | force=true 고위험 경로 | typed confirm 강화됨 (79ffbf7). 그래도 다수 사용자 포인트 동시 변경 — 실제 운영 사용 시 사전 검토 필수 |
 | ~~⚠ service_settle_matchup 직접 호출 가능~~ | ✅ 해소 (12차): `20260516_revoke_service_settle_matchup_public_execute.sql` — anon/authenticated EXECUTE REVOKE 완료 |
-| localStorage legacy 경로 | `settleBet()` (localStorage fight) 경로 잔존 — DB matchup 전수 완료 이후 별도 정리 판단 필요 |
-| 브라우저 smoke QA 미실시 | `admin_audit_logs` 기록, `admin_required` 차단, typed confirm UI 동작은 실제 브라우저에서 NOT RUN |
+| ~~localStorage legacy 경로~~ | ✅ 해소 (d6acbb4): `settleBet()` + `confirmAdminResult()` localStorage 분기 제거 완료. legacy pending 10건 L3-repair(DB) 처리 완료 |
+| 브라우저 smoke QA | 코드 레벨 전체 PASS (2026-05-17, Section 12). 실제 결과 submit / audit_log / admin_required RPC 실패는 NOT RUN (운영 데이터 변경 방지) |
+
+---
+
+## 12. 브라우저 Smoke QA (2026-05-17, d6acbb4 기준)
+
+**실행 환경**: Vite dev server localhost:5174, 코드 grep 검증 병행  
+**기준 커밋**: d6acbb4
+
+### QA-1. 기본 앱/어드민 진입
+
+| 항목 | 방법 | 결과 |
+|------|------|------|
+| dev server 기동 | `npm run dev --port 5174` | ✅ PASS — 543ms ready |
+| admin guard (비로그인) | 코드: `navigateTo()` line 2716 `if(id==='admin' && !adminUnlocked){id='home';}` | ✅ PASS (CODE) |
+| adminUnlocked 설정 | 코드: `loadUserFromDB()` — `is_admin` DB 컬럼 OR `ADMIN_EMAILS` 기준 | ✅ PASS (CODE) |
+| 브라우저 직접 redirect 실측 | NOT RUN (비관리자 계정 없음) | ⬜ NOT RUN |
+
+### QA-2. 대진표 관리 탭
+
+| 항목 | 방법 | 결과 |
+|------|------|------|
+| 탭 버튼 존재 | 코드: `switchAdminTab('ufc')` 버튼 + "📋 대진표 관리" 레이블 | ✅ PASS (CODE) |
+| `admin-panel-ufc` 패널 | 코드: `<div id="admin-panel-ufc" class="hidden">` 존재 | ✅ PASS (CODE) |
+| builder matchup 결과 입력 버튼 | 코드 admin.js:1268: `openResultModal('${m.id}')` 버튼 (unresolved) | ✅ PASS (CODE) |
+| builder matchup 결과 수정 버튼 | 코드 admin.js:1267: `openResultModalForEdit('${m.id}')` 버튼 (resolved) | ✅ PASS (CODE) |
+| 실제 이벤트 목록/카드 렌더 | NOT RUN (운영 데이터 변경 방지) | ⬜ NOT RUN |
+
+### QA-3. 결과 입력 모달
+
+| 항목 | 방법 | 결과 |
+|------|------|------|
+| `result-modal` 구조 | 코드: hidden overlay z-[300], title/select/round/time 필드 존재 | ✅ PASS (CODE) |
+| winner options | 코드 admin.js:1319-1324: red/blue 승, DRAW, NC 4가지 동적 생성 | ✅ PASS (CODE) |
+| method select options | 코드: KO/TKO, SUB, UD, SD, MD, DQ, NC 7가지 | ✅ PASS (CODE) |
+| round/time 입력 필드 | 코드: `result-round-input`(1~5), `result-time-input`(자동 콜론) | ✅ PASS (CODE) |
+| force=false default | 코드 admin.js:1317: `openResultModal()` → `forceEl.value='false'` | ✅ PASS (CODE) |
+| force=true 설정 | 코드 admin.js:1330-1331: `openResultModalForEdit()` → `forceEl.value='true'` | ✅ PASS (CODE) |
+| force=true typed confirm | 코드: `prompt('...계속하려면 "재정산"...')` → 불일치 시 `showToast+return` | ✅ PASS (CODE) |
+| 실제 모달 열림/닫힘 브라우저 확인 | NOT RUN (결과 submit 방지) | ⬜ NOT RUN |
+
+### QA-4. localStorage legacy 제거
+
+| 항목 | 방법 | 결과 |
+|------|------|------|
+| `settleBet` index.html | `rg "settleBet" index.html` | ✅ 0건 |
+| `settleBet` dist/index.html | `rg "settleBet" dist/index.html` | ✅ 0건 |
+| `settleBet` public/js/ | `rg "settleBet" public/js/` | ✅ 0건 |
+| `simulateFight` index.html | `rg "simulateFight" index.html` | ✅ 0건 |
+| `simulateFight` public/js/ | `rg "simulateFight" public/js/` | ✅ 0건 |
+| `functions.invoke('settle-matchup')` | `rg` 검색 | ✅ 0건 |
+| `confirmAdminResult()` non-DB 분기 | 코드 index.html:3223-3224: `else { showToast('⚠ DB 경기만 결과 입력을 지원합니다') }` | ✅ PASS (CODE) |
+
+### QA-5. QA 패널 / 정산 버튼 guard
+
+| 항목 | 방법 | 결과 |
+|------|------|------|
+| unresolved 경기 있을 때 settle 버튼 disabled | 코드 admin.js:1158-1165: `_qaBlockUnresolved` → button disabled + "⚠ 결과 미입력 경기 있음" | ✅ PASS (CODE) |
+| pending 잔류 시 settle 버튼 disabled | 코드: `_qaBlockPending` → button disabled + "⚠ pending N건 잔류" | ✅ PASS (CODE) |
+| `onLifecycleSettle()` 내부 guard | 코드 admin.js:1689-1694: 동일 조건 `showToast + return` | ✅ PASS (CODE) |
+| 실제 settle 버튼 클릭/실행 | NOT RUN (운영 데이터 변경 방지) | ⬜ NOT RUN |
+
+### NOT RUN 항목 (운영 데이터 변경 방지)
+
+| 항목 | 이유 |
+|------|------|
+| 실제 결과 입력 submit | `admin_set_matchup_result` RPC 호출 → picks 정산, 운영 matchup 변경 |
+| force=true 재정산 submit | 기존 포인트 역산 → 운영 데이터 변경 |
+| `audit_logs` 생성 확인 | 결과 submit 없이는 로그 생성 불가 |
+| `admin_required` RPC 실패 확인 | 비관리자 계정으로 직접 RPC 호출 시나리오 — 별도 계정 필요 |
+| 비로그인 admin 직접 접근 실측 | 브라우저 redirect 동작 — 코드로 확인, 실측 skip |
+
+### 결론
+
+**코드 레벨 검증 항목 전체 PASS.** localStorage legacy (settleBet/simulateFight/settle-matchup) 0건 확인. DB RPC 경로 단일화 확인. force=true typed confirm 구조 정상.  
+실제 결과 submit / audit_log / admin_required 실측은 운영 데이터 보호 정책상 NOT RUN으로 유지.
 
 ---
 
@@ -304,4 +379,7 @@ force=true + 이미 정산된 matchup:
 | 2026-05-16 | FINDING-01 수정: service_settle_matchup REVOKE migration | (12차) |
 | 2026-05-17 | submitMatchupResult() dead code 제거, _showMatchupSettleToast/_runPostSettleRefresh 헬퍼 추출 | 491c4c2 |
 | 2026-05-17 | force=true typed confirm 강화: confirm() → prompt(), 기존/새 결과 표시, "재정산" 입력 필수 | 79ffbf7 |
-| 2026-05-17 | 문서 최신화: 현재 코드 상태 반영 (stale 문구 정리) | (이번 커밋) |
+| 2026-05-17 | 문서 최신화: 현재 코드 상태 반영 (stale 문구 정리) | a8bf1e7 |
+| 2026-05-17 | L3-repair: legacy pending 10건 cancel + LEGACY_CANCELLED 마커 처리 (DB) | 33655af |
+| 2026-05-17 | L3-a/b: settleBet() + confirmAdminResult() localStorage 분기 제거 | d6acbb4 |
+| 2026-05-17 | 브라우저 smoke QA: 코드 레벨 전체 PASS, NOT RUN 항목 명시 | (이번 커밋) |
