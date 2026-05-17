@@ -1,10 +1,9 @@
 # localStorage Fight Legacy 경로 조사 및 정리 계획
 
-최초 작성: 2026-05-17 / 마지막 업데이트: 2026-05-17 (L3-a/b 완료 — settleBet 제거)  
-기준 커밋: 33655af
+최초 작성: 2026-05-17 / 마지막 업데이트: 2026-05-17 (updatePickResult dead code 제거)  
+기준 커밋: 6740e82
 
 **현재 잔존 legacy (cleanup 후보):**
-- `updatePickResult()` (index.html:~4940) — `settleBet()` 삭제로 호출자 0건, dead code
 - `renderAdminFightCardList()` (admin.js:850) — `admin-panel-fights` hidden 패널, 호출은 `_runPostSettleRefresh()` 내 유지 중
 - `admin-panel-fights` + `fight-card-admin-list` — 접근 불가 hidden 패널
 - `FIGHTS` 정적 배열 (public/js/data/fights.js) — `getActiveFights()` 3순위, `_dbMatchups` 활성 시 무시됨
@@ -13,6 +12,7 @@
 - `simulateFight()` — L1 (586bf66)에서 제거
 - `confirmAdminResult()` localStorage 분기(`else if (fight)`) — L3-a에서 제거
 - `settleBet()` 함수 정의 전체 — L3-b에서 제거
+- `updatePickResult()` — L3-c (이번 커밋)에서 제거, 호출자 0건 dead code
 
 ---
 
@@ -229,7 +229,7 @@ _dbMatchups.length > 0
 | ~~`simulateFight()`~~ | ~~index.html~~ | ~~3140~~ | **제거됨 (L1, 586bf66)** |
 | `confirmAdminResult()` | index.html | 3167 | L3-a: localStorage 분기 제거됨, DB 경로만 유지 |
 | ~~`settleBet()`~~ | ~~index.html~~ | ~~3277~~ | **제거됨 (L3-b, 78f85eb)** |
-| `updatePickResult()` | index.html | ~4915 | 호출자 0건, cleanup 후보 |
+| ~~`updatePickResult()`~~ | ~~index.html~~ | ~~4853~~ | **제거됨 (L3-c, 이번 커밋)** |
 | `renderAdminFightCardList()` | public/js/admin.js | 850 | |
 | `FIGHTS` 정적 배열 | public/js/data/fights.js | 1 | |
 | `findHistoryEntry()` | public/js/storage.js | 7 | |
@@ -371,7 +371,7 @@ GROUP BY fight_id;
 | L3-repair | legacy pending 10건 처리 (cancelled + LEGACY_CANCELLED) | 정책 결정 | ✅ 완료 (DB, 33655af) |
 | L3-a | `confirmAdminResult()` else if 분기 삭제 | L3-repair 완료 | ✅ 완료 (78f85eb) |
 | L3-b | `settleBet()` 함수 삭제 | L3-a | ✅ 완료 (78f85eb) |
-| L3-c | `updatePickResult()` dead code 제거 | L3-b 완료 | 별도 세션 검토 |
+| ~~L3-c~~ | ~~`updatePickResult()` dead code 제거~~ | L3-b 완료 | ✅ 완료 (이번 커밋) |
 | L3-d | `renderAdminFightCardList()` / `admin-panel-fights` cleanup | 별도 세션 | — |
 | L3-e | `FIGHTS` 정적 배열 제거 판단 | 이벤트 운영 안정화 후 | — |
 
@@ -526,6 +526,7 @@ COMMIT;
 | 2026-05-17 | 199c9e6 | **LEGACY_CANCELLED 마커 영향 확인**: 모든 RPC + profile.js 안전 확인 → 마커 유지 가능 |
 | 2026-05-17 | 33655af | **L3-repair 실행**: picks 10건 cancelled / users 3명 +1000P — 사후 검증 전체 ✅ |
 | 2026-05-17 | 78f85eb | **L3-a/b**: `confirmAdminResult()` localStorage 분기 삭제 + `settleBet()` 함수 제거 |
+| 2026-05-17 | (L3-c) | **L3-c**: `updatePickResult()` dead code 제거 — 호출자 0건 확인 후 제거 |
 
 ---
 

@@ -4850,19 +4850,6 @@ async function publishPost() {
         }
     }
 
-    async function updatePickResult(fightId, result, actualWinner, actualMethod, finalPayout) {
-        if (!sb || !currentUser) return { ok: true };
-        var updateResult = await runSupabaseMutation(function() {
-            return sb.from('picks')
-                .update({ status: result.toLowerCase(), actual_winner: actualWinner, actual_method: actualMethod, payout: finalPayout })
-                .eq('user_id', currentUser.id)
-                .eq('fight_id', fightId)
-                .eq('status', 'pending');
-        }, '⚠ 경기 결과 동기화에 실패했습니다.');
-        if (!updateResult.ok) return updateResult;
-        return syncUserToDB();
-    }
-
     /* ==============================
        EVENT_PICKS — 커뮤니티 픽 집계
     ============================== */

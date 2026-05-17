@@ -1,7 +1,42 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (Admin 결과 입력 브라우저 smoke QA)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (updatePickResult dead code 제거)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-17 마감 상태 (37차)
+
+**origin/main = 6740e82, HEAD = push 후 최신 SHA 확인 (push 예정)**
+
+**오늘 완료 (37차): Phase L3-c — updatePickResult() dead code 제거**
+
+**변경 파일:**
+- `index.html` (12줄 제거)
+- `dist/index.html` (빌드 산출물)
+- `docs/LOCAL_STORAGE_FIGHT_LEGACY_PLAN.md`
+- `docs/NEXT_WORK_PLAN.md`
+
+**변경 내용:**
+- `async function updatePickResult(...)` 함수 정의 전체 제거
+- `settleBet()` 삭제 이후 호출자 0건 — 완전 dead code
+- 내부에서 `sb.from('picks').update(...)` + `syncUserToDB()` 호출하던 localStorage 정산 DB 동기화 함수
+
+**검증 결과:**
+- `updatePickResult` index.html / dist/index.html: 0건 ✅
+- `settleBet` / `simulateFight` 0건 유지 ✅
+- `adminSetMatchupResultWithUI` dist/index.html: 4건 (정상) ✅
+- `npm run build` PASS (432ms) ✅
+
+**코드/DB 변경:** index.html, dist/index.html 각 12줄 제거
+
+**다음 세션 후보 (우선순위 순):**
+A. `renderAdminFightCardList()` / `admin-panel-fights` cleanup 조사 (hidden 패널, `_runPostSettleRefresh()` 내 호출 잔존)
+B. HOF hide/restore 실제 브라우저 QA
+C. `FIGHTS` 정적 배열 / `customFights` fallback 정리 조사
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 
