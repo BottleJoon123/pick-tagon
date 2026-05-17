@@ -1,7 +1,7 @@
 # Admin 결과 수정/force 재정산 정책 설계
 
 작성: 2026-05-17 (read-only 조사 기반)
-상태: Phase P1 완료 (2026-05-17) / Phase P2 완료 (2026-05-17) / Phase P3 미착수
+상태: Phase P1 완료 (2026-05-17) / Phase P2 완료 (2026-05-17) / Phase P3 완료 (2026-05-17)
 
 ---
 
@@ -314,14 +314,30 @@ END IF;
 
 ---
 
-### Phase P3 (선택): UI reason 입력 / second confirm 강화
+### Phase P3: force 재정산 typed confirm 강화 (완료 2026-05-17)
 
-**내용:**
-- `editMatchupResult()` 호출 시 현재 이벤트 status를 확인
-- `settled` 이벤트인 경우: 기존 confirm 다이얼로그에 "settled 이벤트입니다" 경고 추가
-- (선택) reason 텍스트 입력 → `admin_set_matchup_result`에 `p_reason TEXT DEFAULT NULL` 파라미터 추가 후 audit log에 기록
+**구현 내용:**
+- `confirmAdminResult()` force=true 블록: `confirm()` → `prompt()` 교체
+- 기존 결과(`fight._resultWinner` / `_resultMethod` / `_resultRound`) 조회 후 prompt 문구에 표시
+- 새 입력 결과 문구 생성 (승자 / DRAW / NC 분기)
+- 입력값 trim 후 `'재정산'` 일치 여부 확인
+- 불일치/취소 시: `showToast('강제 재정산 취소')` 후 return (RPC 호출 없음)
+- 일치 시: 기존 `adminSetMatchupResultWithUI(…, force=true)` 경로 유지
+- audit log, toast/refresh 체인, archived guard 모두 기존 동작 유지
+- DB/migration 변경 없음
 
-**예상 작업량:** 2~3시간 (UI + 선택적 DB 파라미터)
+**prompt 문구 (구현 기준):**
+```
+⚠ 강제 재정산 — 확인 필요
+
+기존 결과: {prevResult}
+새 결과:   {newResult}
+
+기존 정산이 역산되고 포인트가 재계산됩니다.
+이 작업은 audit log에 기록됩니다.
+
+계속하려면 "재정산" 을 정확히 입력하세요:
+```
 
 ---
 
@@ -361,7 +377,13 @@ END IF;
 
 운영 데이터 수정 없음. force 재정산 실행 없음. 운영 points 변경 없음.
 
-Phase P1/P2 완료. Phase P3(UI confirm 강화)는 미착수 (선택 사항).
+Phase P1/P2/P3 완료.
+- P3: `confirmAdminResult()` force=true typed confirm 구현. confirm() → prompt() 교체, 기존/새 결과 표시, "재정산" 입력 필수.
+
+Known Limitations (P3 이후):
+- 실제 force=true 운영 재정산 실행은 NOT RUN (운영 데이터 변경 금지)
+- 브라우저 직접 테스트 (typed confirm UI 표시, mismatch 차단 동작) NOT RUN
+- `fight._resultRound` 가 null인 경우 `R?` 로 표시 (fallback 동작, 실제 영향 없음)
 
 ---
 
@@ -373,3 +395,4 @@ Phase P1/P2 완료. Phase P3(UI confirm 강화)는 미착수 (선택 사항).
 | 2026-05-17 | Phase P1 완료: service_settle_matchup 상태 역행 버그 수정 migration apply |
 | 2026-05-17 | Phase P2 완료: admin_set_matchup_result force=true audit before snapshot 강화 |
 | 2026-05-17 | Phase P2 fix: audit metadata 보강 (net_reversal_points_delta, affected_user_count 등) + anon REVOKE |
+| 2026-05-17 | Phase P3 완료: confirmAdminResult() force typed confirm — prompt() 교체, 기존/새 결과 표시, "재정산" 입력 필수 |

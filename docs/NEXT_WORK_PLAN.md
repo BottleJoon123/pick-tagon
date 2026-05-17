@@ -1,7 +1,53 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (Admin 시즌 HOF 관리 UX 고도화 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (Phase P3 force 재정산 confirm 강화 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-17 마감 상태 (25차)
+
+**origin/main = af5ea44, HEAD = push 후 최신 SHA 확인 (push 예정)**
+
+**오늘 완료 (25차): Phase P3 — force=true 재정산 typed confirm 강화**
+
+**변경 파일:**
+- `index.html`
+- `dist/index.html` (빌드 산출물)
+- `docs/ADMIN_RESULT_EDIT_POLICY_PLAN.md`
+- `docs/NEXT_WORK_PLAN.md`
+
+**JS 변경 (index.html:3190):**
+- `confirmAdminResult()` force=true 블록: `confirm()` → `prompt()` 교체
+- `fight._resultWinner` / `_resultMethod` / `_resultRound` 로 기존 결과 문구 생성
+- `winner` / `method` / `round` 로 새 결과 문구 생성 (승자/DRAW/NC 분기)
+- prompt 문구: 기존 결과 + 새 결과 + "기존 정산 역산" + "audit log 기록" + "재정산 입력 요구"
+- 입력값 trim 후 `'재정산'` 불일치 또는 취소(null): `showToast('강제 재정산 취소')` + return
+- 일치 시: 기존 `adminSetMatchupResultWithUI(…, force=true)` 경로 유지
+- force=false 신규 입력 경로: 변경 없음
+
+**DB 변경:** 없음
+
+**검증:**
+- `npm run build` PASS (376.82 kB) ✓
+- `confirm(` force/재정산 관련 코드 없음 ✓
+- typed prompt: `'재정산'` 불일치 시 RPC 호출 없음 ✓
+- `adminSetMatchupResultWithUI` 호출 구조 유지 ✓
+- `functions.invoke` (Edge Function) 없음 ✓
+- force=false 경로 (`adminSetResult`) 변화 없음 ✓
+- 운영 데이터 수정 없음 ✓
+
+**NOT RUN:**
+- 실제 force=true 운영 재정산 실행 (운영 데이터 변경 금지)
+- 브라우저 직접 테스트 (typed confirm UI 표시, mismatch 차단 동작)
+
+**다음 세션 후보 (우선순위 순):**
+A. HOF hide/restore 실제 브라우저 QA (NOT RUN 5항목 — 운영 HOF 데이터 적용 시)
+B. localStorage settleBet/simulateFight 정리
+C. Admin result path — 남은 legacy 코드(`settleBet` localStorage 경로) 제거 검토
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 
