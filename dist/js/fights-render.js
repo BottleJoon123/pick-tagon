@@ -116,6 +116,9 @@ function renderHeroCard(fight, idx) {
             <div id="live-total-${fight.id}" class="barlow text-[10px] font-bold italic text-gray-600 uppercase tracking-widest text-center mt-1.5"></div>
         </div>
 
+        <!-- MY PICK Banner (populated by updateAllFightCards) -->
+        <div id="my-pick-${fight.id}" class="hidden"></div>
+
         <!-- Hero Face-off Area -->
         <div class="relative overflow-hidden" style="min-height:${isMain ? '300px' : '260px'}">
             <!-- F1 Background -->
@@ -262,6 +265,8 @@ function renderStripRow(fight) {
             ${f2Img ? `<div class="flex-shrink-0 w-10 h-14 rounded-lg overflow-hidden border border-white/10" style="background-image:url('${f2Img}');background-size:cover;background-position:center 10%;"></div>` : ''}
             <div id="live-total-${fight.id}" class="hidden"></div>
         </div>
+        <!-- MY PICK (compact, populated by updateAllFightCards) -->
+        <div id="my-pick-${fight.id}" class="hidden"></div>
         <!-- Settled Badge (compact) -->
         <div id="settled-${fight.id}" class="hidden border-t border-white/10 py-2 px-4 text-center bg-black/20">
             <span id="settled-text-${fight.id}" class="oswald-sharp text-xs font-black italic uppercase tracking-widest"></span>
@@ -427,14 +432,22 @@ function updateAllFightCards() {
         const btn2 = document.getElementById(`bet-btn-f2-${fight.id}`);
         const settledDiv = document.getElementById(`settled-${fight.id}`);
         const settledText = document.getElementById(`settled-text-${fight.id}`);
+        const myPickEl = document.getElementById(`my-pick-${fight.id}`);
 
         if (btn1) { btn1.disabled = false; btn1.classList.remove('opacity-40', 'cursor-not-allowed'); }
         if (btn2) { btn2.disabled = false; btn2.classList.remove('opacity-40', 'cursor-not-allowed'); }
         if (settledDiv) { settledDiv.classList.add('hidden'); settledDiv.style.background = ''; }
+        if (myPickEl) { myPickEl.classList.add('hidden'); myPickEl.innerHTML = ''; myPickEl.style.background = ''; }
 
         if (pending) {
             if (btn1) { btn1.disabled = true; btn1.classList.add('opacity-40', 'cursor-not-allowed'); }
             if (btn2) { btn2.disabled = true; btn2.classList.add('opacity-40', 'cursor-not-allowed'); }
+            if (myPickEl) {
+                const isLeft = pending.side === 'left';
+                myPickEl.className = 'border-t border-white/5 py-2 px-5 lg:px-10 text-center';
+                myPickEl.style.background = isLeft ? 'rgba(210,10,10,0.07)' : 'rgba(37,99,235,0.07)';
+                myPickEl.innerHTML = `<span class="block max-w-full oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest truncate ${isLeft ? 'text-ufcRed' : 'text-blue-400'}">★ MY PICK · ${escapeHtml(pending.pick)}</span>`;
+            }
             return;
         }
 
