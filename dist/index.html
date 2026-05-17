@@ -1135,7 +1135,7 @@ textarea, select {
                         <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 uppercase tracking-widest italic">Points</p>
                         <p id="my-rank-pts" class="oswald-sharp text-xl lg:text-3xl font-black italic text-ufcRed">—</p>
                     </div>
-                    <div class="text-center hidden lg:block">
+                    <div class="text-center">
                         <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 uppercase tracking-widest italic">Accuracy</p>
                         <p id="my-rank-acc" class="oswald-sharp text-xl lg:text-3xl font-black italic text-white">—</p>
                     </div>
@@ -3518,16 +3518,17 @@ async function publishPost() {
                 <div class="col-span-1 text-center">
                     ${rank <= 3 ? `<span class="text-lg lg:text-2xl">${medals[rank-1]}</span>` : `<span class="oswald-sharp text-gray-500 font-black italic text-sm lg:text-xl">${rank}</span>`}
                 </div>
-                <div class="col-span-5 flex items-center space-x-3 pl-2">
-                    <div class="w-8 h-8 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-[10px] lg:text-xs font-black oswald-sharp italic ${belt.bg} ${belt.text}">
+                <div class="col-span-5 flex items-center space-x-3 pl-2 min-w-0">
+                    <div class="w-8 h-8 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-[10px] lg:text-xs font-black oswald-sharp italic flex-shrink-0 ${belt.bg} ${belt.text}">
                         ${u.name.slice(0,2).toUpperCase()}
                     </div>
-                    <div>
-                        <p class="oswald-sharp font-black italic text-xs lg:text-base text-white tracking-tight uppercase ${isUser?'text-ufcRed':''}">
+                    <div class="min-w-0">
+                        <p class="oswald-sharp font-black italic text-xs lg:text-base text-white tracking-tight uppercase truncate ${isUser?'text-ufcRed':''}">
                             ${isUser ? '★ ' : ''}${u.name}
                             ${isUser && sb && currentUser ? '<span class="text-[8px] text-green-500 ml-1">●실시간</span>' : ''}
                         </p>
                         <p class="oswald-sharp text-[8px] lg:text-[10px] italic text-gray-600 uppercase tracking-widest">${u.total} picks</p>
+                        <p class="oswald-sharp text-[10px] italic uppercase tracking-widest lg:hidden ${acc >= 70 ? 'text-ufcRed' : acc >= 50 ? 'text-white' : 'text-gray-500'}">${u.total === 0 ? '—' : acc + '%'} ACC</p>
                     </div>
                 </div>
                 <div class="col-span-3 text-center">
