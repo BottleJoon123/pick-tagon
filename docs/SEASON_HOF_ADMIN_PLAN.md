@@ -2,7 +2,7 @@
 
 **작성일:** 2026-05-17  
 **대상 브랜치:** main (ab3a808)  
-**상태:** 설계 완료 / 구현 미착수
+**상태:** Phase S3-A 완료 (2026-05-17) / Phase S3-B 미착수
 
 ---
 
@@ -99,7 +99,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS seasons_one_active
 ALTER TABLE public.seasons ENABLE ROW LEVEL SECURITY;
 ```
 
-**hidden/is_visible 컬럼: 없음**
+**hidden/is_visible 컬럼: 없음 (S3-A 이후에도 변경 없음)**
 
 ### season_hof 테이블
 
@@ -122,7 +122,11 @@ CREATE TABLE IF NOT EXISTS public.season_hof (
 ALTER TABLE public.season_hof ENABLE ROW LEVEL SECURITY;
 ```
 
-**hidden/is_visible 컬럼: 없음**
+**Phase S3-A 이후 추가된 컬럼 (20260517_season_hof_soft_hide_rpc.sql):**
+- `is_hidden     BOOLEAN     NOT NULL DEFAULT FALSE`
+- `hidden_at     TIMESTAMPTZ NULL`
+- `hidden_by     UUID        NULL REFERENCES auth.users(id) ON DELETE SET NULL`
+- `hidden_reason TEXT        NULL`
 
 ### RPC 권한 현황
 
@@ -132,7 +136,8 @@ ALTER TABLE public.season_hof ENABLE ROW LEVEL SECURITY;
 | `get_hall_of_fame` | ✅ | ✅ | ✅ | ❌ |
 | `admin_update_season_name` | ❌ | ✅ | ✅ | ✅ |
 | `admin_end_season` | ❌ | ✅ | ✅ | ✅ |
-| **신규 필요** `admin_hide_hof_entry` | ❌ | ✅ | ✅ | ✅ |
+| `admin_hide_hof_entry` | ❌ | ✅ | ✅ | ✅ |
+| `admin_restore_hof_entry` | ❌ | ✅ | ✅ | ✅ |
 
 ### RLS 정책 현황
 
@@ -244,9 +249,9 @@ active 시즌의 HOF 행은 이 RPC에서 반환되지 않음.
 ### active season 처리 규칙
 
 ```
-admin_hide_hof_entry(p_season_id):
-  IF seasons.is_active = TRUE WHERE id = p_season_id
-    RAISE EXCEPTION 'cannot_hide_active_season'
+admin_hide_hof_entry(p_hof_id):
+  season_hof JOIN seasons → v_season.is_active = TRUE
+    RETURN {ok: false, reason: 'active_season_not_allowed'}
 ```
 
 active 시즌은 season_hof 행이 구조상 없으므로 이 guard는 방어적 추가임.
@@ -263,72 +268,78 @@ active 시즌은 season_hof 행이 구조상 없으므로 이 guard는 방어적
 
 ### Phase S3-A: soft hide schema + RPC (DB migration)
 
-**migration 파일:** `YYYYMMDD_season_hof_soft_hide.sql`
+**migration 파일:** `20260517_season_hof_soft_hide_rpc.sql` (적용 완료)
 
 ```sql
--- 1. season_hof에 is_hidden 컬럼 추가
+-- 1. season_hof에 soft hide 컬럼 추가
 ALTER TABLE public.season_hof
-    ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN NOT NULL DEFAULT FALSE;
+    ADD COLUMN IF NOT EXISTS is_hidden     BOOLEAN     NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS hidden_at     TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS hidden_by     UUID        REFERENCES auth.users(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS hidden_reason TEXT;
 
 -- 2. get_hall_of_fame 필터 추가
 CREATE OR REPLACE FUNCTION public.get_hall_of_fame()
 ...
-WHERE s.is_active = FALSE
-  AND h.is_hidden = FALSE   -- 추가
+WHERE s.is_active  = FALSE
+  AND h.is_hidden  = FALSE   -- 추가
 ORDER BY s.id DESC, h.rank ASC;
 
 -- 3. admin_hide_hof_entry RPC
 CREATE OR REPLACE FUNCTION public.admin_hide_hof_entry(
-    p_season_hof_id INTEGER,
-    p_reason        TEXT DEFAULT ''
+    p_hof_id INTEGER,
+    p_reason TEXT DEFAULT NULL
 )
 RETURNS JSONB ...
 
 -- 4. admin_restore_hof_entry RPC
 CREATE OR REPLACE FUNCTION public.admin_restore_hof_entry(
-    p_season_hof_id INTEGER,
-    p_reason        TEXT DEFAULT ''
+    p_hof_id INTEGER
 )
 RETURNS JSONB ...
 
 -- 5. REVOKE/GRANT
-REVOKE ALL ON FUNCTION public.admin_hide_hof_entry(...) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.admin_hide_hof_entry(...) TO authenticated;
-REVOKE ALL ON FUNCTION public.admin_restore_hof_entry(...) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.admin_restore_hof_entry(...) TO authenticated;
+REVOKE ALL ON FUNCTION public.admin_hide_hof_entry(INTEGER, TEXT) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.admin_hide_hof_entry(INTEGER, TEXT) FROM anon;
+GRANT EXECUTE ON FUNCTION public.admin_hide_hof_entry(INTEGER, TEXT) TO authenticated;
+REVOKE ALL ON FUNCTION public.admin_restore_hof_entry(INTEGER) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.admin_restore_hof_entry(INTEGER) FROM anon;
+GRANT EXECUTE ON FUNCTION public.admin_restore_hof_entry(INTEGER) TO authenticated;
 ```
 
 **RPC 설계 (`admin_hide_hof_entry`):**
 
 ```
-입력: p_season_hof_id INTEGER, p_reason TEXT
+입력: p_hof_id INTEGER, p_reason TEXT DEFAULT NULL
 동작:
   1. is_admin() guard
   2. season_hof row 조회 (FOR UPDATE)
-     - NOT FOUND → RAISE 'hof_entry_not_found'
+     - NOT FOUND → {ok: false, reason: 'hof_entry_not_found'}
   3. seasons JOIN → is_active 확인
-     - is_active = TRUE → RAISE 'cannot_hide_active_season'
-  4. is_hidden이 이미 TRUE → RAISE 'already_hidden' (멱등 허용 가능)
-  5. UPDATE season_hof SET is_hidden = TRUE WHERE id = p_season_hof_id
+     - is_active = TRUE → {ok: false, reason: 'active_season_not_allowed'}
+  4. is_hidden = TRUE 이미 → {ok: true, idempotent: true, hof_id}
+  5. UPDATE season_hof SET is_hidden=TRUE, hidden_at=NOW(), hidden_by=uid, hidden_reason=p_reason
   6. admin_audit_logs INSERT
      - action: 'hide_hof_entry'
      - entity_table: 'season_hof'
-     - entity_id: p_season_hof_id::TEXT
-     - metadata: { season_id, season_name, rank, nickname, reason: p_reason }
-  7. RETURN { ok: true, season_hof_id: p_season_hof_id, season_name, rank, nickname }
+     - entity_id: p_hof_id::TEXT
+     - metadata: { season_id, season_name, rank, nickname, reason }
+  7. RETURN { ok: true, hof_id, season_id, season_name, rank, nickname }
 ```
 
 **RPC 설계 (`admin_restore_hof_entry`):**
 
 ```
-입력: p_season_hof_id INTEGER, p_reason TEXT
+입력: p_hof_id INTEGER
 동작:
   1. is_admin() guard
   2. season_hof row 조회 (FOR UPDATE)
-  3. UPDATE season_hof SET is_hidden = FALSE WHERE id = p_season_hof_id
-  4. admin_audit_logs INSERT
+     - NOT FOUND → {ok: false, reason: 'hof_entry_not_found'}
+  3. is_hidden = FALSE 이미 → {ok: true, idempotent: true, hof_id}
+  4. UPDATE season_hof SET is_hidden=FALSE, hidden_at=NULL, hidden_by=NULL, hidden_reason=NULL
+  5. admin_audit_logs INSERT
      - action: 'restore_hof_entry'
-  5. RETURN { ok: true, ... }
+  6. RETURN { ok: true, hof_id, season_id, season_name, rank, nickname }
 ```
 
 ### Phase S3-B: admin UI 연결
@@ -363,17 +374,20 @@ ORDER BY s.id DESC, h.rank ASC;
 
 ## 8. QA 체크리스트
 
-### Phase S3-A (DB)
+### Phase S3-A (DB) — 완료 (2026-05-17, migration: 20260517_season_hof_soft_hide_rpc.sql)
 
-- [ ] `season_hof` 컬럼 추가 후 기존 rows `is_hidden = FALSE` 기본값 확인
-- [ ] `get_hall_of_fame` 변경 후 기존 HOF 데이터 정상 반환 확인
-- [ ] `admin_hide_hof_entry` — active season HOF 숨기기 시도 시 `cannot_hide_active_season` 오류 확인
-- [ ] `admin_hide_hof_entry` — NOT FOUND 시 `hof_entry_not_found` 오류 확인
-- [ ] `admin_hide_hof_entry` 호출 후 `get_hall_of_fame`에서 해당 항목 미반환 확인
-- [ ] `admin_restore_hof_entry` 호출 후 `get_hall_of_fame`에서 해당 항목 복원 확인
-- [ ] `admin_audit_logs`에 `hide_hof_entry` / `restore_hof_entry` action 기록 확인
-- [ ] anon이 `admin_hide_hof_entry` 호출 시 거부 확인
-- [ ] non-admin authenticated가 호출 시 `admin_required` 오류 확인
+- [x] `season_hof` 컬럼 추가 후 기존 rows `is_hidden = FALSE` 기본값 확인
+- [x] `get_hall_of_fame` 함수 본문에 `AND h.is_hidden = FALSE` 조건 존재 확인
+- [x] `admin_hide_hof_entry` — `private.is_admin()` guard 존재 확인
+- [x] `admin_hide_hof_entry` — active season 차단 로직 (`v_season.is_active = TRUE`) 존재 확인
+- [x] `admin_hide_hof_entry` — `admin_audit_logs` INSERT 존재 확인
+- [x] `admin_restore_hof_entry` — 동일 guard/audit 구조 확인
+- [x] `admin_hide_hof_entry` acl: authenticated ✓ / anon ✗ 확인
+- [x] `admin_restore_hof_entry` acl: authenticated ✓ / anon ✗ 확인
+- [x] `get_hall_of_fame` acl: anon ✓ / authenticated ✓ 유지 확인
+- [ ] `admin_hide_hof_entry` 실제 호출 — active season guard 동작 확인 (Phase S3-B 또는 별도)
+- [ ] `admin_hide_hof_entry` 호출 후 `get_hall_of_fame`에서 해당 항목 미반환 확인 (Phase S3-B)
+- [ ] `admin_restore_hof_entry` 호출 후 복원 확인 (Phase S3-B)
 
 ### Phase S3-B (UI)
 
@@ -384,18 +398,18 @@ ORDER BY s.id DESC, h.rank ASC;
 
 ---
 
-## 9. 이번 조사에서 코드/DB/운영 데이터 변경 없음 명시
+## 9. 변경 이력 및 제약 명시
 
-**이 문서는 read-only 조사 결과를 기록한 설계 문서입니다.**
+초기 조사 세션(ab3a808)에서 코드/DB/운영 데이터 수정 없음.
 
-조사 과정에서:
-- 코드 수정 없음
-- DB migration 없음
-- 운영 데이터 수정 없음
-- 실제 시즌/HOF 삭제 없음
-- force 재정산 실행 없음
+Phase S3-A (2026-05-17, 별도 세션):
+- migration 적용: `20260517_season_hof_soft_hide_rpc.sql`
+- DB 변경: `season_hof` 컬럼 추가 (is_hidden, hidden_at, hidden_by, hidden_reason)
+- RPC 추가: `admin_hide_hof_entry`, `admin_restore_hof_entry`
+- `get_hall_of_fame` 필터 추가
+- 운영 데이터 수정 없음 / 실제 HOF hide/restore 실행 없음
 
-Phase S3-A/B/C 구현은 별도 세션에서 수행 예정.
+Phase S3-B (미착수): admin UI 연결 — 별도 세션 예정
 
 ---
 
@@ -404,3 +418,4 @@ Phase S3-A/B/C 구현은 별도 세션에서 수행 예정.
 | 날짜 | 내용 |
 |---|---|
 | 2026-05-17 | read-only 조사 + 설계 문서 작성 (main ab3a808) |
+| 2026-05-17 | Phase S3-A: season_hof soft hide migration 적용 + RPC 추가 |

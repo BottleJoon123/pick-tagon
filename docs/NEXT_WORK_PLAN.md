@@ -1,7 +1,44 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (Season HOF Admin 설계 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (Phase S3-A soft hide migration 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-17 마감 상태 (21차)
+
+**origin/main = HEAD = 3b17a54 (push 예정)**
+
+**오늘 완료 (21차): Phase S3-A — season_hof soft hide DB migration + RPC**
+
+**변경 파일:**
+- `supabase/migrations/20260517_season_hof_soft_hide_rpc.sql` (신규)
+- `docs/SEASON_HOF_ADMIN_PLAN.md`
+- `docs/NEXT_WORK_PLAN.md`
+
+**DB 변경:**
+- `season_hof` 컬럼 추가: `is_hidden BOOLEAN NOT NULL DEFAULT FALSE`, `hidden_at`, `hidden_by`, `hidden_reason`
+- `get_hall_of_fame()` 수정: `AND h.is_hidden = FALSE` 필터 추가 (하위 호환, 반환 구조 변경 없음)
+- `admin_hide_hof_entry(p_hof_id, p_reason)` RPC 추가
+- `admin_restore_hof_entry(p_hof_id)` RPC 추가
+
+**DB 검증:**
+- `is_hidden` 컬럼: boolean NOT NULL DEFAULT false ✓
+- `get_hall_of_fame` 본문: `AND h.is_hidden = FALSE` 존재 ✓
+- `admin_hide_hof_entry`: is_admin guard ✓ / active_season_not_allowed guard ✓ / idempotent ✓ / audit_logs ✓
+- `admin_restore_hof_entry`: is_admin guard ✓ / idempotent ✓ / audit_logs ✓
+- `admin_hide_hof_entry` acl: authenticated ✓ / anon ✗ ✓
+- `admin_restore_hof_entry` acl: authenticated ✓ / anon ✗ ✓
+- `get_hall_of_fame` acl: anon ✓ / authenticated ✓ 유지 ✓
+- apply_migration 성공 ✓ / 운영 데이터 수정 없음 ✓
+
+**다음 세션 후보 (우선순위 순):**
+A. Phase S3-B: admin UI 연결 (숨김/복구 버튼, `deleteSeasonRecord` → `hideSeasonHofEntry` 교체, admin-hof-list 렌더 개선)
+B. Phase P3 (선택): settled 이벤트 force 재정산 UI confirm 경고 강화
+C. localStorage settleBet/simulateFight 정리
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 
