@@ -1,7 +1,38 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (admin result path 문서 정리 완료)
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (localStorage fight legacy 조사 완료)
 현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-17 마감 상태 (27차)
+
+**origin/main = a8bf1e7, HEAD = push 후 최신 SHA 확인 (push 예정)**
+
+**오늘 완료 (27차): localStorage settleBet / simulateFight legacy 경로 read-only 조사**
+
+**변경 파일:**
+- `docs/LOCAL_STORAGE_FIGHT_LEGACY_PLAN.md` (신규)
+- `docs/NEXT_WORK_PLAN.md`
+
+**조사 결과 요약:**
+- `simulateFight()` (index.html:3140): 호출자 없음 → **완전 dead code**
+- `settleBet()` (index.html:3284): `confirmAdminResult()` localStorage 분기에서만 호출 가능
+- 프로덕션 도달 조건: `_dbMatchups` 비어 있고 customFights/FIGHTS에 fight 존재 → 정상 운영 중 **도달 불가**
+- `settleBet()`은 DB 사이드 이펙트 존재: `picks` 테이블 직접 update + `syncUserToDB()`
+- DB fight에 `settleBet()` 호출 시 `matchups.result_status` 미갱신 → **불일치 위험**
+- 권장 순서: ① simulateFight() 제거 → ② _fromDB 가드 추가 → ③ settleBet() 전체 제거
+
+**코드/DB 변경:** 없음 (read-only 조사)
+
+**다음 세션 후보 (우선순위 순):**
+A. `simulateFight()` 제거 (dead code, 호출자 없음, 안전)
+B. `confirmAdminResult()` localStorage 분기에 `_fromDB` 가드 추가
+C. HOF hide/restore 실제 브라우저 QA
+D. Admin 결과 입력 브라우저 smoke QA (typed confirm UI, audit_log, admin_required)
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 
