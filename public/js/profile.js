@@ -210,10 +210,10 @@ function renderProfileReport() {
             { label: 'NET WIN 포인트', value: totalEarned.toLocaleString() + 'P',   sub: `잔액 ${state.points.toLocaleString()}P`, color: 'text-yellow-400' },
             { label: '업셋 픽 성공',   value: upsetWins + '회',                     sub: upsetSub,  color: 'text-orange-400' },
         ].map(item => `
-            <div class="bg-black/30 rounded-2xl p-4 border border-white/5">
-                <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-widest italic mb-2">${item.label}</p>
-                <p class="oswald-sharp text-xl lg:text-2xl font-black italic ${item.color}">${item.value}</p>
-                <p class="oswald-sharp text-[9px] text-gray-600 italic mt-1">${item.sub}</p>
+            <div class="bg-black/30 rounded-2xl p-4 border border-white/[0.08]">
+                <p class="oswald-sharp text-[10px] text-gray-400 uppercase tracking-widest italic mb-2">${item.label}</p>
+                <p class="oswald-sharp text-xl lg:text-2xl font-black italic leading-none ${item.color}">${item.value}</p>
+                <p class="oswald-sharp text-[10px] text-gray-500 italic mt-2 truncate">${item.sub}</p>
             </div>
         `).join('');
     }
