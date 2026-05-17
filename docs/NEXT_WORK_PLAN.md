@@ -1,7 +1,45 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-17 (핵심 플로우 Smoke QA)
-현재 기준 커밋: push 후 최신 SHA 확인
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-18 (UI/UX 개선 1차 조사)
+현재 기준 커밋: 767ed83
+
+---
+
+## 2026-05-18 마감 상태 (39차)
+
+**origin/main = 767ed83, HEAD = push 후 최신 SHA 확인 (push 예정)**
+
+**오늘 완료 (39차): 유저-facing UI/UX 개선 1차 조사 — Home/Pick/Profile/Rankings 전 화면**
+
+**변경 파일:**
+- `docs/UI_UX_IMPROVEMENT_PLAN.md` (신규)
+- `docs/NEXT_WORK_PLAN.md`
+
+**조사 결과 요약:**
+
+| 우선순위 | ID | 화면 | 내용 |
+|----------|-----|------|------|
+| A | A-1 | Pick | 픽 완료 후 카드에 "내가 선택한 파이터" 시각 표시 |
+| A | A-2 | Rankings | My Rank Card Accuracy 모바일 `hidden lg:block` 제거 |
+| A | A-3 | Rankings | 리더보드 Accuracy 컬럼 모바일 표시 복원 |
+| A | A-4 | Home | Ticker tape → DB 이벤트 기반 동적 생성 |
+| B | B-1 | Profile | 섹션 헤더 border 통일 |
+| B | B-2 | Profile | 신규 유저 빈 상태 → 첫 픽 CTA 카드 |
+| B | B-3 | Pick | Strip Row 모바일 Tag/Division 표시 |
+| B | B-4 | Home | Hero face-off 이미지 DB imgUrl 반영 |
+| B | B-5 | Profile | Analyst Type 위치 상향 |
+| C | C-1~5 | 전체 | Belt Legend 텍스트, 팩션 배지, 아바타, 컬럼명 등 세부 |
+
+**코드/DB 변경:** 없음 (docs only)
+
+**다음 세션 후보 (우선순위 순):**
+A. Pick 픽 완료 카드 표시 개선 (A-1) + Rankings 모바일 Accuracy 복원 (A-2/A-3) — 배치 1
+B. Home Ticker tape 동적화 (A-4) + Hero face-off 이미지 동적 반영 (B-4)
+C. Profile 개선 배치 (B-1/B-2/B-5/C-3)
+D. Admin 운영 고도화 (audit log UI, dashboard health)
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 
