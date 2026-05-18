@@ -998,7 +998,7 @@ function deleteFightCard(fightId) {
 }
 
 // ----- EVENT INFO -----
-let eventInfo = { name: 'UFC 327', date: 'SAT · APR 12, 2026 · KASEYA CENTER, MIAMI' };
+let eventInfo = { name: '', date: '' };
 
 function loadEventInfo() {
     const e = localStorage.getItem('picktagon_event');
@@ -1020,8 +1020,8 @@ function saveEventInfo() {
 function applyEventInfo() {
     const nameEl = document.getElementById('event-name-label');
     const dateEl = document.getElementById('event-date-label');
-    if (nameEl) nameEl.textContent = eventInfo.name;
-    if (dateEl) dateEl.textContent = eventInfo.date;
+    if (nameEl && eventInfo.name) nameEl.textContent = eventInfo.name;
+    if (dateEl && eventInfo.date) dateEl.textContent = eventInfo.date;
 }
 
 // ── 대진표 빌더 ──────────────────────────────────────────────────────

@@ -895,7 +895,7 @@ textarea, select {
                         <div class="grid grid-cols-[1fr_auto_1fr] items-end gap-3 lg:gap-5">
                             <div class="flex flex-col items-center">
                                 <div id="hero-red-img" class="h-40 lg:h-48 w-24 lg:w-28 rounded-[999px_999px_16px_16px] border border-red-400/25 bg-cover bg-top" style="background:linear-gradient(to bottom, rgba(210,10,10,0.3), rgba(40,40,50,0.6), rgba(0,0,0,0.95))"></div>
-                                <div id="hero-red-name" class="oswald-sharp mt-3 text-sm lg:text-base font-black italic uppercase tracking-[0.2em] text-white/85">MAKHACHEV</div>
+                                <div id="hero-red-name" class="oswald-sharp mt-3 text-sm lg:text-base font-black italic uppercase tracking-[0.2em] text-white/85">TBA</div>
                                 <div class="barlow text-[9px] italic text-gray-400 mt-0.5">Red Corner</div>
                             </div>
                             <div class="flex items-center justify-center pb-10">
@@ -903,7 +903,7 @@ textarea, select {
                             </div>
                             <div class="flex flex-col items-center">
                                 <div id="hero-blue-img" class="h-40 lg:h-48 w-24 lg:w-28 rounded-[999px_999px_16px_16px] border border-blue-400/25 bg-cover bg-top" style="background:linear-gradient(to bottom, rgba(37,99,235,0.3), rgba(40,40,50,0.6), rgba(0,0,0,0.95))"></div>
-                                <div id="hero-blue-name" class="oswald-sharp mt-3 text-sm lg:text-base font-black italic uppercase tracking-[0.2em] text-white/85">POIRIER</div>
+                                <div id="hero-blue-name" class="oswald-sharp mt-3 text-sm lg:text-base font-black italic uppercase tracking-[0.2em] text-white/85">TBA</div>
                                 <div class="barlow text-[9px] italic text-gray-400 mt-0.5">Blue Corner</div>
                             </div>
                         </div>
@@ -989,8 +989,8 @@ textarea, select {
         <div class="mb-6 lg:mb-10">
             <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
                 <div class="border-l-8 lg:border-l-[12px] border-ufcRed pl-4 lg:pl-8">
-                    <p class="oswald-sharp text-ufcRed text-[10px] lg:text-sm tracking-[0.3em] font-black italic uppercase mb-1" id="event-date-label">SAT · APR 12, 2026 · KASEYA CENTER, MIAMI</p>
-                    <h3 class="oswald-sharp text-3xl lg:text-6xl font-black italic tracking-tighter uppercase leading-none" id="event-name-label">UFC 327</h3>
+                    <p class="oswald-sharp text-ufcRed text-[10px] lg:text-sm tracking-[0.3em] font-black italic uppercase mb-1" id="event-date-label">NEXT EVENT · DATE TBA</p>
+                    <h3 class="oswald-sharp text-3xl lg:text-6xl font-black italic tracking-tighter uppercase leading-none" id="event-name-label">NEXT EVENT</h3>
                 </div>
                 <div class="flex items-center gap-3 lg:gap-6">
                     <div class="glass-card px-4 lg:px-8 py-2 lg:py-3 rounded-full border border-white/10 text-center">
@@ -4851,7 +4851,7 @@ async function publishPost() {
        EVENT_PICKS — 커뮤니티 픽 집계
     ============================== */
     const EVENT_ID = 'ufc327';
-    let eventPickCounts = {};  // { fightId: { c0, c1 } }
+    var eventPickCounts = {};  // { fightId: { c0, c1 } } — var: community.js에서 cross-script 접근 필요
     let myEventPicks = {};     // { fightId: fighterIndex (0|1) }
 
     async function loadAllEventPickCounts() {
@@ -4873,6 +4873,10 @@ async function publishPost() {
             }
         });
         getActiveFights().forEach(function(f) { updateLivePickBar(f.id); });
+        // community matchup board pick 비율 갱신 (matchup-board가 렌더된 상태일 때)
+        if (typeof renderMatchups === 'function' && document.getElementById('matchup-board')) {
+            renderMatchups(getActiveFights());
+        }
     }
 
     async function loadMyEventPicks() {

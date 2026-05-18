@@ -1,7 +1,8 @@
 /* ==============================
    COMMUNITY & SCORING LAYER
    (extracted from index.html – global functions, no import/export)
-   의존성: state.js (posts, communityFilter, communitySortMode, communityTimeFilter, currentUser, state, likedPostIds, livePicks)
+   의존성: state.js (posts, communityFilter, communitySortMode, communityTimeFilter, currentUser, state, likedPostIds)
+           index.html (eventPickCounts — var 선언으로 cross-script 공유)
            storage.js (save)
            utils.js (escapeHtml, getDisplayUsername)
            index.html 내 함수들 (likePostInDB, toggleComArea, postCom, requestBattle, getActiveFights, navigateTo)
@@ -75,11 +76,11 @@
         var restCount = fights.length - featured.length;
 
         container.innerHTML = featured.map(function(fight) {
-            // Live pick percentages
-            var lp = (typeof livePicks !== 'undefined') && livePicks[fight.id];
+            // Live pick percentages — eventPickCounts: { c0: red, c1: blue } (index.html var)
+            var ec = (typeof eventPickCounts !== 'undefined') && eventPickCounts[fight.id];
             var leftPct = 50, rightPct = 50;
-            if (lp && lp.total > 0) {
-                leftPct  = Math.round((lp.left / lp.total) * 100);
+            if (ec && (ec.c0 + ec.c1) > 0) {
+                leftPct  = Math.round(ec.c0 / (ec.c0 + ec.c1) * 100);
                 rightPct = 100 - leftPct;
             } else if (fight.leftBias != null) {
                 leftPct  = Math.round(fight.leftBias * 100);
@@ -290,11 +291,22 @@
         }
     }
 
+    var _communityMatchupsFetching = false;
+
     /* ── Main renderFeed ── */
     function renderFeed() {
-        // 1. Matchup board
-        if (typeof getActiveFights === 'function') {
-            renderMatchups(getActiveFights());
+        // 1. Matchup board — use DB data only; avoid legacy FIGHTS fallback
+        var boardEl = document.getElementById('matchup-board');
+        if (typeof _dbMatchups !== 'undefined' && _dbMatchups && _dbMatchups.length > 0) {
+            renderMatchups(_dbMatchups);
+        } else {
+            if (boardEl) {
+                boardEl.innerHTML = '<p class="text-center text-gray-500 text-sm py-8">현재 이벤트 대진표 로딩 중...</p>';
+            }
+            if (!_communityMatchupsFetching && typeof fetchUpcomingMatchups === 'function') {
+                _communityMatchupsFetching = true;
+                fetchUpcomingMatchups();
+            }
         }
 
         // 2. Filter by category
