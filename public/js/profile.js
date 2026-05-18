@@ -104,7 +104,7 @@ function renderProfileReport() {
         pendingCount = Object.keys(state.pendings || {}).length;
         settledCount = state.total;
         totalAll     = state.total + pendingCount;
-        acc          = state.total === 0 ? null : Math.round(state.success / state.total * 100);
+        acc          = state.total === 0 ? null : Math.min(100, Math.round(state.success / state.total * 100));
         totalEarned  = state.history.filter(h => h.res === 'WIN').reduce((s, h) => s + (h.payout || 0), 0);
         upsetWins    = stateSettled.filter(s => s.hadUpsetBonus && s.result === 'WIN').length;
         upsetPicks   = stateSettled.filter(s => s.hadUpsetBonus).length;
