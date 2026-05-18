@@ -466,6 +466,84 @@ function _renderFighterListUI(list, count) {
     }).join('');
 }
 
+// ----- FIGHTER STAT AUTO-SCORING -----
+
+var FIGHTER_STAT_FALLBACK_BASELINES = {
+    slpm:    { p05: 1.5,  p95: 7.5  },
+    str_acc: { p05: 28,   p95: 62   },
+    sapm:    { p05: 1.5,  p95: 6.5  },
+    str_def: { p05: 45,   p95: 76   },
+    td_avg:  { p05: 0.0,  p95: 4.5  },
+    td_acc:  { p05: 15,   p95: 70   },
+    td_def:  { p05: 40,   p95: 88   },
+    sub_avg: { p05: 0.0,  p95: 2.5  },
+    ko_rate: { p05: 0,    p95: 60   },
+    sub_rate:{ p05: 0,    p95: 35   },
+    dec_rate:{ p05: 20,   p95: 80   }
+};
+
+// Returns [striking, grappling, stamina, defense, speed] each 0–100.
+// Missing raw stats are excluded from weighted average (not treated as 0).
+// baselines: division-specific overrides (Step B); null = use fallback.
+function computeStatsFromPerf(perf, division, baselines) {
+    var bl = baselines || FIGHTER_STAT_FALLBACK_BASELINES;
+
+    function n(val, key) {
+        if (val == null || isNaN(val)) return null;
+        var r = bl[key] || FIGHTER_STAT_FALLBACK_BASELINES[key];
+        if (!r) return null;
+        var span = r.p95 - r.p05;
+        if (span <= 0) return 50;
+        return Math.max(0, Math.min(100, Math.round((val - r.p05) / span * 100)));
+    }
+
+    // Inverse normalize: lower raw value = higher score (e.g. sapm)
+    function ni(val, key) {
+        if (val == null || isNaN(val)) return null;
+        var r = bl[key] || FIGHTER_STAT_FALLBACK_BASELINES[key];
+        if (!r) return null;
+        var span = r.p95 - r.p05;
+        if (span <= 0) return 50;
+        return Math.max(0, Math.min(100, Math.round((r.p95 - val) / span * 100)));
+    }
+
+    // Weighted average ignoring null contributions
+    function wa(pairs) {
+        var wSum = 0, vSum = 0;
+        pairs.forEach(function(p) {
+            if (p[0] !== null && p[0] !== undefined && !isNaN(p[0])) {
+                wSum += p[1]; vSum += p[0] * p[1];
+            }
+        });
+        return wSum === 0 ? 50 : Math.round(vSum / wSum);
+    }
+
+    return [
+        wa([ [n(perf.slpm,   'slpm'),    0.55], [n(perf.strAcc, 'str_acc'), 0.45] ]),
+        wa([ [n(perf.tdAvg,  'td_avg'),  0.45], [n(perf.tdAcc,  'td_acc'),  0.35], [n(perf.subAvg, 'sub_avg'), 0.20] ]),
+        wa([ [ni(perf.sapm,  'sapm'),    0.60], [n(perf.decRate,'dec_rate'), 0.40] ]),
+        wa([ [n(perf.strDef, 'str_def'), 0.60], [n(perf.tdDef,  'td_def'),  0.40] ]),
+        wa([ [n(perf.slpm,   'slpm'),    0.40], [n(perf.koRate,  'ko_rate'), 0.35], [n(perf.strAcc, 'str_acc'), 0.25] ])
+    ];
+}
+
+function autoComputeFighterStats() {
+    var perf = {};
+    ['slpm','strAcc','sapm','strDef','tdAvg','tdAcc','tdDef','subAvg','koRate','subRate','decRate'].forEach(function(k) {
+        var el = document.getElementById('fm-' + k);
+        perf[k] = (el && el.value !== '') ? parseFloat(el.value) : null;
+    });
+    var division = (document.getElementById('fm-division') || {}).value || '';
+    var computed = computeStatsFromPerf(perf, division, null);
+    computed.forEach(function(val, i) {
+        var slider = document.getElementById('stat-range-' + i);
+        var label  = document.getElementById('stat-val-' + i);
+        if (slider) slider.value = val;
+        if (label)  label.textContent = val;
+    });
+    showToast('스탯 자동 계산 완료');
+}
+
 function buildStatsSliders(stats) {
     const container = document.getElementById('stats-sliders');
     container.innerHTML = STAT_LABELS.map((label, i) => `
@@ -506,10 +584,13 @@ function openFighterModal(fighterId) {
         document.getElementById('fm-division').value = f.division;
         document.getElementById('fm-image').value = f.image_url || '';
         buildStatsSliders(f.stats);
-        // performance stats
-        ['slpm','strAcc','tdAvg','subAvg','koRate','subRate','decRate'].forEach(function(k) {
+        // performance stats — camelCase preferred, snake_case fallback for DB-fetched rows
+        var perfSnakeMap = { strAcc:'str_acc', strDef:'str_def', tdAvg:'td_avg', tdAcc:'td_acc', tdDef:'td_def', subAvg:'sub_avg', koRate:'ko_rate', subRate:'sub_rate', decRate:'dec_rate' };
+        ['slpm','strAcc','sapm','strDef','tdAvg','tdAcc','tdDef','subAvg','koRate','subRate','decRate'].forEach(function(k) {
             var el = document.getElementById('fm-' + k);
-            if (el) el.value = (f[k] !== undefined && f[k] !== null) ? f[k] : '';
+            if (!el) return;
+            var cv = f[k]; var sk = perfSnakeMap[k]; var sv = sk ? f[sk] : undefined;
+            el.value = (cv !== undefined && cv !== null) ? cv : ((sv !== undefined && sv !== null) ? sv : '');
         });
         buildRecentFightsList(f.recent || []);
     } else {
@@ -518,7 +599,7 @@ function openFighterModal(fighterId) {
         ['fm-wins','fm-losses','fm-draws'].forEach(id => document.getElementById(id).value = '0');
         document.getElementById('fm-style').value = 'all-around';
         buildStatsSliders(null);
-        ['slpm','strAcc','tdAvg','subAvg','koRate','subRate','decRate'].forEach(function(k) {
+        ['slpm','strAcc','sapm','strDef','tdAvg','tdAcc','tdDef','subAvg','koRate','subRate','decRate'].forEach(function(k) {
             var el = document.getElementById('fm-' + k);
             if (el) el.value = '';
         });
@@ -541,7 +622,7 @@ function saveFighter() {
     const record = draws > 0 ? `${wins}W ${losses}L ${draws}D` : `${wins}W ${losses}L`;
 
     const stats = STAT_LABELS.map((_, i) => parseInt(document.getElementById(`stat-range-${i}`).value));
-    const perfKeys = ['slpm','strAcc','tdAvg','subAvg','koRate','subRate','decRate'];
+    const perfKeys = ['slpm','strAcc','sapm','strDef','tdAvg','tdAcc','tdDef','subAvg','koRate','subRate','decRate'];
     const perfStats = {};
     perfKeys.forEach(function(k) {
         var el = document.getElementById('fm-' + k);
@@ -585,7 +666,9 @@ function saveFighter() {
             odds: String(data.odds), image_url: data.image_url,
             stats: data.stats,
             slpm: data.slpm, str_acc: data.strAcc,
-            td_avg: data.tdAvg, sub_avg: data.subAvg,
+            sapm: data.sapm, str_def: data.strDef,
+            td_avg: data.tdAvg, td_acc: data.tdAcc,
+            td_def: data.tdDef, sub_avg: data.subAvg,
             ko_rate: data.koRate, sub_rate: data.subRate, dec_rate: data.decRate
         }}).then(function(res) {
             if (res.error) console.warn('파이터 DB 저장 실패:', res.error.message);

@@ -2030,7 +2030,10 @@ textarea, select {
 
         <!-- Performance Stats -->
         <div class="mt-6 border-t border-white/10 pt-6">
-            <h4 class="oswald-sharp text-xs text-gray-500 uppercase tracking-widest italic mb-4">퍼포먼스 스탯</h4>
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="oswald-sharp text-xs text-gray-500 uppercase tracking-widest italic">퍼포먼스 스탯</h4>
+                <button onclick="autoComputeFighterStats()" class="oswald-sharp text-[9px] font-black italic uppercase tracking-widest px-3 py-1.5 rounded-lg border border-ufcRed/40 text-ufcRed hover:bg-ufcRed/10 transition">⚡ 자동 계산</button>
+            </div>
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 <div>
                     <label class="oswald-sharp text-[9px] text-gray-600 uppercase tracking-widest italic block mb-1">SLpM</label>
@@ -2041,8 +2044,24 @@ textarea, select {
                     <input id="fm-strAcc" type="number" step="0.1" min="0" max="100" class="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-ufcRed" placeholder="52">
                 </div>
                 <div>
+                    <label class="oswald-sharp text-[9px] text-gray-600 uppercase tracking-widest italic block mb-1">SApM</label>
+                    <input id="fm-sapm" type="number" step="0.01" min="0" class="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-ufcRed" placeholder="3.50">
+                </div>
+                <div>
+                    <label class="oswald-sharp text-[9px] text-gray-600 uppercase tracking-widest italic block mb-1">Str Def %</label>
+                    <input id="fm-strDef" type="number" step="0.1" min="0" max="100" class="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-ufcRed" placeholder="60">
+                </div>
+                <div>
                     <label class="oswald-sharp text-[9px] text-gray-600 uppercase tracking-widest italic block mb-1">TD Avg</label>
                     <input id="fm-tdAvg" type="number" step="0.01" min="0" class="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-ufcRed" placeholder="1.80">
+                </div>
+                <div>
+                    <label class="oswald-sharp text-[9px] text-gray-600 uppercase tracking-widest italic block mb-1">TD Acc %</label>
+                    <input id="fm-tdAcc" type="number" step="0.1" min="0" max="100" class="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-ufcRed" placeholder="40">
+                </div>
+                <div>
+                    <label class="oswald-sharp text-[9px] text-gray-600 uppercase tracking-widest italic block mb-1">TD Def %</label>
+                    <input id="fm-tdDef" type="number" step="0.1" min="0" max="100" class="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-ufcRed" placeholder="65">
                 </div>
                 <div>
                     <label class="oswald-sharp text-[9px] text-gray-600 uppercase tracking-widest italic block mb-1">Sub Avg</label>
