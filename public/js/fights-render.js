@@ -77,10 +77,10 @@ function renderHeroCard(fight, idx) {
     const f1Img = fight.f1.imgUrl || '';
     const f2Img = fight.f2.imgUrl || '';
     const f1BgStyle = f1Img
-        ? `background-image:url('${f1Img}'); background-size:cover; background-position:60% top;`
+        ? `background-image:url('${f1Img}');background-size:auto 90%;background-position:60% bottom;background-repeat:no-repeat;`
         : 'background:linear-gradient(135deg,#1a0000,#0a0a0a);';
     const f2BgStyle = f2Img
-        ? `background-image:url('${f2Img}'); background-size:cover; background-position:40% top;`
+        ? `background-image:url('${f2Img}');background-size:auto 90%;background-position:40% bottom;background-repeat:no-repeat;`
         : 'background:linear-gradient(225deg,#00001a,#0a0a0a);';
 
     _fightCardCache[fight.id] = fight;
@@ -120,13 +120,15 @@ function renderHeroCard(fight, idx) {
         <div id="my-pick-${fight.id}" class="hidden"></div>
 
         <!-- Hero Face-off Area -->
-        <div class="relative overflow-hidden" style="min-height:${isMain ? '300px' : '260px'}">
+        <div class="relative overflow-hidden" style="min-height:${isMain ? '320px' : '280px'}; background:#080808;">
             <!-- F1 Background -->
             <div class="absolute inset-y-0 left-0 w-1/2"
                 style="${f1BgStyle} -webkit-mask-image:linear-gradient(to right,rgba(0,0,0,0.95) 30%,transparent 100%); mask-image:linear-gradient(to right,rgba(0,0,0,0.95) 30%,transparent 100%);"></div>
             <!-- F2 Background -->
             <div class="absolute inset-y-0 right-0 w-1/2"
                 style="${f2BgStyle} -webkit-mask-image:linear-gradient(to left,rgba(0,0,0,0.95) 30%,transparent 100%); mask-image:linear-gradient(to left,rgba(0,0,0,0.95) 30%,transparent 100%);"></div>
+            <!-- Top Fade (blends image top edge into card background) -->
+            <div class="absolute inset-x-0 top-0 h-1/5 pointer-events-none" style="background:linear-gradient(to bottom,rgba(8,8,8,0.75) 0%,transparent 100%);"></div>
             <!-- Bottom Fade -->
             <div class="absolute inset-x-0 bottom-0 h-2/3 pointer-events-none" style="background:linear-gradient(to top,#0a0a0a 0%,transparent 100%);"></div>
             <!-- VS Center -->
@@ -234,7 +236,7 @@ function renderStripRow(fight) {
                 <span class="oswald-sharp text-[7px] text-gray-700 italic truncate max-w-[56px]">${divShort}</span>
             </div>
             <!-- F1 Thumbnail -->
-            ${f1Img ? `<div class="flex-shrink-0 w-10 h-14 rounded-lg overflow-hidden border border-white/10" style="background-image:url('${f1Img}');background-size:cover;background-position:center 10%;"></div>` : ''}
+            ${f1Img ? `<div class="flex-shrink-0 w-10 h-14 rounded-lg overflow-hidden border border-white/10" style="background-image:url('${f1Img}');background-size:cover;background-position:center 15%;"></div>` : ''}
             <!-- Fighter 1 -->
             <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-1.5">
@@ -262,7 +264,7 @@ function renderStripRow(fight) {
                 </div>
             </div>
             <!-- F2 Thumbnail -->
-            ${f2Img ? `<div class="flex-shrink-0 w-10 h-14 rounded-lg overflow-hidden border border-white/10" style="background-image:url('${f2Img}');background-size:cover;background-position:center 10%;"></div>` : ''}
+            ${f2Img ? `<div class="flex-shrink-0 w-10 h-14 rounded-lg overflow-hidden border border-white/10" style="background-image:url('${f2Img}');background-size:cover;background-position:center 15%;"></div>` : ''}
             <div id="live-total-${fight.id}" class="hidden"></div>
         </div>
         <!-- MY PICK (compact, populated by updateAllFightCards) -->
