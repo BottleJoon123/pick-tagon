@@ -1,7 +1,64 @@
 # Picktagon Next Work Plan
 
-최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-18 (UI/UX 개선 1차 조사)
-현재 기준 커밋: 767ed83
+최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-18 (Community 상세 UX 설계)
+현재 기준 커밋: push 후 최신 SHA 확인
+
+---
+
+## 2026-05-18 마감 상태 (42차)
+
+**origin/main = 5d772ef, HEAD = push 후 최신 SHA 확인**
+
+**오늘 완료 (42차): Community 포스트 상세 UX 설계 문서화**
+
+**변경 파일:**
+- `docs/COMMUNITY_DETAIL_UX_PLAN.md` (신규)
+- `docs/NEXT_WORK_PLAN.md`
+
+**설계 요약:**
+
+현재 인라인 아코디언(`post-expand`) → **풀스크린 모달(`post-detail-modal`)** 전환 설계 완료.
+`news-detail-modal` 패턴 기반, z-[250], `glass-card rounded-[2rem] max-h-[92vh]`.
+
+주요 함수:
+- `openPostDetail(origIdx)`: modal populate + 표시
+- `closePostDetail()`: 숨기기 + `body.overflow` 복구
+- `sendDetailComment()`: 모달 전용 댓글 입력 → `addCommentToDB` 호출
+- `likePostFromDetail()`: 기존 `likePost(i)` 위임 + 모달 UI 동기화
+
+renderPosts() 변경: post-row onclick → `openPostDetail()`, post-expand 제거.
+
+**코드/DB 변경:** 없음 (docs only)
+
+**이전 세션 완료 항목 (40~41차, 같은 날):**
+- 40차: Fighter Stat 자동 계산 (admin "⚡ 자동 계산" 버튼, `computeStatsFromPerf`, amend로 sapm/str_def/td_acc/td_def DB 저장 수정, migration 적용) → push 42e586b
+- 41차: Pick 카드 파이터 이미지 framing 개선 (`auto 90% bottom`, top-fade, min-height 증가) → push 5d772ef
+
+**다음 세션 후보 (우선순위 순):**
+
+A. **Community 모달 구현** — `docs/COMMUNITY_DETAIL_UX_PLAN.md` 설계 기반 구현
+   - index.html: `post-detail-modal` HTML 추가
+   - community.js: `openPostDetail`, `closePostDetail`, `sendDetailComment`, `likePostFromDetail` 추가
+   - community.js: `renderPosts()` onclick 변경, post-expand 제거
+   - 공수: 중 (HTML 1블록 + JS ~70줄 + renderPosts 수정)
+
+B. **Community 모달 모바일/브라우저 QA**
+   - 모달 오픈/닫기, 댓글 입력, 좋아요 플로우 실제 브라우저 확인
+   - 모바일 폭(375px) 레이아웃 검증
+
+C. **전체 UI/UX 라운드 마감 QA** — Home/Pick/Profile/Rankings/Community
+   - 각 화면 핵심 플로우 회귀 없음 확인
+   - 모바일 + 데스크탑 병행
+
+D. **Admin 운영 고도화 전환** — audit log UI, dashboard health, QA 패널 개선
+
+**후순위 / 보류:**
+- Fighter Stats Step B (`fighter_stat_baselines` 실데이터 채우기) — 공식 안정화 후 진행
+- Home Hero face-off DB 이미지 반영 (B-4) — polish, 별도 세션
+- Rankings 모바일 Accuracy 복원 (A-2/A-3) — UI/UX 라운드 QA 후 남은 항목 처리
+
+**현재 dirty:**
+- `.claude/settings.json`, `.claudeignore`, `.claude/settings.local.json`: 커밋하지 않음
 
 ---
 
