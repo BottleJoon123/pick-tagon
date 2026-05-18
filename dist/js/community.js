@@ -179,7 +179,6 @@
             var date    = escapeHtml(p.date || '');
             var rawTitle = p.title || '';
             var title   = escapeHtml(_stripCatPrefix(rawTitle));
-            var content = escapeHtml(p.content || '');
             var isLiked = likedPostIds.has(p.dbId);
             var cntCom  = (p.comments || []).length;
 
@@ -208,36 +207,8 @@
                 ? getFactionBadge(factionSrc) + ' '
                 : '';
 
-            // Octagon battle button for post author
-            var isSelfAuthor = p.author === getDisplayUsername();
-            var authorBattleBtn = (!isSelfAuthor && currentUser)
-                ? `<button onclick="event.stopPropagation(); requestBattle('${escapeHtml(p.author).replace(/'/g,"\\'")}', event)"
-                       style="font-family:'Oswald',sans-serif;font-size:8px;font-weight:900;font-style:italic;text-transform:uppercase;background:transparent;border:1px solid #222;color:#444;padding:2px 7px;border-radius:5px;cursor:pointer;letter-spacing:.05em;transition:color .12s,border-color .12s;"
-                       onmouseover="this.style.color='#e8000d';this.style.borderColor='rgba(232,0,13,.4)'"
-                       onmouseout="this.style.color='#444';this.style.borderColor='#222'">⚡ 옥타곤</button>`
-                : '';
-
-            // Comments HTML
-            var commentsHtml = (p.comments || []).map(function(c) {
-                var isSelf = c.user === getDisplayUsername();
-                var battleBtn = (!isSelf && currentUser)
-                    ? `<button onclick="requestBattle('${escapeHtml(c.user).replace(/'/g,"\\'")}', event)"
-                           style="font-family:'Oswald',sans-serif;font-size:8px;font-weight:900;font-style:italic;text-transform:uppercase;background:transparent;border:1px solid #222;color:#444;padding:2px 7px;border-radius:5px;cursor:pointer;letter-spacing:.05em;transition:color .12s,border-color .12s;"
-                           onmouseover="this.style.color='#e8000d';this.style.borderColor='rgba(232,0,13,.4)'"
-                           onmouseout="this.style.color='#444';this.style.borderColor='#222'">⚡ 옥타곤</button>`
-                    : '';
-                return `
-                <div class="post-comment-block">
-                    <div class="post-comment-nick">
-                        <span>${escapeHtml(c.user)}</span>
-                        ${battleBtn}
-                    </div>
-                    <p class="post-comment-txt">${escapeHtml(c.text)}</p>
-                </div>`;
-            }).join('');
-
             return `
-            <div class="post-row" id="post-row-${origIdx}" onclick="togglePostExpand(${origIdx})">
+            <div class="post-row" id="post-row-${origIdx}" onclick="openPostDetail(${origIdx})">
                 <div><span class="post-type-tag ${tagCls}">${tagLbl}</span></div>
                 <div style="min-width:0;">
                     <div class="post-row-title">${title}</div>
@@ -259,37 +230,13 @@
                         ${isLiked ? '✅ 추천' : '🔥 추천'}
                     </button>
                 </div>
-            </div>
-            <div class="post-expand" id="post-expand-${origIdx}">
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #1a1a1a;">
-                    <span style="font-family:'Inter',sans-serif;font-size:11px;color:#888;">✍️ ${author} · ${belt}</span>
-                    ${authorBattleBtn}
-                </div>
-                <p class="post-expand-body">${content}</p>
-                <div id="post-com-list-${origIdx}">${commentsHtml}</div>
-                <div class="post-com-input-row">
-                    <input type="text" id="com-in-${origIdx}" class="post-com-input" placeholder="의견을 남겨주세요...">
-                    <button onclick="postCom(${origIdx})" class="post-com-send">SEND</button>
-                </div>
             </div>`;
         }).join('');
 
         container.innerHTML = header + '<div>' + rows + '</div>';
     }
 
-    function togglePostExpand(origIdx) {
-        var expandEl = document.getElementById('post-expand-' + origIdx);
-        var rowEl    = document.getElementById('post-row-'    + origIdx);
-        if (!expandEl) return;
-        var wasOpen = expandEl.classList.contains('open');
-        // close all
-        document.querySelectorAll('.post-expand.open').forEach(function(el) { el.classList.remove('open'); });
-        document.querySelectorAll('.post-row.is-expanded').forEach(function(el) { el.classList.remove('is-expanded'); });
-        if (!wasOpen) {
-            expandEl.classList.add('open');
-            if (rowEl) rowEl.classList.add('is-expanded');
-        }
-    }
+    function togglePostExpand(origIdx) { /* no-op: replaced by openPostDetail */ }
 
     var _communityMatchupsFetching = false;
 
@@ -356,6 +303,158 @@
         likePostInDB(dbId);
         save();
         renderFeed();
+    }
+
+    /* ── Post Detail Modal ── */
+    var _detailPostIdx    = -1;
+    var _detailPostDbId   = null;
+    var _detailEscHandler = null;
+
+    function openPostDetail(origIdx) {
+        var p = posts[origIdx];
+        if (!p) return;
+        _detailPostIdx  = origIdx;
+        _detailPostDbId = p.dbId;
+
+        var rawTitle = p.title || '';
+        var cat = _getPostCategory(rawTitle);
+        var catColors = {
+            analysis: '#e8000d', fighter: '#f59e0b', live: '#10b981',
+            news:     '#3b82f6', humor:   '#a855f7'
+        };
+        var catDisplay = {
+            analysis: { cls: 'cat-analysis', lbl: '🔥 분석' },
+            fighter:  { cls: 'cat-fighter',  lbl: '🗣️ 파이터' },
+            live:     { cls: 'cat-live',      lbl: '🔴 라이브' },
+            news:     { cls: 'cat-news',      lbl: '📰 뉴스' },
+            humor:    { cls: 'cat-humor',     lbl: '😂 유머' }
+        };
+
+        var bar = document.getElementById('pd-cat-bar');
+        if (bar) bar.style.background = catColors[cat] || '#333';
+
+        var badge = document.getElementById('pd-cat-badge');
+        if (badge) {
+            if (p.isPickShare) {
+                badge.className = 'post-type-tag pick'; badge.textContent = '🎯 픽';
+            } else if (catDisplay[cat]) {
+                badge.className = 'post-type-tag ' + catDisplay[cat].cls;
+                badge.textContent = catDisplay[cat].lbl;
+            } else {
+                badge.className = 'post-type-tag post'; badge.textContent = '✍️ 분석';
+            }
+        }
+
+        var setEl = function(id, val) { var e = document.getElementById(id); if (e) e.textContent = val; };
+        setEl('pd-date',    p.date || '');
+        setEl('pd-title',   _stripCatPrefix(rawTitle));
+        setEl('pd-content', p.content || '');
+
+        var authorEl = document.getElementById('pd-author');
+        if (authorEl) {
+            var factionSrc = p.faction
+                || (p.author === getDisplayUsername() && typeof currentFaction !== 'undefined' ? currentFaction : null);
+            var factionBadge = (typeof getFactionBadge === 'function' && factionSrc)
+                ? getFactionBadge(factionSrc) + ' ' : '';
+            var isSelf = p.author === getDisplayUsername();
+            var safeAuthor = escapeHtml(p.author || '').replace(/'/g, "\\'");
+            var battleBtn = (!isSelf && currentUser)
+                ? `<button onclick="requestBattle('${safeAuthor}', event)"
+                       style="font-family:'Oswald',sans-serif;font-size:8px;font-weight:900;font-style:italic;text-transform:uppercase;background:transparent;border:1px solid #222;color:#444;padding:2px 7px;border-radius:5px;cursor:pointer;letter-spacing:.05em;transition:color .12s,border-color .12s;"
+                       onmouseover="this.style.color='#e8000d';this.style.borderColor='rgba(232,0,13,.4)'"
+                       onmouseout="this.style.color='#444';this.style.borderColor='#222'">⚡ 옥타곤</button>`
+                : '';
+            authorEl.innerHTML = '✍️ ' + factionBadge + escapeHtml(p.author || 'UNKNOWN')
+                + ' · ' + escapeHtml(p.belt || 'White Belt') + ' ' + battleBtn;
+        }
+
+        _renderDetailComments(p.comments || []);
+        _syncDetailLikeBtn();
+
+        var statsEl = document.getElementById('pd-stats');
+        if (statsEl) statsEl.textContent = '🔥 ' + (p.likes || 0) + '  💬 ' + (p.comments || []).length;
+
+        var modal = document.getElementById('post-detail-modal');
+        if (modal) modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+
+        if (_detailEscHandler) document.removeEventListener('keydown', _detailEscHandler);
+        _detailEscHandler = function(e) { if (e.key === 'Escape') closePostDetail(); };
+        document.addEventListener('keydown', _detailEscHandler);
+    }
+
+    function closePostDetail() {
+        var modal = document.getElementById('post-detail-modal');
+        if (modal) modal.classList.add('hidden');
+        document.body.style.overflow = '';
+        _detailPostIdx  = -1;
+        _detailPostDbId = null;
+        if (_detailEscHandler) {
+            document.removeEventListener('keydown', _detailEscHandler);
+            _detailEscHandler = null;
+        }
+    }
+
+    function _renderDetailComments(comments) {
+        var listEl = document.getElementById('pd-com-list');
+        if (!listEl) return;
+        if (!comments || comments.length === 0) {
+            listEl.innerHTML = '<p style="font-size:10px;color:#333;font-style:italic;text-align:center;padding:12px 0;">첫 댓글을 남겨주세요</p>';
+            return;
+        }
+        listEl.innerHTML = comments.map(function(c) {
+            var isSelf = c.user === getDisplayUsername();
+            var safeUser = escapeHtml(c.user || '').replace(/'/g, "\\'");
+            var battleBtn = (!isSelf && currentUser)
+                ? `<button onclick="requestBattle('${safeUser}', event)"
+                       style="font-family:'Oswald',sans-serif;font-size:8px;font-weight:900;font-style:italic;text-transform:uppercase;background:transparent;border:1px solid #222;color:#444;padding:2px 7px;border-radius:5px;cursor:pointer;letter-spacing:.05em;transition:color .12s,border-color .12s;"
+                       onmouseover="this.style.color='#e8000d';this.style.borderColor='rgba(232,0,13,.4)'"
+                       onmouseout="this.style.color='#444';this.style.borderColor='#222'">⚡ 옥타곤</button>`
+                : '';
+            return `<div class="post-comment-block">
+                <div class="post-comment-nick"><span>${escapeHtml(c.user || '')}</span>${battleBtn}</div>
+                <p class="post-comment-txt">${escapeHtml(c.text || '')}</p>
+            </div>`;
+        }).join('');
+    }
+
+    async function sendDetailComment() {
+        if (_detailPostIdx < 0) return;
+        var p = posts[_detailPostIdx];
+        if (!p || p.dbId !== _detailPostDbId) return;
+        var input = document.getElementById('pd-com-input');
+        var text  = input ? input.value.trim() : '';
+        if (!text) return;
+        if (!currentUser) { showToast('⚠ 댓글은 로그인 후 작성할 수 있습니다'); return; }
+        var nick    = getDisplayUsername();
+        var comment = { user: nick, text: text.slice(0, 300) };
+        p.comments.push(comment);
+        if (input) input.value = '';
+        await addCommentToDB(p.dbId, nick, text.slice(0, 300));
+        save();
+        _renderDetailComments(p.comments);
+        var statsEl = document.getElementById('pd-stats');
+        if (statsEl) statsEl.textContent = '🔥 ' + (p.likes || 0) + '  💬 ' + p.comments.length;
+    }
+
+    function likePostFromDetail() {
+        if (_detailPostIdx < 0) return;
+        likePost(_detailPostIdx);
+        _syncDetailLikeBtn();
+        var p = posts[_detailPostIdx];
+        if (p) {
+            var statsEl = document.getElementById('pd-stats');
+            if (statsEl) statsEl.textContent = '🔥 ' + (p.likes || 0) + '  💬 ' + (p.comments || []).length;
+        }
+    }
+
+    function _syncDetailLikeBtn() {
+        var p   = (_detailPostIdx >= 0) ? posts[_detailPostIdx] : null;
+        var btn = document.getElementById('pd-like-btn');
+        if (!btn || !p) return;
+        var isLiked = likedPostIds.has(p.dbId);
+        btn.textContent = isLiked ? '✅ 추천' : '🔥 추천';
+        if (isLiked) btn.classList.add('liked'); else btn.classList.remove('liked');
     }
 
     // 롤링 랭킹: 최근 10경기 기반 점수 계산

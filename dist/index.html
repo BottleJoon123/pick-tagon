@@ -2409,6 +2409,54 @@ textarea, select {
 </div>
 
 <!-- ================================
+     COMMUNITY POST DETAIL MODAL
+================================ -->
+<div id="post-detail-modal" class="hidden fixed inset-0 z-[250] flex items-center justify-center p-4" style="background:rgba(0,0,0,0.92)" onclick="if(event.target===this)closePostDetail()">
+    <div class="glass-card rounded-[2rem] w-full max-w-2xl border border-white/10 flex flex-col max-h-[92vh]">
+        <!-- 카테고리 컬러 바 -->
+        <div id="pd-cat-bar" class="h-1 w-full rounded-t-[2rem] flex-shrink-0"></div>
+        <!-- 스크롤 본문 -->
+        <div class="flex-1 overflow-y-auto p-5 lg:p-8">
+            <!-- 헤더: 배지 + 날짜 + 닫기 -->
+            <div class="flex justify-between items-start mb-5 gap-4">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span id="pd-cat-badge" class="post-type-tag"></span>
+                    <span id="pd-date" class="oswald-sharp text-[9px] text-gray-600 italic"></span>
+                </div>
+                <button onclick="closePostDetail()" class="text-gray-500 hover:text-white text-2xl transition flex-shrink-0">✕</button>
+            </div>
+            <!-- 제목 -->
+            <h2 id="pd-title" class="oswald-sharp text-xl lg:text-2xl font-black italic text-white uppercase tracking-tight leading-snug mb-3"></h2>
+            <!-- 작성자 -->
+            <div id="pd-author" class="flex items-center gap-2 mb-6 pb-5 border-b border-white/10 text-[11px] text-gray-500 flex-wrap"></div>
+            <!-- 본문 -->
+            <p id="pd-content" class="text-gray-300 text-sm leading-relaxed mb-6 whitespace-pre-wrap"></p>
+            <!-- 댓글 목록 -->
+            <div id="pd-com-list" class="space-y-2 mb-5"></div>
+            <!-- 댓글 입력 -->
+            <div class="flex gap-2 pt-4 border-t border-white/10">
+                <input type="text" id="pd-com-input"
+                    class="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed"
+                    placeholder="의견을 남겨주세요..."
+                    onkeydown="if(event.key==='Enter')sendDetailComment()">
+                <button onclick="sendDetailComment()"
+                    class="oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black px-5 py-3 rounded-xl italic uppercase text-xs tracking-widest transition-all">
+                    SEND
+                </button>
+            </div>
+        </div>
+        <!-- 하단 고정 바: 좋아요 + 댓글 수 -->
+        <div class="flex items-center justify-between px-6 py-3 border-t border-white/10 rounded-b-[2rem] flex-shrink-0">
+            <button id="pd-like-btn" onclick="likePostFromDetail()"
+                class="post-act-btn oswald-sharp text-xs font-black italic uppercase tracking-wider">
+                🔥 추천
+            </button>
+            <span id="pd-stats" class="oswald-sharp text-[10px] text-gray-600 italic uppercase tracking-widest"></span>
+        </div>
+    </div>
+</div>
+
+<!-- ================================
      ARCHIVE EVENT MODAL
 ================================ -->
 <div id="archive-event-modal" class="hidden fixed inset-0 z-[200] flex items-center justify-center p-4" style="background:rgba(0,0,0,0.88)">
