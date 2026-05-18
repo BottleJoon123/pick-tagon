@@ -316,6 +316,10 @@
         _detailPostIdx  = origIdx;
         _detailPostDbId = p.dbId;
 
+        // 이전 댓글 입력 잔여 텍스트 초기화
+        var comInput = document.getElementById('pd-com-input');
+        if (comInput) comInput.value = '';
+
         var rawTitle = p.title || '';
         var cat = _getPostCategory(rawTitle);
         var catColors = {
