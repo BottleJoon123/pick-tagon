@@ -518,12 +518,13 @@ function computeStatsFromPerf(perf, division, baselines) {
         return wSum === 0 ? 50 : Math.round(vSum / wSum);
     }
 
+    function clamp(v) { return Math.max(45, Math.min(98, v)); }
     return [
-        wa([ [n(perf.slpm,   'slpm'),    0.55], [n(perf.strAcc, 'str_acc'), 0.45] ]),
-        wa([ [n(perf.tdAvg,  'td_avg'),  0.45], [n(perf.tdAcc,  'td_acc'),  0.35], [n(perf.subAvg, 'sub_avg'), 0.20] ]),
-        wa([ [ni(perf.sapm,  'sapm'),    0.60], [n(perf.decRate,'dec_rate'), 0.40] ]),
-        wa([ [n(perf.strDef, 'str_def'), 0.60], [n(perf.tdDef,  'td_def'),  0.40] ]),
-        wa([ [n(perf.slpm,   'slpm'),    0.40], [n(perf.koRate,  'ko_rate'), 0.35], [n(perf.strAcc, 'str_acc'), 0.25] ])
+        clamp(wa([ [n(perf.slpm,   'slpm'),    0.55], [n(perf.strAcc, 'str_acc'), 0.45] ])),
+        clamp(wa([ [n(perf.tdAvg,  'td_avg'),  0.45], [n(perf.tdAcc,  'td_acc'),  0.35], [n(perf.subAvg, 'sub_avg'), 0.20] ])),
+        clamp(wa([ [ni(perf.sapm,  'sapm'),    0.60], [n(perf.decRate,'dec_rate'), 0.40] ])),
+        clamp(wa([ [n(perf.strDef, 'str_def'), 0.60], [n(perf.tdDef,  'td_def'),  0.40] ])),
+        clamp(wa([ [n(perf.slpm,   'slpm'),    0.40], [n(perf.koRate,  'ko_rate'), 0.35], [n(perf.strAcc, 'str_acc'), 0.25] ]))
     ];
 }
 
@@ -657,6 +658,8 @@ function saveFighter() {
 
     saveAdmin();
     if (sb) {
+        // renderAdminFighterList는 RPC 완료 후 호출 — RPC보다 select가 먼저 끝나면
+        // fighterDB가 구버전으로 덮어씌워지는 race condition 방지
         sb.rpc('admin_upsert_fighter', { p_payload: {
             id: data.id, name: data.name, name_en: data.name_en,
             country: data.country, division: data.division,
@@ -671,11 +674,17 @@ function saveFighter() {
             td_def: data.tdDef, sub_avg: data.subAvg,
             ko_rate: data.koRate, sub_rate: data.subRate, dec_rate: data.decRate
         }}).then(function(res) {
-            if (res.error) console.warn('파이터 DB 저장 실패:', res.error.message);
+            if (res.error) {
+                showToast('⚠ DB 저장 실패: ' + res.error.message);
+                console.warn('파이터 DB 저장 실패:', res.error.message);
+            } else {
+                renderAdminFighterList();
+            }
         });
+    } else {
+        renderAdminFighterList();
     }
     closeFighterModal();
-    renderAdminFighterList();
 }
 
 function deleteFighter(fighterId) {
