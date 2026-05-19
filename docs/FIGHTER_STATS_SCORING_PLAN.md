@@ -1,7 +1,7 @@
 # Fighter Stats Auto-Scoring Plan
 
 작성: 2026-05-18
-업데이트: 2026-05-19 (Step B RPC 구현 + dry_run 검증 + raw stat 데이터 공백 발견)
+업데이트: 2026-05-19 (Step B RPC 구현 + dry_run 검증 + raw stat 데이터 수급 전략 수립)
 구현 상태: Step A 완료 + Race-condition 버그 수정 + clamp [45, 98] 적용 + Step B RPC 배포 완료 (dry_run=true 검증 통과)
 
 ---
@@ -213,6 +213,146 @@ RPC 실패 시 console.warn 외에 `showToast()` 추가.
 2. admin UI 자동 계산 버튼으로 파이터 개별 입력하거나, UFC Stats 스크래퍼로 bulk 입력
 3. dry_run=true 재실행 → before/after 샘플이 다양한 값으로 나오는지 확인
 4. 승인 후 dry_run=false 실행
+
+---
+
+## Raw Stat 데이터 수급 전략 (2026-05-19)
+
+### 현황 분석
+
+| 식별자/컬럼 | 보유 수 | 비고 |
+|---|---|---|
+| `fighters` 총 행수 | 940 | |
+| `espn_id` | 814 | 86.6% 보유 |
+| `ufc_stats_id` | 0 | 컬럼만 존재 (미입력) |
+| `name_en` | 940 | 100% (매칭 키 사용 가능) |
+| `ko_rate` / `dec_rate` / `sub_rate` | 811 | ESPN 소스 추정, % 단위 (0–100) |
+| `slpm` / `str_acc` / `sapm` / `str_def` | **0** | UFCStats.com 소스, 전체 미입력 |
+| `td_avg` / `td_acc` / `td_def` / `sub_avg` | **0** | UFCStats.com 소스, 전체 미입력 |
+
+→ 8개 missing stat은 **ufcstats.com** 에서만 제공하는 필드이며, 현재 하나도 없다.
+
+### 추천 방식: Hybrid (Python 스크래퍼 + SQL Staging)
+
+| 방식 | 장점 | 단점 |
+|---|---|---|
+| Admin UI 개별 입력 | 즉시 가능 | 940명 × 8필드 = 7,520 입력, 비현실적 |
+| CSV 직접 import | 빠름 | 매칭 오류 처리 불가, 비가역적 위험 |
+| **Python 스크래퍼 + Staging** | 재현 가능, 감사 가능, 단계별 검증 | 구현 필요 |
+| UFC Stats API | N/A | 공개 API 없음 |
+
+**→ Python 스크래퍼로 ufcstats.com 데이터 수집 → SQL staging 테이블 → 매칭 리포트 → admin 검토 → bulk apply**
+
+### UFC Stats 데이터 소스
+
+- 사이트: `http://ufcstats.com/statistics/fighters?char=a&page=all` (a–z 알파벳별)
+- 파이터 상세: `http://ufcstats.com/fighter-details/{ufc_stats_id}` (hash 형태)
+- 스탯 필드 (1:1 매핑):
+
+| ufcstats.com 표시 | DB 컬럼 |
+|---|---|
+| SLpM (Sig. Str. Landed/min) | `slpm` |
+| Str. Acc. | `str_acc` |
+| SApM (Sig. Str. Absorbed/min) | `sapm` |
+| Str. Def. | `str_def` |
+| TD Avg. (per 15min) | `td_avg` |
+| TD Acc. | `td_acc` |
+| TD Def. | `td_def` |
+| Sub. Avg. (per 15min) | `sub_avg` |
+
+스크래퍼 동시에 **`ufc_stats_id`(URL hash)도 추출** → `fighters.ufc_stats_id` 컬럼에 저장 → 이후 재매칭 영구 정확화.
+
+### Staging 테이블 스키마 초안
+
+```sql
+CREATE TABLE public.fighter_stats_staging (
+    id              BIGSERIAL   PRIMARY KEY,
+    import_batch    TEXT        NOT NULL,          -- 'ufcstats_20260520' 등
+    source_ufc_stats_id TEXT,                      -- ufcstats.com URL hash
+    source_name     TEXT        NOT NULL,           -- 원본 영문명
+    slpm            NUMERIC,
+    str_acc         NUMERIC,
+    sapm            NUMERIC,
+    str_def         NUMERIC,
+    td_avg          NUMERIC,
+    td_acc          NUMERIC,
+    td_def          NUMERIC,
+    sub_avg         NUMERIC,
+    -- 매칭 결과
+    matched_fighter_id   TEXT,                     -- fighters.id
+    match_method         TEXT,                     -- 'exact_name' | 'fuzzy_name' | 'manual' | 'unmatched'
+    match_confidence     NUMERIC,                  -- 0–100
+    match_note           TEXT,
+    -- 처리 상태
+    status          TEXT    DEFAULT 'pending',     -- 'pending' | 'approved' | 'rejected' | 'applied'
+    reviewed_by     UUID,
+    reviewed_at     TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### Name Matching 정책
+
+**정규화 규칙 (양쪽 동일 적용):**
+1. 소문자 변환
+2. Unicode NFC 정규화 (악센트 문자 통일)
+3. 앞뒤 공백 제거
+4. 하이픈 · 아포스트로피 제거
+
+**매칭 우선순위:**
+
+| 우선순위 | 방법 | confidence | 처리 |
+|---|---|---|---|
+| 1 | `ufc_stats_id` 직접 매칭 | 100 | 자동 승인 |
+| 2 | `name_en` 정규화 완전 일치 | 100 | 자동 승인 |
+| 3 | Levenshtein 거리 ≤ 2 | 85 | **admin 검토 필요** |
+| 4 | 후보 복수 (동명이인) | — | ambiguous, **수동 지정** |
+| 5 | 매칭 실패 | 0 | unmatched, **수동 지정 또는 skip** |
+
+**리스크 케이스:**
+- id에 `-0`, `-1` 접미사 파이터 (동명이인): 수동 검토 대상
+- URL-encoded Cyrillic id (예: `%D0%9C...`): name_en 기준 매칭으로 처리 가능
+- 닉네임/약칭 등록 파이터: unmatched로 분류 후 수동 지정
+
+### Dry-run Report 설계
+
+staging 테이블 채워진 후 `admin_match_staging_report()` (또는 SELECT 쿼리)로 출력:
+
+```json
+{
+  "import_batch": "ufcstats_20260520",
+  "total_staged": 3800,
+  "matched_in_fighters_db": 895,
+  "match_exact": 820,
+  "match_fuzzy": 45,
+  "match_manual": 30,
+  "unmatched": 45,
+  "match_rate_pct": 95.2,
+  "ambiguous": 12
+}
+```
+
+### 실제 UPDATE 전 QA 체크리스트
+
+- [ ] staging 매칭률 ≥ 90%
+- [ ] fuzzy/manual 매칭 케이스 전원 admin 검토 완료 (status = 'approved')
+- [ ] ambiguous 케이스 전원 해소
+- [ ] `admin_recompute_fighter_stats(true)` 재실행
+  - after_stats 분포가 [45–98] 범위 전반에 분포하는지 확인 (기존처럼 [50,50,98,50,98] 수렴 없어야 함)
+  - 이미 수동 입력된 파이터(예: Dooho Choi)의 before/after 비교가 합리적인지 확인
+- [ ] 샘플 10명 수동 공식 검증 (JS computeStatsFromPerf 결과와 SQL 결과 일치 확인)
+- [ ] admin 최종 승인 후 `admin_recompute_fighter_stats(false)` 실행
+
+### 다음 작업 단계
+
+1. Python 스크래퍼 작성 (`scripts/scrape_ufcstats.py`)
+   - ufcstats.com a–z 전체 파이터 리스트 → 개별 페이지 → 8개 stat + ufc_stats_id 추출
+   - 산출물: `ufcstats_fighters.csv`
+2. `fighter_stats_staging` 테이블 migration 작성 + 적용
+3. CSV → staging 테이블 import (psql COPY 또는 Python INSERT)
+4. 매칭 SQL 실행 → match report 확인
+5. 미매칭/ambiguous admin 검토
+6. dry-run 재실행 → QA 통과 → 승인 → apply
 
 ---
 
