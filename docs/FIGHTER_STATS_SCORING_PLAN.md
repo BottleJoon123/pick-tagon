@@ -1,8 +1,8 @@
 # Fighter Stats Auto-Scoring Plan
 
 작성: 2026-05-18
-업데이트: 2026-05-19 (Step B RPC 구현 + dry_run 검증 + raw stat 데이터 수급 전략 수립)
-구현 상태: Step A 완료 + Race-condition 버그 수정 + clamp [45, 98] 적용 + Step B RPC 배포 완료 (dry_run=true 검증 통과)
+업데이트: 2026-05-19 (Step B RPC 구현 + dry_run 검증 + raw stat 데이터 수급 전략 수립 + UFCStats 스크래퍼 완료 + CSV 검증 완료)
+구현 상태: Step A 완료 + Race-condition 버그 수정 + clamp [45, 98] 적용 + Step B RPC 배포 완료 (dry_run=true 검증 통과) + UFCStats CSV 수집 완료 (4,494건)
 
 ---
 
@@ -343,13 +343,42 @@ staging 테이블 채워진 후 `admin_match_staging_report()` (또는 SELECT �
 - [ ] 샘플 10명 수동 공식 검증 (JS computeStatsFromPerf 결과와 SQL 결과 일치 확인)
 - [ ] admin 최종 승인 후 `admin_recompute_fighter_stats(false)` 실행
 
+### Step 1: UFCStats 스크래퍼 실행 결과 (2026-05-19 완료)
+
+`scripts/scrape_ufcstats.py` 실행 완료.
+
+| 항목 | 값 |
+|---|---|
+| 수집 대상 | ufcstats.com 전체 파이터 a–z |
+| 수집 행수 | 4,485행 (1차 실행) |
+| 재수집 성공 | 9행 (`scripts/rescrape_failed.py`) |
+| **최종 합계** | **4,494행** |
+| null 컬럼 | 0 (전 stat 컬럼 완전 채워짐) |
+| 범위 위반 | 0 |
+| 중복 ufc_stats_id | 0 |
+| 중복 name_en | 7건 (정상 동명이인) |
+| 전 stat 0.0 파이터 | 718 (UFC 경기 없음, 유효) |
+
+**실패 9건 원인**: `_get()` retry 메시지의 em-dash(`—`) 문자 → Windows cp949 콘솔 인코딩 에러.  
+→ hyphen(`-`)으로 교체 수정 완료 (`scripts/scrape_ufcstats.py`), 재수집 전원 성공.
+
+**출력 파일**: `data/ufcstats_fighters_raw.csv` (로컬 전용, 커밋/DB import 금지)
+
+**Notable fighters 검증 (일부):**
+
+| 파이터 | slpm | str_acc | sapm | str_def | td_avg | td_acc | td_def | sub_avg |
+|---|---|---|---|---|---|---|---|---|
+| Islam Makhachev | 2.45 | 50% | 2.01 | 72% | 4.57 | 37% | 90% | 0.8 |
+| Khamzat Chimaev | 4.01 | 57% | 2.71 | 62% | 6.37 | 65% | 76% | 1.5 |
+| Jon Jones | 4.38 | 57% | 2.22 | 64% | 1.89 | 44% | 94% | 0.9 |
+| Conor McGregor | 5.32 | 50% | 4.66 | 54% | 0.68 | 50% | 67% | 0.1 |
+| Luke Rockhold | 4.10 | 49% | — | — | — | — | — | — |
+
 ### 다음 작업 단계
 
-1. Python 스크래퍼 작성 (`scripts/scrape_ufcstats.py`)
-   - ufcstats.com a–z 전체 파이터 리스트 → 개별 페이지 → 8개 stat + ufc_stats_id 추출
-   - 산출물: `ufcstats_fighters.csv`
-2. `fighter_stats_staging` 테이블 migration 작성 + 적용
-3. CSV → staging 테이블 import (psql COPY 또는 Python INSERT)
+1. ~~Python 스크래퍼 작성~~ **완료** (`scripts/scrape_ufcstats.py`, CSV 4,494행)
+2. `fighter_stats_staging` 테이블 migration 작성 + 적용 ← **다음 단계**
+3. CSV → staging 테이블 import (Python INSERT)
 4. 매칭 SQL 실행 → match report 확인
 5. 미매칭/ambiguous admin 검토
 6. dry-run 재실행 → QA 통과 → 승인 → apply

@@ -90,7 +90,7 @@ def _get(url, session):
         except requests.RequestException as e:
             if attempt < RETRY_MAX:
                 wait = RETRY_WAIT * attempt
-                print(f"    [retry {attempt}/{RETRY_MAX}] {e} — wait {wait}s")
+                print(f"    [retry {attempt}/{RETRY_MAX}] {e} - wait {wait}s")
                 time.sleep(wait)
             else:
                 raise
