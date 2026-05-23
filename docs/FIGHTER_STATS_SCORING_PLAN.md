@@ -581,29 +581,35 @@ apply 실행 시 `admin_audit_logs`에 per-fighter 기록:
 ## Step 4 — UFCStats Staging Approval 정책
 
 업데이트: 2026-05-23  
-상태: 정책 확정 / SQL 초안 작성 완료 / 동명이인 4케이스 DB 교차검증 완료 / **실제 `approved=true` 세팅 미완료 (다음 단계)**
+상태: **실행 완료** — approved=true 880건 세팅 완료 (2026-05-23) / fighters 테이블 변경 없음
 
 ---
 
-### 승인 분류 요약
+### 승인 분류 요약 (2026-05-23 실행 완료)
 
-| 분류 | 건수 | 조치 |
-|---|---|---|
-| 자동 승인 대상 (중복 없는 exact match, 전 stat 비NULL) | **852건** | auto-approve SQL 실행 |
-| 수동 승인 — 동명이인 중복 4쌍 (8건) | **4 fighters** | DB+ESPN 교차검증 완료 → 각 1건 확정 (승인 SQL 준비됨) |
-| 수동 승인 — 미매칭 + staging 후보 있음 | **24 fighters** | `matched_fighter_id` UPDATE 후 승인 |
-| 조사 필요 — staging 후보 없음 | **59 fighters** | UFCStats 미등재 확인 or skip |
-| 제외 | `testy-test` | skip |
+| 분류 | 계획 | 실행 결과 | 상태 |
+|---|---|---|---|
+| auto-approve (exact match, 전 stat 비NULL) | 852건 | **852건** (match_reason=name_match) | ✅ 완료 |
+| 수동 — 동명이인 중복 4건 | 4건 | **4건** (match_reason=manual_duplicate_resolved) | ✅ 완료 |
+| 수동 — 악센트/특수문자 불일치 | 15건 | **15건** (match_reason=manual_diacritic) | ✅ 완료 |
+| 수동 — 아포스트로피 불일치 | 3건 | **3건** (match_reason=manual_apostrophe) | ✅ 완료 |
+| 수동 — 이름 형식 불일치 | 6건 | **6건** (match_reason=manual_name_format) | ✅ 완료 |
+| **합계 approved=true** | **880건** | **880건** | ✅ |
+| invalid_approved (조건 불충족) | 0건 | **0건** | ✅ |
+| 중복 approved fighter_id | 0건 | **0건** | ✅ |
+| 조사 필요 — staging 후보 없음 | 59 fighters | 미처리 | 추후 |
+| 제외 | `testy-test` | skip | — |
+
+**fighters 테이블: slpm 전부 NULL (940/940) — 변경 없음 확인.**
 
 ---
 
-### Auto-Approve SQL (설계용 — 실행 금지)
+### Auto-Approve SQL (실행 완료 — 2026-05-23)
 
 중복 없는 exact match rows 852건을 `approved=true`로 설정.
 
 ```sql
--- ⚠ 이 SQL은 설계 초안입니다. 실행 전 반드시 별도 승인 받을 것.
--- 실행 시 approved=true 행이 생성되어 apply_staging_to_fighters.py --execute 가능 상태가 됨.
+-- 실행 완료: 2026-05-23, 852건 approved=true 세팅됨
 WITH dup_fighters AS (
   SELECT matched_fighter_id
   FROM public.fighter_stats_staging
@@ -890,12 +896,15 @@ UFCStats에 미등재 가능성 (신규 데뷔, 등록명 상이, 비UFCStats �
   - [x] `jean-silva` → staging B (id=3837) 유력 (A: slpm=0.73 ko_rate 70% 불일치)
   - [x] `bruno-silva` → staging A (id=3826) 유력 (sub_rate 33% vs sub_avg=0.2 일치)
 
-**다음 단계 (순서대로):**
-- [x] `bruno-silva` ESPN 교차검증 완료 (2026-05-23) → staging A (id=3826) 확정
-- [ ] 동명이인 4건 수동 승인 SQL 실행 (승인 필요): staging id=**898, 4250, 3837, 3826**
-- [ ] 수동 처리 B 24명 `matched_fighter_id` UPDATE SQL 준비 및 적용
-- [ ] Auto-approve SQL 실행 (`852건` — 별도 승인 필요)
-- [ ] `report_staging_apply.py` 재실행 → `approved=true` 수 확인, 무효 approved=0건 확인
+**완료된 항목 (2026-05-23):**
+- [x] `bruno-silva` ESPN 교차검증 완료 → staging A (id=3826) 확정
+- [x] 동명이인 4건 수동 승인 실행: staging id=898, 4250, 3837, 3826 → approved=true
+- [x] 수동 처리 B 24명 `matched_fighter_id` UPDATE + approved=true 실행
+- [x] Auto-approve SQL 실행 (852건 → approved=true)
+- [x] 검증: approved=880건, invalid_approved=0, 중복 approved=0, fighters 무변경
+
+**다음 단계:**
+- [ ] `report_staging_apply.py` 재실행 → STATUS: READY 확인
 - [ ] `apply_staging_to_fighters.py --batch ufcstats_20260519` dry-run 실행
 - [ ] 최종: `apply_staging_to_fighters.py --batch ufcstats_20260519 --execute` (별도 승인 필요)
 
