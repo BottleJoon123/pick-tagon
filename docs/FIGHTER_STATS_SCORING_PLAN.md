@@ -426,6 +426,153 @@ Aalon Cruz, Aaron Brink, Aaron Ely, Aaron Jeffery, Aaron Lanfranco, Aaron Miller
 
 ---
 
+## Step 3: Approved Raw Stat Apply 설계 (2026-05-23)
+
+### 개요
+
+`fighter_stats_staging`에서 admin이 승인한 rows만 `fighters` 테이블 raw stat 컬럼에 반영한다.
+`fighters.stats[]` 배열 재계산은 별도 Step (admin_recompute_fighter_stats)으로 분리.
+
+### 현재 상태 스냅샷 (2026-05-23 기준)
+
+| 항목 | 값 |
+|---|---|
+| staging 전체 rows | 4,494 |
+| approved=true | **0** (아직 미승인) |
+| exact match rows | 860 |
+| unique matched fighters | 856 |
+| 중복 matched_fighter_id | 4건 (Mike Davis, Victor Valenzuela, Jean Silva, Bruno Silva) |
+| fighters raw stat 현황 | 전체 NULL (overwrite 위험 없음) |
+| 미매칭 활성 파이터 | **84명** |
+
+### Apply 조건 (모두 충족 필수)
+
+| 조건 | 설명 |
+|---|---|
+| `approved = true` | admin 검토 후 명시적 승인 필수 |
+| `matched_fighter_id IS NOT NULL` | 매칭된 파이터 없으면 적용 불가 |
+| `match_status = 'exact'` | exact 매칭만 허용 (fuzzy/ambiguous 불가) |
+| `import_batch = 'ufcstats_20260519'` | 배치 명시 필수 |
+| 중복 시 `MAX(id)` 선택 | 동일 파이터에 staging 2개 이상이면 최신 row(최대 id) 우선 |
+
+### 업데이트 대상 컬럼 (fighters 테이블)
+
+```
+slpm, str_acc, sapm, str_def, td_avg, td_acc, td_def, sub_avg, stats_updated_at
+```
+
+**업데이트하지 않는 컬럼**: `stats[]`, `ufc_stats_id`, `ko_rate`, `dec_rate`, `sub_rate`, 기타 모든 컬럼
+
+### Apply SQL (참고용 — 직접 실행 금지)
+
+```sql
+UPDATE public.fighters f
+SET
+  slpm             = s.slpm,
+  str_acc          = s.str_acc,
+  sapm             = s.sapm,
+  str_def          = s.str_def,
+  td_avg           = s.td_avg,
+  td_acc           = s.td_acc,
+  td_def           = s.td_def,
+  sub_avg          = s.sub_avg,
+  stats_updated_at = NOW()
+FROM (
+  SELECT DISTINCT ON (matched_fighter_id)
+    matched_fighter_id,
+    slpm, str_acc, sapm, str_def, td_avg, td_acc, td_def, sub_avg
+  FROM public.fighter_stats_staging
+  WHERE import_batch        = 'ufcstats_20260519'
+    AND approved            = true
+    AND matched_fighter_id  IS NOT NULL
+    AND match_status        = 'exact'
+  ORDER BY matched_fighter_id, id DESC   -- 중복 시 최신 row 선택
+) s
+WHERE f.id = s.matched_fighter_id;
+```
+
+### 중복 matched_fighter_id 4건 분석
+
+| fighter_id | source_names | 원인 |
+|---|---|---|
+| `maiku-teihisu` | Mike Davis \| Mike Davis | late-addition 재스크래핑 중복 |
+| `victor-valenzuela-0` | Victor Valenzuela \| Victor Valenzuela | late-addition 재스크래핑 중복 |
+| `jean-silva` | Jean Silva \| Jean Silva | late-addition 재스크래핑 중복 |
+| `bruno-silva` | Bruno Silva \| Bruno Silva | late-addition 재스크래핑 중복 |
+
+→ source_name 동일하므로 어느 row든 동일 값. MAX(id) 선택으로 안전하게 처리 가능.
+
+### 미매칭 활성 파이터 84명 원인 분석
+
+| 원인 유형 | 예시 | 조치 |
+|---|---|---|
+| 특수문자 불일치 | Aleksandar Rakić (`ć`), Brando Peričić (`č`) | 수동 `source_ufc_stats_id` 직접 지정 |
+| 아포스트로피 | Lone'er Kavanagh, Ode' Osbourne | 수동 지정 |
+| 최근 UFC 데뷔 | Davi Costa, Jung Hyun Lee 등 | UFCStats 미등재일 가능성 |
+| 테스트 레코드 | Testy Test | skip 처리 |
+| 이름 변형 | Jose Miguel Delgado (→ Jose Delgado?) | 수동 지정 |
+
+→ 84명 중 "Testy Test" 1건 제외, 나머지는 수동 `matched_fighter_id` + `approved=true` 세팅으로 해소 가능.
+
+### 스크립트
+
+| 파일 | 역할 | 실행 안전성 |
+|---|---|---|
+| `scripts/report_staging_apply.py` | 읽기 전용 dry-run 리포트 | 항상 안전 |
+| `scripts/apply_staging_to_fighters.py` | 기본: dry-run / `--execute`: 실제 적용 | `--execute` 없으면 안전 |
+
+```bash
+# 현재 상태 리포트 (안전)
+python scripts/report_staging_apply.py --batch ufcstats_20260519
+
+# Dry-run (안전 — 실제 변경 없음)
+python scripts/apply_staging_to_fighters.py --batch ufcstats_20260519
+
+# 실제 적용 (승인 후에만 — 별도 확인 프롬프트 있음)
+python scripts/apply_staging_to_fighters.py --batch ufcstats_20260519 --execute
+```
+
+### Apply 전 QA 체크리스트
+
+- [ ] `approved=true` 행 수 ≥ 1 (현재: 0)
+- [ ] 무효 approved rows = 0 (matched_fighter_id NULL, match_status != 'exact')
+- [ ] 중복 matched_fighter_id 확인 (현재 4건, 동일값 → 안전)
+- [ ] overwrite 위험 확인 (현재: 0건 → 안전)
+- [ ] `report_staging_apply.py` 실행 → STATUS: READY 확인
+- [ ] 미매칭 84명 중 현역 파이터 수동 처리 (또는 skip 명시)
+- [ ] `apply_staging_to_fighters.py` dry-run 실행 → 예상 출력 검토
+- [ ] admin 최종 승인 후 `--execute` 실행
+
+### Audit 로그
+
+apply 실행 시 `admin_audit_logs`에 per-fighter 기록:
+
+```json
+{
+  "action": "ufc_stats_bulk_apply",
+  "entity_table": "fighters",
+  "entity_id": "<fighter_id>",
+  "before_data": { "slpm": null, "str_acc": null, ... },
+  "after_data":  { "slpm": 4.38, "str_acc": 57.0, ... },
+  "metadata": {
+    "import_batch":        "ufcstats_20260519",
+    "staging_id":          12345,
+    "source_name":         "Jon Jones",
+    "source_ufc_stats_id": "abcd1234"
+  }
+}
+```
+
+### Step 4 (apply 후 별도 단계)
+
+1. `admin_recompute_fighter_stats(p_dry_run=true)` 재실행
+   - `after_stats` 분포가 `[45–98]` 전반으로 다양하게 분포하는지 확인
+   - 기존 `[50,50,98,50,98]` 수렴 패턴 해소 여부 검증
+2. 샘플 10명 수동 공식 검증
+3. `admin_recompute_fighter_stats(p_dry_run=false)` — **별도 승인 필요**
+
+---
+
 ## Finding: fight.f1.stats: [] 문제
 
 `api/supabase.js` matchup 빌드 시 `stats: []` 하드코딩 (line 383-384).
