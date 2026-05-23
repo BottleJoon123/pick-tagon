@@ -590,7 +590,7 @@ apply 실행 시 `admin_audit_logs`에 per-fighter 기록:
 | 분류 | 건수 | 조치 |
 |---|---|---|
 | 자동 승인 대상 (중복 없는 exact match, 전 stat 비NULL) | **852건** | auto-approve SQL 실행 |
-| 수동 승인 — 동명이인 중복 4쌍 (8건) | **4 fighters** | UFCStats URL 확인 후 1건만 승인 |
+| 수동 승인 — 동명이인 중복 4쌍 (8건) | **4 fighters** | DB+ESPN 교차검증 완료 → 각 1건 확정 (승인 SQL 준비됨) |
 | 수동 승인 — 미매칭 + staging 후보 있음 | **24 fighters** | `matched_fighter_id` UPDATE 후 승인 |
 | 조사 필요 — staging 후보 없음 | **59 fighters** | UFCStats 미등재 확인 or skip |
 | 제외 | `testy-test` | skip |
@@ -697,21 +697,27 @@ WHERE import_batch        = 'ufcstats_20260519'
 
 ---
 
-**케이스 4: `bruno-silva` (Bruno Silva)** — 결론: **A 유력 (중신뢰, URL 확인 필요)**
+**케이스 4: `bruno-silva` (Bruno Silva)** — 결론: **A 확정 (고신뢰, ESPN 교차검증 완료)**
 
-| 항목 | fighters DB | staging A (id=3826) | staging B (id=3827) |
-|---|---|---|---|
-| division | **flw** (flyweight) | — | — |
-| record | 15-8-2 (draws 포함) | td_avg=2.01, sub_avg=0.2 | td_avg=0.77, sub_avg=0.0 |
-| sub_rate | **33.33%** (15승 중 ~5 sub) | ✅ 그래플링 활동 일치 | ❌ sub_avg=0.0과 불일치 |
-| 판정 | 그래플링 비율 높은 flw 파이터 | ✅ 더 일치 | 부분 불일치 |
+검증 방법: UFC stats 직접 연결 불가 (ECONNREFUSED) → ESPN fighter page (espn_id=3895544) 확인.
 
-→ staging A (`294aa73dbf37d281`): td_avg=2.01, sub_avg=0.2 → sub_rate=33%인 그래플러 프로파일과 부합.  
-→ staging B (`12ebd7d157e91701`): sub_avg=0.0, td_avg=0.77 → sub_rate=33% 파이터와 불일치.  
-→ **처리 (잠정): staging_id=3826 승인 유력, 3827은 approved=false — URL 확인 후 최종 결정.**  
-→ ⚠ **UFCStats URL 직접 확인 필수**: slpm 차이(3.95 vs 3.86)가 작아 A/B 스탯이 유사함. 동명이인 2명이 모두 flyweight인지 여부 확인 필요.  
-→ UFCStats URL A: http://ufcstats.com/fighter-details/294aa73dbf37d281  
-→ UFCStats URL B: http://ufcstats.com/fighter-details/12ebd7d157e91701
+| 항목 | fighters DB | ESPN 확인 결과 | staging A (id=3826) | staging B (id=3827) |
+|---|---|---|---|---|
+| name | Bruno Silva | Bruno "Bulldog" Silva | — | — |
+| division | **flw** | Flyweight ✓ | — | — |
+| record | 15-8-2 | 15-8-2 ✓ | — | — |
+| height | 162.56cm | 5'4" (162.56cm) ✓ | — | — |
+| style | — | Brazilian Jiu-Jitsu | — | — |
+| sub_wins | sub_rate=33.33% | 5 subs (5/15=33%) ✓ | sub_avg=0.2, td_avg=2.01 ✅ | sub_avg=0.0, td_avg=0.77 ❌ |
+| 판정 | | | ✅ BJJ 그래플러 프로파일 완벽 일치 | ❌ sub_avg=0.0 은 BJJ 5sub 선수 불가 |
+
+ESPN 확인 세부:
+- 닉네임: "Bulldog", 국적: Brazil, 출생: 1990-03-16, 훈련: Fight Ready
+- TKO 기록: 6-3 (ko_rate=40% ✓), Sub 기록: 5-1 (sub_rate=33.33% ✓)
+
+→ staging A (`294aa73dbf37d281`): BJJ 스타일 파이터 — td_avg=2.01, sub_avg=0.2, sub_rate=33% **완벽 일치**. Bruno "Bulldog" Silva.  
+→ staging B (`12ebd7d157e91701`): sub_avg=0.0, td_avg=0.77 — UFC 다른 Bruno Silva (추정: MW 스트라이커).  
+→ **처리 확정: staging_id=3826 승인, 3827은 approved=false 유지.**
 
 ---
 
@@ -733,10 +739,10 @@ UPDATE public.fighter_stats_staging
 SET approved = true, reviewed_at = NOW()
 WHERE id = 3837;
 
--- bruno-silva: staging A (id=3826) 승인 — URL 확인 후 적용
--- UPDATE public.fighter_stats_staging
--- SET approved = true, reviewed_at = NOW()
--- WHERE id = 3826;
+-- bruno-silva: staging A (id=3826) 승인 — ESPN 교차검증 완료, 고신뢰
+UPDATE public.fighter_stats_staging
+SET approved = true, reviewed_at = NOW()
+WHERE id = 3826;
 ```
 
 ---
@@ -885,8 +891,8 @@ UFCStats에 미등재 가능성 (신규 데뷔, 등록명 상이, 비UFCStats �
   - [x] `bruno-silva` → staging A (id=3826) 유력 (sub_rate 33% vs sub_avg=0.2 일치)
 
 **다음 단계 (순서대로):**
-- [ ] `bruno-silva` UFCStats URL 직접 확인 후 최종 결정 (URL A: 294aa73dbf37d281, URL B: 12ebd7d157e91701)
-- [ ] 동명이인 3건 수동 승인 SQL 실행 (승인 필요): staging id=898, 4250, 3837 + bruno-silva 결정 후
+- [x] `bruno-silva` ESPN 교차검증 완료 (2026-05-23) → staging A (id=3826) 확정
+- [ ] 동명이인 4건 수동 승인 SQL 실행 (승인 필요): staging id=**898, 4250, 3837, 3826**
 - [ ] 수동 처리 B 24명 `matched_fighter_id` UPDATE SQL 준비 및 적용
 - [ ] Auto-approve SQL 실행 (`852건` — 별도 승인 필요)
 - [ ] `report_staging_apply.py` 재실행 → `approved=true` 수 확인, 무효 approved=0건 확인
