@@ -581,7 +581,7 @@ apply 실행 시 `admin_audit_logs`에 per-fighter 기록:
 ## Step 4 — UFCStats Staging Approval 정책
 
 업데이트: 2026-05-23  
-상태: **실행 완료** — approved=true 880건 세팅 완료 (2026-05-23) / fighters 테이블 변경 없음
+상태: **전체 완료** — approved=true 880건 + fighters raw stat 880명 반영 완료 (2026-05-23)
 
 ---
 
@@ -903,13 +903,16 @@ UFCStats에 미등재 가능성 (신규 데뷔, 등록명 상이, 비UFCStats �
 - [x] Auto-approve SQL 실행 (852건 → approved=true)
 - [x] 검증: approved=880건, invalid_approved=0, 중복 approved=0, fighters 무변경
 
-**완료된 항목 (2026-05-23 — final dry-run):**
-- [x] `report_staging_apply.py` 등가 SQL 검증 → **STATUS: READY**
+**완료된 항목 (2026-05-23 — final dry-run + apply):**
+- [x] `report_staging_apply.py` 등가 SQL 검증 → STATUS: READY
 - [x] `apply_staging_to_fighters.py` dry-run 등가 SELECT → 880명 would_update, overwrite=0 확인
-- [x] fighters slpm NULL 940/940 — 무변경 확인
+- [x] fighters slpm NULL 940/940 — apply 전 무변경 확인
+- [x] **apply 실행 완료 → fighters raw stat 880명 반영, 8컬럼 전부 일치**
+- [x] **post-apply 검증: slpm_filled=880, mismatch=0, stats[] 미변경**
 
 **다음 단계:**
-- [ ] 최종: `apply_staging_to_fighters.py --batch ufcstats_20260519 --execute` (별도 승인 필요)
+- [ ] `admin_recompute_fighter_stats(p_dry_run=true)` 실행 → stats[] 배열 재계산 검증 (별도 승인 필요)
+- [ ] `admin_recompute_fighter_stats(p_dry_run=false)` 실행 (별도 승인 필요)
 
 ---
 
@@ -939,7 +942,7 @@ min_slpm / max_slpm   : 0.00 / 15.77
 fighters raw stat (pre-apply): slpm NULL = 940/940
 ```
 
-### execute 전 최종 체크리스트
+### Execute 체크리스트 — 완료
 
 - [x] approved=880건 (852 auto + 4 manual_dup + 15 diacritic + 3 apostrophe + 6 name_format)
 - [x] invalid_approved=0
@@ -947,15 +950,19 @@ fighters raw stat (pre-apply): slpm NULL = 940/940
 - [x] overwrite 위험=0 (fighters raw stat 전부 NULL)
 - [x] fighters 미존재 approved row=0
 - [x] stat 분포 정상 (avg_slpm=3.96, max=15.77 → 이상값 없음)
-- [ ] **`apply_staging_to_fighters.py --batch ufcstats_20260519 --execute` 실행 승인** ← 대기 중
+- [x] **apply 실행 완료 (2026-05-23, MCP SQL via Supabase)**
 
-### apply 후 예상 상태
+### Apply 실행 결과 (2026-05-23)
 
-| 항목 | 예상 |
+| 항목 | 결과 |
 |---|---|
-| fighters raw stat 채워진 선수 | 880명 |
-| fighters slpm NULL 유지 | 60명 (unmatched 59 + testy-test) |
-| admin_recompute_fighter_stats 실행 가능 여부 | 가능 (별도 승인 필요) |
+| fighters raw stat 반영 | **880명** |
+| 8개 컬럼 일치 검증 | 880/880 mismatch=0 ✅ |
+| fighters slpm NULL 유지 | 60명 (unmatched 59 + testy-test) ✅ |
+| stats[] 배열 | 미변경 (기존값 유지) ✅ |
+| stats_updated_at | 880명 2026-05-23 06:01:50 갱신 ✅ |
+
+**다음 단계: `admin_recompute_fighter_stats(p_dry_run=true)` 실행 → stats[] 배열 재계산 검증 (별도 승인 필요)**
 
 ---
 
