@@ -1,8 +1,8 @@
 # Fighter Stats Auto-Scoring Plan
 
 작성: 2026-05-18
-업데이트: 2026-05-23 (Step B RPC 구현 + dry_run 검증 + raw stat 데이터 수급 전략 수립 + UFCStats 스크래퍼 완료 + CSV 검증 완료 + Staging import 완료 + Match report 생성)
-구현 상태: Step A 완료 + Race-condition 버그 수정 + clamp [45, 98] 적용 + Step B RPC 배포 완료 (dry_run=true 검증 통과) + UFCStats CSV 수집 완료 (4,494건) + Staging import 완료 (4,494행) + Match report 완료
+업데이트: 2026-05-23 (Step B RPC 구현 + dry_run 검증 + raw stat 데이터 수급 전략 수립 + UFCStats 스크래퍼 완료 + CSV 검증 완료 + Staging import 완료 + Match report 생성 + Step 3 apply 설계 완료 + Step 4 승인 정책 수립)
+구현 상태: Step A 완료 + Race-condition 버그 수정 + clamp [45, 98] 적용 + Step B RPC 배포 완료 (dry_run=true 검증 통과) + UFCStats CSV 수집 완료 (4,494건) + Staging import 완료 (4,494행) + Match report 완료 + Approval 정책 수립 완료 (852 auto-approve 대상, 24 수동 처리 대상 식별)
 
 ---
 
@@ -493,14 +493,19 @@ WHERE f.id = s.matched_fighter_id;
 
 ### 중복 matched_fighter_id 4건 분석
 
-| fighter_id | source_names | 원인 |
-|---|---|---|
-| `maiku-teihisu` | Mike Davis \| Mike Davis | late-addition 재스크래핑 중복 |
-| `victor-valenzuela-0` | Victor Valenzuela \| Victor Valenzuela | late-addition 재스크래핑 중복 |
-| `jean-silva` | Jean Silva \| Jean Silva | late-addition 재스크래핑 중복 |
-| `bruno-silva` | Bruno Silva \| Bruno Silva | late-addition 재스크래핑 중복 |
+⚠ **중요: 동명이인 — 동일 데이터가 아님**  
+source_name은 같지만 `source_ufc_stats_id`가 다르며 스탯 값도 다름.  
+UFCStats에 동명이인이 존재하며, 현재 fighters DB의 동일 `fighter_id`에 잘못 매칭된 케이스.  
+**MAX(id) 자동 선택 불가 — 수동으로 어느 UFCStats 선수가 해당 파이터인지 확인 필요.**
 
-→ source_name 동일하므로 어느 row든 동일 값. MAX(id) 선택으로 안전하게 처리 가능.
+| fighter_id | staging_id A | ufc_stats_id A | slpm A | staging_id B | ufc_stats_id B | slpm B |
+|---|---|---|---|---|---|---|
+| `bruno-silva` | 3826 | `294aa73dbf37d281` | 3.95 | 3827 | `12ebd7d157e91701` | 3.86 |
+| `jean-silva` | 3812 | `9211aae062b799d6` | 0.73 | 3837 | `52ef95b5860fb28c` | 4.82 |
+| `maiku-teihisu` | 893 | `c8661e204c66f325` | 0.00 | 898 | `fb3e61720be4690c` | 4.73 |
+| `victor-valenzuela-0` | 4248 | `de277a4abcfeea46` | 1.28 | 4250 | `078695e385ec2f57` | 3.47 |
+
+→ 각 파이터에 대해 어느 staging row가 올바른지 UFCStats 프로필 URL 확인 후 수동 `approved=true` + 나머지 row `approved=false` 처리 필요.
 
 ### 미매칭 활성 파이터 84명 원인 분석
 
@@ -563,13 +568,232 @@ apply 실행 시 `admin_audit_logs`에 per-fighter 기록:
 }
 ```
 
-### Step 4 (apply 후 별도 단계)
+### Step 4 — UFCStats Staging Approval 이후 별도 단계
 
 1. `admin_recompute_fighter_stats(p_dry_run=true)` 재실행
    - `after_stats` 분포가 `[45–98]` 전반으로 다양하게 분포하는지 확인
    - 기존 `[50,50,98,50,98]` 수렴 패턴 해소 여부 검증
 2. 샘플 10명 수동 공식 검증
 3. `admin_recompute_fighter_stats(p_dry_run=false)` — **별도 승인 필요**
+
+---
+
+## Step 4 — UFCStats Staging Approval 정책
+
+업데이트: 2026-05-23  
+상태: 정책 확정 / SQL 초안 작성 완료 / **실제 `approved=true` 세팅 미완료 (다음 단계)**
+
+---
+
+### 승인 분류 요약
+
+| 분류 | 건수 | 조치 |
+|---|---|---|
+| 자동 승인 대상 (중복 없는 exact match, 전 stat 비NULL) | **852건** | auto-approve SQL 실행 |
+| 수동 승인 — 동명이인 중복 4쌍 (8건) | **4 fighters** | UFCStats URL 확인 후 1건만 승인 |
+| 수동 승인 — 미매칭 + staging 후보 있음 | **24 fighters** | `matched_fighter_id` UPDATE 후 승인 |
+| 조사 필요 — staging 후보 없음 | **59 fighters** | UFCStats 미등재 확인 or skip |
+| 제외 | `testy-test` | skip |
+
+---
+
+### Auto-Approve SQL (설계용 — 실행 금지)
+
+중복 없는 exact match rows 852건을 `approved=true`로 설정.
+
+```sql
+-- ⚠ 이 SQL은 설계 초안입니다. 실행 전 반드시 별도 승인 받을 것.
+-- 실행 시 approved=true 행이 생성되어 apply_staging_to_fighters.py --execute 가능 상태가 됨.
+WITH dup_fighters AS (
+  SELECT matched_fighter_id
+  FROM public.fighter_stats_staging
+  WHERE import_batch = 'ufcstats_20260519'
+    AND match_status = 'exact'
+    AND matched_fighter_id IS NOT NULL
+  GROUP BY matched_fighter_id
+  HAVING COUNT(*) > 1
+)
+UPDATE public.fighter_stats_staging
+SET
+  approved    = true,
+  reviewed_at = NOW()
+WHERE import_batch        = 'ufcstats_20260519'
+  AND match_status        = 'exact'
+  AND matched_fighter_id  IS NOT NULL
+  AND approved            = false
+  AND matched_fighter_id NOT IN (SELECT matched_fighter_id FROM dup_fighters)
+  AND slpm      IS NOT NULL AND str_acc IS NOT NULL
+  AND sapm      IS NOT NULL AND str_def IS NOT NULL
+  AND td_avg    IS NOT NULL AND td_acc  IS NOT NULL
+  AND td_def    IS NOT NULL AND sub_avg IS NOT NULL;
+-- Expected: 852 rows updated
+```
+
+---
+
+### 수동 처리 A — 동명이인 중복 4케이스
+
+각 fighter에 대해 UFC 프로필 참조 후 올바른 staging row 1개만 수동 승인.
+
+| fighter_id | 확인 방법 | staging A | ufc_stats_id A | slpm A | staging B | ufc_stats_id B | slpm B |
+|---|---|---|---|---|---|---|---|
+| `bruno-silva` | [A](http://ufcstats.com/fighter-details/294aa73dbf37d281) vs [B](http://ufcstats.com/fighter-details/12ebd7d157e91701) | 3826 | `294aa73dbf37d281` | 3.95 | 3827 | `12ebd7d157e91701` | 3.86 |
+| `jean-silva` | [A](http://ufcstats.com/fighter-details/9211aae062b799d6) vs [B](http://ufcstats.com/fighter-details/52ef95b5860fb28c) | 3812 | `9211aae062b799d6` | 0.73 | 3837 | `52ef95b5860fb28c` | 4.82 |
+| `maiku-teihisu` | [A](http://ufcstats.com/fighter-details/c8661e204c66f325) vs [B](http://ufcstats.com/fighter-details/fb3e61720be4690c) | 893 | `c8661e204c66f325` | 0.00 | 898 | `fb3e61720be4690c` | 4.73 |
+| `victor-valenzuela-0` | [A](http://ufcstats.com/fighter-details/de277a4abcfeea46) vs [B](http://ufcstats.com/fighter-details/078695e385ec2f57) | 4248 | `de277a4abcfeea46` | 1.28 | 4250 | `078695e385ec2f57` | 3.47 |
+
+각 케이스 처리 SQL 패턴 (실행 금지 — 확인 후 개별 적용):
+```sql
+-- 예시: bruno-silva의 staging_id=3826이 올바른 선수라고 확인된 경우
+UPDATE public.fighter_stats_staging
+SET approved = true, reviewed_at = NOW()
+WHERE id = 3826;
+-- 나머지 row(3827)는 approved=false 유지
+```
+
+---
+
+### 수동 처리 B — 미매칭 파이터 (staging 후보 있음, 24명)
+
+이름 표기 차이(악센트, 아포스트로피, 이름 형식)로 자동 매칭 실패.  
+각 파이터에 대해 `fighter_stats_staging.matched_fighter_id` UPDATE 후 `approved=true` 세팅 필요.
+
+처리 SQL 패턴 (실행 금지 — 확인 후 개별 적용):
+```sql
+-- 예시: aleksandar-rakic → staging_id=3355 연결
+UPDATE public.fighter_stats_staging
+SET matched_fighter_id = 'aleksandar-rakic',
+    match_status       = 'exact',
+    match_reason       = 'manual_diacritic',
+    match_confidence   = 1.0,
+    approved           = true,
+    reviewed_at        = NOW()
+WHERE id = 3355;
+```
+
+#### 대상 목록 (악센트/특수문자 불일치)
+
+| fighter_id | fighter_name | division | staging_id | source_name | ufc_stats_id | slpm |
+|---|---|---|---|---|---|---|
+| `aleksandar-rakic` | Aleksandar Rakić | lhw | 3355 | Aleksandar Rakic | `333b9e5c723ac873` | 4.13 |
+| `brando-pericic` | Brando Peričić | hw | 3220 | Brando Pericic | `d0fd0d9ee560dae7` | 11.00 |
+| `dusko-todorovic` | Duško Todorović | mw | 4153 | Dusko Todorovic | `866fd7b1a6c90e7f` | 4.73 |
+| `ernesta-kareckaite` | Ernesta Kareckaitė | wfw | 2084 | Ernesta Kareckaite | `e4faa79383c9f214` | 7.28 |
+| `fares-ziam` | Farès Ziam | lw | 4574 | Fares Ziam | `1e4f273069fb9e85` | 2.87 |
+| `jan-blachowicz` | Jan Błachowicz | lhw | 376 | Jan Blachowicz | `99df7d0a2a08a8a8` | 3.55 |
+| `jessica-andrade` | Jéssica Andrade | wmw | 146 | Jessica Andrade | `6a1901c62ab3870f` | 6.37 |
+| `jiri-prochazka` | Jiří Procházka | lhw | 3313 | Jiri Prochazka | `009341ed974bad72` | 5.61 |
+| `joel-alvarez` | Joel Álvarez | ww | 113 | Joel Alvarez | `58bbef3770bb2dfc` | 4.53 |
+| `julianna-pena` | Julianna Peña | wbw | 3186 | Julianna Pena | `3253b16d38ae087d` | 3.10 |
+| `mantas-kondratavicius` | Mantas Kondratavičius | mw | 2190 | Mantas Kondratavicius | `3cc506f115cbb9d5` | 4.97 |
+| `mateusz-rebecki` | Mateusz Rębecki | lw | 3385 | Mateusz Rebecki | `849c5d9979df5357` | 4.79 |
+| `tereza-bleda` | Tereza Bledá | wfw | 388 | Tereza Bleda | `59c438c81fbf3ece` | 2.92 |
+| `thiago-moises` | Thiago Moisés | lw | 2783 | Thiago Moises | `d945aae53e3e54e6` | 2.52 |
+| `uros-medic` | Uroš Medić | ww | 2670 | Uros Medic | `681399317dbf4701` | 5.59 |
+
+#### 대상 목록 (아포스트로피 불일치)
+
+| fighter_id | fighter_name | division | staging_id | source_name | ufc_stats_id | slpm |
+|---|---|---|---|---|---|---|
+| `loneer-kavanagh` | Lone'er Kavanagh | flw | 2094 | Lone'er Kavanagh | `bb2c3c3a466224af` | 4.13 |
+| `ode-osbourne` | Ode' Osbourne | flw | 3079 | Ode Osbourne | `6d68c1afe954f121` | 2.94 |
+| `treston-vines` | Tre'ston Vines | mw | 4324 | Tre'ston Vines | `563a1d42bb0e3cef` | 0.00 |
+
+#### 대상 목록 (이름 형식 불일치)
+
+| fighter_id | fighter_name | division | staging_id | source_name | ufc_stats_id | slpm |
+|---|---|---|---|---|---|---|
+| `mariya-agapova-0` | Benoît Saint Denis | lw | 3590 | Benoit Saint Denis | `c2299ec916bc7c56` | 5.62 |
+| `tamia-hasohitsuku` | Damir Hadžović | lw | 1653 | Damir Hadzovic | `38c626ca912c7bac` | 3.34 |
+| `jose-delgado` | Jose Miguel Delgado | fw | 932 | Jose Delgado | `7d6ceff6747f2de2` | 7.48 |
+| `viktoriya-leonardo-0` | Mandy Böhm | wfw | 404 | Mandy Bohm | `297a2b35444c245b` | 2.51 |
+| `michael-page` | Michael Venom Page | ww | 3109 | Michael Page | `a67d071163962af8` | 2.28 |
+| `paulo-renato-jr` | Paulo Renato Jr. | lhw | 3405 | Paulo Renato Junior | `01dfb60661153735` | 4.89 |
+
+---
+
+### 수동 처리 C — Staging 후보 없음 (59명)
+
+UFCStats에 미등재 가능성 (신규 데뷔, 등록명 상이, 비UFCStats 경력 등).  
+별도 수동 조사 후 skip 확정 또는 향후 배치 업데이트 시 처리.
+
+<details>
+<summary>전체 목록 (59명)</summary>
+
+| fighter_id | name | division |
+|---|---|---|
+| `juan-martinetti` | Adrián Luna Martinetti | bw |
+| `trevin-dzhayls-6` | Cristian Quiñonez | bw |
+| `eduardo-matias-torres` | Eduardo Matias Torres | bw |
+| `mariya-agapova-4` | Reyes Cortez | bw |
+| `willian-souza` | Willian Souza | bw |
+| `davi-costa` | Davi Costa | flw |
+| `jung-hyun-lee` | Jung Hyun Lee | flw |
+| `mateus-mendonca` | Mateus Mendonça | flw |
+| `rafael-de-freitas` | Rafael de Freitas | flw |
+| `dinis-paiva` | Dinis Paiva | fw |
+| `freddy-emiliano-linares` | Freddy Emiliano Linares | fw |
+| `li-kaiwen` | Li Kaiwen | fw |
+| `rheza-arianto` | Rheza Arianto | fw |
+| `rick-palacios` | Rick Palacios | fw |
+| `sang-won-kim` | Sang Won Kim | fw |
+| `cory-corbin` | Cory Corbin | hw |
+| `frank-holland` | Frank Holland | hw |
+| `jonathan-correa` | Jonathan Correa | hw |
+| `jordan-jackson` | Jordan Jackson | hw |
+| `keifer-roberts` | Keifer Roberts | hw |
+| `logan-greenhalgh` | Logan Greenhalgh | hw |
+| `marcos-conrado-junior` | Marcos Conrado Junior | hw |
+| `martin-mishtaku` | Martin Mishtaku | hw |
+| `timothy-thomas` | Timothy Thomas | hw |
+| `cody-belisle` | Cody Belisle | lhw |
+| `dakota-weigher` | Dakota Weigher | lhw |
+| `evan-sweesy` | Evan Sweesy | lhw |
+| `harrison-garcia` | Harrison Garcia | lhw |
+| `jesse-mariotti` | Jesse Mariotti | lhw |
+| `lukasz-sudolski` | Lukasz Sudolski | lhw |
+| `vineesh-subrahmanyan` | Vineesh Subrahmanyan | lhw |
+| `asikeerbai-jinensibieke` | Asikeerbai Jinensibieke | lw |
+| `jae-hyun-park` | Jae Hyun Park | lw |
+| `joseph-lowry` | Joseph Lowry | lw |
+| `kaue-fernandes` | Kauê Fernandes | lw |
+| `nair-nelikyan` | Nair Nelikyan | lw |
+| `nariman-abbassov` | Nariman Abbassov | lw |
+| `wendri-patilima` | Wendri Patilima | lw |
+| `dominik-melendez` | Dominik Melendez | mw |
+| `donavan-beard` | Donavan Beard | mw |
+| `fabio-agu` | Fabio Agu | mw |
+| `garrett-grimes` | Garrett Grimes | mw |
+| `khadzhimurat-bestaev` | Khadzhimurat Bestaev | mw |
+| `leonardo-de-oliveira` | Leonardo De Oliveira | mw |
+| `luis-dias-de-assis` | Luis Dias de Assis | mw |
+| `marcio-alexandre` | Marcio Alexandre | mw |
+| `matej-penaz` | Matěj Peňáz | mw |
+| `montrel-talbert` | Montrel Talbert | mw |
+| `steve-regman` | Steve Regman | mw |
+| `zach-borrego` | Zach Borrego | mw |
+| `zachary-reese` | Zachary Reese | mw |
+| `jingnan-xiong` | Jingnan Xiong | wmw |
+| `maiara-amajanas-dos-santos` | Maiara Amajanas Dos Santos | wmw |
+| `dallas-marron` | Dallas Marron | ww |
+| `jose-henrique` | José Henrique | ww |
+| `michael-bonnette` | Michael Bonnette | ww |
+| `taiyilake-nueraji` | Nueraji Taiyilake | ww |
+| `sang-hoon-yoo` | Sang Hoon Yoo | ww |
+| `sean-mcinerney` | Sean Mcinerney | ww |
+
+</details>
+
+---
+
+### 승인 전 체크리스트
+
+- [ ] Auto-approve SQL 검토 (`852건` 예상 — 실행 전 SELECT로 카운트 확인)
+- [ ] 동명이인 4케이스 UFCStats URL 수동 확인 (어느 row가 맞는 파이터인지)
+- [ ] 수동 처리 B 24명 `matched_fighter_id` UPDATE SQL 준비 및 적용
+- [ ] Auto-approve SQL 실행 (별도 승인 필요)
+- [ ] `report_staging_apply.py` 재실행 → `approved=true` 수 ≥ 852, 무효 approved 0건 확인
+- [ ] 최종: `apply_staging_to_fighters.py --batch ufcstats_20260519` dry-run → `apply_staging_to_fighters.py --execute`
 
 ---
 
