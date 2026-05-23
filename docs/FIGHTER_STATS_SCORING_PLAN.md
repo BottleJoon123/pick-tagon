@@ -903,10 +903,59 @@ UFCStats에 미등재 가능성 (신규 데뷔, 등록명 상이, 비UFCStats �
 - [x] Auto-approve SQL 실행 (852건 → approved=true)
 - [x] 검증: approved=880건, invalid_approved=0, 중복 approved=0, fighters 무변경
 
+**완료된 항목 (2026-05-23 — final dry-run):**
+- [x] `report_staging_apply.py` 등가 SQL 검증 → **STATUS: READY**
+- [x] `apply_staging_to_fighters.py` dry-run 등가 SELECT → 880명 would_update, overwrite=0 확인
+- [x] fighters slpm NULL 940/940 — 무변경 확인
+
 **다음 단계:**
-- [ ] `report_staging_apply.py` 재실행 → STATUS: READY 확인
-- [ ] `apply_staging_to_fighters.py --batch ufcstats_20260519` dry-run 실행
 - [ ] 최종: `apply_staging_to_fighters.py --batch ufcstats_20260519 --execute` (별도 승인 필요)
+
+---
+
+## Step 5 — Apply Final Dry-run 결과 (2026-05-23)
+
+### STATUS: READY ✅
+
+```
+[report 등가 SQL 결과]
+total_staging_rows  : 4,494
+valid_approved      : 880  (unique fighters to update: 880)
+invalid_approved    : 0    ✅
+중복 approved fid   : 0    ✅
+would_overwrite     : 0    ✅  (880건 전부 fresh_write)
+fighters 미존재 row  : 0    ✅
+
+[apply dry-run 결과]
+would_update_fighters : 880
+fresh_write           : 880
+zero_slpm_rows        : 27  (UFC 경기 없는 선수, 유효)
+nonzero_slpm_rows     : 853
+avg_slpm              : 3.96
+avg_td_avg            : 1.52
+avg_str_acc           : 46.4%
+min_slpm / max_slpm   : 0.00 / 15.77
+
+fighters raw stat (pre-apply): slpm NULL = 940/940
+```
+
+### execute 전 최종 체크리스트
+
+- [x] approved=880건 (852 auto + 4 manual_dup + 15 diacritic + 3 apostrophe + 6 name_format)
+- [x] invalid_approved=0
+- [x] 중복 approved fighter_id=0
+- [x] overwrite 위험=0 (fighters raw stat 전부 NULL)
+- [x] fighters 미존재 approved row=0
+- [x] stat 분포 정상 (avg_slpm=3.96, max=15.77 → 이상값 없음)
+- [ ] **`apply_staging_to_fighters.py --batch ufcstats_20260519 --execute` 실행 승인** ← 대기 중
+
+### apply 후 예상 상태
+
+| 항목 | 예상 |
+|---|---|
+| fighters raw stat 채워진 선수 | 880명 |
+| fighters slpm NULL 유지 | 60명 (unmatched 59 + testy-test) |
+| admin_recompute_fighter_stats 실행 가능 여부 | 가능 (별도 승인 필요) |
 
 ---
 
