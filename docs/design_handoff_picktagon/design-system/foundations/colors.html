@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Pick-tagon · 컬러</title>
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="ds-shell.css" />
+<style>
+  .swatch-grid { display: grid; gap: 12px; }
+  .swatch-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .swatch-table th, .swatch-table td {
+    padding: 14px 18px;
+    text-align: left;
+    border-bottom: 1px solid var(--pt-line-1);
+    font-size: 13px;
+    vertical-align: middle;
+  }
+  .swatch-table tr:last-child td { border-bottom: 0; }
+  .swatch-table th {
+    background: var(--pt-bg-3);
+    font-size: 11px; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--pt-ink-3); font-weight: 700;
+  }
+  .swatch-table td.chip { width: 80px; padding: 8px 18px; }
+  .swatch-table .box {
+    width: 56px; height: 36px; border-radius: 8px;
+    border: 1px solid var(--pt-line-2);
+  }
+  .swatch-table td.token {
+    width: 180px;
+    font-family: var(--pt-font-mono); font-size: 12px; color: var(--pt-ink-1);
+  }
+  .swatch-table td.hex {
+    width: 100px;
+    font-family: var(--pt-font-mono); font-size: 12px; color: var(--pt-ink-2);
+  }
+  .swatch-table td.usage { color: var(--pt-ink-2); line-height: 1.55; }
+  .swatch-table td.usage b { color: var(--pt-ink-0); font-weight: 600; }
+
+  /* hero red */
+  .red-hero {
+    display: grid; grid-template-columns: 1fr 1fr;
+    border-radius: 16px; overflow: hidden;
+    border: 1px solid var(--pt-line-1);
+    margin-bottom: 16px;
+  }
+  .red-hero .left {
+    background: linear-gradient(135deg,#9A0400,#E10600 60%,#FF2A20);
+    padding: 36px;
+    color: #fff;
+    display: flex; flex-direction: column; justify-content: space-between;
+    min-height: 200px;
+  }
+  .red-hero .left .big {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    text-transform: uppercase; font-size: 56px; line-height: 0.9; letter-spacing: -0.01em;
+  }
+  .red-hero .left .meta { font-family: var(--pt-font-mono); font-size: 12px; opacity: 0.9; }
+  .red-hero .right {
+    background: var(--pt-bg-2); padding: 28px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .red-hero .right h4 { margin: 0; font-size: 14px; color: var(--pt-ink-0); font-weight: 700; }
+  .red-hero .right ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .red-hero .right li { color: var(--pt-ink-2); font-size: 13px; padding-left: 16px; position: relative; line-height: 1.5; }
+  .red-hero .right li::before { content: ''; position: absolute; left: 0; top: 8px; width: 6px; height: 6px; border-radius: 50%; background: var(--pt-red-500); }
+
+  /* belts visual */
+  .belts { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .belt {
+    background: var(--pt-bg-2); border: 1px solid var(--pt-line-1);
+    border-radius: 14px; overflow: hidden;
+  }
+  .belt .strip { height: 56px; position: relative; }
+  .belt .strip::after {
+    content: ''; position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    width: 16px; height: 28px; background: rgba(0,0,0,0.45); border-radius: 2px;
+  }
+  .belt .body { padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 4px; }
+  .belt .name { font-size: 16px; font-weight: 800; color: var(--pt-ink-0); }
+  .belt .range { font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); }
+
+  /* corners */
+  .corners { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .corner {
+    border-radius: 16px; padding: 24px; min-height: 140px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    border: 1px solid var(--pt-line-1);
+  }
+  .corner.red  { background: linear-gradient(135deg, #E10600, #6B0200); }
+  .corner.blue { background: linear-gradient(135deg, #1F6FEB, #0A2A66); }
+  .corner .ttl { font-size: 22px; font-weight: 800; color: #fff; }
+  .corner .tag { font-size: 11px; color: rgba(255,255,255,0.75); font-weight: 700; letter-spacing: 0.06em; }
+  .corner .desc { color: rgba(255,255,255,0.85); font-size: 13px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="ds-shell pt-bg-mesh">
+
+  <nav class="ds-tabs">
+    <span class="brand">PICK-TAGON / 디자인 시스템</span>
+    <span class="ds-tab"><span class="num">01</span>브랜드 · 로고</span>
+    <span class="ds-tab is-active"><span class="num">02</span>컬러</span>
+    <span class="ds-tab"><span class="num">03</span>타이포</span>
+    <span class="ds-tab"><span class="num">04</span>여백 · 그림자</span>
+    <span class="ds-tab"><span class="num">05</span>컴포넌트</span>
+  </nav>
+
+  <header class="ds-page-head">
+    <div class="title-block">
+      <span class="crumb">디자인 시스템 / 02. 컬러</span>
+      <h1>컬러 <em>·</em> 팔레트</h1>
+      <p class="summary">파이트 나잇 아레나의 다크 톤 + UFC 레드 액센트. 5가지 그룹으로 나뉩니다: ① 브랜드 레드 ② 다크 표면 ③ 벨트 등급 ④ 코너 ⑤ 상태.</p>
+    </div>
+    <span class="ds-where">현재 탭: 02 / 05</span>
+  </header>
+
+  <main class="ds-body">
+
+    <!-- 1. 브랜드 레드 -->
+    <section class="ds-section">
+      <div class="ds-section-head">
+        <span class="ds-section-num">01</span>
+        <h2 class="ds-section-title">브랜드 레드 — Pick-tagon Red</h2>
+        <span class="ds-section-sub">유일한 강조색. 절대 변형 금지.</span>
+      </div>
+
+      <div class="red-hero">
+        <div class="left">
+          <div>
+            <div style="font-size:11px; letter-spacing:0.18em; opacity:0.85; margin-bottom:6px;">RED 500</div>
+            <div class="big">#E10600</div>
+          </div>
+          <div class="meta">RGB 225 · 6 · 0 &nbsp;·&nbsp; HSL 2° 100% 44%</div>
+        </div>
+        <div class="right">
+          <h4>이 색은 어디에 쓰이나요?</h4>
+          <ul>
+            <li>워드마크 + 메인 CTA 버튼 ("ENTER OCTAGON")</li>
+            <li>실시간 인디케이터 · "PICK CLOSES" 카운트다운</li>
+            <li>랭킹 1위 표시 · 블랙 벨트 등급 마커</li>
+            <li>매치업의 레드 코너(챔피언 / 페이보릿)</li>
+            <li>파괴적 액션 (로그아웃 · 삭제)</li>
+          </ul>
+        </div>
+      </div>
+
+      <table class="swatch-table">
+        <thead>
+          <tr><th></th><th>토큰</th><th>HEX</th><th>사용처</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="chip"><div class="box" style="background:#FFE9E8;"></div></td><td class="token">--pt-red-50</td><td class="hex">#FFE9E8</td><td class="usage">레드 알림 영역의 배경 (거의 사용 안함)</td></tr>
+          <tr><td class="chip"><div class="box" style="background:#FFC7C4;"></div></td><td class="token">--pt-red-100</td><td class="hex">#FFC7C4</td><td class="usage">에러 토스트 안의 텍스트</td></tr>
+          <tr><td class="chip"><div class="box" style="background:#FF5D55;"></div></td><td class="token">--pt-red-300</td><td class="hex">#FF5D55</td><td class="usage">다크 배경 위 보조 레드 (호버·하이라이트)</td></tr>
+          <tr style="background:rgba(225,6,0,0.06);"><td class="chip"><div class="box" style="background:#E10600;"></div></td><td class="token" style="color:var(--pt-red-500); font-weight:700;">--pt-red-500 · PRIMARY</td><td class="hex" style="color:var(--pt-red-500);">#E10600</td><td class="usage"><b>브랜드 메인 컬러.</b> 워드마크·CTA·강조 모든 곳.</td></tr>
+          <tr><td class="chip"><div class="box" style="background:#C20500;"></div></td><td class="token">--pt-red-600</td><td class="hex">#C20500</td><td class="usage">버튼 active(눌림) 상태</td></tr>
+          <tr><td class="chip"><div class="box" style="background:#9A0400;"></div></td><td class="token">--pt-red-700</td><td class="hex">#9A0400</td><td class="usage">레드 코너 그라디언트 끝색 · danger 보더</td></tr>
+          <tr><td class="chip"><div class="box" style="background:#3A0100;"></div></td><td class="token">--pt-red-900</td><td class="hex">#3A0100</td><td class="usage">로스 배지 배경 · 위험 영역 hover</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 2. 다크 표면 -->
+    <section class="ds-section">
+      <div class="ds-section-head">
+        <span class="ds-section-num">02</span>
+        <h2 class="ds-section-title">다크 표면 — 아레나 그레이</h2>
+        <span class="ds-section-sub">관중석에서 케이지까지 5단계</span>
+      </div>
+
+      <table class="swatch-table">
+        <thead>
+          <tr><th></th><th>토큰</th><th>HEX</th><th>사용처</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="chip"><div class="box" style="background:#07080A;"></div></td><td class="token">--pt-bg-0</td><td class="hex">#07080A</td><td class="usage"><b>가장 깊은 검정.</b> 페이지 바닥·헤더·이미지 위 오버레이</td></tr>
+          <tr><td class="chip"><div class="box" style="background:#0E0F12;"></div></td><td class="token">--pt-bg-1</td><td class="hex">#0E0F12</td><td class="usage"><b>기본 캔버스.</b> body 배경</td></tr>
+          <tr><td class="chip"><div class="box" style="background:#14161B;"></div></td><td class="token">--pt-bg-2</td><td class="hex">#14161B</td><td class="usage"><b>카드 표면.</b> 매치업·뉴스·통계 카드</td></tr>
+          <tr><td class="chip"><div class="box" style="background:#1B1E25;"></div></td><td class="token">--pt-bg-3</td><td class="hex">#1B1E25</td><td class="usage">카드 hover · 들어올린 패널</td></tr>
+          <tr><td class="chip"><div class="box" style="background:#232730;"></div></td><td class="token">--pt-bg-4</td><td class="hex">#232730</td><td class="usage">입력 필드 · 칩 배경</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 3. 벨트 등급 -->
+    <section class="ds-section">
+      <div class="ds-section-head">
+        <span class="ds-section-num">03</span>
+        <h2 class="ds-section-title">벨트 등급 — 랭킹 시스템</h2>
+        <span class="ds-section-sub">포인트 누적으로 승급. 프로필 / 리더보드에 표시.</span>
+      </div>
+
+      <div class="belts">
+        <div class="belt">
+          <div class="strip" style="background:#ECECEE;"></div>
+          <div class="body"><div class="name" style="color:#0E0F12; background:#fff; margin:-12px -16px 0; padding:8px 16px; border-bottom:1px solid var(--pt-line-1);">화이트</div>
+          <div class="range">0 – 1,000 P</div></div>
+        </div>
+        <div class="belt">
+          <div class="strip" style="background:#1F6FEB;"></div>
+          <div class="body"><div class="name">블루</div><div class="range">1,001 – 2,000 P</div></div>
+        </div>
+        <div class="belt">
+          <div class="strip" style="background:#8B3FE3;"></div>
+          <div class="body"><div class="name">퍼플</div><div class="range">2,001 – 5,000 P</div></div>
+        </div>
+        <div class="belt">
+          <div class="strip" style="background:#B5803A;"></div>
+          <div class="body"><div class="name">브라운</div><div class="range">5,001 – 10,000 P</div></div>
+        </div>
+        <div class="belt">
+          <div class="strip" style="background:#0E0F12; border-bottom:1px solid var(--pt-line-2);"></div>
+          <div class="body"><div class="name">블랙</div><div class="range">10,001 P+</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. 코너 -->
+    <section class="ds-section">
+      <div class="ds-section-head">
+        <span class="ds-section-num">04</span>
+        <h2 class="ds-section-title">코너 컬러 — 매치업 전용</h2>
+        <span class="ds-section-sub">파이터 코너 표시에만 사용. 일반 UI 금지.</span>
+      </div>
+
+      <div class="corners">
+        <div class="corner red">
+          <div>
+            <div class="tag">RED CORNER</div>
+            <div class="ttl">레드 코너 — 챔피언/페이보릿</div>
+          </div>
+          <div class="desc">--pt-corner-red &nbsp;<span style="opacity:0.7;">#E10600 → #6B0200</span></div>
+        </div>
+        <div class="corner blue">
+          <div>
+            <div class="tag">BLUE CORNER</div>
+            <div class="ttl">블루 코너 — 챌린저</div>
+          </div>
+          <div class="desc">--pt-corner-blue &nbsp;<span style="opacity:0.7;">#1F6FEB → #0A2A66</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. 상태 -->
+    <section class="ds-section">
+      <div class="ds-section-head">
+        <span class="ds-section-num">05</span>
+        <h2 class="ds-section-title">상태 컬러 — 데이터 셀 전용</h2>
+        <span class="ds-section-sub">배지·인디케이터 안에서만 사용</span>
+      </div>
+
+      <table class="swatch-table">
+        <tbody>
+          <tr><td class="chip"><div class="box" style="background:#1FBF6B;"></div></td><td class="token">--pt-win</td><td class="hex">#1FBF6B</td><td class="usage"><b>승리 / 예정</b> · UPCOMING 배지 · 정답 표시</td></tr>
+          <tr><td class="chip"><div class="box" style="background:#E10600;"></div></td><td class="token">--pt-loss</td><td class="hex">#E10600</td><td class="usage"><b>패배 / 라이브</b> · LIVE 배지 · 오답 표시</td></tr>
+          <tr><td class="chip"><div class="box" style="background:#71757F;"></div></td><td class="token">--pt-draw</td><td class="hex">#71757F</td><td class="usage"><b>무승부 / NC</b> · 비활성 상태</td></tr>
+          <tr><td class="chip"><div class="box" style="background:#F4B400;"></div></td><td class="token">--pt-warn</td><td class="hex">#F4B400</td><td class="usage"><b>밸런스 / 경고</b> · 포인트 표시 · 잔액</td></tr>
+          <tr><td class="chip"><div class="box" style="background:#1F6FEB;"></div></td><td class="token">--pt-info</td><td class="hex">#1F6FEB</td><td class="usage"><b>정보</b> · 블루 벨트 · 안내 토스트</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+  </main>
+</div>
+</body>
+</html>

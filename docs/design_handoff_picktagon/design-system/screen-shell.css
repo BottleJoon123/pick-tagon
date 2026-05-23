@@ -1,0 +1,122 @@
+/* ============================================================
+   Pick-tagon 실제 화면 — 공통 셸 (앱 헤더 + 본문 컨테이너)
+   ============================================================ */
+
+body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', system-ui, sans-serif; background: var(--pt-bg-1); color: var(--pt-ink-1); }
+
+/* ============ 글로벌 헤더 ============ */
+.app-header {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(7,8,10,0.92);
+  backdrop-filter: blur(10px) saturate(180%);
+  border-bottom: 1px solid var(--pt-line-2);
+}
+.app-header-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 14px 24px;
+  display: flex; align-items: center; gap: 28px;
+}
+.app-logo {
+  display: flex; align-items: center; gap: 10px;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.app-logo svg { display: block; }
+.app-logo .word {
+  font-family: var(--pt-font-display);
+  font-style: italic; font-weight: 900;
+  text-transform: uppercase; color: var(--pt-red-500);
+  font-size: 18px; letter-spacing: -0.01em;
+}
+.app-nav { display: flex; align-items: center; gap: 4px; }
+.app-nav a {
+  padding: 8px 14px;
+  font-size: 14px; font-weight: 600;
+  color: var(--pt-ink-2);
+  text-decoration: none;
+  border-radius: 8px;
+}
+.app-nav a.is-active { color: var(--pt-ink-0); background: var(--pt-bg-3); }
+.app-nav a:hover { color: var(--pt-ink-0); }
+
+.app-search {
+  margin-left: auto;
+  flex: 0 1 240px;
+  position: relative;
+}
+.app-search input {
+  width: 100%;
+  background: var(--pt-bg-3); border: 1px solid var(--pt-line-2);
+  color: var(--pt-ink-0);
+  padding: 8px 12px 8px 34px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+}
+.app-search input::placeholder { color: var(--pt-ink-3); }
+.app-search input:focus { outline: 0; border-color: var(--pt-red-500); box-shadow: 0 0 0 3px rgba(225,6,0,0.15); }
+.app-search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--pt-ink-3); }
+
+.app-balance {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px;
+  background: rgba(244,180,0,0.10);
+  border: 1px solid rgba(244,180,0,0.3);
+  border-radius: 999px;
+  font-family: var(--pt-font-mono);
+  font-size: 13px; font-weight: 700;
+  color: var(--pt-warn);
+}
+.app-balance::before { content: '◆'; font-size: 10px; }
+
+.app-belt {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px 5px 5px;
+  border-radius: 999px;
+  background: var(--pt-bg-3); border: 1px solid var(--pt-line-2);
+  font-size: 12px; font-weight: 700; color: var(--pt-ink-0);
+}
+.app-belt .strip {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #8B3FE3;
+  border: 2px solid var(--pt-bg-2);
+}
+
+.app-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--pt-red-700), var(--pt-red-500));
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 14px; color: #fff;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+/* ============ 페이지 컨테이너 ============ */
+.app-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 32px 24px 80px;
+}
+
+/* ============ 섹션 헤더 ============ */
+.sx-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.sx-head h2 {
+  margin: 0;
+  font-family: var(--pt-font-display);
+  font-style: italic; font-weight: 800;
+  text-transform: uppercase;
+  font-size: 26px; line-height: 1;
+  color: var(--pt-ink-0);
+  letter-spacing: -0.01em;
+}
+.sx-head h2 em { color: var(--pt-red-500); font-style: italic; }
+.sx-head .more {
+  font-size: 13px; color: var(--pt-ink-3);
+  text-decoration: none;
+  font-weight: 600;
+}
+.sx-head .more:hover { color: var(--pt-ink-1); }

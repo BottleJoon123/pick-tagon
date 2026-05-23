@@ -1,0 +1,915 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Pick-tagon · 어드민</title>
+<link rel="stylesheet" href="tokens.css" />
+<style>
+  body {
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    background: var(--pt-bg-1);
+    color: var(--pt-ink-1);
+    margin: 0;
+    min-height: 100vh;
+  }
+
+  /* ===== 어드민 헤더 (보통 헤더와 구분) ===== */
+  .ad-header {
+    background: var(--pt-bg-0);
+    border-bottom: 1px solid var(--pt-line-2);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 18px;
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: blur(10px);
+    background: rgba(7,8,10,0.92);
+  }
+  .ad-logo {
+    display: flex; align-items: center; gap: 8px;
+    text-decoration: none;
+    padding-right: 18px;
+    border-right: 1px solid var(--pt-line-2);
+  }
+  .ad-logo .word {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    text-transform: uppercase; color: var(--pt-red-500);
+    font-size: 15px; letter-spacing: -0.01em;
+  }
+  .ad-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 4px;
+    background: var(--pt-red-500); color: #fff;
+    font-family: var(--pt-font-eyebrow); font-size: 10px;
+    letter-spacing: 0.16em; font-weight: 700;
+  }
+  .ad-tag::before { content: '⚡'; font-size: 11px; }
+  .ad-breadcrumb {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--pt-font-mono); font-size: 12px; color: var(--pt-ink-3);
+  }
+  .ad-breadcrumb a { color: var(--pt-ink-2); text-decoration: none; }
+  .ad-breadcrumb a:hover { color: var(--pt-ink-0); }
+  .ad-breadcrumb .sep { color: var(--pt-line-3); }
+  .ad-breadcrumb .cur { color: var(--pt-red-300); font-weight: 600; }
+
+  .ad-env {
+    margin-left: auto;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px;
+    background: rgba(31,191,107,0.10);
+    border: 1px solid rgba(31,191,107,0.3);
+    font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-win); font-weight: 700;
+  }
+  .ad-env::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--pt-win); }
+
+  .ad-user {
+    display: flex; align-items: center; gap: 8px;
+    padding-left: 14px;
+    border-left: 1px solid var(--pt-line-2);
+  }
+  .ad-user .ava {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--pt-red-700), var(--pt-red-500));
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 12px; color: #fff;
+  }
+  .ad-user .nm {
+    font-size: 12px; font-weight: 700; color: var(--pt-ink-0);
+    line-height: 1.1;
+  }
+  .ad-user .role {
+    font-family: var(--pt-font-mono); font-size: 10px; color: var(--pt-ink-3);
+  }
+
+  /* ===== 메인 레이아웃 — 사이드바 + 본문 ===== */
+  .ad-layout {
+    display: grid; grid-template-columns: 240px 1fr;
+    min-height: calc(100vh - 53px);
+  }
+
+  /* 사이드바 */
+  .ad-sidebar {
+    background: var(--pt-bg-0);
+    border-right: 1px solid var(--pt-line-2);
+    padding: 16px 12px;
+    position: sticky;
+    top: 53px;
+    height: calc(100vh - 53px);
+    overflow-y: auto;
+  }
+  .ad-sec {
+    padding: 14px 12px 6px;
+    font-family: var(--pt-font-eyebrow); font-size: 10px;
+    letter-spacing: 0.18em; color: var(--pt-ink-3); font-weight: 700;
+  }
+  .ad-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    color: var(--pt-ink-2); font-size: 13px; font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    margin-bottom: 2px;
+  }
+  .ad-item:hover { background: var(--pt-bg-2); color: var(--pt-ink-0); }
+  .ad-item.is-active { background: var(--pt-red-500); color: #fff; }
+  .ad-item .ic { width: 16px; flex-shrink: 0; opacity: 0.7; font-size: 14px; }
+  .ad-item .cnt {
+    margin-left: auto;
+    font-family: var(--pt-font-mono);
+    font-size: 10px;
+    color: var(--pt-ink-3);
+    background: var(--pt-bg-3);
+    padding: 2px 7px; border-radius: 999px;
+  }
+  .ad-item.is-active .cnt { background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.85); }
+  .ad-item.has-alert .cnt { background: var(--pt-red-900); color: var(--pt-red-300); }
+
+  /* ===== 본문 ===== */
+  .ad-main { padding: 24px 32px 80px; max-width: 1100px; }
+
+  .ad-page-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .ad-page-head h1 {
+    margin: 0;
+    font-family: var(--pt-font-display);
+    font-style: italic; font-weight: 900;
+    text-transform: uppercase; font-size: 36px; line-height: 1;
+    color: var(--pt-ink-0); letter-spacing: -0.01em;
+  }
+  .ad-page-head h1 em { color: var(--pt-red-500); font-style: italic; }
+  .ad-page-head .desc { font-family: var(--pt-font-mono); font-size: 12px; color: var(--pt-ink-3); margin-top: 6px; }
+  .ad-actions { display: flex; gap: 8px; }
+  .ad-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 9px 14px; border-radius: 8px;
+    font-size: 12px; font-weight: 700;
+    cursor: pointer; border: 1px solid var(--pt-line-2);
+    background: var(--pt-bg-3); color: var(--pt-ink-1);
+  }
+  .ad-btn:hover { background: var(--pt-bg-4); border-color: var(--pt-line-3); }
+  .ad-btn.primary { background: var(--pt-red-500); color: #fff; border-color: var(--pt-red-500); }
+  .ad-btn.primary:hover { background: var(--pt-red-300); }
+
+  /* ===== 통계 카드 ===== */
+  .stat-row {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 12px; margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--pt-bg-2); border: 1px solid var(--pt-line-1);
+    border-radius: 10px; padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .stat-card .lbl {
+    font-family: var(--pt-font-eyebrow); font-size: 10px; letter-spacing: 0.18em;
+    color: var(--pt-ink-3); font-weight: 700;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .stat-card .v {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800;
+    font-size: 26px; line-height: 1; color: var(--pt-ink-0);
+    margin: 2px 0;
+  }
+  .stat-card .delta {
+    font-family: var(--pt-font-mono); font-size: 11px;
+    padding: 2px 6px; border-radius: 4px;
+  }
+  .stat-card .delta.up { background: rgba(31,191,107,0.15); color: var(--pt-win); }
+  .stat-card .delta.down { background: var(--pt-red-900); color: var(--pt-red-300); }
+  .stat-card .delta.neutral { background: var(--pt-bg-3); color: var(--pt-ink-3); }
+  .stat-card .sub { font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); }
+
+  /* ===== 카드 (필터+표) ===== */
+  .card {
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .card-head {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--pt-line-1);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .card-head h3 {
+    margin: 0;
+    font-size: 14px; font-weight: 800; color: var(--pt-ink-0);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-head h3 .meta {
+    font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3);
+    font-weight: 500;
+  }
+
+  /* 검색 + 필터 행 */
+  .filter-row {
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--pt-line-1);
+    display: flex; align-items: center; gap: 10px;
+    background: var(--pt-bg-1);
+  }
+  .ad-search {
+    flex: 1; max-width: 320px; position: relative;
+  }
+  .ad-search input {
+    width: 100%;
+    background: var(--pt-bg-3); border: 1px solid var(--pt-line-2);
+    color: var(--pt-ink-0);
+    padding: 7px 10px 7px 30px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: inherit;
+  }
+  .ad-search input::placeholder { color: var(--pt-ink-3); }
+  .ad-search input:focus { outline: 0; border-color: var(--pt-red-500); box-shadow: 0 0 0 3px rgba(225,6,0,0.15); }
+  .ad-search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--pt-ink-3); }
+
+  .ad-select {
+    background: var(--pt-bg-3); border: 1px solid var(--pt-line-2);
+    color: var(--pt-ink-1);
+    padding: 7px 24px 7px 10px; border-radius: 6px;
+    font-size: 12px; font-weight: 600;
+    appearance: none;
+    cursor: pointer;
+    font-family: inherit;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10' fill='none' stroke='%23B3B5BC' stroke-width='1.5'><path d='M2 4 L5 7 L8 4'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+  }
+  .ad-bulk-count {
+    margin-left: auto;
+    font-family: var(--pt-font-mono); font-size: 11px;
+    color: var(--pt-ink-3);
+  }
+  .ad-bulk-count b { color: var(--pt-red-300); }
+
+  /* ===== 테이블 ===== */
+  .ad-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+  .ad-table th, .ad-table td {
+    padding: 10px 14px; text-align: left;
+    border-bottom: 1px solid var(--pt-line-1);
+    vertical-align: middle;
+  }
+  .ad-table tr:last-child td { border-bottom: 0; }
+  .ad-table th {
+    background: var(--pt-bg-3);
+    font-family: var(--pt-font-eyebrow);
+    font-size: 10px; letter-spacing: 0.14em;
+    color: var(--pt-ink-3); font-weight: 700;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--pt-line-2);
+  }
+  .ad-table tbody tr { cursor: pointer; transition: background 0.1s; }
+  .ad-table tbody tr:hover { background: var(--pt-bg-3); }
+  .ad-table .check { width: 28px; }
+  .ad-table .check input {
+    width: 14px; height: 14px; accent-color: var(--pt-red-500); cursor: pointer;
+  }
+
+  /* 이벤트 행 셀 스타일 */
+  .ad-event-name { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .ad-event-name .badge {
+    font-family: var(--pt-font-eyebrow); font-size: 9px;
+    letter-spacing: 0.14em; padding: 3px 7px; border-radius: 3px;
+    font-weight: 700;
+  }
+  .ad-event-name .badge.ufc { background: var(--pt-red-500); color: #fff; }
+  .ad-event-name .badge.fn { background: var(--pt-bg-4); color: var(--pt-ink-1); border: 1px solid var(--pt-line-2); }
+  .ad-event-name .nm { font-weight: 700; color: var(--pt-ink-0); }
+  .ad-event-name .ko { font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); margin-top: 2px; }
+  .ad-event-name .col { display: flex; flex-direction: column; gap: 1px; line-height: 1.2; }
+  .ad-event-main {
+    font-family: 'Pretendard', sans-serif; font-size: 12px; color: var(--pt-ink-2);
+  }
+  .ad-event-main b { color: var(--pt-ink-0); }
+
+  /* 상태 배지 */
+  .ad-status {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 9px; border-radius: 999px;
+    font-family: var(--pt-font-eyebrow); font-size: 10px;
+    letter-spacing: 0.12em; font-weight: 700;
+  }
+  .ad-status::before { content: ''; width: 5px; height: 5px; border-radius: 50%; }
+  .ad-status.live { background: var(--pt-red-500); color: #fff; }
+  .ad-status.live::before { background: #fff; animation: blink 1.4s infinite; }
+  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .ad-status.scheduled { background: rgba(31,191,107,0.15); color: var(--pt-win); border: 1px solid rgba(31,191,107,0.3); }
+  .ad-status.scheduled::before { background: var(--pt-win); }
+  .ad-status.draft { background: var(--pt-bg-4); color: var(--pt-ink-2); border: 1px solid var(--pt-line-2); }
+  .ad-status.draft::before { background: var(--pt-ink-3); }
+  .ad-status.completed { background: rgba(31,111,235,0.10); color: #6FA8FF; border: 1px solid rgba(31,111,235,0.3); }
+  .ad-status.completed::before { background: #6FA8FF; }
+  .ad-status.cancelled { background: var(--pt-red-900); color: var(--pt-red-300); border: 1px solid var(--pt-red-700); }
+  .ad-status.cancelled::before { background: var(--pt-red-500); }
+
+  /* 픽 진행률 미니바 */
+  .picks-bar {
+    display: flex; flex-direction: column; gap: 4px; min-width: 100px;
+  }
+  .picks-bar .label {
+    display: flex; justify-content: space-between;
+    font-family: var(--pt-font-mono); font-size: 11px;
+    color: var(--pt-ink-2);
+  }
+  .picks-bar .label b { color: var(--pt-warn); }
+  .picks-bar .bar {
+    height: 4px; background: var(--pt-bg-4); border-radius: 2px; overflow: hidden;
+  }
+  .picks-bar .bar .fill { height: 100%; background: var(--pt-red-500); border-radius: 2px; }
+
+  /* 액션 컬럼 */
+  .ad-actions-cell { display: flex; gap: 4px; justify-content: flex-end; }
+  .ad-icon-btn {
+    width: 28px; height: 28px; border-radius: 6px;
+    background: var(--pt-bg-3); border: 1px solid var(--pt-line-2);
+    color: var(--pt-ink-2); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+  }
+  .ad-icon-btn:hover { background: var(--pt-bg-4); color: var(--pt-ink-0); border-color: var(--pt-line-3); }
+  .ad-icon-btn.danger:hover { background: var(--pt-red-900); color: var(--pt-red-300); border-color: var(--pt-red-700); }
+
+  /* 표 푸터 */
+  .ad-tfoot {
+    padding: 10px 18px;
+    border-top: 1px solid var(--pt-line-1);
+    background: var(--pt-bg-1);
+    display: flex; align-items: center; justify-content: space-between;
+    font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3);
+  }
+  .ad-tfoot b { color: var(--pt-ink-1); }
+  .ad-pages { display: flex; gap: 4px; }
+  .ad-pages .p {
+    width: 26px; height: 26px; border-radius: 5px;
+    border: 1px solid var(--pt-line-2);
+    background: var(--pt-bg-2);
+    color: var(--pt-ink-2);
+    font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  .ad-pages .p.is-active { background: var(--pt-red-500); color: #fff; border-color: var(--pt-red-500); }
+
+  /* ===== 2 col with side activity ===== */
+  .ad-grid {
+    display: grid; grid-template-columns: 1fr 280px; gap: 20px;
+  }
+
+  /* 액티비티 로그 */
+  .log-card {
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 10px;
+    padding: 18px;
+  }
+  .log-card h3 {
+    margin: 0 0 14px;
+    font-size: 13px; font-weight: 800; color: var(--pt-ink-0);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .log-card h3 .meta {
+    font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3);
+    font-weight: 500;
+  }
+  .log-row {
+    display: grid; grid-template-columns: 4px 1fr; gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--pt-line-1);
+    align-items: flex-start;
+  }
+  .log-row:last-child { border-bottom: 0; }
+  .log-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--pt-red-500);
+    margin-top: 6px; margin-left: -2px;
+  }
+  .log-row.create .log-dot { background: var(--pt-win); }
+  .log-row.update .log-dot { background: var(--pt-warn); }
+  .log-row.delete .log-dot { background: var(--pt-red-500); }
+  .log-row.publish .log-dot { background: #6FA8FF; }
+  .log-info { font-size: 12px; color: var(--pt-ink-1); line-height: 1.5; }
+  .log-info b { color: var(--pt-ink-0); }
+  .log-info .who { color: var(--pt-red-300); font-weight: 600; }
+  .log-info .what { font-family: var(--pt-font-mono); font-size: 11px; }
+  .log-time {
+    font-family: var(--pt-font-mono); font-size: 10px; color: var(--pt-ink-3);
+    margin-top: 4px;
+  }
+
+  /* 빠른 액션 */
+  .qa-list { display: flex; flex-direction: column; gap: 8px; }
+  .qa-item {
+    display: grid; grid-template-columns: 32px 1fr;
+    align-items: center; gap: 12px;
+    padding: 12px;
+    background: var(--pt-bg-3); border: 1px solid var(--pt-line-1);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .qa-item:hover { background: var(--pt-bg-4); border-color: var(--pt-line-3); }
+  .qa-ic {
+    width: 32px; height: 32px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    background: var(--pt-bg-1);
+  }
+  .qa-info { line-height: 1.3; }
+  .qa-nm { font-size: 13px; font-weight: 700; color: var(--pt-ink-0); }
+  .qa-desc { font-family: var(--pt-font-mono); font-size: 10px; color: var(--pt-ink-3); margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<!-- 어드민 헤더 -->
+<header class="ad-header">
+  <a class="ad-logo" href="screen-home.html">
+    <svg width="22" height="22" viewBox="0 0 200 200" fill="none">
+      <polygon points="60,10 140,10 190,60 190,140 140,190 60,190 10,140 10,60" fill="none" stroke="#E10600" stroke-width="14"/>
+      <path d="M70 102 L92 124 L138 78" stroke="#FFFFFF" stroke-width="22" fill="none" stroke-linejoin="miter"/>
+    </svg>
+    <span class="word">PICK-TAGON</span>
+  </a>
+  <span class="ad-tag">ADMIN</span>
+  <span class="ad-breadcrumb">
+    <a href="#">대시보드</a>
+    <span class="sep">/</span>
+    <span class="cur">이벤트 관리</span>
+  </span>
+  <span class="ad-env">PRODUCTION</span>
+  <div class="ad-user">
+    <div class="ava">KB</div>
+    <div>
+      <div class="nm">킹보틀</div>
+      <div class="role">SUPER ADMIN</div>
+    </div>
+  </div>
+</header>
+
+<!-- 메인 레이아웃 -->
+<div class="ad-layout">
+
+  <!-- 사이드바 -->
+  <aside class="ad-sidebar">
+    <div class="ad-sec">콘텐츠</div>
+    <a class="ad-item is-active"><span class="ic">📅</span>이벤트<span class="cnt">28</span></a>
+    <a class="ad-item"><span class="ic">🥊</span>파이터<span class="cnt">1,284</span></a>
+    <a class="ad-item has-alert"><span class="ic">🎯</span>결과 입력<span class="cnt">3</span></a>
+    <a class="ad-item"><span class="ic">🏆</span>랭킹<span class="cnt">9</span></a>
+    <a class="ad-item"><span class="ic">📰</span>뉴스<span class="cnt">432</span></a>
+
+    <div class="ad-sec">시스템</div>
+    <a class="ad-item"><span class="ic">📊</span>시즌<span class="cnt">3</span></a>
+    <a class="ad-item"><span class="ic">👥</span>유저<span class="cnt">18.4K</span></a>
+    <a class="ad-item"><span class="ic">🥋</span>벨트 룰</a>
+    <a class="ad-item"><span class="ic">🎖</span>업적 관리<span class="cnt">24</span></a>
+
+    <div class="ad-sec">모니터링</div>
+    <a class="ad-item"><span class="ic">📈</span>지표</a>
+    <a class="ad-item"><span class="ic">🛡</span>신고 접수<span class="cnt">5</span></a>
+    <a class="ad-item"><span class="ic">⚙</span>설정</a>
+  </aside>
+
+  <!-- 본문 -->
+  <main class="ad-main">
+
+    <!-- 페이지 헤더 -->
+    <div class="ad-page-head">
+      <div>
+        <h1>이벤트 <em>·</em> 관리</h1>
+        <div class="desc">전체 28건 · 활성 4건 · 예정 12건 · 종료 12건</div>
+      </div>
+      <div class="ad-actions">
+        <button class="ad-btn">CSV 내보내기</button>
+        <button class="ad-btn">UFC.com 동기화</button>
+        <button class="ad-btn primary">+ 새 이벤트</button>
+      </div>
+    </div>
+
+    <!-- 통계 -->
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="lbl">활성 이벤트 <span class="delta up">+1</span></div>
+        <div class="v">4</div>
+        <div class="sub">UFC 328 · D-5</div>
+      </div>
+      <div class="stat-card">
+        <div class="lbl">총 픽 (이번주) <span class="delta up">+12.4%</span></div>
+        <div class="v">142,832</div>
+        <div class="sub">사용자 14,283명</div>
+      </div>
+      <div class="stat-card">
+        <div class="lbl">결과 입력 대기 <span class="delta down">3건</span></div>
+        <div class="v" style="color: var(--pt-warn);">3</div>
+        <div class="sub">UFC 327 · 5월 10일</div>
+      </div>
+      <div class="stat-card">
+        <div class="lbl">시스템 상태 <span class="delta up">정상</span></div>
+        <div class="v" style="color: var(--pt-win);">99.97%</div>
+        <div class="sub">최근 30일 가동률</div>
+      </div>
+    </div>
+
+    <div class="ad-grid">
+
+      <!-- 본문 카드 -->
+      <div>
+        <div class="card">
+          <div class="card-head">
+            <h3>이벤트 목록 <span class="meta">2026 시즌 · 28건</span></h3>
+            <div class="ad-actions">
+              <button class="ad-btn" style="padding: 6px 12px;">필터 ▼</button>
+            </div>
+          </div>
+
+          <div class="filter-row">
+            <div class="ad-search">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg>
+              <input placeholder="이벤트 번호 · 파이터 검색..." />
+            </div>
+            <select class="ad-select"><option>전체 상태</option><option>예정</option><option>라이브</option><option>종료</option></select>
+            <select class="ad-select"><option>2026 시즌</option><option>2025 시즌</option></select>
+            <select class="ad-select"><option>모든 타입</option><option>UFC PPV</option><option>UFC Fight Night</option></select>
+            <span class="ad-bulk-count">전체 28건 · <b>2건 선택됨</b></span>
+          </div>
+
+          <table class="ad-table">
+            <thead>
+              <tr>
+                <th class="check"><input type="checkbox"/></th>
+                <th style="width: 270px;">이벤트</th>
+                <th style="width: 230px;">메인 이벤트</th>
+                <th style="width: 110px;">날짜</th>
+                <th>상태</th>
+                <th style="width: 130px;">픽 진행</th>
+                <th style="width: 80px; text-align: right;">액션</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="check"><input type="checkbox"/></td>
+                <td>
+                  <div class="ad-event-name">
+                    <span class="badge ufc">PPV</span>
+                    <div class="col">
+                      <span class="nm">UFC 328</span>
+                      <span class="ko">T-Mobile Arena · 라스베가스</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="ad-event-main">
+                  <b>CHIMAEV</b> vs. STRICKLAND
+                  <div style="font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); margin-top: 2px;">미들급 · 5R · 메인</div>
+                </td>
+                <td class="ad-event-main"><b>05.31</b><div style="font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); margin-top: 2px;">토 · D-5</div></td>
+                <td><span class="ad-status scheduled">예정</span></td>
+                <td>
+                  <div class="picks-bar">
+                    <div class="label"><span>전체 매치</span><b>8 / 11</b></div>
+                    <div class="bar"><div class="fill" style="width: 72%;"></div></div>
+                  </div>
+                </td>
+                <td>
+                  <div class="ad-actions-cell">
+                    <span class="ad-icon-btn">✎</span>
+                    <span class="ad-icon-btn">⋯</span>
+                  </div>
+                </td>
+              </tr>
+
+              <tr>
+                <td class="check"><input type="checkbox" checked/></td>
+                <td>
+                  <div class="ad-event-name">
+                    <span class="badge ufc">PPV</span>
+                    <div class="col">
+                      <span class="nm">UFC 329</span>
+                      <span class="ko">T-Mobile Arena · 인터내셔널 파이트 위크</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="ad-event-main">
+                  <b>ADAMSON</b> vs. PETTIS
+                  <div style="font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); margin-top: 2px;">웰터급 · 5R · 메인</div>
+                </td>
+                <td class="ad-event-main"><b>06.21</b><div style="font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); margin-top: 2px;">토 · D-26</div></td>
+                <td><span class="ad-status scheduled">예정</span></td>
+                <td>
+                  <div class="picks-bar">
+                    <div class="label"><span>11 매치</span><b>0 / 11</b></div>
+                    <div class="bar"><div class="fill" style="width: 0%;"></div></div>
+                  </div>
+                </td>
+                <td>
+                  <div class="ad-actions-cell">
+                    <span class="ad-icon-btn">✎</span>
+                    <span class="ad-icon-btn">⋯</span>
+                  </div>
+                </td>
+              </tr>
+
+              <tr>
+                <td class="check"><input type="checkbox" checked/></td>
+                <td>
+                  <div class="ad-event-name">
+                    <span class="badge fn">FN</span>
+                    <div class="col">
+                      <span class="nm">UFC FN — 솔트레이크</span>
+                      <span class="ko">델타 센터 · 솔트레이크시티</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="ad-event-main">
+                  <b>HOLLOWAY</b> vs. ALDO
+                  <div style="font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); margin-top: 2px;">페더급 · 5R · 메인</div>
+                </td>
+                <td class="ad-event-main"><b>06.07</b><div style="font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); margin-top: 2px;">토 · D-12</div></td>
+                <td><span class="ad-status draft">초안</span></td>
+                <td>
+                  <div class="picks-bar">
+                    <div class="label"><span>9 매치</span><span style="color: var(--pt-ink-3);">미공개</span></div>
+                    <div class="bar"><div class="fill" style="width: 0%;"></div></div>
+                  </div>
+                </td>
+                <td>
+                  <div class="ad-actions-cell">
+                    <span class="ad-icon-btn">✎</span>
+                    <span class="ad-icon-btn">⋯</span>
+                  </div>
+                </td>
+              </tr>
+
+              <tr>
+                <td class="check"><input type="checkbox"/></td>
+                <td>
+                  <div class="ad-event-name">
+                    <span class="badge ufc">PPV</span>
+                    <div class="col">
+                      <span class="nm">UFC 327</span>
+                      <span class="ko">T-Mobile Arena · 라스베가스</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="ad-event-main">
+                  <b>JONES</b> vs. MIOCIC
+                  <div style="font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); margin-top: 2px;">헤비급 · 5R · 메인</div>
+                </td>
+                <td class="ad-event-main"><b>05.10</b><div style="font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); margin-top: 2px;">11일 전</div></td>
+                <td><span class="ad-status" style="background: rgba(244,180,0,0.15); color: var(--pt-warn); border: 1px solid rgba(244,180,0,0.4);"><span style="background: var(--pt-warn);"></span>결과 대기</span></td>
+                <td>
+                  <div class="picks-bar">
+                    <div class="label"><span>결과 입력</span><b style="color: var(--pt-warn);">8 / 11</b></div>
+                    <div class="bar"><div class="fill" style="width: 73%; background: var(--pt-warn);"></div></div>
+                  </div>
+                </td>
+                <td>
+                  <div class="ad-actions-cell">
+                    <span class="ad-icon-btn" style="background: var(--pt-red-900); border-color: var(--pt-red-700); color: var(--pt-red-300);">✎</span>
+                    <span class="ad-icon-btn">⋯</span>
+                  </div>
+                </td>
+              </tr>
+
+              <tr>
+                <td class="check"><input type="checkbox"/></td>
+                <td>
+                  <div class="ad-event-name">
+                    <span class="badge fn">FN</span>
+                    <div class="col">
+                      <span class="nm">UFC FN — 5월 3일</span>
+                      <span class="ko">UFC Apex · 라스베가스</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="ad-event-main">
+                  <b>ADESANYA</b> vs. WHITTAKER
+                  <div style="font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); margin-top: 2px;">미들급 · 3R · 메인</div>
+                </td>
+                <td class="ad-event-main"><b>05.03</b><div style="font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); margin-top: 2px;">18일 전</div></td>
+                <td><span class="ad-status completed">종료</span></td>
+                <td>
+                  <div class="picks-bar">
+                    <div class="label"><span>모두 정산</span><b style="color: var(--pt-win);">9 / 9</b></div>
+                    <div class="bar"><div class="fill" style="width: 100%; background: var(--pt-win);"></div></div>
+                  </div>
+                </td>
+                <td>
+                  <div class="ad-actions-cell">
+                    <span class="ad-icon-btn">📊</span>
+                    <span class="ad-icon-btn">⋯</span>
+                  </div>
+                </td>
+              </tr>
+
+              <tr>
+                <td class="check"><input type="checkbox"/></td>
+                <td>
+                  <div class="ad-event-name">
+                    <span class="badge ufc">PPV</span>
+                    <div class="col">
+                      <span class="nm">UFC 326</span>
+                      <span class="ko">Etihad Arena · 아부다비</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="ad-event-main">
+                  <b>USMAN</b> vs. MUHAMMAD
+                  <div style="font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); margin-top: 2px;">웰터급 · 5R · 메인</div>
+                </td>
+                <td class="ad-event-main"><b>04.26</b><div style="font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); margin-top: 2px;">25일 전</div></td>
+                <td><span class="ad-status completed">종료</span></td>
+                <td>
+                  <div class="picks-bar">
+                    <div class="label"><span>모두 정산</span><b style="color: var(--pt-win);">11 / 11</b></div>
+                    <div class="bar"><div class="fill" style="width: 100%; background: var(--pt-win);"></div></div>
+                  </div>
+                </td>
+                <td>
+                  <div class="ad-actions-cell">
+                    <span class="ad-icon-btn">📊</span>
+                    <span class="ad-icon-btn">⋯</span>
+                  </div>
+                </td>
+              </tr>
+
+              <tr>
+                <td class="check"><input type="checkbox"/></td>
+                <td>
+                  <div class="ad-event-name">
+                    <span class="badge fn">FN</span>
+                    <div class="col">
+                      <span class="nm">UFC FN — 한국 서울</span>
+                      <span class="ko">잠실 학생체육관 · 서울 (확정 대기)</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="ad-event-main">
+                  <b>정찬성</b> vs. KATTAR
+                  <div style="font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); margin-top: 2px;">페더급 · 3R · 메인 (잠정)</div>
+                </td>
+                <td class="ad-event-main"><b>06.14</b><div style="font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); margin-top: 2px;">토 · D-19</div></td>
+                <td><span class="ad-status draft">초안</span></td>
+                <td>
+                  <div class="picks-bar">
+                    <div class="label"><span>매치 미정</span><span style="color: var(--pt-ink-3);">0 / 0</span></div>
+                    <div class="bar"><div class="fill" style="width: 0%;"></div></div>
+                  </div>
+                </td>
+                <td>
+                  <div class="ad-actions-cell">
+                    <span class="ad-icon-btn">✎</span>
+                    <span class="ad-icon-btn">⋯</span>
+                  </div>
+                </td>
+              </tr>
+
+              <tr>
+                <td class="check"><input type="checkbox"/></td>
+                <td>
+                  <div class="ad-event-name">
+                    <span class="badge ufc" style="background: var(--pt-bg-4); color: var(--pt-ink-3);">취소</span>
+                    <div class="col">
+                      <span class="nm" style="color: var(--pt-ink-3); text-decoration: line-through;">UFC FN — 보스턴</span>
+                      <span class="ko">TD Garden · 보스턴</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="ad-event-main" style="color: var(--pt-ink-3);">
+                  <span style="text-decoration: line-through;">EDWARDS vs. RAKHMONOV</span>
+                  <div style="font-family: var(--pt-font-mono); font-size: 11px; margin-top: 2px;">에드워즈 부상 — 매치업 무효화</div>
+                </td>
+                <td class="ad-event-main" style="color: var(--pt-ink-3);">04.19</td>
+                <td><span class="ad-status cancelled">취소</span></td>
+                <td>
+                  <div class="picks-bar">
+                    <div class="label"><span>픽 환불 완료</span><b style="color: var(--pt-ink-3);">100%</b></div>
+                    <div class="bar"><div class="fill" style="width: 100%; background: var(--pt-ink-4);"></div></div>
+                  </div>
+                </td>
+                <td>
+                  <div class="ad-actions-cell">
+                    <span class="ad-icon-btn">📋</span>
+                    <span class="ad-icon-btn danger">🗑</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="ad-tfoot">
+            <span>28건 중 <b>1–8</b> · 5월 1일~6월 21일 표시</span>
+            <div class="ad-pages">
+              <span class="p">‹</span>
+              <span class="p is-active">1</span>
+              <span class="p">2</span>
+              <span class="p">3</span>
+              <span class="p">4</span>
+              <span class="p">›</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 사이드: 액티비티 + 빠른 액션 -->
+      <aside>
+        <div class="log-card" style="margin-bottom: 16px;">
+          <h3>빠른 액션 <span class="meta">자주 쓰는</span></h3>
+          <div class="qa-list">
+            <div class="qa-item">
+              <div class="qa-ic" style="color: var(--pt-warn); background: rgba(244,180,0,0.10);">🎯</div>
+              <div class="qa-info">
+                <div class="qa-nm">UFC 327 결과 입력</div>
+                <div class="qa-desc">3 매치 남음 · 마감 임박</div>
+              </div>
+            </div>
+            <div class="qa-item">
+              <div class="qa-ic" style="color: var(--pt-red-500); background: rgba(225,6,0,0.10);">📅</div>
+              <div class="qa-info">
+                <div class="qa-nm">UFC 328 라인업 검토</div>
+                <div class="qa-desc">최종 발표 D-1</div>
+              </div>
+            </div>
+            <div class="qa-item">
+              <div class="qa-ic" style="color: var(--pt-win); background: rgba(31,191,107,0.10);">🏆</div>
+              <div class="qa-info">
+                <div class="qa-nm">5월 랭킹 발표</div>
+                <div class="qa-desc">9개 체급 · 매주 월요일</div>
+              </div>
+            </div>
+            <div class="qa-item">
+              <div class="qa-ic" style="color: #6FA8FF; background: rgba(31,111,235,0.10);">📰</div>
+              <div class="qa-info">
+                <div class="qa-nm">뉴스 초안 검토</div>
+                <div class="qa-desc">미게시 7건</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="log-card">
+          <h3>최근 활동 <span class="meta">실시간 로그</span></h3>
+          <div>
+            <div class="log-row update">
+              <div class="log-dot"></div>
+              <div>
+                <div class="log-info"><span class="who">@SOOHYUN</span> 가 <b>UFC 328 #5 매치</b>의 배당을 수정함 <span class="what">(−145 → −145)</span></div>
+                <div class="log-time">2분 전 · admin@picktagon.com</div>
+              </div>
+            </div>
+            <div class="log-row create">
+              <div class="log-dot"></div>
+              <div>
+                <div class="log-info"><span class="who">@SOOHYUN</span> 가 새 파이터 <b>아아론 피코</b>를 추가함</div>
+                <div class="log-time">14분 전 · 미들급 #12</div>
+              </div>
+            </div>
+            <div class="log-row publish">
+              <div class="log-dot"></div>
+              <div>
+                <div class="log-info"><span class="who">@KINGBOTTLE</span> 가 뉴스 <b>"UFC 328 메인카드 5경기 분석"</b>을 게시함</div>
+                <div class="log-time">1시간 전 · 분석 카테고리</div>
+              </div>
+            </div>
+            <div class="log-row update">
+              <div class="log-dot"></div>
+              <div>
+                <div class="log-info"><span class="who">시스템</span> 이 P4P 랭킹을 갱신함 <span class="what">(주간 정기 갱신)</span></div>
+                <div class="log-time">3시간 전 · 자동</div>
+              </div>
+            </div>
+            <div class="log-row delete">
+              <div class="log-dot"></div>
+              <div>
+                <div class="log-info"><span class="who">@KINGBOTTLE</span> 가 <b>UFC FN 보스턴</b>을 취소함 <span class="what">(에드워즈 부상)</span></div>
+                <div class="log-time">2일 전 · 1,284명 픽 환불 완료</div>
+              </div>
+            </div>
+            <div class="log-row create">
+              <div class="log-dot"></div>
+              <div>
+                <div class="log-info"><span class="who">@SOOHYUN</span> 가 새 이벤트 <b>UFC 329</b>를 생성함</div>
+                <div class="log-time">3일 전 · 초안 → 예정</div>
+              </div>
+            </div>
+            <div class="log-row update">
+              <div class="log-dot"></div>
+              <div>
+                <div class="log-info"><span class="who">시스템</span> 이 결과 정산을 완료함 <span class="what">(UFC 326 · 11/11 매치)</span></div>
+                <div class="log-time">25일 전 · 자동</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+  </main>
+
+</div>
+
+</body>
+</html>

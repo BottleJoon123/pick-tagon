@@ -1,0 +1,190 @@
+/* ============================================================
+   Pick-tagon Design Tokens
+   Fight-night intelligence console.
+   Dark arena UI · UFC-red accents · belt-tier ranking system.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Barlow+Condensed:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700;1,800;1,900&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+:root {
+  /* ---------- Surface (deepest → lifted) ---------- */
+  --pt-bg-0: #07080A;          /* page bottom — pure arena black */
+  --pt-bg-1: #0E0F12;          /* default canvas */
+  --pt-bg-2: #14161B;          /* card */
+  --pt-bg-3: #1B1E25;          /* lifted card / hover */
+  --pt-bg-4: #232730;          /* input / chip */
+
+  /* ---------- Border / hairline ---------- */
+  --pt-line-1: rgba(255,255,255,0.06);
+  --pt-line-2: rgba(255,255,255,0.10);
+  --pt-line-3: rgba(255,255,255,0.18);
+  --pt-line-red: rgba(225, 6, 0, 0.55);
+
+  /* ---------- Ink ---------- */
+  --pt-ink-0: #FFFFFF;
+  --pt-ink-1: #ECECEE;
+  --pt-ink-2: #B3B5BC;         /* secondary */
+  --pt-ink-3: #71757F;         /* tertiary / labels */
+  --pt-ink-4: #4A4D55;         /* disabled */
+
+  /* ---------- Pick-tagon Red (the brand) ---------- */
+  --pt-red-50:  #FFE9E8;
+  --pt-red-100: #FFC7C4;
+  --pt-red-300: #FF5D55;
+  --pt-red-500: #E10600;       /* PRIMARY — UFC-grade red */
+  --pt-red-600: #C20500;
+  --pt-red-700: #9A0400;
+  --pt-red-900: #3A0100;
+  --pt-red-glow: 0 0 24px rgba(225,6,0,0.45);
+
+  /* ---------- Corner colors (red vs blue, like the cage) ---------- */
+  --pt-corner-red:  #E10600;
+  --pt-corner-red-deep:  #6B0200;
+  --pt-corner-blue: #1F6FEB;
+  --pt-corner-blue-deep: #0A2A66;
+
+  /* ---------- Status ---------- */
+  --pt-win:  #1FBF6B;          /* live / upcoming green */
+  --pt-loss: #E10600;
+  --pt-draw: #71757F;
+  --pt-warn: #F4B400;
+  --pt-info: #1F6FEB;
+
+  /* ---------- Belt tiers (ranking system) ---------- */
+  --pt-belt-white:  #ECECEE;
+  --pt-belt-blue:   #1F6FEB;
+  --pt-belt-purple: #8B3FE3;
+  --pt-belt-brown:  #B5803A;
+  --pt-belt-black:  #0E0F12;
+
+  /* ---------- Type ---------- */
+  --pt-font-display: 'Barlow Condensed', 'Oswald', system-ui, sans-serif;  /* heavy italic headlines */
+  --pt-font-eyebrow: 'Bebas Neue', 'Oswald', sans-serif;                    /* uppercase labels */
+  --pt-font-body:    'Barlow', system-ui, -apple-system, sans-serif;
+  --pt-font-mono:    'JetBrains Mono', ui-monospace, monospace;
+
+  /* type scale (px) */
+  --pt-fs-hero:     112px;
+  --pt-fs-display:  72px;
+  --pt-fs-h1:       48px;
+  --pt-fs-h2:       32px;
+  --pt-fs-h3:       22px;
+  --pt-fs-body:     15px;
+  --pt-fs-small:    13px;
+  --pt-fs-eyebrow:  11px;
+
+  --pt-lh-tight: 0.92;
+  --pt-lh-snug:  1.1;
+  --pt-lh-body:  1.5;
+  --pt-tracking-eyebrow: 0.18em;
+  --pt-tracking-display: -0.01em;
+
+  /* ---------- Space ---------- */
+  --pt-space-1:  4px;
+  --pt-space-2:  8px;
+  --pt-space-3:  12px;
+  --pt-space-4:  16px;
+  --pt-space-5:  20px;
+  --pt-space-6:  24px;
+  --pt-space-8:  32px;
+  --pt-space-10: 40px;
+  --pt-space-12: 56px;
+  --pt-space-16: 80px;
+
+  /* ---------- Radius ---------- */
+  --pt-r-xs:   4px;
+  --pt-r-sm:   8px;
+  --pt-r-md:   12px;
+  --pt-r-lg:   18px;
+  --pt-r-xl:   24px;
+  --pt-r-pill: 999px;
+
+  /* ---------- Shadow ---------- */
+  --pt-shadow-card:  0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 24px rgba(0,0,0,0.35);
+  --pt-shadow-pop:   0 18px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.06);
+  --pt-shadow-red:   0 12px 36px rgba(225,6,0,0.35);
+
+  /* ---------- Motion ---------- */
+  --pt-ease-out:  cubic-bezier(0.2, 0.8, 0.2, 1);
+  --pt-ease-pop:  cubic-bezier(0.34, 1.56, 0.64, 1);
+  --pt-dur-fast:  120ms;
+  --pt-dur-base:  220ms;
+  --pt-dur-slow:  420ms;
+}
+
+/* ============================================================
+   Base helpers shared across all design-system cards
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--pt-bg-1);
+  color: var(--pt-ink-1);
+  font-family: var(--pt-font-body);
+  font-size: var(--pt-fs-body);
+  line-height: var(--pt-lh-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.pt-eyebrow {
+  font-family: var(--pt-font-eyebrow);
+  font-size: var(--pt-fs-eyebrow);
+  letter-spacing: var(--pt-tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--pt-ink-3);
+}
+.pt-eyebrow--red { color: var(--pt-red-500); }
+
+.pt-display {
+  font-family: var(--pt-font-display);
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: var(--pt-tracking-display);
+  line-height: var(--pt-lh-tight);
+  text-transform: uppercase;
+}
+
+.pt-title {
+  font-family: var(--pt-font-display);
+  font-style: italic;
+  font-weight: 800;
+  text-transform: uppercase;
+  line-height: var(--pt-lh-snug);
+  letter-spacing: 0;
+}
+
+.pt-mono {
+  font-family: var(--pt-font-mono);
+  font-feature-settings: 'tnum' 1;
+}
+
+/* Subtle octagon backdrop pattern, optional */
+.pt-bg-mesh {
+  background-image:
+    radial-gradient(circle at 0% 0%, rgba(225,6,0,0.08), transparent 40%),
+    radial-gradient(circle at 100% 100%, rgba(31,111,235,0.06), transparent 50%),
+    var(--pt-bg-1);
+}
+
+/* Card chrome reused across system cards */
+.pt-card {
+  background: var(--pt-bg-2);
+  border: 1px solid var(--pt-line-1);
+  border-radius: var(--pt-r-lg);
+  box-shadow: var(--pt-shadow-card);
+}
+
+/* The accent flag (red bar) used at the top of section headers */
+.pt-flag {
+  position: relative;
+  padding-left: 14px;
+}
+.pt-flag::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 4px; bottom: 4px;
+  width: 4px;
+  background: var(--pt-red-500);
+  border-radius: 2px;
+}

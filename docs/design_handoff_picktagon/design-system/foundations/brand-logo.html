@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Pick-tagon · 브랜드 / 로고</title>
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="ds-shell.css" />
+<style>
+  /* ---- 분해도 ---- */
+  .anatomy {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .anatomy-canvas {
+    position: relative;
+    padding: 80px 60px;
+    background:
+      linear-gradient(transparent 96%, rgba(255,255,255,0.04) 96%),
+      linear-gradient(90deg, transparent 96%, rgba(255,255,255,0.04) 96%),
+      var(--pt-bg-0);
+    background-size: 32px 32px;
+    display: flex; align-items: center; justify-content: center;
+    border-right: 1px solid var(--pt-line-1);
+  }
+  .lockup {
+    position: relative;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .word-mark {
+    font-family: var(--pt-font-display);
+    font-style: italic; font-weight: 900;
+    text-transform: uppercase;
+    color: var(--pt-red-500);
+    font-size: 56px; line-height: 0.92; letter-spacing: -0.01em;
+  }
+  .pin {
+    position: absolute;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--pt-ink-1);
+    white-space: nowrap;
+    background: var(--pt-bg-3);
+    padding: 4px 10px 4px 6px;
+    border-radius: 999px;
+    border: 1px solid var(--pt-line-2);
+  }
+  .pin .num {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--pt-red-500); color: #fff;
+    font-weight: 800; font-size: 11px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .pin-1 { top: -16px; left: -8px; }
+  .pin-2 { top: 50%; left: -110px; transform: translateY(-50%); }
+  .pin-3 { bottom: -16px; left: 35%; }
+  .pin-4 { top: 50%; right: -110px; transform: translateY(-50%); }
+
+  .anatomy-list { padding: 28px; display: flex; flex-direction: column; gap: 0; }
+  .anatomy-item {
+    display: grid; grid-template-columns: 28px 1fr; gap: 14px;
+    padding: 16px 0;
+    border-top: 1px solid var(--pt-line-1);
+  }
+  .anatomy-item:first-child { border-top: 0; }
+  .anatomy-item .num {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--pt-red-500); color: #fff;
+    font-weight: 800; font-size: 12px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .anatomy-item .name { font-size: 15px; font-weight: 700; color: var(--pt-ink-0); margin-bottom: 4px; }
+  .anatomy-item .desc { font-size: 13px; color: var(--pt-ink-2); line-height: 1.55; }
+
+  /* ---- 변형 카드 ---- */
+  .variants { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .variant {
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .variant .preview {
+    background: var(--pt-bg-0);
+    height: 160px;
+    display: flex; align-items: center; justify-content: center;
+    border-bottom: 1px solid var(--pt-line-1);
+  }
+  .variant .body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 6px; }
+  .variant .ko { font-size: 15px; font-weight: 700; color: var(--pt-ink-0); }
+  .variant .en { font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); }
+  .variant .where-row { margin-top: 4px; }
+
+  /* ---- 배경 적용 ---- */
+  .bgs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .bg-tile {
+    border-radius: 16px;
+    border: 1px solid var(--pt-line-1);
+    overflow: hidden;
+    background: var(--pt-bg-2);
+  }
+  .bg-tile .swatch {
+    aspect-ratio: 16/10;
+    display: flex; align-items: center; justify-content: center;
+    border-bottom: 1px solid var(--pt-line-1);
+  }
+  .bg-tile.dark  .swatch { background: var(--pt-bg-0); }
+  .bg-tile.red   .swatch { background: linear-gradient(135deg, #9A0400, #E10600); }
+  .bg-tile.white .swatch { background: #fff; }
+  .bg-tile .body { padding: 16px 18px; }
+  .bg-tile h4 { margin: 0 0 4px; font-size: 14px; color: var(--pt-ink-0); font-weight: 700; }
+  .bg-tile p { margin: 0; font-size: 13px; color: var(--pt-ink-2); line-height: 1.5; }
+
+  /* ---- 금지 ---- */
+  .donts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .dont {
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .dont .preview {
+    background: var(--pt-bg-0);
+    height: 130px;
+    display: flex; align-items: center; justify-content: center;
+    border-bottom: 1px solid var(--pt-line-1);
+    position: relative;
+  }
+  .dont .badge {
+    position: absolute; top: 10px; left: 10px;
+    font-size: 11px; font-weight: 700;
+    padding: 4px 10px; border-radius: 4px;
+    background: var(--pt-red-900); color: var(--pt-red-300);
+    border: 1px solid var(--pt-red-700);
+  }
+  .dont .body { padding: 14px 18px 16px; }
+  .dont h4 { margin: 0 0 4px; font-size: 14px; font-weight: 700; color: var(--pt-ink-0); }
+  .dont p  { margin: 0; font-size: 13px; color: var(--pt-ink-2); line-height: 1.5; }
+  .word { font-family: var(--pt-font-display); font-style: italic; font-weight: 900; text-transform: uppercase; color: var(--pt-red-500); font-size: 30px; letter-spacing: -0.01em; }
+
+  /* ---- 여백 ---- */
+  .clearspace-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: center; }
+  .clearspace-box {
+    border: 1px dashed var(--pt-line-3);
+    border-radius: 12px;
+    padding: 56px;
+    background: var(--pt-bg-1);
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .clearspace-box::before {
+    content: '';
+    position: absolute; inset: 24px;
+    border: 1px dashed rgba(225,6,0,0.4);
+    border-radius: 8px;
+  }
+  .x-mark {
+    position: absolute;
+    font-family: var(--pt-font-mono);
+    font-size: 11px; color: var(--pt-red-300);
+  }
+</style>
+</head>
+<body>
+<div class="ds-shell pt-bg-mesh">
+
+  <!-- 탭 네비 -->
+  <nav class="ds-tabs">
+    <span class="brand">PICK-TAGON / 디자인 시스템</span>
+    <span class="ds-tab is-active"><span class="num">01</span>브랜드 · 로고</span>
+    <span class="ds-tab"><span class="num">02</span>컬러</span>
+    <span class="ds-tab"><span class="num">03</span>타이포</span>
+    <span class="ds-tab"><span class="num">04</span>여백 · 그림자</span>
+    <span class="ds-tab"><span class="num">05</span>컴포넌트</span>
+  </nav>
+
+  <!-- 페이지 헤더 -->
+  <header class="ds-page-head">
+    <div class="title-block">
+      <span class="crumb">디자인 시스템 / 01. 브랜드</span>
+      <h1>브랜드 <em>·</em> 로고</h1>
+      <p class="summary">Pick-tagon의 시각 정체성. 옥타곤 케이지(8각 링) + 픽 체크(승부 선택) + 워드마크의 3가지 요소로 구성됩니다.</p>
+    </div>
+    <span class="ds-where">현재 탭: 01 / 05</span>
+  </header>
+
+  <main class="ds-body">
+
+    <!-- 1. 분해도 -->
+    <section class="ds-section">
+      <div class="ds-section-head">
+        <span class="ds-section-num">01</span>
+        <h2 class="ds-section-title">로고 분해도</h2>
+        <span class="ds-section-sub">로고를 구성하는 4가지 부분</span>
+      </div>
+
+      <div class="anatomy">
+        <div class="anatomy-canvas">
+          <div class="lockup">
+            <svg width="96" height="96" viewBox="0 0 200 200" fill="none">
+              <polygon points="60,10 140,10 190,60 190,140 140,190 60,190 10,140 10,60"
+                       fill="none" stroke="#E10600" stroke-width="10"/>
+              <path d="M70 102 L92 124 L138 78" stroke="#FFFFFF" stroke-width="20" fill="none" stroke-linejoin="miter"/>
+              <path d="M70 102 L92 124 L138 78" stroke="#E10600" stroke-width="8" fill="none" stroke-linejoin="miter"/>
+            </svg>
+            <span class="word-mark">PICK<span style="color:#fff; opacity:0.4;">-</span>TAGON</span>
+
+            <div class="pin pin-1"><span class="num">1</span>옥타곤 링</div>
+            <div class="pin pin-2"><span class="num">2</span>픽 체크</div>
+            <div class="pin pin-3"><span class="num">3</span>하이픈</div>
+            <div class="pin pin-4"><span class="num">4</span>워드마크</div>
+          </div>
+        </div>
+        <div class="anatomy-list">
+          <div class="anatomy-item">
+            <span class="num">1</span>
+            <div>
+              <div class="name">옥타곤 링</div>
+              <div class="desc">UFC 케이지를 표현하는 8각형 외곽선. 빨강(#E10600) 단일 stroke, 두께는 마크 높이의 5%.</div>
+            </div>
+          </div>
+          <div class="anatomy-item">
+            <span class="num">2</span>
+            <div>
+              <div class="name">픽 체크</div>
+              <div class="desc">"승부를 골랐다"는 의미. 흰색 stroke 위에 빨강 stroke를 얹은 2겹 구조. 옥타곤 정중앙 고정.</div>
+            </div>
+          </div>
+          <div class="anatomy-item">
+            <span class="num">3</span>
+            <div>
+              <div class="name">하이픈</div>
+              <div class="desc">PICK과 TAGON을 잇는 한 글자. 절대 공백·줄바꿈으로 분리하지 않습니다.</div>
+            </div>
+          </div>
+          <div class="anatomy-item">
+            <span class="num">4</span>
+            <div>
+              <div class="name">워드마크</div>
+              <div class="desc">Barlow Condensed 900 italic, 자간 -1%. 항상 이탤릭, 항상 솔리드 레드.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 변형 -->
+    <section class="ds-section">
+      <div class="ds-section-head">
+        <span class="ds-section-num">02</span>
+        <h2 class="ds-section-title">로고 변형 — 3종</h2>
+        <span class="ds-section-sub">상황에 맞춰 골라 사용</span>
+      </div>
+
+      <div class="variants">
+        <div class="variant">
+          <div class="preview">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <svg width="48" height="48" viewBox="0 0 200 200" fill="none">
+                <polygon points="60,10 140,10 190,60 190,140 140,190 60,190 10,140 10,60"
+                         fill="none" stroke="#E10600" stroke-width="14"/>
+                <path d="M70 102 L92 124 L138 78" stroke="#FFFFFF" stroke-width="22" fill="none" stroke-linejoin="miter"/>
+                <path d="M70 102 L92 124 L138 78" stroke="#E10600" stroke-width="10" fill="none" stroke-linejoin="miter"/>
+              </svg>
+              <span class="word" style="font-size:26px;">PICK-TAGON</span>
+            </div>
+          </div>
+          <div class="body">
+            <span class="en">A — FULL LOCKUP</span>
+            <div class="ko">풀 락업 (기본)</div>
+            <div class="where-row"><span class="ds-where">사이트 헤더 · 랜딩 히어로</span></div>
+          </div>
+        </div>
+
+        <div class="variant">
+          <div class="preview">
+            <span class="word">PICK-TAGON</span>
+          </div>
+          <div class="body">
+            <span class="en">B — WORDMARK</span>
+            <div class="ko">워드마크 단독</div>
+            <div class="where-row"><span class="ds-where">푸터 · 좁은 헤더 · 메일</span></div>
+          </div>
+        </div>
+
+        <div class="variant">
+          <div class="preview">
+            <svg width="64" height="64" viewBox="0 0 200 200" fill="none">
+              <polygon points="60,10 140,10 190,60 190,140 140,190 60,190 10,140 10,60"
+                       fill="none" stroke="#E10600" stroke-width="14"/>
+              <path d="M70 102 L92 124 L138 78" stroke="#FFFFFF" stroke-width="22" fill="none" stroke-linejoin="miter"/>
+              <path d="M70 102 L92 124 L138 78" stroke="#E10600" stroke-width="10" fill="none" stroke-linejoin="miter"/>
+            </svg>
+          </div>
+          <div class="body">
+            <span class="en">C — MARK ONLY</span>
+            <div class="ko">마크 단독</div>
+            <div class="where-row"><span class="ds-where">파비콘 · 앱 아이콘 · 아바타</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. 배경 적용 -->
+    <section class="ds-section">
+      <div class="ds-section-head">
+        <span class="ds-section-num">03</span>
+        <h2 class="ds-section-title">배경 위에 올릴 때</h2>
+        <span class="ds-section-sub">3가지 표준 컬러 조합</span>
+      </div>
+
+      <div class="bgs">
+        <div class="bg-tile dark">
+          <div class="swatch">
+            <svg width="80" height="80" viewBox="0 0 200 200" fill="none">
+              <polygon points="60,10 140,10 190,60 190,140 140,190 60,190 10,140 10,60" fill="none" stroke="#E10600" stroke-width="10"/>
+              <path d="M70 102 L92 124 L138 78" stroke="#FFFFFF" stroke-width="18" fill="none"/>
+              <path d="M70 102 L92 124 L138 78" stroke="#E10600" stroke-width="6" fill="none"/>
+            </svg>
+          </div>
+          <div class="body">
+            <h4>다크 위 (기본)</h4>
+            <p>제품 UI 99% 사용처. 배경 #07080A — #14161B.</p>
+          </div>
+        </div>
+        <div class="bg-tile red">
+          <div class="swatch">
+            <svg width="80" height="80" viewBox="0 0 200 200" fill="none">
+              <polygon points="60,10 140,10 190,60 190,140 140,190 60,190 10,140 10,60" fill="none" stroke="#FFFFFF" stroke-width="10"/>
+              <path d="M70 102 L92 124 L138 78" stroke="#FFFFFF" stroke-width="18" fill="none"/>
+            </svg>
+          </div>
+          <div class="body">
+            <h4>레드 위 (녹아웃)</h4>
+            <p>히어로 CTA · 이벤트 포스터 한정. 모든 요소를 흰색으로.</p>
+          </div>
+        </div>
+        <div class="bg-tile white">
+          <div class="swatch">
+            <svg width="80" height="80" viewBox="0 0 200 200" fill="none">
+              <polygon points="60,10 140,10 190,60 190,140 140,190 60,190 10,140 10,60" fill="none" stroke="#0E0F12" stroke-width="10"/>
+              <path d="M70 102 L92 124 L138 78" stroke="#E10600" stroke-width="18" fill="none"/>
+            </svg>
+          </div>
+          <div class="body">
+            <h4>화이트 위 (인쇄 전용)</h4>
+            <p>인쇄물 한정. 디지털 UI에는 사용하지 않음.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. 금지 -->
+    <section class="ds-section">
+      <div class="ds-section-head">
+        <span class="ds-section-num">04</span>
+        <h2 class="ds-section-title">금지 사항</h2>
+        <span class="ds-section-sub">로고 무결성을 깨는 4가지</span>
+      </div>
+
+      <div class="donts">
+        <div class="dont">
+          <div class="preview">
+            <span class="badge">금지 01</span>
+            <span class="word" style="font-style:normal;">PICK-TAGON</span>
+          </div>
+          <div class="body"><h4>이탤릭(기울임)을 풀지 않기</h4><p>앞으로 기운 형태가 브랜드의 핵심. 똑바로 세우면 정체성이 사라집니다.</p></div>
+        </div>
+        <div class="dont">
+          <div class="preview">
+            <span class="badge">금지 02</span>
+            <span class="word" style="background: linear-gradient(90deg,#E10600,#F4B400); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;">PICK-TAGON</span>
+          </div>
+          <div class="body"><h4>그라디언트로 칠하지 않기</h4><p>워드마크는 단일 솔리드 레드(#E10600)만 사용합니다.</p></div>
+        </div>
+        <div class="dont">
+          <div class="preview">
+            <span class="badge">금지 03</span>
+            <span class="word">PICK TAGON</span>
+          </div>
+          <div class="body"><h4>하이픈을 공백으로 바꾸지 않기</h4><p>"PICK-TAGON"은 한 단어. 공백·줄바꿈으로 분리 금지.</p></div>
+        </div>
+        <div class="dont">
+          <div class="preview" style="background: rgba(225,6,0,0.18);">
+            <span class="badge">금지 04</span>
+            <span class="word" style="color:#fff;">PICK-TAGON</span>
+          </div>
+          <div class="body"><h4>저채도 컬러 위에 올리지 않기</h4><p>다크(#07080A~#14161B) 또는 솔리드 레드 위에만 배치. 톤다운 배경은 가독성을 깨뜨립니다.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. 여백 -->
+    <section class="ds-section">
+      <div class="ds-section-head">
+        <span class="ds-section-num">05</span>
+        <h2 class="ds-section-title">최소 여백</h2>
+        <span class="ds-section-sub">로고 주변 빈 공간 규칙</span>
+      </div>
+
+      <div class="ds-panel">
+        <div class="clearspace-row">
+          <div class="clearspace-box">
+            <span class="x-mark" style="top:6px; left:50%; transform:translateX(-50%);">X</span>
+            <span class="x-mark" style="bottom:6px; left:50%; transform:translateX(-50%);">X</span>
+            <span class="x-mark" style="left:6px; top:50%; transform:translateY(-50%);">X</span>
+            <span class="x-mark" style="right:6px; top:50%; transform:translateY(-50%);">X</span>
+            <span class="word" style="font-size:30px; position:relative; z-index:1;">PICK-TAGON</span>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:14px;">
+            <div style="font-size:14px; color: var(--pt-ink-1); line-height:1.6;">
+              <b>X = 옥타곤 링 모서리의 높이</b> (마크 전체 높이의 약 25%)<br/>
+              이 거리만큼 모든 방향으로 다른 요소와 떨어뜨립니다.
+            </div>
+            <div style="font-family: var(--pt-font-mono); font-size: 12px; color: var(--pt-ink-2); background: var(--pt-bg-1); padding: 12px; border-radius: 8px; border: 1px solid var(--pt-line-1);">
+              마크 80px → 여백 20px<br/>
+              마크 200px → 여백 50px
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+</body>
+</html>

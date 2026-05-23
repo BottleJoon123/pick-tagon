@@ -1,0 +1,173 @@
+/* ============================================================
+   Pick-tagon 디자인 시스템 — 공통 카드 셸
+   각 카드 상단에 "탭 네비"로 현재 위치를 명확히 표시.
+   ============================================================ */
+
+body {
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', system-ui, sans-serif;
+}
+
+/* ---- 카드 셸 ---- */
+.ds-shell {
+  min-height: 100vh;
+  padding: 0 0 80px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 상단 탭 네비 — 어떤 카드를 보고 있는지 한눈에 */
+.ds-tabs {
+  background: var(--pt-bg-0);
+  border-bottom: 1px solid var(--pt-line-2);
+  padding: 14px 56px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.ds-tabs .brand {
+  font-family: var(--pt-font-display);
+  font-style: italic;
+  font-weight: 900;
+  text-transform: uppercase;
+  font-size: 16px;
+  color: var(--pt-red-500);
+  letter-spacing: -0.01em;
+  margin-right: 28px;
+}
+.ds-tab {
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pt-ink-3);
+  border-radius: 8px;
+  white-space: nowrap;
+}
+.ds-tab .num {
+  font-family: var(--pt-font-mono);
+  font-size: 11px;
+  color: var(--pt-ink-4);
+  margin-right: 6px;
+}
+.ds-tab.is-active {
+  background: var(--pt-red-500);
+  color: #fff;
+}
+.ds-tab.is-active .num { color: rgba(255,255,255,0.7); }
+
+/* 페이지 헤더 (제목 영역) */
+.ds-page-head {
+  padding: 40px 56px 24px;
+  border-bottom: 1px solid var(--pt-line-1);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+.ds-page-head .title-block { display: flex; flex-direction: column; gap: 8px; }
+.ds-page-head .crumb {
+  font-family: var(--pt-font-mono);
+  font-size: 11px;
+  color: var(--pt-ink-3);
+  letter-spacing: 0.04em;
+}
+.ds-page-head h1 {
+  margin: 0;
+  font-size: 44px;
+  font-weight: 800;
+  color: var(--pt-ink-0);
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+.ds-page-head h1 em {
+  color: var(--pt-red-500);
+  font-style: normal;
+  font-weight: 800;
+}
+.ds-page-head .summary {
+  color: var(--pt-ink-2);
+  font-size: 14px;
+  line-height: 1.55;
+  max-width: 560px;
+}
+
+/* 본문 영역 */
+.ds-body {
+  padding: 32px 56px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+/* 섹션 (번호 + 제목) */
+.ds-section { display: flex; flex-direction: column; gap: 16px; }
+.ds-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--pt-line-1);
+}
+.ds-section-num {
+  font-family: var(--pt-font-display);
+  font-style: italic;
+  font-weight: 900;
+  font-size: 24px;
+  color: var(--pt-red-500);
+  line-height: 1;
+}
+.ds-section-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--pt-ink-0);
+}
+.ds-section-sub {
+  margin-left: auto;
+  color: var(--pt-ink-3);
+  font-size: 13px;
+}
+
+/* 패널 */
+.ds-panel {
+  background: var(--pt-bg-2);
+  border: 1px solid var(--pt-line-1);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+/* 라벨 */
+.ds-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--pt-ink-3);
+  text-transform: uppercase;
+}
+.ds-desc {
+  font-size: 13px;
+  color: var(--pt-ink-2);
+  line-height: 1.55;
+}
+
+/* 미리보기 칩 — 어디에 쓰이는지 표시 */
+.ds-where {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(225,6,0,0.10);
+  color: var(--pt-red-300);
+  border: 1px solid rgba(225,6,0,0.3);
+  font-size: 11px;
+  font-weight: 600;
+}
+.ds-where::before {
+  content: '';
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--pt-red-500);
+}

@@ -1,2 +1,15 @@
 node_modules/
 supabase/.temp/
+
+# Claude CLI
+.claude/
+.claudeignore
+
+# UFCStats scrape data (local only)
+data/
+
+# Python build artifacts
+scripts/__pycache__/
+
+# Design handoff screenshots (binary)
+docs/design_handoff_picktagon/screenshots/

@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Pick-tagon · 여백 / 그림자</title>
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="ds-shell.css" />
+<style>
+  .tbl {
+    width: 100%; border-collapse: separate; border-spacing: 0;
+    background: var(--pt-bg-2); border: 1px solid var(--pt-line-1);
+    border-radius: 16px; overflow: hidden;
+  }
+  .tbl th, .tbl td {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--pt-line-1);
+    vertical-align: middle;
+    font-size: 13px;
+    text-align: left;
+  }
+  .tbl tr:last-child td { border-bottom: 0; }
+  .tbl th {
+    background: var(--pt-bg-3);
+    font-size: 11px; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--pt-ink-3); font-weight: 700;
+  }
+  .tbl td.tok {
+    width: 140px;
+    font-family: var(--pt-font-mono); color: var(--pt-red-500);
+    font-size: 12px; font-weight: 600;
+  }
+  .tbl td.px { width: 80px; font-family: var(--pt-font-mono); color: var(--pt-ink-2); font-size: 12px; }
+  .tbl td.viz { width: 220px; }
+  .tbl td.where { color: var(--pt-ink-2); line-height: 1.5; }
+  .tbl td.where b { color: var(--pt-ink-1); }
+
+  .bar { height: 14px; background: var(--pt-red-500); border-radius: 3px; }
+
+  /* radius */
+  .radii { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
+  .r-card {
+    background: var(--pt-bg-2); border: 1px solid var(--pt-line-1);
+    border-radius: 14px; overflow: hidden;
+  }
+  .r-card .preview {
+    background: var(--pt-bg-0); aspect-ratio: 1.2;
+    display: flex; align-items: center; justify-content: center;
+    border-bottom: 1px solid var(--pt-line-1);
+  }
+  .r-card .shape {
+    width: 70%; height: 70%; background: var(--pt-bg-3);
+    border: 1px solid var(--pt-line-2);
+  }
+  .r-card .body { padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+  .r-card .name { font-size: 13px; font-weight: 700; color: var(--pt-ink-0); }
+  .r-card .px { font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-red-500); }
+  .r-card .where { font-size: 11px; color: var(--pt-ink-3); line-height: 1.4; margin-top: 4px; }
+
+  /* shadow */
+  .shadows { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .sh-card {
+    background: var(--pt-bg-2); border: 1px solid var(--pt-line-1);
+    border-radius: 16px; overflow: hidden;
+  }
+  .sh-card .preview {
+    background: var(--pt-bg-1); padding: 40px;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 160px;
+    border-bottom: 1px solid var(--pt-line-1);
+  }
+  .sh-card .shape {
+    width: 140px; height: 80px;
+    background: var(--pt-bg-3);
+    border-radius: 12px;
+    border: 1px solid var(--pt-line-2);
+  }
+  .sh-card .body { padding: 14px 18px 18px; }
+  .sh-card .body h4 { margin: 0 0 4px; font-size: 14px; color: var(--pt-ink-0); font-weight: 700; }
+  .sh-card .body p { margin: 0; color: var(--pt-ink-2); font-size: 12px; line-height: 1.5; }
+  .sh-card .body .tok { font-family: var(--pt-font-mono); color: var(--pt-red-500); font-size: 11px; margin-top: 6px; display: block; }
+
+  /* layout */
+  .layout-demo {
+    background: var(--pt-bg-2); border: 1px solid var(--pt-line-1);
+    border-radius: 16px; padding: 24px;
+  }
+  .grid-12 {
+    display: grid; grid-template-columns: repeat(12, 1fr);
+    gap: 16px; margin-top: 14px;
+  }
+  .grid-12 div {
+    background: rgba(225,6,0,0.10);
+    border: 1px dashed rgba(225,6,0,0.4);
+    height: 48px; border-radius: 4px;
+    color: var(--pt-red-300);
+    font-family: var(--pt-font-mono); font-size: 11px;
+    display: flex; align-items: center; justify-content: center;
+  }
+</style>
+</head>
+<body>
+<div class="ds-shell pt-bg-mesh">
+
+  <nav class="ds-tabs">
+    <span class="brand">PICK-TAGON / 디자인 시스템</span>
+    <span class="ds-tab"><span class="num">01</span>브랜드 · 로고</span>
+    <span class="ds-tab"><span class="num">02</span>컬러</span>
+    <span class="ds-tab"><span class="num">03</span>타이포</span>
+    <span class="ds-tab is-active"><span class="num">04</span>여백 · 그림자</span>
+    <span class="ds-tab"><span class="num">05</span>컴포넌트</span>
+  </nav>
+
+  <header class="ds-page-head">
+    <div class="title-block">
+      <span class="crumb">디자인 시스템 / 04. 여백 · 라디우스 · 그림자</span>
+      <h1>여백 <em>·</em> 라디우스 <em>·</em> 그림자</h1>
+      <p class="summary">4px를 1단위로 한 여백 스케일, 6단계 모서리 라운드, 3단계 그림자, 12 컬럼 레이아웃 그리드.</p>
+    </div>
+    <span class="ds-where">현재 탭: 04 / 05</span>
+  </header>
+
+  <main class="ds-body">
+
+    <!-- 1. 여백 -->
+    <section class="ds-section">
+      <div class="ds-section-head">
+        <span class="ds-section-num">01</span>
+        <h2 class="ds-section-title">여백 스케일 — 4px 단위</h2>
+        <span class="ds-section-sub">패딩·갭·마진의 기준값</span>
+      </div>
+
+      <table class="tbl">
+        <thead><tr><th>토큰</th><th>크기</th><th>시각</th><th>어디에 쓰이나</th></tr></thead>
+        <tbody>
+          <tr><td class="tok">--pt-space-1</td><td class="px">4px</td><td class="viz"><div class="bar" style="width:4px;"></div></td><td class="where">아이콘과 텍스트 간 간격</td></tr>
+          <tr><td class="tok">--pt-space-2</td><td class="px">8px</td><td class="viz"><div class="bar" style="width:8px;"></div></td><td class="where">배지 안쪽 패딩 · 작은 칩 갭</td></tr>
+          <tr><td class="tok">--pt-space-3</td><td class="px">12px</td><td class="viz"><div class="bar" style="width:12px;"></div></td><td class="where">버튼 안쪽 vertical 패딩</td></tr>
+          <tr><td class="tok">--pt-space-4</td><td class="px">16px</td><td class="viz"><div class="bar" style="width:16px;"></div></td><td class="where"><b>기본 카드 간 간격.</b> 가장 자주 사용</td></tr>
+          <tr><td class="tok">--pt-space-5</td><td class="px">20px</td><td class="viz"><div class="bar" style="width:20px;"></div></td><td class="where">입력 필드 안쪽 가로 패딩</td></tr>
+          <tr><td class="tok">--pt-space-6</td><td class="px">24px</td><td class="viz"><div class="bar" style="width:24px;"></div></td><td class="where"><b>카드 안쪽 패딩.</b> 그리드 거터</td></tr>
+          <tr><td class="tok">--pt-space-8</td><td class="px">32px</td><td class="viz"><div class="bar" style="width:32px;"></div></td><td class="where">섹션 안 그룹 간격</td></tr>
+          <tr><td class="tok">--pt-space-10</td><td class="px">40px</td><td class="viz"><div class="bar" style="width:40px;"></div></td><td class="where">큰 카드 안쪽 패딩</td></tr>
+          <tr><td class="tok">--pt-space-12</td><td class="px">56px</td><td class="viz"><div class="bar" style="width:56px;"></div></td><td class="where"><b>페이지 좌우 마진.</b> 1280px 컨테이너 기준</td></tr>
+          <tr><td class="tok">--pt-space-16</td><td class="px">80px</td><td class="viz"><div class="bar" style="width:80px;"></div></td><td class="where">섹션 간 큰 간격 · 히어로 위·아래</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 2. 라디우스 -->
+    <section class="ds-section">
+      <div class="ds-section-head">
+        <span class="ds-section-num">02</span>
+        <h2 class="ds-section-title">모서리 라디우스 — 6단계</h2>
+        <span class="ds-section-sub">요소 크기에 비례한 라운드 적용</span>
+      </div>
+
+      <div class="radii">
+        <div class="r-card"><div class="preview"><div class="shape" style="border-radius:4px;"></div></div><div class="body"><div class="name">XS</div><div class="px">4px</div><div class="where">배지 · 작은 태그</div></div></div>
+        <div class="r-card"><div class="preview"><div class="shape" style="border-radius:8px;"></div></div><div class="body"><div class="name">SM</div><div class="px">8px</div><div class="where">입력 필드 · 토스트</div></div></div>
+        <div class="r-card"><div class="preview"><div class="shape" style="border-radius:12px;"></div></div><div class="body"><div class="name">MD</div><div class="px">12px</div><div class="where">스탯 카드 · 작은 카드</div></div></div>
+        <div class="r-card"><div class="preview"><div class="shape" style="border-radius:18px;"></div></div><div class="body"><div class="name">LG</div><div class="px">18px</div><div class="where"><b>기본 카드</b></div></div></div>
+        <div class="r-card"><div class="preview"><div class="shape" style="border-radius:24px;"></div></div><div class="body"><div class="name">XL</div><div class="px">24px</div><div class="where">큰 패널 · 모달</div></div></div>
+        <div class="r-card"><div class="preview"><div class="shape" style="border-radius:999px;"></div></div><div class="body"><div class="name">PILL</div><div class="px">∞</div><div class="where">버튼 · 칩 · 아바타</div></div></div>
+      </div>
+    </section>
+
+    <!-- 3. 그림자 -->
+    <section class="ds-section">
+      <div class="ds-section-head">
+        <span class="ds-section-num">03</span>
+        <h2 class="ds-section-title">그림자 — 3단계</h2>
+        <span class="ds-section-sub">깊이감 표현. 다크 UI라 광원도 약함.</span>
+      </div>
+
+      <div class="shadows">
+        <div class="sh-card">
+          <div class="preview"><div class="shape" style="box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 24px rgba(0,0,0,0.35);"></div></div>
+          <div class="body">
+            <h4>CARD — 카드 기본</h4>
+            <p>모든 카드에 기본으로 적용. 윗변 1px highlight + 아래 그림자.</p>
+            <span class="tok">--pt-shadow-card</span>
+          </div>
+        </div>
+        <div class="sh-card">
+          <div class="preview"><div class="shape" style="box-shadow: 0 18px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.06);"></div></div>
+          <div class="body">
+            <h4>POP — 모달·드롭다운</h4>
+            <p>레이어 위에 떠 있는 요소. 깊은 검정 그림자 + 1px 외곽선.</p>
+            <span class="tok">--pt-shadow-pop</span>
+          </div>
+        </div>
+        <div class="sh-card">
+          <div class="preview"><div class="shape" style="background: var(--pt-red-500); box-shadow: 0 12px 36px rgba(225,6,0,0.35);"></div></div>
+          <div class="body">
+            <h4>RED GLOW — CTA hover</h4>
+            <p>메인 CTA 버튼 hover 시 적용. 빨강 잔광 효과.</p>
+            <span class="tok">--pt-shadow-red</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. 레이아웃 -->
+    <section class="ds-section">
+      <div class="ds-section-head">
+        <span class="ds-section-num">04</span>
+        <h2 class="ds-section-title">레이아웃 그리드 — 12 컬럼</h2>
+        <span class="ds-section-sub">데스크톱 1280px · 거터 24px · 좌우 마진 56px</span>
+      </div>
+
+      <div class="layout-demo">
+        <div style="font-size: 13px; color: var(--pt-ink-2);">컨테이너 최대폭 <span class="pt-mono" style="color:var(--pt-red-500);">1280px</span> · 거터 <span class="pt-mono" style="color:var(--pt-red-500);">24px</span> · 좌우 마진 <span class="pt-mono" style="color:var(--pt-red-500);">56px</span></div>
+        <div class="grid-12">
+          <div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div><div>10</div><div>11</div><div>12</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+</body>
+</html>

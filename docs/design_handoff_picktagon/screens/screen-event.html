@@ -1,0 +1,816 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Pick-tagon · UFC 328</title>
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="screen-shell.css" />
+<style>
+  /* === 브레드크럼 === */
+  .breadcrumb {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--pt-font-mono); font-size: 12px;
+    color: var(--pt-ink-3);
+    margin-bottom: 14px;
+  }
+  .breadcrumb a { color: var(--pt-ink-2); text-decoration: none; }
+  .breadcrumb a:hover { color: var(--pt-ink-0); }
+  .breadcrumb .sep { color: var(--pt-ink-4); }
+
+  /* === 이벤트 히어로 (와이드) === */
+  .event-hero {
+    position: relative;
+    background:
+      radial-gradient(50% 80% at 0% 50%, rgba(225,6,0,0.50), transparent 60%),
+      radial-gradient(50% 80% at 100% 50%, rgba(31,111,235,0.45), transparent 60%),
+      linear-gradient(180deg, #0E0F12, #07080A);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 20px;
+    overflow: hidden;
+    padding: 28px 36px 32px;
+  }
+  .event-hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(transparent 96%, rgba(255,255,255,0.04) 96%),
+      linear-gradient(90deg, transparent 96%, rgba(255,255,255,0.04) 96%);
+    background-size: 32px 32px;
+    pointer-events: none;
+  }
+  .event-hero > * { position: relative; z-index: 1; }
+  .eh-top {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .eh-meta { display: flex; align-items: center; gap: 12px; }
+  .eh-badge {
+    font-family: var(--pt-font-eyebrow);
+    font-size: 11px; letter-spacing: 0.18em; font-weight: 600;
+    background: var(--pt-red-500); color: #fff;
+    padding: 5px 12px; border-radius: 4px;
+  }
+  .eh-meta .num {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    color: var(--pt-ink-0); font-size: 26px; line-height: 1;
+    letter-spacing: -0.01em;
+  }
+  .eh-meta .info {
+    color: var(--pt-ink-2); font-size: 13px;
+  }
+  .eh-meta .info b { color: var(--pt-ink-0); }
+  .eh-timer {
+    display: flex; align-items: center; gap: 18px;
+  }
+  .eh-timer .lbl {
+    font-family: var(--pt-font-eyebrow);
+    font-size: 10px; letter-spacing: 0.18em; color: var(--pt-ink-3); font-weight: 600;
+  }
+  .eh-timer .timer {
+    display: flex; align-items: baseline; gap: 4px;
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800;
+    font-size: 28px; color: var(--pt-red-500); line-height: 1;
+  }
+  .eh-timer .timer small { font-size: 14px; color: var(--pt-ink-2); }
+
+  .eh-main {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center; gap: 16px;
+    padding: 8px 0 12px;
+  }
+  .eh-fighter { display: flex; flex-direction: column; gap: 4px; }
+  .eh-fighter.red { text-align: right; align-items: flex-end; }
+  .eh-fighter .corner {
+    font-family: var(--pt-font-eyebrow);
+    font-size: 10px; letter-spacing: 0.18em; font-weight: 600;
+    padding: 3px 8px; border-radius: 3px;
+  }
+  .eh-fighter.red .corner { background: var(--pt-red-500); color: #fff; }
+  .eh-fighter.blue .corner { background: var(--pt-corner-blue); color: #fff; }
+  .eh-fighter .nm {
+    font-family: var(--pt-font-display);
+    font-style: italic; font-weight: 900; text-transform: uppercase;
+    font-size: 60px; line-height: 0.92; letter-spacing: -0.01em;
+    color: var(--pt-ink-0);
+    margin-top: 6px;
+  }
+  .eh-fighter .ko { font-size: 14px; color: var(--pt-ink-2); }
+  .eh-fighter .rec { font-family: var(--pt-font-mono); font-size: 13px; color: var(--pt-ink-3); margin-top: 4px; }
+  .eh-vs {
+    font-family: var(--pt-font-display);
+    font-style: italic; font-weight: 900;
+    font-size: 64px; line-height: 1;
+    color: var(--pt-ink-0); padding: 0 12px;
+    text-shadow: 0 4px 24px rgba(0,0,0,0.6);
+  }
+  .eh-bottom {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 16px; padding-top: 18px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .eh-progress { display: flex; align-items: center; gap: 20px; }
+  .eh-prog-stat { display: flex; flex-direction: column; }
+  .eh-prog-stat .v { font-family: var(--pt-font-display); font-style: italic; font-weight: 800; font-size: 22px; line-height: 1; }
+  .eh-prog-stat .v.red { color: var(--pt-red-500); }
+  .eh-prog-stat .v.win { color: var(--pt-win); }
+  .eh-prog-stat .v.warn { color: var(--pt-warn); }
+  .eh-prog-stat .l { font-family: var(--pt-font-eyebrow); font-size: 10px; letter-spacing: 0.18em; color: var(--pt-ink-3); font-weight: 600; margin-top: 4px; }
+  .eh-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--pt-bg-4);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+    max-width: 380px;
+  }
+  .eh-bar .fill {
+    height: 100%;
+    width: 27%;
+    background: linear-gradient(90deg, var(--pt-red-500), var(--pt-red-300));
+    border-radius: 3px;
+  }
+  .eh-prog-text { font-family: var(--pt-font-mono); font-size: 12px; color: var(--pt-ink-2); }
+  .eh-prog-text b { color: var(--pt-ink-0); }
+
+  /* === 탭 === */
+  .tabs-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin: 32px 0 18px;
+    border-bottom: 1px solid var(--pt-line-2);
+  }
+  .tabs { display: flex; gap: 0; }
+  .tab {
+    padding: 12px 18px;
+    font-size: 14px; font-weight: 700;
+    color: var(--pt-ink-3); cursor: pointer;
+    border-bottom: 2px solid transparent;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .tab.is-active { color: var(--pt-ink-0); border-color: var(--pt-red-500); }
+  .tab .cnt {
+    font-family: var(--pt-font-mono); font-size: 11px;
+    padding: 2px 7px; border-radius: 999px;
+    background: var(--pt-bg-3); color: var(--pt-ink-2);
+  }
+  .tab.is-active .cnt { background: var(--pt-red-900); color: var(--pt-red-300); }
+  .tabs-row .filters { display: flex; gap: 8px; padding-bottom: 12px; }
+  .chip {
+    padding: 6px 12px; border-radius: 999px;
+    background: var(--pt-bg-3); border: 1px solid var(--pt-line-2);
+    font-size: 12px; color: var(--pt-ink-2); font-weight: 600; cursor: pointer;
+  }
+  .chip.is-active { background: var(--pt-red-500); color: #fff; border-color: var(--pt-red-500); }
+
+  /* === 메인 2-col === */
+  .pick-grid {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 24px;
+  }
+
+  /* === 픽 카드 (대형) === */
+  .pick-card {
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 14px;
+    padding: 18px;
+  }
+  .pick-card.is-selected { border-color: var(--pt-red-500); box-shadow: 0 0 0 1px var(--pt-red-500) inset; }
+  .pick-card + .pick-card { margin-top: 14px; }
+  .pick-card .top {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--pt-line-1);
+  }
+  .pick-card .top .left { display: flex; align-items: center; gap: 10px; }
+  .pick-card .top .badge {
+    font-family: var(--pt-font-eyebrow); letter-spacing: 0.16em; font-size: 10px;
+    padding: 3px 8px; border-radius: 4px;
+    font-weight: 600;
+  }
+  .pick-card .top .badge.main { background: var(--pt-red-500); color: #fff; }
+  .pick-card .top .badge.co { background: var(--pt-red-900); color: var(--pt-red-300); border: 1px solid var(--pt-red-700); }
+  .pick-card .top .badge.featured { background: rgba(244,180,0,0.15); color: var(--pt-warn); border: 1px solid rgba(244,180,0,0.4); }
+  .pick-card .top .num { font-family: var(--pt-font-mono); color: var(--pt-ink-3); }
+  .pick-card .top .weight {
+    font-family: var(--pt-font-eyebrow); letter-spacing: 0.16em;
+    color: var(--pt-ink-2); font-weight: 600;
+  }
+  .pick-card .top .right { display: flex; align-items: center; gap: 12px; }
+  .pick-card .top .deadline { color: var(--pt-warn); font-family: var(--pt-font-mono); }
+  .pick-card .top .deadline.done { color: var(--pt-win); }
+
+  .pick-row { display: grid; grid-template-columns: 1fr 50px 1fr; gap: 0; align-items: stretch; }
+  .pick-side {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    border: 1px solid var(--pt-line-2);
+    background: var(--pt-bg-3);
+    transition: all 0.15s;
+  }
+  .pick-side:hover { border-color: var(--pt-line-3); background: var(--pt-bg-4); }
+  .pick-side.red.is-picked {
+    background: linear-gradient(135deg, rgba(225,6,0,0.20), rgba(225,6,0,0.05));
+    border-color: var(--pt-red-500);
+    box-shadow: 0 0 0 1px var(--pt-red-500) inset;
+  }
+  .pick-side.blue.is-picked {
+    background: linear-gradient(135deg, rgba(31,111,235,0.20), rgba(31,111,235,0.05));
+    border-color: var(--pt-corner-blue);
+    box-shadow: 0 0 0 1px var(--pt-corner-blue) inset;
+  }
+  .pick-side.blue { flex-direction: row-reverse; text-align: right; }
+  .pick-side .ava {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--pt-bg-4); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 14px; color: var(--pt-ink-0);
+    border: 2px solid var(--pt-line-2);
+  }
+  .pick-side.red.is-picked .ava { border-color: var(--pt-red-500); }
+  .pick-side.blue.is-picked .ava { border-color: var(--pt-corner-blue); }
+  .pick-side .info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; line-height: 1.2; }
+  .pick-side .nm { font-weight: 800; font-size: 15px; color: var(--pt-ink-0); }
+  .pick-side .ko { font-size: 11px; color: var(--pt-ink-3); }
+  .pick-side .rec { font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); margin-top: 3px; }
+  .pick-side .odds {
+    font-family: var(--pt-font-mono); font-size: 14px; font-weight: 700;
+    color: var(--pt-ink-2);
+  }
+  .pick-side.red.is-picked .odds { color: var(--pt-red-500); }
+  .pick-side.blue.is-picked .odds { color: var(--pt-corner-blue); }
+  .pick-divider {
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    color: var(--pt-ink-3); font-size: 20px;
+  }
+
+  /* 라운드/방법 픽 (메인 매치 펼침) */
+  .round-pick {
+    margin-top: 14px; padding-top: 14px;
+    border-top: 1px solid var(--pt-line-1);
+    display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center;
+  }
+  .round-pick .lbl {
+    font-family: var(--pt-font-eyebrow); font-size: 10px; letter-spacing: 0.18em;
+    color: var(--pt-ink-3); font-weight: 600;
+  }
+  .round-options { display: flex; gap: 6px; flex-wrap: wrap; }
+  .round-opt {
+    padding: 6px 12px; border-radius: 6px;
+    background: var(--pt-bg-3); border: 1px solid var(--pt-line-2);
+    font-family: var(--pt-font-mono); font-size: 12px; color: var(--pt-ink-2);
+    cursor: pointer;
+  }
+  .round-opt.is-active { background: var(--pt-red-500); color: #fff; border-color: var(--pt-red-500); font-weight: 700; }
+
+  /* === 사이드: 픽 요약 === */
+  .side-card {
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 14px;
+    padding: 20px;
+  }
+  .side-card + .side-card { margin-top: 16px; }
+  .side-card h3 {
+    margin: 0 0 14px;
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800;
+    text-transform: uppercase; font-size: 18px; color: var(--pt-ink-0);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .side-card h3 .meta {
+    font-family: 'Pretendard', sans-serif; font-style: normal; font-weight: 600;
+    font-size: 12px; color: var(--pt-ink-3); text-transform: none; letter-spacing: 0;
+  }
+
+  /* 픽 요약 */
+  .summary-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    margin-bottom: 14px;
+  }
+  .summary-cell {
+    background: var(--pt-bg-3); border: 1px solid var(--pt-line-1);
+    border-radius: 10px; padding: 10px;
+    text-align: center;
+  }
+  .summary-cell .v {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800;
+    font-size: 24px; line-height: 1; color: var(--pt-ink-0);
+  }
+  .summary-cell .v.red { color: var(--pt-red-500); }
+  .summary-cell .v.warn { color: var(--pt-warn); }
+  .summary-cell .l { font-family: var(--pt-font-eyebrow); font-size: 9px; letter-spacing: 0.16em; color: var(--pt-ink-3); margin-top: 4px; font-weight: 600; }
+
+  .summary-list { display: flex; flex-direction: column; gap: 0; }
+  .summary-pick {
+    display: grid; grid-template-columns: 24px 1fr auto;
+    align-items: center; gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--pt-line-1);
+  }
+  .summary-pick:last-child { border-bottom: 0; }
+  .summary-pick .num {
+    font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); font-weight: 700;
+  }
+  .summary-pick .who {
+    display: flex; align-items: center; gap: 8px; min-width: 0;
+  }
+  .summary-pick .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .summary-pick .dot.red { background: var(--pt-red-500); }
+  .summary-pick .dot.blue { background: var(--pt-corner-blue); }
+  .summary-pick .dot.dim { background: var(--pt-bg-4); border: 1px dashed var(--pt-line-3); }
+  .summary-pick .nm { font-size: 13px; font-weight: 700; color: var(--pt-ink-0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .summary-pick .nm.empty { color: var(--pt-ink-4); font-style: italic; font-weight: 500; }
+  .summary-pick .pts { font-family: var(--pt-font-mono); font-size: 12px; color: var(--pt-warn); font-weight: 700; }
+  .summary-pick .pts.empty { color: var(--pt-ink-4); }
+
+  .submit-btn {
+    width: 100%;
+    margin-top: 16px;
+    background: var(--pt-red-500); color: #fff;
+    padding: 14px; border-radius: 10px;
+    font-weight: 800; font-size: 14px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    border: 0; cursor: pointer;
+    box-shadow: 0 12px 36px rgba(225,6,0,0.35);
+  }
+  .submit-btn:hover { background: var(--pt-red-300); }
+  .submit-btn:disabled {
+    background: var(--pt-bg-4); color: var(--pt-ink-3);
+    cursor: not-allowed; box-shadow: none;
+  }
+
+  /* 스탯 비교 */
+  .stat-compare-mini {
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .stat-row {
+    display: grid; grid-template-columns: 1fr 100px 1fr;
+    align-items: center; gap: 12px;
+  }
+  .stat-row .v {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800;
+    font-size: 18px; line-height: 1;
+  }
+  .stat-row .v.r { color: var(--pt-red-500); text-align: right; }
+  .stat-row .v.b { color: var(--pt-corner-blue); }
+  .stat-row .v.dim { color: var(--pt-ink-3); }
+  .stat-row .lbl { text-align: center; font-size: 11px; color: var(--pt-ink-3); font-weight: 600; }
+  .stat-bar {
+    grid-column: 1 / -1;
+    display: grid; grid-template-columns: 1fr 1fr;
+    height: 5px;
+    border-radius: 3px;
+    overflow: hidden;
+    background: var(--pt-bg-4);
+  }
+  .stat-bar .br { background: var(--pt-red-500); transform-origin: right; }
+  .stat-bar .bb { background: var(--pt-corner-blue); transform-origin: left; }
+
+  /* 커뮤니티 픽 분포 */
+  .vote-bar {
+    height: 36px; border-radius: 10px; overflow: hidden;
+    display: grid; align-items: stretch;
+    background: var(--pt-bg-3);
+    border: 1px solid var(--pt-line-1);
+  }
+  .vote-bar .seg-r {
+    background: linear-gradient(90deg, var(--pt-red-500), var(--pt-red-700));
+    color: #fff; padding: 0 14px;
+    display: flex; align-items: center; justify-content: flex-start;
+    font-family: var(--pt-font-mono); font-weight: 700; font-size: 13px;
+  }
+  .vote-bar .seg-b {
+    background: linear-gradient(270deg, var(--pt-corner-blue), var(--pt-corner-blue-deep));
+    color: #fff; padding: 0 14px;
+    display: flex; align-items: center; justify-content: flex-end;
+    font-family: var(--pt-font-mono); font-weight: 700; font-size: 13px;
+  }
+  .vote-legend {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--pt-ink-3);
+    margin-top: 6px;
+  }
+</style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<header class="app-header">
+  <div class="app-header-inner">
+    <a class="app-logo" href="#">
+      <svg width="28" height="28" viewBox="0 0 200 200" fill="none">
+        <polygon points="60,10 140,10 190,60 190,140 140,190 60,190 10,140 10,60" fill="none" stroke="#E10600" stroke-width="14"/>
+        <path d="M70 102 L92 124 L138 78" stroke="#FFFFFF" stroke-width="22" fill="none" stroke-linejoin="miter"/>
+        <path d="M70 102 L92 124 L138 78" stroke="#E10600" stroke-width="10" fill="none" stroke-linejoin="miter"/>
+      </svg>
+      <span class="word">PICK-TAGON</span>
+    </a>
+    <nav class="app-nav">
+      <a href="screen-home.html">홈</a>
+      <a href="#" class="is-active">이벤트</a>
+      <a href="#">랭킹</a>
+      <a href="#">커뮤니티</a>
+      <a href="#">뉴스</a>
+    </nav>
+    <div class="app-search">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg>
+      <input placeholder="파이터 · 이벤트 검색" />
+    </div>
+    <span class="app-balance">3,005 P</span>
+    <span class="app-belt"><span class="strip"></span>퍼플</span>
+    <span class="app-avatar">KB</span>
+  </div>
+</header>
+
+<div class="app-container">
+
+  <div class="breadcrumb">
+    <a href="screen-home.html">홈</a><span class="sep">›</span>
+    <a href="#">이벤트</a><span class="sep">›</span>
+    <span>UFC 328 · 치마예프 vs. 스트릭랜드</span>
+  </div>
+
+  <!-- 이벤트 히어로 -->
+  <section class="event-hero">
+    <div class="eh-top">
+      <div class="eh-meta">
+        <span class="eh-badge">MAIN EVENT</span>
+        <div>
+          <div class="num">UFC 328</div>
+          <div class="info"><b>2026년 5월 31일 (토)</b> · T-Mobile Arena, 라스베가스 · 한국시간 오전 11시</div>
+        </div>
+      </div>
+      <div class="eh-timer">
+        <span class="lbl">픽 마감까지</span>
+        <span class="timer">5<small>일</small> 14<small>:</small>23<small>:</small>18</span>
+      </div>
+    </div>
+
+    <div class="eh-main">
+      <div class="eh-fighter red">
+        <span class="corner">RED CORNER</span>
+        <div class="nm">CHIMAEV</div>
+        <div class="ko">함자트 치마예프</div>
+        <div class="rec">14W · 0L · 0D &nbsp;·&nbsp; 미들급 #2 &nbsp;·&nbsp; 🇷🇺</div>
+      </div>
+      <div class="eh-vs">VS</div>
+      <div class="eh-fighter blue">
+        <span class="corner">BLUE CORNER</span>
+        <div class="nm">STRICKLAND</div>
+        <div class="ko">션 스트릭랜드</div>
+        <div class="rec">28W · 6L · 0D &nbsp;·&nbsp; 미들급 #1 &nbsp;·&nbsp; 🇺🇸</div>
+      </div>
+    </div>
+
+    <div class="eh-bottom">
+      <div class="eh-progress">
+        <div class="eh-prog-stat"><div class="v win">3</div><div class="l">픽 완료</div></div>
+        <div class="eh-prog-stat"><div class="v red">8</div><div class="l">픽 대기</div></div>
+        <div class="eh-prog-stat"><div class="v warn">+850P</div><div class="l">예상 적립</div></div>
+        <div class="eh-bar"><div class="fill"></div></div>
+        <div class="eh-prog-text"><b>3 / 11</b> 매치 완료 (27%)</div>
+      </div>
+      <button class="hero-btn" style="background: var(--pt-red-500); color: #fff; padding: 12px 22px; border-radius: 10px; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; border: 0; cursor: pointer; box-shadow: 0 8px 24px rgba(225,6,0,0.30);">전체 픽 확정하기 →</button>
+    </div>
+  </section>
+
+  <!-- 탭 + 필터 -->
+  <div class="tabs-row">
+    <div class="tabs">
+      <div class="tab is-active">메인 카드 <span class="cnt">5</span></div>
+      <div class="tab">프리림 <span class="cnt">4</span></div>
+      <div class="tab">얼리 프리림 <span class="cnt">2</span></div>
+      <div class="tab">결과</div>
+    </div>
+    <div class="filters">
+      <span class="chip is-active">전체</span>
+      <span class="chip">픽 대기 (8)</span>
+      <span class="chip">픽 완료 (3)</span>
+    </div>
+  </div>
+
+  <!-- 메인 그리드 -->
+  <div class="pick-grid">
+
+    <!-- 왼쪽: 픽 카드 리스트 -->
+    <div>
+
+      <!-- 메인 이벤트 — 펼친 상태 -->
+      <div class="pick-card is-selected">
+        <div class="top">
+          <div class="left">
+            <span class="badge main">MAIN EVENT</span>
+            <span class="num">#1</span>
+            <span class="weight">미들급 · 5R · 5분</span>
+          </div>
+          <div class="right">
+            <span class="deadline done">픽 완료 · +120P 예정</span>
+          </div>
+        </div>
+        <div class="pick-row">
+          <div class="pick-side red is-picked">
+            <div class="ava">CH</div>
+            <div class="info">
+              <span class="nm">CHIMAEV</span>
+              <span class="ko">치마예프</span>
+              <span class="rec">14W · 0L · 10 KO/SUB · 31세</span>
+            </div>
+            <span class="odds">-185</span>
+          </div>
+          <div class="pick-divider">VS</div>
+          <div class="pick-side blue">
+            <div class="ava">ST</div>
+            <div class="info">
+              <span class="nm">STRICKLAND</span>
+              <span class="ko">스트릭랜드</span>
+              <span class="rec">28W · 6L · 11 KO/SUB · 34세</span>
+            </div>
+            <span class="odds">+165</span>
+          </div>
+        </div>
+
+        <div class="round-pick">
+          <div class="lbl">승리 방법</div>
+          <div class="round-options">
+            <span class="round-opt is-active">SUB</span>
+            <span class="round-opt">KO/TKO</span>
+            <span class="round-opt">판정</span>
+            <span class="round-opt">선택 안 함</span>
+          </div>
+        </div>
+        <div class="round-pick">
+          <div class="lbl">종료 라운드</div>
+          <div class="round-options">
+            <span class="round-opt">R1</span>
+            <span class="round-opt">R2</span>
+            <span class="round-opt is-active">R3</span>
+            <span class="round-opt">R4</span>
+            <span class="round-opt">R5</span>
+            <span class="round-opt">판정까지</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 코메인 이벤트 -->
+      <div class="pick-card">
+        <div class="top">
+          <div class="left">
+            <span class="badge co">CO-MAIN</span>
+            <span class="num">#2</span>
+            <span class="weight">밴텀급 · 5R</span>
+          </div>
+          <div class="right">
+            <span class="deadline">D-5 · 14:23 마감</span>
+          </div>
+        </div>
+        <div class="pick-row">
+          <div class="pick-side red">
+            <div class="ava">OM</div>
+            <div class="info">
+              <span class="nm">O'MALLEY</span>
+              <span class="ko">션 오말리</span>
+              <span class="rec">17W · 2L · 11 KO · 32세</span>
+            </div>
+            <span class="odds">-110</span>
+          </div>
+          <div class="pick-divider">VS</div>
+          <div class="pick-side blue">
+            <div class="ava">DV</div>
+            <div class="info">
+              <span class="nm">DVALISHVILI</span>
+              <span class="ko">메랍 드발리시빌리</span>
+              <span class="rec">17W · 4L · 4 SUB · 34세</span>
+            </div>
+            <span class="odds">-110</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 매치 3 -->
+      <div class="pick-card">
+        <div class="top">
+          <div class="left">
+            <span class="badge featured">★ HIGHLIGHT</span>
+            <span class="num">#3</span>
+            <span class="weight">라이트헤비급 · 3R</span>
+          </div>
+          <div class="right">
+            <span class="deadline done">픽 완료 · +95P 예정</span>
+          </div>
+        </div>
+        <div class="pick-row">
+          <div class="pick-side red">
+            <div class="ava">PE</div>
+            <div class="info">
+              <span class="nm">PEREIRA</span>
+              <span class="ko">알렉스 페레이라</span>
+              <span class="rec">12W · 2L · 9 KO · 38세</span>
+            </div>
+            <span class="odds">+140</span>
+          </div>
+          <div class="pick-divider">VS</div>
+          <div class="pick-side blue is-picked">
+            <div class="ava">AN</div>
+            <div class="info">
+              <span class="nm">ANKALAEV</span>
+              <span class="ko">마고메드 앙칼라예프</span>
+              <span class="rec">21W · 1L · 11 KO · 33세</span>
+            </div>
+            <span class="odds">-165</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 매치 4 -->
+      <div class="pick-card">
+        <div class="top">
+          <div class="left">
+            <span class="num">#4</span>
+            <span class="weight">웰터급 · 3R</span>
+          </div>
+          <div class="right">
+            <span class="deadline">D-5 · 14:23 마감</span>
+          </div>
+        </div>
+        <div class="pick-row">
+          <div class="pick-side red">
+            <div class="ava">CO</div>
+            <div class="info">
+              <span class="nm">COVINGTON</span>
+              <span class="ko">콜비 코빙턴</span>
+              <span class="rec">17W · 4L · 4 KO · 38세</span>
+            </div>
+            <span class="odds">+220</span>
+          </div>
+          <div class="pick-divider">VS</div>
+          <div class="pick-side blue">
+            <div class="ava">MA</div>
+            <div class="info">
+              <span class="nm">MACHADO</span>
+              <span class="ko">조아킴 마샤도</span>
+              <span class="rec">15W · 3L · 8 SUB · 31세</span>
+            </div>
+            <span class="odds">-280</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 매치 5 -->
+      <div class="pick-card">
+        <div class="top">
+          <div class="left">
+            <span class="num">#5</span>
+            <span class="weight">플라이급 · 3R</span>
+          </div>
+          <div class="right">
+            <span class="deadline">D-5 · 14:23 마감</span>
+          </div>
+        </div>
+        <div class="pick-row">
+          <div class="pick-side red">
+            <div class="ava">PA</div>
+            <div class="info">
+              <span class="nm">PANTOJA</span>
+              <span class="ko">알렉산드리 판토자</span>
+              <span class="rec">28W · 5L · 11 SUB · 35세</span>
+            </div>
+            <span class="odds">-145</span>
+          </div>
+          <div class="pick-divider">VS</div>
+          <div class="pick-side blue">
+            <div class="ava">VA</div>
+            <div class="info">
+              <span class="nm">VAN</span>
+              <span class="ko">조슈아 반</span>
+              <span class="rec">13W · 1L · 7 KO · 28세</span>
+            </div>
+            <span class="odds">+125</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 오른쪽 사이드바 -->
+    <aside>
+
+      <!-- 픽 진행 요약 -->
+      <div class="side-card">
+        <h3>내 픽 진행 <span class="meta">UFC 328</span></h3>
+        <div class="summary-grid">
+          <div class="summary-cell"><div class="v">3</div><div class="l">픽 완료</div></div>
+          <div class="summary-cell"><div class="v red">8</div><div class="l">남은 매치</div></div>
+          <div class="summary-cell"><div class="v warn">850P</div><div class="l">예상 적립</div></div>
+        </div>
+
+        <div class="summary-list">
+          <div class="summary-pick">
+            <span class="num">#1</span>
+            <div class="who"><span class="dot red"></span><span class="nm">치마예프 · SUB · R3</span></div>
+            <span class="pts">+120P</span>
+          </div>
+          <div class="summary-pick">
+            <span class="num">#2</span>
+            <div class="who"><span class="dot dim"></span><span class="nm empty">미선택 — 오말리 vs 드발리시빌리</span></div>
+            <span class="pts empty">—</span>
+          </div>
+          <div class="summary-pick">
+            <span class="num">#3</span>
+            <div class="who"><span class="dot blue"></span><span class="nm">앙칼라예프 · KO</span></div>
+            <span class="pts">+95P</span>
+          </div>
+          <div class="summary-pick">
+            <span class="num">#4</span>
+            <div class="who"><span class="dot dim"></span><span class="nm empty">미선택 — 코빙턴 vs 마샤도</span></div>
+            <span class="pts empty">—</span>
+          </div>
+          <div class="summary-pick">
+            <span class="num">#5</span>
+            <div class="who"><span class="dot dim"></span><span class="nm empty">미선택 — 판토자 vs 반</span></div>
+            <span class="pts empty">—</span>
+          </div>
+          <div class="summary-pick">
+            <span class="num">#6</span>
+            <div class="who"><span class="dot blue"></span><span class="nm">홀로웨이 · 판정</span></div>
+            <span class="pts">+75P</span>
+          </div>
+        </div>
+
+        <button class="submit-btn" disabled>전체 픽 확정 (8개 남음)</button>
+      </div>
+
+      <!-- 메인 이벤트 스탯 비교 -->
+      <div class="side-card">
+        <h3>메인 이벤트 분석 <span class="meta">#1 미들급</span></h3>
+        <div class="stat-compare-mini">
+          <div class="stat-row">
+            <span class="v r">14</span>
+            <span class="lbl">통산 승</span>
+            <span class="v b">28</span>
+            <div class="stat-bar"><div class="br" style="transform: scaleX(0.33);"></div><div class="bb" style="transform: scaleX(0.67);"></div></div>
+          </div>
+          <div class="stat-row">
+            <span class="v r">10</span>
+            <span class="lbl">KO/SUB</span>
+            <span class="v b">11</span>
+            <div class="stat-bar"><div class="br" style="transform: scaleX(0.48);"></div><div class="bb" style="transform: scaleX(0.52);"></div></div>
+          </div>
+          <div class="stat-row">
+            <span class="v r">71%</span>
+            <span class="lbl">타격 정확도</span>
+            <span class="v b">52%</span>
+            <div class="stat-bar"><div class="br" style="transform: scaleX(0.58);"></div><div class="bb" style="transform: scaleX(0.42);"></div></div>
+          </div>
+          <div class="stat-row">
+            <span class="v r">5.2</span>
+            <span class="lbl">테이크다운/15분</span>
+            <span class="v b dim">0.4</span>
+            <div class="stat-bar"><div class="br" style="transform: scaleX(0.93);"></div><div class="bb" style="transform: scaleX(0.07);"></div></div>
+          </div>
+          <div class="stat-row">
+            <span class="v r">31</span>
+            <span class="lbl">나이</span>
+            <span class="v b">34</span>
+            <div class="stat-bar"><div class="br" style="transform: scaleX(0.48);"></div><div class="bb" style="transform: scaleX(0.52);"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 커뮤니티 픽 분포 -->
+      <div class="side-card">
+        <h3>커뮤니티 픽 <span class="meta">12,418명 참여</span></h3>
+        <div style="font-size: 13px; color: var(--pt-ink-2); margin-bottom: 10px;">메인 이벤트 — 누가 이길까?</div>
+        <div class="vote-bar" style="grid-template-columns: 64% 36%;">
+          <div class="seg-r">치마예프 64%</div>
+          <div class="seg-b">36% 스트릭랜드</div>
+        </div>
+        <div class="vote-legend">
+          <span>7,948명</span>
+          <span>4,470명</span>
+        </div>
+
+        <div style="font-size: 13px; color: var(--pt-ink-2); margin: 18px 0 10px;">코메인 — 오말리 vs 드발리시빌리</div>
+        <div class="vote-bar" style="grid-template-columns: 41% 59%;">
+          <div class="seg-r">오말리 41%</div>
+          <div class="seg-b">59% 드발리시빌리</div>
+        </div>
+        <div class="vote-legend">
+          <span>5,091명</span>
+          <span>7,327명</span>
+        </div>
+      </div>
+
+    </aside>
+  </div>
+
+</div>
+
+</body>
+</html>

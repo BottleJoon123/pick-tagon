@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Pick-tagon · 커뮤니티</title>
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="screen-shell.css" />
+<style>
+  /* === 페이지 헤더 === */
+  .page-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .page-head h1 {
+    margin: 0;
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    text-transform: uppercase; font-size: 48px; line-height: 0.95;
+    color: var(--pt-ink-0); letter-spacing: -0.01em;
+  }
+  .page-head h1 em { color: var(--pt-red-500); font-style: italic; }
+  .page-head .desc { color: var(--pt-ink-2); font-size: 14px; margin-top: 8px; font-family: var(--pt-font-mono); }
+  .write-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--pt-red-500); color: #fff;
+    padding: 12px 22px; border-radius: 10px;
+    font-weight: 800; font-size: 13px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    border: 0; cursor: pointer;
+    box-shadow: 0 8px 24px rgba(225,6,0,0.30);
+  }
+  .write-btn:hover { background: var(--pt-red-300); }
+
+  /* === 탭 + 필터 === */
+  .tabs-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin: 0 0 18px;
+    border-bottom: 1px solid var(--pt-line-2);
+  }
+  .tabs { display: flex; gap: 0; }
+  .tab {
+    padding: 12px 18px;
+    font-size: 14px; font-weight: 700;
+    color: var(--pt-ink-3); cursor: pointer;
+    border-bottom: 2px solid transparent;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .tab.is-active { color: var(--pt-ink-0); border-color: var(--pt-red-500); }
+  .tab .cnt {
+    font-family: var(--pt-font-mono); font-size: 11px;
+    padding: 2px 7px; border-radius: 999px;
+    background: var(--pt-bg-3); color: var(--pt-ink-2);
+  }
+  .tab.is-active .cnt { background: var(--pt-red-900); color: var(--pt-red-300); }
+  .sort-row { padding-bottom: 12px; display: flex; gap: 8px; }
+  .chip {
+    padding: 6px 12px; border-radius: 999px;
+    background: var(--pt-bg-3); border: 1px solid var(--pt-line-2);
+    font-size: 12px; color: var(--pt-ink-2); font-weight: 600; cursor: pointer;
+  }
+  .chip.is-active { background: var(--pt-red-500); color: #fff; border-color: var(--pt-red-500); }
+
+  /* === 2-col === */
+  .com-grid {
+    display: grid; grid-template-columns: 1fr 320px; gap: 24px;
+  }
+
+  /* === 핀(고정) 게시물 === */
+  .pinned {
+    background:
+      radial-gradient(50% 80% at 100% 50%, rgba(225,6,0,0.20), transparent 60%),
+      var(--pt-bg-2);
+    border: 1px solid var(--pt-red-700);
+    border-radius: 14px;
+    padding: 22px 24px;
+    margin-bottom: 16px;
+    position: relative;
+  }
+  .pinned .pin-tag {
+    position: absolute; top: 14px; right: 18px;
+    font-family: var(--pt-font-eyebrow); font-size: 10px;
+    letter-spacing: 0.18em; font-weight: 700;
+    color: var(--pt-red-500);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .pinned .pin-tag::before { content: '📌'; font-size: 11px; }
+
+  .post-head {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 12px;
+  }
+  .post-ava {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--pt-bg-4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 800; color: var(--pt-ink-0);
+    flex-shrink: 0;
+  }
+  .post-author { display: flex; flex-direction: column; gap: 2px; line-height: 1.2; }
+  .post-author .row { display: flex; align-items: center; gap: 8px; }
+  .post-nm { font-size: 14px; font-weight: 800; color: var(--pt-ink-0); }
+  .post-belt-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 8px; border-radius: 999px;
+    font-size: 10px; font-weight: 700;
+    border: 1px solid var(--pt-line-2);
+  }
+  .post-belt-pill .strip { width: 6px; height: 6px; border-radius: 50%; }
+  .post-belt-pill.brown { color: #D4A56C; border-color: rgba(181,128,58,0.4); background: rgba(181,128,58,0.10); }
+  .post-belt-pill.brown .strip { background: #B5803A; }
+  .post-belt-pill.black { color: var(--pt-ink-0); }
+  .post-belt-pill.black .strip { background: #fff; box-shadow: 0 0 0 1px #71757F; }
+  .post-belt-pill.purple { color: #C39DF1; border-color: rgba(139,63,227,0.4); background: rgba(139,63,227,0.10); }
+  .post-belt-pill.purple .strip { background: #8B3FE3; }
+  .post-belt-pill.blue { color: #6FA8FF; border-color: rgba(31,111,235,0.4); background: rgba(31,111,235,0.10); }
+  .post-belt-pill.blue .strip { background: #1F6FEB; }
+  .post-meta {
+    font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3);
+  }
+
+  .post-title {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800;
+    text-transform: uppercase; font-size: 26px; line-height: 1.1;
+    color: var(--pt-ink-0); letter-spacing: -0.01em;
+    margin: 8px 0 10px;
+  }
+  .post-body {
+    color: var(--pt-ink-1); font-size: 14px; line-height: 1.65;
+  }
+  .post-body p { margin: 0 0 10px; }
+  .post-body strong { color: var(--pt-ink-0); }
+
+  /* 매치업 카드 내장 */
+  .post-vs {
+    margin: 14px 0;
+    background: var(--pt-bg-3); border: 1px solid var(--pt-line-1);
+    border-radius: 12px;
+    padding: 14px 18px;
+    display: grid; grid-template-columns: 1fr auto 1fr;
+    align-items: center; gap: 12px;
+  }
+  .post-vs .side {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .post-vs .side.r { justify-content: flex-end; text-align: right; }
+  .post-vs .ava {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--pt-bg-4); border: 2px solid var(--pt-line-2);
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; color: var(--pt-ink-0);
+  }
+  .post-vs .side.r .ava { border-color: var(--pt-red-500); }
+  .post-vs .side.b .ava { border-color: var(--pt-corner-blue); }
+  .post-vs .info { display: flex; flex-direction: column; gap: 1px; }
+  .post-vs .nm { font-size: 13px; font-weight: 800; color: var(--pt-ink-0); }
+  .post-vs .rec { font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); }
+  .post-vs .vs-mark {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    font-size: 18px; color: var(--pt-ink-3);
+  }
+
+  /* 게시자 픽 표시 */
+  .post-pick {
+    margin: 12px 0 4px;
+    background: linear-gradient(90deg, rgba(225,6,0,0.10), transparent);
+    border-left: 3px solid var(--pt-red-500);
+    padding: 12px 14px;
+    border-radius: 0 8px 8px 0;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .post-pick.b {
+    background: linear-gradient(90deg, rgba(31,111,235,0.10), transparent);
+    border-left-color: var(--pt-corner-blue);
+  }
+  .post-pick .lbl {
+    font-family: var(--pt-font-eyebrow); font-size: 10px; letter-spacing: 0.18em;
+    color: var(--pt-ink-3); font-weight: 700;
+  }
+  .post-pick .pick {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800;
+    font-size: 18px; color: var(--pt-red-500); text-transform: uppercase;
+  }
+  .post-pick.b .pick { color: var(--pt-corner-blue); }
+  .post-pick .method {
+    font-family: var(--pt-font-mono); font-size: 12px; color: var(--pt-ink-2);
+    margin-left: auto;
+  }
+
+  /* 게시물 푸터 (액션) */
+  .post-actions {
+    display: flex; align-items: center; gap: 16px;
+    padding-top: 14px;
+    margin-top: 12px;
+    border-top: 1px solid var(--pt-line-1);
+  }
+  .act {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 10px; border-radius: 8px;
+    color: var(--pt-ink-3); font-size: 13px; font-weight: 600;
+    cursor: pointer;
+  }
+  .act:hover { background: var(--pt-bg-3); color: var(--pt-ink-1); }
+  .act.is-on { color: var(--pt-red-500); }
+  .act.is-on.up { color: var(--pt-win); }
+  .act .ic { font-size: 14px; }
+  .act .v { font-family: var(--pt-font-mono); font-size: 12px; font-weight: 700; }
+
+  .post-side-pick {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-left: auto;
+    font-size: 11px; color: var(--pt-ink-3);
+    padding: 5px 10px; border-radius: 999px;
+    background: var(--pt-bg-3); border: 1px solid var(--pt-line-2);
+  }
+  .post-side-pick .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--pt-red-500); }
+
+  /* 일반 카드 */
+  .post-card {
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 14px;
+    padding: 20px 22px;
+  }
+  .post-card + .post-card { margin-top: 12px; }
+
+  /* 매치업 토론 카드 */
+  .debate-card .post-title { color: var(--pt-ink-0); }
+  .debate-poll {
+    margin: 12px 0 8px;
+    background: var(--pt-bg-3);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .debate-poll .q {
+    font-size: 13px; font-weight: 700; color: var(--pt-ink-0); margin-bottom: 12px;
+  }
+  .vote-bar {
+    height: 36px; border-radius: 8px; overflow: hidden;
+    display: grid; align-items: stretch;
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+  }
+  .vote-bar .seg-r {
+    background: linear-gradient(90deg, var(--pt-red-500), var(--pt-red-700));
+    color: #fff; padding: 0 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-family: var(--pt-font-mono); font-weight: 700; font-size: 12px;
+  }
+  .vote-bar .seg-b {
+    background: linear-gradient(270deg, var(--pt-corner-blue), var(--pt-corner-blue-deep));
+    color: #fff; padding: 0 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-family: var(--pt-font-mono); font-weight: 700; font-size: 12px;
+  }
+  .vote-legend {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--pt-ink-3);
+    margin-top: 6px; font-family: var(--pt-font-mono);
+  }
+
+  /* 댓글 프리뷰 */
+  .comment-preview {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--pt-line-1);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .cm-row {
+    display: grid; grid-template-columns: 28px 1fr; gap: 10px;
+    align-items: flex-start;
+  }
+  .cm-ava {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--pt-bg-4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800; color: var(--pt-ink-0);
+    flex-shrink: 0;
+  }
+  .cm-content { line-height: 1.45; }
+  .cm-content .head {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 2px;
+  }
+  .cm-content .nm { font-size: 12px; font-weight: 700; color: var(--pt-ink-0); }
+  .cm-content .time { font-family: var(--pt-font-mono); font-size: 10px; color: var(--pt-ink-3); }
+  .cm-content .text { font-size: 13px; color: var(--pt-ink-1); }
+  .cm-more { font-size: 12px; color: var(--pt-ink-3); margin-left: 38px; cursor: pointer; }
+  .cm-more:hover { color: var(--pt-ink-1); }
+
+  /* === 사이드 === */
+  .side-card {
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 14px;
+    padding: 20px;
+  }
+  .side-card + .side-card { margin-top: 16px; }
+  .side-card h3 {
+    margin: 0 0 14px;
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800;
+    text-transform: uppercase; font-size: 17px; color: var(--pt-ink-0);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .side-card h3 .meta {
+    font-family: 'Pretendard', sans-serif; font-style: normal; font-weight: 600;
+    font-size: 11px; color: var(--pt-ink-3); text-transform: none; letter-spacing: 0;
+  }
+
+  /* 트렌딩 */
+  .trend-row {
+    display: grid; grid-template-columns: 24px 1fr auto; gap: 10px;
+    align-items: center; padding: 10px 0;
+    border-bottom: 1px solid var(--pt-line-1);
+  }
+  .trend-row:last-child { border-bottom: 0; }
+  .trend-rank {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800;
+    font-size: 18px; color: var(--pt-ink-3); line-height: 1; text-align: center;
+  }
+  .trend-row.top .trend-rank { color: var(--pt-red-500); }
+  .trend-info { line-height: 1.3; min-width: 0; }
+  .trend-tag {
+    font-family: var(--pt-font-eyebrow); font-size: 9px; letter-spacing: 0.18em;
+    color: var(--pt-red-300); margin-bottom: 2px; font-weight: 700;
+  }
+  .trend-title { font-size: 13px; font-weight: 700; color: var(--pt-ink-0); line-height: 1.3; }
+  .trend-count { font-family: var(--pt-font-mono); font-size: 10px; color: var(--pt-ink-3); }
+
+  /* 활발한 유저 */
+  .active-user {
+    display: grid; grid-template-columns: 32px 1fr auto;
+    align-items: center; gap: 10px; padding: 10px 0;
+    border-bottom: 1px solid var(--pt-line-1);
+  }
+  .active-user:last-child { border-bottom: 0; }
+  .au-ava {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--pt-bg-4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800; color: var(--pt-ink-0);
+  }
+  .au-info { line-height: 1.2; min-width: 0; }
+  .au-nm {
+    font-size: 12px; font-weight: 700; color: var(--pt-ink-0);
+    display: flex; align-items: center; gap: 4px;
+  }
+  .au-meta { font-family: var(--pt-font-mono); font-size: 10px; color: var(--pt-ink-3); }
+  .au-follow {
+    font-size: 11px; padding: 4px 12px; border-radius: 999px;
+    background: var(--pt-bg-3); border: 1px solid var(--pt-line-2);
+    color: var(--pt-ink-1); font-weight: 700; cursor: pointer;
+  }
+  .au-follow.is-following { background: var(--pt-red-900); border-color: var(--pt-red-700); color: var(--pt-red-300); }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="app-header-inner">
+    <a class="app-logo" href="screen-home.html">
+      <svg width="28" height="28" viewBox="0 0 200 200" fill="none">
+        <polygon points="60,10 140,10 190,60 190,140 140,190 60,190 10,140 10,60" fill="none" stroke="#E10600" stroke-width="14"/>
+        <path d="M70 102 L92 124 L138 78" stroke="#FFFFFF" stroke-width="22" fill="none" stroke-linejoin="miter"/>
+        <path d="M70 102 L92 124 L138 78" stroke="#E10600" stroke-width="10" fill="none" stroke-linejoin="miter"/>
+      </svg>
+      <span class="word">PICK-TAGON</span>
+    </a>
+    <nav class="app-nav">
+      <a href="screen-home.html">홈</a>
+      <a href="screen-event.html">이벤트</a>
+      <a href="screen-rankings.html">랭킹</a>
+      <a href="screen-leaderboard.html">리더보드</a>
+      <a href="#" class="is-active">커뮤니티</a>
+    </nav>
+    <div class="app-search">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg>
+      <input placeholder="유저 · 토픽 검색" />
+    </div>
+    <span class="app-balance">3,005 P</span>
+    <span class="app-belt"><span class="strip"></span>퍼플</span>
+    <span class="app-avatar">KB</span>
+  </div>
+</header>
+
+<div class="app-container">
+
+  <div class="page-head">
+    <div>
+      <h1>커뮤니티 <em>·</em> 피드</h1>
+      <div class="desc">매치업 토론 · 분석 리포트 · 픽 공유 · 18,432명 활동 중</div>
+    </div>
+    <button class="write-btn">+ 글쓰기</button>
+  </div>
+
+  <!-- 탭 -->
+  <div class="tabs-row">
+    <div class="tabs">
+      <div class="tab is-active">전체 <span class="cnt">2.4K</span></div>
+      <div class="tab">매치업 토론 <span class="cnt">821</span></div>
+      <div class="tab">분석 리포트 <span class="cnt">340</span></div>
+      <div class="tab">픽 공유 <span class="cnt">1.1K</span></div>
+      <div class="tab">자유</div>
+    </div>
+    <div class="sort-row">
+      <span class="chip is-active">인기순</span>
+      <span class="chip">최신순</span>
+      <span class="chip">팔로잉</span>
+    </div>
+  </div>
+
+  <!-- 2-col -->
+  <div class="com-grid">
+
+    <!-- 왼쪽: 피드 -->
+    <div>
+      <!-- 핀 게시물 — 메인 이벤트 토론 -->
+      <article class="pinned">
+        <span class="pin-tag">FEATURED · UFC 328</span>
+        <div class="post-head">
+          <div class="post-ava" style="background: linear-gradient(135deg, #0E0F12, #232730);">XY</div>
+          <div class="post-author">
+            <div class="row">
+              <span class="post-nm">XYANGNYO</span>
+              <span class="post-belt-pill black"><span class="strip"></span>BLACK</span>
+              <span class="post-meta">2위 · 시즌 8,891P</span>
+            </div>
+            <span class="post-meta">3시간 전 · 매치업 토론 · 미들급 메인이벤트</span>
+          </div>
+        </div>
+
+        <h2 class="post-title">치마예프의 그라운드는 스트릭랜드의 1순위 위협이다 — 5분 분석</h2>
+
+        <div class="post-vs">
+          <div class="side r">
+            <div class="info"><span class="nm">CHIMAEV (치마예프)</span><span class="rec">14W·0L · 미들급 #2</span></div>
+            <span class="ava">CH</span>
+          </div>
+          <span class="vs-mark">VS</span>
+          <div class="side b">
+            <span class="ava">ST</span>
+            <div class="info"><span class="nm">STRICKLAND (스트릭랜드)</span><span class="rec">28W·6L · 미들급 #1</span></div>
+          </div>
+        </div>
+
+        <div class="post-body">
+          <p>스트릭랜드는 <strong>레슬링 디펜스가 약점</strong>이다. 두 플레시스전에서 5라운드 동안 4번의 테이크다운을 허용했고, 그라운드에서 31%의 시간을 보냈다.</p>
+          <p>치마예프는 <strong>15분당 5.2회의 테이크다운</strong>을 시도한다(UFC 미들급 1위). 1라운드 안에 그라운드로 끌고 가면 80% 이상의 확률로 SUB을 노릴 수 있다고 본다.</p>
+        </div>
+
+        <div class="post-pick">
+          <span class="lbl">XYANGNYO의 픽</span>
+          <span class="pick">CHIMAEV · SUB · R2</span>
+          <span class="method">배당 -185 · 적립 예상 +160P</span>
+        </div>
+
+        <div class="post-actions">
+          <span class="act is-on up"><span class="ic">▲</span><span class="v">428</span></span>
+          <span class="act"><span class="ic">▼</span><span class="v">32</span></span>
+          <span class="act"><span class="ic">💬</span><span class="v">87</span> 코멘트</span>
+          <span class="act"><span class="ic">📊</span> 픽 따라가기</span>
+          <span class="post-side-pick"><span class="dot"></span>커뮤니티 64% 치마예프</span>
+        </div>
+      </article>
+
+      <!-- 매치업 토론 #2 -->
+      <article class="post-card debate-card">
+        <div class="post-head">
+          <div class="post-ava" style="background: linear-gradient(135deg, #B5803A, #6B4A1F);">DA</div>
+          <div class="post-author">
+            <div class="row">
+              <span class="post-nm">DARKHORSE_94</span>
+              <span class="post-belt-pill brown"><span class="strip"></span>BROWN</span>
+              <span class="post-meta">시즌 1위 · 9,420P</span>
+            </div>
+            <span class="post-meta">5시간 전 · 매치업 토론 · 밴텀급 코메인</span>
+          </div>
+        </div>
+
+        <h3 class="post-title" style="font-size: 22px;">오말리 vs. 드발리시빌리 — 누가 이길까?</h3>
+
+        <div class="post-body">
+          <p>드발리시빌리는 1년 안에 5경기를 소화한 워크호스다. 그래플링은 미친 수준. 오말리의 거리·타격이 막힐 수 있는 가장 위험한 상대.</p>
+        </div>
+
+        <div class="debate-poll">
+          <div class="q">코메인 이벤트 — 누가 이길까?</div>
+          <div class="vote-bar" style="grid-template-columns: 41% 59%;">
+            <div class="seg-r"><span>오말리</span><span>41%</span></div>
+            <div class="seg-b"><span>59%</span><span>드발리시빌리</span></div>
+          </div>
+          <div class="vote-legend">
+            <span>2,481명</span>
+            <span>3,572명 · 총 6,053표</span>
+          </div>
+        </div>
+
+        <div class="post-actions">
+          <span class="act"><span class="ic">▲</span><span class="v">214</span></span>
+          <span class="act"><span class="ic">▼</span><span class="v">18</span></span>
+          <span class="act"><span class="ic">💬</span><span class="v">52</span> 코멘트</span>
+          <span class="act"><span class="ic">🔗</span> 공유</span>
+        </div>
+
+        <div class="comment-preview">
+          <div class="cm-row">
+            <div class="cm-ava" style="background: linear-gradient(135deg, #8B3FE3, #4A1B7B);">SI</div>
+            <div class="cm-content">
+              <div class="head"><span class="nm">SHIN_ISLAND</span><span class="time">2시간 전</span></div>
+              <div class="text">드발리 페이스 못 따라가는 게임 그림이 더 자연스럽긴 함. 오말리 KO 한방 노릴 수 있는데, R3 이후엔 의문.</div>
+            </div>
+          </div>
+          <div class="cm-row">
+            <div class="cm-ava">RA</div>
+            <div class="cm-content">
+              <div class="head"><span class="nm">RAVEN_PICK</span><span class="time">1시간 전</span></div>
+              <div class="text">난 오말리. 거리에서 잡아두면 드발리 들어오는 타이밍에 카운터 가능. R2 KO 예상.</div>
+            </div>
+          </div>
+          <div class="cm-more">코멘트 50개 더 보기 →</div>
+        </div>
+      </article>
+
+      <!-- 분석 리포트 -->
+      <article class="post-card">
+        <div class="post-head">
+          <div class="post-ava">AN</div>
+          <div class="post-author">
+            <div class="row">
+              <span class="post-nm">PICKTAGON_ANALYST</span>
+              <span class="post-belt-pill" style="background: rgba(244,180,0,0.10); border-color: rgba(244,180,0,0.4); color: var(--pt-warn);">★ 공식</span>
+              <span class="post-meta">분석 리포트 · 인증된 분석가</span>
+            </div>
+            <span class="post-meta">1일 전 · 분석 리포트 · UFC 328 전체</span>
+          </div>
+        </div>
+
+        <h3 class="post-title" style="font-size: 22px;">UFC 328 메인카드 5경기 — 데이터로 보는 우세 분석</h3>
+
+        <div class="post-body">
+          <p>11매치 전체에 대한 5,000+ 데이터 포인트 기반 분석을 정리했습니다. 핵심 인사이트:</p>
+          <p>① <strong>메인</strong>: 치마예프의 그라운드 우위 · ② <strong>코메인</strong>: 드발리 페이스 압박 · ③ <strong>3경기</strong>: 앙칼라예프 카디오 우세 — 페레이라 KO 1라운드 안 아니면 어려움</p>
+        </div>
+
+        <div class="post-actions">
+          <span class="act is-on up"><span class="ic">▲</span><span class="v">1.2K</span></span>
+          <span class="act"><span class="ic">▼</span><span class="v">41</span></span>
+          <span class="act"><span class="ic">💬</span><span class="v">187</span></span>
+          <span class="act"><span class="ic">⭐</span> 저장</span>
+        </div>
+      </article>
+
+      <!-- 픽 공유 -->
+      <article class="post-card">
+        <div class="post-head">
+          <div class="post-ava" style="background: linear-gradient(135deg, #1F6FEB, #0A2A66);">RA</div>
+          <div class="post-author">
+            <div class="row">
+              <span class="post-nm">RAVEN_PICK</span>
+              <span class="post-belt-pill purple"><span class="strip"></span>PURPLE</span>
+              <span class="post-meta">시즌 5위 · 5,038P</span>
+            </div>
+            <span class="post-meta">8시간 전 · 픽 공유 · UFC 328 메인카드 픽</span>
+          </div>
+        </div>
+
+        <h3 class="post-title" style="font-size: 22px;">UFC 328 메인카드 5경기 픽 공개 — 언더독 3개</h3>
+
+        <div class="post-pick">
+          <span class="lbl">PICK 1 · 메인</span>
+          <span class="pick">CHIMAEV · SUB · R3</span>
+          <span class="method">-185</span>
+        </div>
+        <div class="post-pick">
+          <span class="lbl">PICK 2 · 코메인</span>
+          <span class="pick">O'MALLEY · 판정</span>
+          <span class="method">-110</span>
+        </div>
+        <div class="post-pick b">
+          <span class="lbl">PICK 3 · LHW</span>
+          <span class="pick">ANKALAEV · KO</span>
+          <span class="method">-165</span>
+        </div>
+        <div class="post-pick">
+          <span class="lbl">PICK 4 · WW</span>
+          <span class="pick">COVINGTON · 판정</span>
+          <span class="method">+220 (언더독)</span>
+        </div>
+        <div class="post-pick">
+          <span class="lbl">PICK 5 · FLY</span>
+          <span class="pick">PANTOJA · SUB</span>
+          <span class="method">-145</span>
+        </div>
+
+        <div class="post-actions" style="margin-top: 16px;">
+          <span class="act"><span class="ic">▲</span><span class="v">142</span></span>
+          <span class="act"><span class="ic">▼</span><span class="v">23</span></span>
+          <span class="act"><span class="ic">💬</span><span class="v">34</span></span>
+          <span class="act"><span class="ic">📊</span> 픽 그대로 따라가기</span>
+        </div>
+      </article>
+
+      <!-- 자유 (짧은 글) -->
+      <article class="post-card">
+        <div class="post-head">
+          <div class="post-ava">CH</div>
+          <div class="post-author">
+            <div class="row">
+              <span class="post-nm">CHEONJI</span>
+              <span class="post-belt-pill purple"><span class="strip"></span>PURPLE</span>
+              <span class="post-meta">시즌 6위 · 4,712P</span>
+            </div>
+            <span class="post-meta">12시간 전 · 자유 · #UFC328 #치마예프</span>
+          </div>
+        </div>
+
+        <div class="post-body" style="font-size: 15px;">
+          <p>치마예프가 일찍 SUB 따면 빨리 자러 가야지. 한국시간 오전 11시는 너무 잔인하다 ㅠㅠ 오말리 vs 드발리는 5라운드 풀로 갈 거 같은데...</p>
+        </div>
+
+        <div class="post-actions" style="margin-top: 14px;">
+          <span class="act"><span class="ic">▲</span><span class="v">68</span></span>
+          <span class="act"><span class="ic">▼</span><span class="v">4</span></span>
+          <span class="act"><span class="ic">💬</span><span class="v">12</span></span>
+        </div>
+      </article>
+
+    </div>
+
+    <!-- 오른쪽 사이드 -->
+    <aside>
+      <!-- 트렌딩 -->
+      <div class="side-card">
+        <h3>이번 주 트렌딩 <span class="meta">실시간 인기 토픽</span></h3>
+        <div>
+          <div class="trend-row top">
+            <span class="trend-rank">1</span>
+            <div class="trend-info">
+              <div class="trend-tag">UFC 328 · 메인</div>
+              <div class="trend-title">치마예프의 SUB 가능성 — 그라운드 분석</div>
+              <div class="trend-count">87 댓글 · 428 추천</div>
+            </div>
+            <span class="trend-count">+342%</span>
+          </div>
+          <div class="trend-row top">
+            <span class="trend-rank">2</span>
+            <div class="trend-info">
+              <div class="trend-tag">매치업 토론</div>
+              <div class="trend-title">오말리 vs 드발리시빌리 — 누가 이길까?</div>
+              <div class="trend-count">52 댓글 · 214 추천</div>
+            </div>
+            <span class="trend-count">+201%</span>
+          </div>
+          <div class="trend-row top">
+            <span class="trend-rank">3</span>
+            <div class="trend-info">
+              <div class="trend-tag">분석 · 공식</div>
+              <div class="trend-title">UFC 328 메인카드 5경기 우세 분석</div>
+              <div class="trend-count">187 댓글 · 1.2K 추천</div>
+            </div>
+            <span class="trend-count">+156%</span>
+          </div>
+          <div class="trend-row">
+            <span class="trend-rank">4</span>
+            <div class="trend-info">
+              <div class="trend-tag">파이터 · 데뷔</div>
+              <div class="trend-title">아아론 피코 — 신예 데뷔전 KO 화제</div>
+              <div class="trend-count">41 댓글</div>
+            </div>
+            <span class="trend-count">+89%</span>
+          </div>
+          <div class="trend-row">
+            <span class="trend-rank">5</span>
+            <div class="trend-info">
+              <div class="trend-tag">랭킹 변동</div>
+              <div class="trend-title">P4P TOP 5 — 마하체프 1위 수성</div>
+              <div class="trend-count">28 댓글</div>
+            </div>
+            <span class="trend-count">+45%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 활발한 유저 -->
+      <div class="side-card">
+        <h3>활발한 유저 <span class="meta">팔로우 추천</span></h3>
+        <div>
+          <div class="active-user">
+            <div class="au-ava" style="background: linear-gradient(135deg, #B5803A, #6B4A1F);">DA</div>
+            <div class="au-info">
+              <div class="au-nm">DARKHORSE_94</div>
+              <div class="au-meta">시즌 1위 · BROWN BELT</div>
+            </div>
+            <span class="au-follow">+ 팔로우</span>
+          </div>
+          <div class="active-user">
+            <div class="au-ava" style="background: linear-gradient(135deg, #0E0F12, #232730);">XY</div>
+            <div class="au-info">
+              <div class="au-nm">XYANGNYO</div>
+              <div class="au-meta">시즌 2위 · BLACK BELT</div>
+            </div>
+            <span class="au-follow is-following">팔로잉</span>
+          </div>
+          <div class="active-user">
+            <div class="au-ava">AN</div>
+            <div class="au-info">
+              <div class="au-nm">PICKTAGON_ANALYST</div>
+              <div class="au-meta">공식 분석가 · 12K 팔로워</div>
+            </div>
+            <span class="au-follow is-following">팔로잉</span>
+          </div>
+          <div class="active-user">
+            <div class="au-ava" style="background: linear-gradient(135deg, #1F6FEB, #0A2A66);">RA</div>
+            <div class="au-info">
+              <div class="au-nm">RAVEN_PICK</div>
+              <div class="au-meta">시즌 5위 · 픽 적중률 71%</div>
+            </div>
+            <span class="au-follow">+ 팔로우</span>
+          </div>
+          <div class="active-user">
+            <div class="au-ava" style="background: linear-gradient(135deg, #8B3FE3, #4A1B7B);">SI</div>
+            <div class="au-info">
+              <div class="au-nm">SHIN_ISLAND</div>
+              <div class="au-meta">시즌 3위 · 한국 3위</div>
+            </div>
+            <span class="au-follow">+ 팔로우</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 활동 통계 -->
+      <div class="side-card">
+        <h3>커뮤니티 펄스 <span class="meta">최근 24시간</span></h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div style="background: var(--pt-bg-3); border: 1px solid var(--pt-line-1); border-radius: 10px; padding: 14px; text-align: center;">
+            <div style="font-family: var(--pt-font-display); font-style: italic; font-weight: 800; font-size: 24px; line-height: 1; color: var(--pt-red-500);">2,418</div>
+            <div style="font-family: var(--pt-font-eyebrow); font-size: 9px; letter-spacing: 0.18em; color: var(--pt-ink-3); margin-top: 6px; font-weight: 600;">새 게시글</div>
+          </div>
+          <div style="background: var(--pt-bg-3); border: 1px solid var(--pt-line-1); border-radius: 10px; padding: 14px; text-align: center;">
+            <div style="font-family: var(--pt-font-display); font-style: italic; font-weight: 800; font-size: 24px; line-height: 1; color: var(--pt-ink-0);">18,432</div>
+            <div style="font-family: var(--pt-font-eyebrow); font-size: 9px; letter-spacing: 0.18em; color: var(--pt-ink-3); margin-top: 6px; font-weight: 600;">활동 유저</div>
+          </div>
+          <div style="background: var(--pt-bg-3); border: 1px solid var(--pt-line-1); border-radius: 10px; padding: 14px; text-align: center;">
+            <div style="font-family: var(--pt-font-display); font-style: italic; font-weight: 800; font-size: 24px; line-height: 1; color: var(--pt-warn);">52K</div>
+            <div style="font-family: var(--pt-font-eyebrow); font-size: 9px; letter-spacing: 0.18em; color: var(--pt-ink-3); margin-top: 6px; font-weight: 600;">코멘트</div>
+          </div>
+          <div style="background: var(--pt-bg-3); border: 1px solid var(--pt-line-1); border-radius: 10px; padding: 14px; text-align: center;">
+            <div style="font-family: var(--pt-font-display); font-style: italic; font-weight: 800; font-size: 24px; line-height: 1; color: var(--pt-win);">187K</div>
+            <div style="font-family: var(--pt-font-eyebrow); font-size: 9px; letter-spacing: 0.18em; color: var(--pt-ink-3); margin-top: 6px; font-weight: 600;">추천 (▲)</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Pick-tagon · 핵심 컴포넌트</title>
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="ds-shell.css" />
+<style>
+  /* 컴포넌트 행 */
+  .comp-row {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .comp-row + .comp-row { margin-top: 16px; }
+  .comp-row .meta {
+    padding: 22px;
+    border-right: 1px solid var(--pt-line-1);
+    background: var(--pt-bg-3);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .comp-row .name {
+    font-size: 15px; font-weight: 800; color: var(--pt-ink-0);
+  }
+  .comp-row .en {
+    font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3);
+  }
+  .comp-row .desc {
+    font-size: 12px; color: var(--pt-ink-2); line-height: 1.5; margin-top: 6px;
+  }
+  .comp-row .where { margin-top: 10px; }
+
+  .comp-row .preview {
+    padding: 28px;
+    background: var(--pt-bg-1);
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .preview-row {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  .preview-row .state {
+    font-family: var(--pt-font-mono); font-size: 10px;
+    color: var(--pt-ink-4); margin-right: 6px; min-width: 60px;
+  }
+
+  /* ===== 버튼 ===== */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: 'Pretendard', sans-serif;
+    font-size: 14px; font-weight: 700;
+    border: 0; cursor: pointer;
+    padding: 12px 20px;
+    border-radius: 10px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .btn-primary { background: var(--pt-red-500); color: #fff; }
+  .btn-primary:hover { background: var(--pt-red-300); box-shadow: 0 12px 36px rgba(225,6,0,0.35); }
+  .btn-primary:active { background: var(--pt-red-600); }
+  .btn-primary[disabled] { background: var(--pt-bg-4); color: var(--pt-ink-3); cursor: not-allowed; }
+  .btn-secondary { background: transparent; color: var(--pt-ink-0); border: 1px solid var(--pt-line-3); }
+  .btn-secondary:hover { background: var(--pt-bg-3); }
+  .btn-ghost { background: transparent; color: var(--pt-ink-1); }
+  .btn-ghost:hover { background: var(--pt-bg-3); color: var(--pt-ink-0); }
+
+  /* ===== 배지 ===== */
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--pt-font-eyebrow);
+    font-size: 11px; letter-spacing: 0.16em;
+    padding: 5px 10px; border-radius: 4px;
+    font-weight: 600;
+  }
+  .badge-live { background: var(--pt-red-500); color: #fff; }
+  .badge-live::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,0.3); animation: pulse 1.4s infinite; }
+  .badge-upcoming { background: rgba(31,191,107,0.15); color: var(--pt-win); border: 1px solid rgba(31,191,107,0.4); }
+  .badge-final { background: var(--pt-bg-3); color: var(--pt-ink-3); border: 1px solid var(--pt-line-2); }
+  .badge-main { background: linear-gradient(90deg, #E10600, #9A0400); color: #fff; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  /* ===== 벨트 ===== */
+  .belt-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 5px 12px 5px 5px;
+    border-radius: 999px;
+    background: var(--pt-bg-3); border: 1px solid var(--pt-line-2);
+    font-size: 12px; font-weight: 700; color: var(--pt-ink-0);
+  }
+  .belt-pill .strip {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 2px solid var(--pt-bg-3);
+  }
+  .belt-pill.white .strip  { background: #ECECEE; }
+  .belt-pill.blue .strip   { background: #1F6FEB; }
+  .belt-pill.purple .strip { background: #8B3FE3; }
+  .belt-pill.brown .strip  { background: #B5803A; }
+  .belt-pill.black .strip  { background: #0E0F12; border-color: #2A2E37; }
+
+  /* ===== 입력 ===== */
+  .input {
+    background: var(--pt-bg-4);
+    border: 1px solid var(--pt-line-2);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 14px; color: var(--pt-ink-0);
+    width: 240px;
+    font-family: 'Pretendard', sans-serif;
+  }
+  .input::placeholder { color: var(--pt-ink-3); }
+  .input:focus { outline: 0; border-color: var(--pt-red-500); box-shadow: 0 0 0 3px rgba(225,6,0,0.18); }
+
+  /* ===== 칩 ===== */
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 999px;
+    background: var(--pt-bg-3); border: 1px solid var(--pt-line-2);
+    font-size: 12px; color: var(--pt-ink-1); font-weight: 600;
+  }
+  .chip.is-active { background: var(--pt-red-500); color: #fff; border-color: var(--pt-red-500); }
+
+  /* ===== 토스트 ===== */
+  .toast {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--pt-bg-3);
+    border: 1px solid var(--pt-line-2);
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 13px;
+    color: var(--pt-ink-0);
+    min-width: 280px;
+  }
+  .toast .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .toast.success .dot { background: var(--pt-win); }
+  .toast.error   .dot { background: var(--pt-red-500); }
+  .toast.warn    .dot { background: var(--pt-warn); }
+</style>
+</head>
+<body>
+<div class="ds-shell pt-bg-mesh">
+
+  <nav class="ds-tabs">
+    <span class="brand">PICK-TAGON / 디자인 시스템</span>
+    <span class="ds-tab"><span class="num">01</span>브랜드 · 로고</span>
+    <span class="ds-tab"><span class="num">02</span>컬러</span>
+    <span class="ds-tab"><span class="num">03</span>타이포</span>
+    <span class="ds-tab"><span class="num">04</span>여백 · 그림자</span>
+    <span class="ds-tab is-active"><span class="num">05</span>컴포넌트</span>
+  </nav>
+
+  <header class="ds-page-head">
+    <div class="title-block">
+      <span class="crumb">디자인 시스템 / 05. 핵심 컴포넌트</span>
+      <h1>핵심 <em>·</em> 컴포넌트</h1>
+      <p class="summary">버튼·배지·벨트·입력·칩·토스트. UI를 만드는 가장 작은 블록들. 각 컴포넌트의 사용 위치와 상태(state)를 함께 표시합니다.</p>
+    </div>
+    <span class="ds-where">현재 탭: 05 / 05</span>
+  </header>
+
+  <main class="ds-body">
+
+    <!-- 1. 버튼 -->
+    <section class="ds-section">
+      <div class="ds-section-head">
+        <span class="ds-section-num">01</span>
+        <h2 class="ds-section-title">버튼 — 3가지 변형</h2>
+        <span class="ds-section-sub">중요도에 따라 골라 사용</span>
+      </div>
+
+      <div class="comp-row">
+        <div class="meta">
+          <div class="name">Primary 버튼</div>
+          <div class="en">btn-primary</div>
+          <div class="desc">가장 중요한 액션. 화면당 1개만 사용. 픽 제출, 가입 완료 등.</div>
+          <div class="where"><span class="ds-where">메인 CTA</span></div>
+        </div>
+        <div class="preview">
+          <div class="preview-row"><span class="state">기본</span><button class="btn btn-primary">픽 제출</button><button class="btn btn-primary">ENTER OCTAGON</button></div>
+          <div class="preview-row"><span class="state">호버</span><button class="btn btn-primary" style="background: var(--pt-red-300); box-shadow: 0 12px 36px rgba(225,6,0,0.35);">픽 제출</button></div>
+          <div class="preview-row"><span class="state">눌림</span><button class="btn btn-primary" style="background: var(--pt-red-600);">픽 제출</button></div>
+          <div class="preview-row"><span class="state">비활성</span><button class="btn btn-primary" disabled>마감됨</button></div>
+        </div>
+      </div>
+
+      <div class="comp-row">
+        <div class="meta">
+          <div class="name">Secondary 버튼</div>
+          <div class="en">btn-secondary</div>
+          <div class="desc">보조 액션. 취소, 뒤로가기, 더보기 등 Primary와 짝으로 사용.</div>
+          <div class="where"><span class="ds-where">보조 액션</span></div>
+        </div>
+        <div class="preview">
+          <div class="preview-row"><span class="state">기본</span><button class="btn btn-secondary">취소</button><button class="btn btn-secondary">분석 보기</button></div>
+        </div>
+      </div>
+
+      <div class="comp-row">
+        <div class="meta">
+          <div class="name">Ghost 버튼</div>
+          <div class="en">btn-ghost</div>
+          <div class="desc">가장 약한 강조. 인라인 액션, 카드 안의 작은 링크.</div>
+          <div class="where"><span class="ds-where">카드 내부 링크</span></div>
+        </div>
+        <div class="preview">
+          <div class="preview-row"><span class="state">기본</span><button class="btn btn-ghost">전체 보기 →</button><button class="btn btn-ghost">스킵</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 배지 -->
+    <section class="ds-section">
+      <div class="ds-section-head">
+        <span class="ds-section-num">02</span>
+        <h2 class="ds-section-title">배지 — 매치 상태 표시</h2>
+        <span class="ds-section-sub">매치업 카드 좌상단 / 이벤트 헤더에 사용</span>
+      </div>
+
+      <div class="comp-row">
+        <div class="meta">
+          <div class="name">상태 배지</div>
+          <div class="en">badge-{state}</div>
+          <div class="desc">매치 진행 상태. 색으로 즉시 구분 가능하게.</div>
+          <div class="where"><span class="ds-where">매치업 카드 좌상단</span></div>
+        </div>
+        <div class="preview">
+          <div class="preview-row"><span class="state">라이브</span><span class="badge badge-live">LIVE</span></div>
+          <div class="preview-row"><span class="state">예정</span><span class="badge badge-upcoming">UPCOMING · D-5</span></div>
+          <div class="preview-row"><span class="state">종료</span><span class="badge badge-final">FINAL</span></div>
+          <div class="preview-row"><span class="state">메인</span><span class="badge badge-main">MAIN EVENT</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. 벨트 -->
+    <section class="ds-section">
+      <div class="ds-section-head">
+        <span class="ds-section-num">03</span>
+        <h2 class="ds-section-title">벨트 칩 — 사용자 등급</h2>
+        <span class="ds-section-sub">프로필 / 리더보드의 사용자 이름 옆에 부착</span>
+      </div>
+
+      <div class="comp-row">
+        <div class="meta">
+          <div class="name">벨트 칩</div>
+          <div class="en">belt-pill.{tier}</div>
+          <div class="desc">5단계 (화이트→블루→퍼플→브라운→블랙). 색 동그라미 + 등급명.</div>
+          <div class="where"><span class="ds-where">프로필 · 리더보드</span></div>
+        </div>
+        <div class="preview">
+          <div class="preview-row">
+            <span class="belt-pill white"><span class="strip"></span>화이트 벨트</span>
+            <span class="belt-pill blue"><span class="strip"></span>블루 벨트</span>
+            <span class="belt-pill purple"><span class="strip"></span>퍼플 벨트</span>
+            <span class="belt-pill brown"><span class="strip"></span>브라운 벨트</span>
+            <span class="belt-pill black"><span class="strip"></span>블랙 벨트</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. 입력 -->
+    <section class="ds-section">
+      <div class="ds-section-head">
+        <span class="ds-section-num">04</span>
+        <h2 class="ds-section-title">입력 필드</h2>
+        <span class="ds-section-sub">로그인 · 검색 · 프로필 편집</span>
+      </div>
+
+      <div class="comp-row">
+        <div class="meta">
+          <div class="name">텍스트 입력</div>
+          <div class="en">.input</div>
+          <div class="desc">기본 사이즈 240px. 포커스 시 빨강 외곽선.</div>
+          <div class="where"><span class="ds-where">로그인 · 검색 · 폼</span></div>
+        </div>
+        <div class="preview">
+          <div class="preview-row"><span class="state">기본</span><input class="input" placeholder="이메일 입력" /></div>
+          <div class="preview-row"><span class="state">입력중</span><input class="input" value="user@example.com" /></div>
+          <div class="preview-row"><span class="state">포커스</span><input class="input" value="user@example.com" style="border-color: var(--pt-red-500); box-shadow: 0 0 0 3px rgba(225,6,0,0.18);" /></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. 칩 -->
+    <section class="ds-section">
+      <div class="ds-section-head">
+        <span class="ds-section-num">05</span>
+        <h2 class="ds-section-title">필터 칩</h2>
+        <span class="ds-section-sub">랭킹 · 카테고리 필터</span>
+      </div>
+
+      <div class="comp-row">
+        <div class="meta">
+          <div class="name">필터 칩</div>
+          <div class="en">.chip</div>
+          <div class="desc">단일 선택 필터. 활성 시 빨강 채우기.</div>
+          <div class="where"><span class="ds-where">랭킹 · 매치업 필터</span></div>
+        </div>
+        <div class="preview">
+          <div class="preview-row">
+            <span class="chip is-active">전체</span>
+            <span class="chip">웰터급</span>
+            <span class="chip">미들급</span>
+            <span class="chip">라이트헤비급</span>
+            <span class="chip">헤비급</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. 토스트 -->
+    <section class="ds-section">
+      <div class="ds-section-head">
+        <span class="ds-section-num">06</span>
+        <h2 class="ds-section-title">토스트 알림</h2>
+        <span class="ds-section-sub">우상단에서 슬라이드 인 · 4초 후 자동 사라짐</span>
+      </div>
+
+      <div class="comp-row">
+        <div class="meta">
+          <div class="name">토스트</div>
+          <div class="en">.toast.{type}</div>
+          <div class="desc">픽 제출 완료, 오류, 마감 임박 등.</div>
+          <div class="where"><span class="ds-where">화면 우상단</span></div>
+        </div>
+        <div class="preview">
+          <div class="preview-row"><span class="state">성공</span><div class="toast success"><span class="dot"></span>픽이 제출됐습니다 · +50P 적립</div></div>
+          <div class="preview-row"><span class="state">에러</span><div class="toast error"><span class="dot"></span>마감된 매치는 변경할 수 없습니다</div></div>
+          <div class="preview-row"><span class="state">경고</span><div class="toast warn"><span class="dot"></span>1시간 내 마감 — 픽 확정하세요</div></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+</body>
+</html>

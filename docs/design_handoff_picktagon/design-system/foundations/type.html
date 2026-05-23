@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Pick-tagon · 타이포그래피</title>
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="ds-shell.css" />
+<style>
+  /* 폰트 패밀리 카드 */
+  .families { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .family {
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .family .preview {
+    background: var(--pt-bg-0);
+    padding: 32px;
+    border-bottom: 1px solid var(--pt-line-1);
+    min-height: 140px;
+    display: flex; align-items: center;
+    color: #fff;
+  }
+  .family .body { padding: 18px 22px 22px; }
+  .family .role {
+    display: inline-block;
+    font-size: 10px; letter-spacing: 0.18em;
+    text-transform: uppercase; font-weight: 700;
+    background: var(--pt-red-900); color: var(--pt-red-300);
+    padding: 4px 10px; border-radius: 4px;
+    margin-bottom: 10px;
+  }
+  .family h3 { margin: 0 0 6px; font-size: 17px; color: var(--pt-ink-0); font-weight: 700; }
+  .family h3 .weight { color: var(--pt-ink-3); font-weight: 400; font-size: 13px; margin-left: 6px; }
+  .family p { margin: 0 0 10px; font-size: 13px; color: var(--pt-ink-2); line-height: 1.55; }
+  .family .where { margin-top: 8px; }
+
+  /* 스케일 표 */
+  .scale-table {
+    width: 100%;
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 16px;
+    overflow: hidden;
+    border-collapse: separate; border-spacing: 0;
+  }
+  .scale-table th, .scale-table td {
+    padding: 18px 20px;
+    text-align: left;
+    border-bottom: 1px solid var(--pt-line-1);
+    vertical-align: middle;
+  }
+  .scale-table tr:last-child td { border-bottom: 0; }
+  .scale-table th {
+    background: var(--pt-bg-3);
+    font-size: 11px; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--pt-ink-3); font-weight: 700;
+  }
+  .scale-table td.tag {
+    width: 110px; vertical-align: middle;
+  }
+  .scale-table td.tag .name {
+    font-weight: 800; color: var(--pt-red-500); font-size: 14px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .scale-table td.tag .px {
+    font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); margin-top: 4px;
+  }
+  .scale-table td.specimen {
+    color: var(--pt-ink-0);
+  }
+  .scale-table td.where {
+    width: 280px;
+    font-size: 12px; color: var(--pt-ink-2); line-height: 1.5;
+  }
+  .scale-table td.where b { color: var(--pt-ink-1); display: block; margin-bottom: 2px; }
+
+  .s-hero    { font-family: var(--pt-font-display); font-style: italic; font-weight: 900; text-transform: uppercase; font-size: 80px; line-height: 0.9; letter-spacing: -0.01em; }
+  .s-display { font-family: var(--pt-font-display); font-style: italic; font-weight: 900; text-transform: uppercase; font-size: 56px; line-height: 0.92; letter-spacing: -0.01em; }
+  .s-h1      { font-family: var(--pt-font-display); font-style: italic; font-weight: 800; text-transform: uppercase; font-size: 36px; line-height: 1; }
+  .s-h2      { font-family: var(--pt-font-display); font-style: italic; font-weight: 800; text-transform: uppercase; font-size: 26px; line-height: 1.05; }
+  .s-h3      { font-family: var(--pt-font-display); font-style: italic; font-weight: 700; text-transform: uppercase; font-size: 20px; line-height: 1.2; }
+  .s-body    { font-family: 'Pretendard', sans-serif; font-weight: 400; font-size: 15px; line-height: 1.55; }
+  .s-small   { font-family: 'Pretendard', sans-serif; font-weight: 500; font-size: 13px; line-height: 1.5; color: var(--pt-ink-2); }
+  .s-eyebrow { font-family: var(--pt-font-eyebrow); font-size: 13px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--pt-ink-3); }
+  .s-mono    { font-family: var(--pt-font-mono); font-size: 14px; font-feature-settings: 'tnum' 1; color: var(--pt-ink-1); }
+
+  /* 적용 예시 */
+  .examples { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; }
+  .example {
+    background: var(--pt-bg-2); border: 1px solid var(--pt-line-1);
+    border-radius: 16px; padding: 28px;
+    position: relative; overflow: hidden;
+  }
+  .example .role { font-size: 11px; color: var(--pt-ink-3); font-weight: 700; letter-spacing: 0.06em; margin-bottom: 12px; text-transform: uppercase; }
+  .ex-eyebrow { font-family: var(--pt-font-eyebrow); letter-spacing: 0.32em; font-size: 11px; color: var(--pt-ink-3); }
+  .ex-title { font-family: var(--pt-font-display); font-style: italic; font-weight: 900; text-transform: uppercase; line-height: 0.92; font-size: 56px; letter-spacing: -0.01em; margin-top: 8px; }
+  .ex-title em { color: var(--pt-red-500); font-style: italic; }
+  .ex-stats { display: flex; gap: 24px; margin-top: 20px; }
+  .ex-stat .num { font-family: var(--pt-font-display); font-style: italic; font-weight: 800; font-size: 40px; line-height: 1; color: var(--pt-red-500); }
+  .ex-stat .lbl { font-family: var(--pt-font-eyebrow); letter-spacing: 0.18em; font-size: 11px; color: var(--pt-ink-3); margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="ds-shell pt-bg-mesh">
+
+  <nav class="ds-tabs">
+    <span class="brand">PICK-TAGON / 디자인 시스템</span>
+    <span class="ds-tab"><span class="num">01</span>브랜드 · 로고</span>
+    <span class="ds-tab"><span class="num">02</span>컬러</span>
+    <span class="ds-tab is-active"><span class="num">03</span>타이포</span>
+    <span class="ds-tab"><span class="num">04</span>여백 · 그림자</span>
+    <span class="ds-tab"><span class="num">05</span>컴포넌트</span>
+  </nav>
+
+  <header class="ds-page-head">
+    <div class="title-block">
+      <span class="crumb">디자인 시스템 / 03. 타이포그래피</span>
+      <h1>타이포 <em>·</em> 스케일</h1>
+      <p class="summary">파이트 카드의 에너지를 만드는 4개의 폰트 패밀리와 9단계 스케일. 영어 제목은 이탤릭 컨덴스드, 한글 본문은 Pretendard, 숫자는 모노스페이스.</p>
+    </div>
+    <span class="ds-where">현재 탭: 03 / 05</span>
+  </header>
+
+  <main class="ds-body">
+
+    <!-- 1. 폰트 패밀리 -->
+    <section class="ds-section">
+      <div class="ds-section-head">
+        <span class="ds-section-num">01</span>
+        <h2 class="ds-section-title">폰트 패밀리 — 4가지</h2>
+        <span class="ds-section-sub">역할별로 다른 폰트 사용</span>
+      </div>
+
+      <div class="families">
+        <div class="family">
+          <div class="preview"><div style="font-family: var(--pt-font-display); font-style: italic; font-weight: 900; text-transform: uppercase; font-size: 64px; line-height: 0.9; letter-spacing: -0.01em;">PREDICT.<br/>WIN.</div></div>
+          <div class="body">
+            <span class="role">디스플레이</span>
+            <h3>Barlow Condensed <span class="weight">900 italic</span></h3>
+            <p>제목·헤드라인·히어로 숫자. 항상 이탤릭, 대부분 대문자. 앞으로 기운 형태가 "공격성·속도"를 표현.</p>
+            <div class="where"><span class="ds-where">H1 ~ Hero · 영문 제목</span></div>
+          </div>
+        </div>
+
+        <div class="family">
+          <div class="preview"><div style="font-family: var(--pt-font-eyebrow); font-size: 32px; letter-spacing: 0.18em; line-height: 1.1;">MAIN EVENT<br/>FACE-OFF</div></div>
+          <div class="body">
+            <span class="role">아이브로우</span>
+            <h3>Bebas Neue <span class="weight">400</span></h3>
+            <p>모든 대문자 라벨·테이블 헤더·탭·배지 텍스트. 자간 +18%로 빡빡하게 짜서 디스플레이와 잘 어울림.</p>
+            <div class="where"><span class="ds-where">아이브로우 · 라벨 · 배지</span></div>
+          </div>
+        </div>
+
+        <div class="family">
+          <div class="preview"><div style="font-family: 'Pretendard', sans-serif; font-size: 22px; font-weight: 500; line-height: 1.45;">UFC 데이터 기반 정밀 예측<br/>시스템 — 승부를 지배해라.</div></div>
+          <div class="body">
+            <span class="role">본문 · UI</span>
+            <h3>Pretendard <span class="weight">400 / 500 / 600 / 700</span></h3>
+            <p>한글 본문, 설명 문구, 버튼 라벨, 네비게이션. 한글에 최적화된 비율로 Barlow와 자연스럽게 매칭.</p>
+            <div class="where"><span class="ds-where">한글 본문 · 버튼 · 메뉴</span></div>
+          </div>
+        </div>
+
+        <div class="family">
+          <div class="preview"><div style="font-family: var(--pt-font-mono); font-size: 28px; font-weight: 500; color: var(--pt-red-500);">3,005<small style="font-size:16px; color: var(--pt-ink-2);"> P</small></div></div>
+          <div class="body">
+            <span class="role">데이터 · 모노</span>
+            <h3>JetBrains Mono <span class="weight">500 / 700</span></h3>
+            <p>숫자 — 잔액·포인트·정확도·배당·타임스탬프. tabular-nums로 표 안에서 자릿수 정렬됨.</p>
+            <div class="where"><span class="ds-where">숫자 · 데이터 · 코드</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 스케일 -->
+    <section class="ds-section">
+      <div class="ds-section-head">
+        <span class="ds-section-num">02</span>
+        <h2 class="ds-section-title">타입 스케일 — 9단계</h2>
+        <span class="ds-section-sub">크기별 사용처 정의</span>
+      </div>
+
+      <table class="scale-table">
+        <thead>
+          <tr><th>등급</th><th>예시</th><th>어디에 쓰이나</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="tag"><div class="name">HERO</div><div class="px">80 / 90</div></td><td><span class="s-hero">Predict.</span></td><td class="where"><b>랜딩 히어로 (1개만)</b>"PREDICT. COMPETE. WIN." 같은 메인 카피</td></tr>
+          <tr><td class="tag"><div class="name">DISPLAY</div><div class="px">56 / 60</div></td><td><span class="s-display">Main Event</span></td><td class="where"><b>섹션 히어로</b>이벤트 헤더, 카테고리 시작</td></tr>
+          <tr><td class="tag"><div class="name">H1</div><div class="px">36 / 40</div></td><td><span class="s-h1">UFC 328</span></td><td class="where"><b>페이지 제목</b>대진표 페이지·랭킹 페이지 타이틀</td></tr>
+          <tr><td class="tag"><div class="name">H2</div><div class="px">26 / 32</div></td><td><span class="s-h2">Latest News</span></td><td class="where"><b>섹션 제목</b>"최신 뉴스" "내 분석 리포트"</td></tr>
+          <tr><td class="tag"><div class="name">H3</div><div class="px">20 / 24</div></td><td><span class="s-h3">My Record</span></td><td class="where"><b>카드 제목</b>매치업·통계 카드 타이틀</td></tr>
+          <tr><td class="tag"><div class="name">BODY</div><div class="px">15 / 22</div></td><td><span class="s-body">UFC 데이터 기반 정밀 예측 시스템 — 승부를 지배해라.</span></td><td class="where"><b>본문</b>설명·버튼·네비게이션</td></tr>
+          <tr><td class="tag"><div class="name">SMALL</div><div class="px">13 / 20</div></td><td><span class="s-small">5일 후 마감 · 3개 픽 활성 · 12회 예측</span></td><td class="where"><b>보조 텍스트</b>메타정보·캡션·툴팁</td></tr>
+          <tr><td class="tag"><div class="name">EYEBROW</div><div class="px">13 / 16</div></td><td><span class="s-eyebrow">No Upcoming Event</span></td><td class="where"><b>아이브로우 · 라벨</b>섹션 위 작은 라벨, 카드 분류</td></tr>
+          <tr><td class="tag"><div class="name">MONO</div><div class="px">14 / 20</div></td><td><span class="s-mono">3,005 P · 127% · D-5</span></td><td class="where"><b>숫자</b>잔액·정확도·카운트다운</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 3. 적용 예시 -->
+    <section class="ds-section">
+      <div class="ds-section-head">
+        <span class="ds-section-num">03</span>
+        <h2 class="ds-section-title">실제 사용 예시</h2>
+        <span class="ds-section-sub">스케일이 화면에서 어떻게 쌓이는지</span>
+      </div>
+
+      <div class="examples">
+        <div class="example">
+          <div class="role">랜딩 히어로 — 홈 화면</div>
+          <div class="ex-eyebrow">NO UPCOMING EVENT</div>
+          <div class="ex-title">PREDICT.<br/>COMPETE. <em>WIN.</em></div>
+          <p style="margin-top:14px; font-size:14px; color:var(--pt-ink-2); line-height:1.55;">UFC 데이터 기반 정밀 예측 시스템 — 승부를 지배해라.</p>
+          <div class="ex-stats">
+            <div class="ex-stat"><div class="num" style="color:var(--pt-ink-0);">28</div><div class="lbl">TOTAL FIGHTS</div></div>
+            <div class="ex-stat"><div class="num" style="color:var(--pt-ink-0);">11</div><div class="lbl">YOUR PICKS</div></div>
+            <div class="ex-stat"><div class="num">3,005</div><div class="lbl">POINTS</div></div>
+          </div>
+        </div>
+
+        <div class="example">
+          <div class="role">한·영·숫자 혼용 규칙</div>
+          <div style="display:flex; flex-direction:column; gap:14px;">
+            <div>
+              <div class="ex-eyebrow" style="color:var(--pt-red-500);">EN — 영문 제목</div>
+              <div style="font-family: var(--pt-font-display); font-style: italic; font-weight: 800; text-transform: uppercase; font-size: 22px; margin-top:4px;">Chimaev vs. Strickland</div>
+            </div>
+            <div>
+              <div class="ex-eyebrow" style="color:var(--pt-red-500);">KO — 한글 제목</div>
+              <div style="font-family: 'Pretendard', sans-serif; font-weight: 800; font-size: 22px; margin-top:4px;">치마예프 vs. 스트릭랜드</div>
+            </div>
+            <div>
+              <div class="ex-eyebrow" style="color:var(--pt-red-500);">DATA — 숫자</div>
+              <div class="pt-mono" style="color:var(--pt-red-500); font-size: 22px; margin-top:4px;">D-5 · 3,005P · 127.0%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,764 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Pick-tagon · 뉴스</title>
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="screen-shell.css" />
+<style>
+  /* === 페이지 헤더 === */
+  .page-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .page-head h1 {
+    margin: 0;
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    text-transform: uppercase; font-size: 48px; line-height: 0.95;
+    color: var(--pt-ink-0); letter-spacing: -0.01em;
+  }
+  .page-head h1 em { color: var(--pt-red-500); font-style: italic; }
+  .page-head .desc { color: var(--pt-ink-2); font-size: 14px; margin-top: 8px; font-family: var(--pt-font-mono); }
+
+  /* === 카테고리 탭 === */
+  .cat-tabs {
+    display: flex; gap: 4px;
+    background: var(--pt-bg-3); padding: 4px;
+    border-radius: 10px;
+    border: 1px solid var(--pt-line-2);
+  }
+  .cat-tab {
+    padding: 8px 14px; border-radius: 7px;
+    font-size: 12px; font-weight: 700;
+    color: var(--pt-ink-3); cursor: pointer;
+    letter-spacing: 0.04em;
+  }
+  .cat-tab.is-active { background: var(--pt-red-500); color: #fff; }
+
+  /* === 메인 그리드 === */
+  .news-main {
+    display: grid; grid-template-columns: 1fr 320px; gap: 28px;
+  }
+
+  /* === 최상단 피처드 — 1개 큰 카드 + 3개 작은 카드 === */
+  .featured-row {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 16px;
+    margin-bottom: 36px;
+  }
+  .feat-big {
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 18px;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    cursor: pointer;
+    transition: transform 0.15s;
+    text-decoration: none; color: inherit;
+  }
+  .feat-big:hover { transform: translateY(-2px); border-color: var(--pt-line-3); }
+  .feat-big .thumb {
+    aspect-ratio: 16/9;
+    background:
+      radial-gradient(60% 60% at 30% 50%, rgba(225,6,0,0.45), transparent 60%),
+      radial-gradient(60% 60% at 70% 50%, rgba(31,111,235,0.40), transparent 60%),
+      linear-gradient(180deg, #14161B, #07080A);
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .feat-big .thumb::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(transparent 96%, rgba(255,255,255,0.04) 96%),
+      linear-gradient(90deg, transparent 96%, rgba(255,255,255,0.04) 96%);
+    background-size: 32px 32px;
+    pointer-events: none;
+  }
+  .feat-big .thumb .placeholder {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    font-size: 96px; line-height: 0.92;
+    color: rgba(255,255,255,0.10);
+    text-align: center;
+  }
+  .feat-big .tag-row {
+    position: absolute; top: 16px; left: 18px;
+    display: flex; gap: 6px; z-index: 1;
+  }
+  .tag-pill {
+    font-family: var(--pt-font-eyebrow);
+    font-size: 10px; letter-spacing: 0.18em; font-weight: 700;
+    padding: 4px 10px; border-radius: 4px;
+  }
+  .tag-pill.live { background: var(--pt-red-500); color: #fff; }
+  .tag-pill.live::before { content: '●'; margin-right: 4px; animation: pulse 1.4s infinite; }
+  .tag-pill.feature { background: rgba(244,180,0,0.20); color: var(--pt-warn); border: 1px solid rgba(244,180,0,0.4); }
+  .tag-pill.ufc { background: var(--pt-bg-0); color: #fff; border: 1px solid rgba(255,255,255,0.2); }
+  .tag-pill.analysis { background: var(--pt-corner-blue); color: #fff; }
+  .tag-pill.rank { background: rgba(139,63,227,0.20); color: #C39DF1; border: 1px solid rgba(139,63,227,0.4); }
+  .tag-pill.interview { background: rgba(31,191,107,0.15); color: var(--pt-win); border: 1px solid rgba(31,191,107,0.4); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .feat-big .body {
+    padding: 24px 28px 28px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .feat-big h2 {
+    margin: 0;
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    text-transform: uppercase; font-size: 32px; line-height: 1.05;
+    color: var(--pt-ink-0); letter-spacing: -0.01em;
+  }
+  .feat-big h2 em { color: var(--pt-red-500); font-style: italic; }
+  .feat-big .excerpt {
+    color: var(--pt-ink-2); font-size: 14px; line-height: 1.55;
+    margin-top: 4px;
+  }
+  .feat-big .meta {
+    display: flex; align-items: center; gap: 14px;
+    font-family: var(--pt-font-mono); font-size: 12px; color: var(--pt-ink-3);
+    margin-top: 8px;
+  }
+  .feat-big .meta b { color: var(--pt-ink-1); }
+  .feat-big .meta .sep { color: var(--pt-line-3); }
+
+  /* 우측 작은 피처드 3개 */
+  .feat-small-stack { display: flex; flex-direction: column; gap: 16px; }
+  .feat-small {
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 14px;
+    overflow: hidden;
+    display: grid; grid-template-columns: 140px 1fr;
+    cursor: pointer;
+    transition: transform 0.15s;
+    text-decoration: none; color: inherit;
+    height: 132px;
+  }
+  .feat-small:hover { transform: translateY(-2px); border-color: var(--pt-line-3); }
+  .feat-small .thumb {
+    position: relative;
+    background: var(--pt-bg-0);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .feat-small .thumb .placeholder {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    font-size: 32px; line-height: 0.9;
+    color: rgba(255,255,255,0.10);
+  }
+  .feat-small.s1 .thumb {
+    background:
+      radial-gradient(60% 60% at 50% 50%, rgba(225,6,0,0.30), transparent),
+      var(--pt-bg-0);
+  }
+  .feat-small.s2 .thumb {
+    background:
+      radial-gradient(60% 60% at 50% 50%, rgba(244,180,0,0.20), transparent),
+      var(--pt-bg-0);
+  }
+  .feat-small.s3 .thumb {
+    background:
+      radial-gradient(60% 60% at 50% 50%, rgba(139,63,227,0.25), transparent),
+      var(--pt-bg-0);
+  }
+  .feat-small .tag-row { position: absolute; top: 8px; left: 8px; display: flex; gap: 4px; }
+  .feat-small .tag-pill { font-size: 9px; padding: 3px 7px; }
+  .feat-small .body { padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; justify-content: center; }
+  .feat-small h3 {
+    margin: 0; font-size: 14px; font-weight: 700; color: var(--pt-ink-0); line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .feat-small .meta {
+    font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3);
+    margin-top: auto;
+  }
+
+  /* === 섹션 헤더 === */
+  .sx-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .sx-head h2 {
+    margin: 0;
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800;
+    text-transform: uppercase; font-size: 26px; line-height: 1;
+    color: var(--pt-ink-0); letter-spacing: -0.01em;
+  }
+  .sx-head h2 em { color: var(--pt-red-500); font-style: italic; }
+  .sx-head .right { display: flex; gap: 14px; font-size: 12px; color: var(--pt-ink-3); }
+
+  /* === 뉴스 리스트 === */
+  .news-list {
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .news-row {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 0;
+    padding: 18px;
+    border-bottom: 1px solid var(--pt-line-1);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .news-row:last-child { border-bottom: 0; }
+  .news-row:hover { background: var(--pt-bg-3); }
+  .news-row .thumb {
+    aspect-ratio: 16/10;
+    border-radius: 8px;
+    background: var(--pt-bg-0);
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    margin-right: 18px;
+    overflow: hidden;
+  }
+  .news-row .thumb .placeholder {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    font-size: 28px; color: rgba(255,255,255,0.08);
+    line-height: 0.92;
+  }
+  .news-row.r1 .thumb { background: radial-gradient(60% 60% at 50% 50%, rgba(225,6,0,0.25), transparent), var(--pt-bg-0); }
+  .news-row.r2 .thumb { background: radial-gradient(60% 60% at 50% 50%, rgba(31,111,235,0.25), transparent), var(--pt-bg-0); }
+  .news-row.r3 .thumb { background: radial-gradient(60% 60% at 50% 50%, rgba(244,180,0,0.20), transparent), var(--pt-bg-0); }
+  .news-row.r4 .thumb { background: radial-gradient(60% 60% at 50% 50%, rgba(139,63,227,0.25), transparent), var(--pt-bg-0); }
+  .news-row.r5 .thumb { background: radial-gradient(60% 60% at 50% 50%, rgba(31,191,107,0.20), transparent), var(--pt-bg-0); }
+  .news-row.r6 .thumb { background: radial-gradient(60% 60% at 50% 50%, rgba(225,6,0,0.30), transparent), var(--pt-bg-0); }
+  .news-row.r7 .thumb { background: radial-gradient(60% 60% at 50% 50%, rgba(31,111,235,0.30), transparent), var(--pt-bg-0); }
+
+  .news-row .info { display: flex; flex-direction: column; gap: 8px; }
+  .news-row .top-row { display: flex; gap: 8px; align-items: center; }
+  .news-row h4 {
+    margin: 0;
+    font-size: 17px; font-weight: 700; color: var(--pt-ink-0); line-height: 1.4;
+  }
+  .news-row .excerpt { color: var(--pt-ink-2); font-size: 13px; line-height: 1.55; }
+  .news-row .meta {
+    display: flex; align-items: center; gap: 12px;
+    font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3);
+    margin-top: auto;
+  }
+  .news-row .meta .views::before { content: '👁'; margin-right: 4px; }
+  .news-row .meta .comments::before { content: '💬'; margin-right: 4px; }
+  .news-row .meta b { color: var(--pt-ink-2); }
+  .news-row .meta .sep { color: var(--pt-line-3); }
+  .news-row .meta .author { color: var(--pt-red-300); font-weight: 600; }
+
+  /* 페이지네이션 */
+  .news-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px;
+    background: var(--pt-bg-3);
+    border-top: 1px solid var(--pt-line-1);
+  }
+  .news-foot .meta { font-family: var(--pt-font-mono); font-size: 12px; color: var(--pt-ink-3); }
+  .news-foot .pages { display: flex; gap: 4px; }
+  .page-btn {
+    width: 32px; height: 32px; border-radius: 6px;
+    border: 1px solid var(--pt-line-2); background: var(--pt-bg-2);
+    color: var(--pt-ink-2); font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-family: var(--pt-font-mono);
+  }
+  .page-btn.is-active { background: var(--pt-red-500); color: #fff; border-color: var(--pt-red-500); }
+
+  /* === 사이드 === */
+  .side-card {
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 14px;
+    padding: 20px;
+  }
+  .side-card + .side-card { margin-top: 16px; }
+  .side-card h3 {
+    margin: 0 0 14px;
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800;
+    text-transform: uppercase; font-size: 17px; color: var(--pt-ink-0);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .side-card h3 .meta {
+    font-family: 'Pretendard', sans-serif; font-style: normal; font-weight: 600;
+    font-size: 11px; color: var(--pt-ink-3); text-transform: none; letter-spacing: 0;
+  }
+
+  /* 가장 많이 읽은 */
+  .pop-row {
+    display: grid; grid-template-columns: 28px 1fr; gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--pt-line-1);
+  }
+  .pop-row:last-child { border-bottom: 0; }
+  .pop-rank {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    font-size: 22px; color: var(--pt-ink-3); line-height: 1;
+  }
+  .pop-row.top .pop-rank { color: var(--pt-red-500); }
+  .pop-info { line-height: 1.35; }
+  .pop-title {
+    font-size: 13px; font-weight: 700; color: var(--pt-ink-0); line-height: 1.4;
+    margin-bottom: 4px;
+  }
+  .pop-meta {
+    font-family: var(--pt-font-mono); font-size: 10px; color: var(--pt-ink-3);
+  }
+  .pop-meta b { color: var(--pt-warn); }
+
+  /* 영상 뉴스 */
+  .video-row {
+    display: grid; grid-template-columns: 100px 1fr; gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--pt-line-1);
+  }
+  .video-row:last-child { border-bottom: 0; }
+  .video-thumb {
+    aspect-ratio: 16/10;
+    background: var(--pt-bg-0);
+    border-radius: 6px;
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .video-row.v1 .video-thumb { background: radial-gradient(60% 60% at 50% 50%, rgba(225,6,0,0.30), transparent), var(--pt-bg-0); }
+  .video-row.v2 .video-thumb { background: radial-gradient(60% 60% at 50% 50%, rgba(31,111,235,0.30), transparent), var(--pt-bg-0); }
+  .video-row.v3 .video-thumb { background: radial-gradient(60% 60% at 50% 50%, rgba(244,180,0,0.20), transparent), var(--pt-bg-0); }
+  .video-thumb::after {
+    content: '▶';
+    position: absolute;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 10px; padding-left: 2px;
+  }
+  .video-thumb .dur {
+    position: absolute; bottom: 4px; right: 4px;
+    background: rgba(0,0,0,0.7);
+    color: #fff; font-family: var(--pt-font-mono);
+    font-size: 9px; padding: 2px 5px; border-radius: 3px;
+    font-weight: 700;
+  }
+  .video-info { line-height: 1.35; }
+  .video-title {
+    font-size: 12px; font-weight: 700; color: var(--pt-ink-0); line-height: 1.4;
+    margin-bottom: 4px;
+  }
+  .video-meta {
+    font-family: var(--pt-font-mono); font-size: 10px; color: var(--pt-ink-3);
+  }
+
+  /* 일정 */
+  .schedule-row {
+    display: grid; grid-template-columns: 48px 1fr; gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--pt-line-1);
+  }
+  .schedule-row:last-child { border-bottom: 0; }
+  .sch-date {
+    background: var(--pt-bg-1); border: 1px solid var(--pt-line-2);
+    border-radius: 8px; padding: 6px 0;
+    text-align: center;
+  }
+  .sch-date .m { font-family: var(--pt-font-mono); font-size: 9px; color: var(--pt-red-500); font-weight: 700; letter-spacing: 0.06em; }
+  .sch-date .d {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800;
+    font-size: 18px; color: var(--pt-ink-0); line-height: 1;
+    margin-top: 2px;
+  }
+  .sch-info { line-height: 1.35; }
+  .sch-name { font-size: 12px; font-weight: 700; color: var(--pt-ink-0); }
+  .sch-main { font-size: 11px; color: var(--pt-ink-3); margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="app-header-inner">
+    <a class="app-logo" href="screen-home.html">
+      <svg width="28" height="28" viewBox="0 0 200 200" fill="none">
+        <polygon points="60,10 140,10 190,60 190,140 140,190 60,190 10,140 10,60" fill="none" stroke="#E10600" stroke-width="14"/>
+        <path d="M70 102 L92 124 L138 78" stroke="#FFFFFF" stroke-width="22" fill="none" stroke-linejoin="miter"/>
+        <path d="M70 102 L92 124 L138 78" stroke="#E10600" stroke-width="10" fill="none" stroke-linejoin="miter"/>
+      </svg>
+      <span class="word">PICK-TAGON</span>
+    </a>
+    <nav class="app-nav">
+      <a href="screen-home.html">홈</a>
+      <a href="screen-event.html">이벤트</a>
+      <a href="screen-rankings.html">랭킹</a>
+      <a href="screen-community.html">커뮤니티</a>
+      <a href="#" class="is-active">뉴스</a>
+    </nav>
+    <div class="app-search">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg>
+      <input placeholder="뉴스 · 키워드 검색" />
+    </div>
+    <span class="app-balance">3,005 P</span>
+    <span class="app-belt"><span class="strip"></span>퍼플</span>
+    <span class="app-avatar">KB</span>
+  </div>
+</header>
+
+<div class="app-container">
+
+  <div class="page-head">
+    <div>
+      <h1>UFC <em>·</em> 뉴스</h1>
+      <div class="desc">최신 매치업 · 인터뷰 · 분석 · 랭킹 변동 · 매일 업데이트</div>
+    </div>
+    <div class="cat-tabs">
+      <span class="cat-tab is-active">전체</span>
+      <span class="cat-tab">매치업</span>
+      <span class="cat-tab">분석</span>
+      <span class="cat-tab">인터뷰</span>
+      <span class="cat-tab">랭킹</span>
+      <span class="cat-tab">비즈니스</span>
+    </div>
+  </div>
+
+  <!-- 피처드 -->
+  <section class="featured-row">
+    <a class="feat-big" href="#">
+      <div class="thumb">
+        <div class="tag-row">
+          <span class="tag-pill live">LIVE</span>
+          <span class="tag-pill ufc">UFC 328</span>
+        </div>
+        <span class="placeholder">CHIMAEV<br/>VS<br/>STRICKLAND</span>
+      </div>
+      <div class="body">
+        <h2>"케이지를 바닥부터 부숴버린다" — 치마예프, <em>스트릭랜드</em>와의 미들급 타이틀 충돌 임박</h2>
+        <p class="excerpt">14전 14승의 무패 행진이 챔피언이었던 스트릭랜드를 만난다. 미들급 #2 치마예프는 이번 매치업이 "내 인생에서 가장 큰 경기"라고 말했다. 라스베가스 T-Mobile 아레나에서 5월 31일 격돌.</p>
+        <div class="meta">
+          <span class="author">함자트 인사이트</span>
+          <span class="sep">|</span>
+          <span><b>2시간 전</b></span>
+          <span class="sep">|</span>
+          <span>👁 14,287 조회</span>
+          <span class="sep">|</span>
+          <span>💬 187 댓글</span>
+        </div>
+      </div>
+    </a>
+
+    <div class="feat-small-stack">
+      <a class="feat-small s1" href="#">
+        <div class="thumb">
+          <div class="tag-row"><span class="tag-pill analysis">분석</span></div>
+          <span class="placeholder">UFC 328<br/>5경기</span>
+        </div>
+        <div class="body">
+          <h3>UFC 328 메인카드 5경기 — 데이터로 보는 우세 분석</h3>
+          <div class="meta">PICKTAGON ANALYST · 5시간 전</div>
+        </div>
+      </a>
+      <a class="feat-small s2" href="#">
+        <div class="thumb">
+          <div class="tag-row"><span class="tag-pill rank">랭킹</span></div>
+          <span class="placeholder">P4P</span>
+        </div>
+        <div class="body">
+          <h3>P4P 랭킹 변동 — 마하체프 1위 수성, 페레이라 3위 진입</h3>
+          <div class="meta">위클리 리포트 · 8시간 전</div>
+        </div>
+      </a>
+      <a class="feat-small s3" href="#">
+        <div class="thumb">
+          <div class="tag-row"><span class="tag-pill interview">인터뷰</span></div>
+          <span class="placeholder">SHAVKAT</span>
+        </div>
+        <div class="body">
+          <h3>샤브카트 라크모노프 — "다음은 챔피언 매치업. 준비됐다"</h3>
+          <div class="meta">파이트 위크 · 1일 전</div>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <!-- 메인: 뉴스 리스트 + 사이드 -->
+  <div class="news-main">
+
+    <div>
+      <div class="sx-head">
+        <h2>최신 <em>·</em> 뉴스</h2>
+        <div class="right">
+          <span style="color: var(--pt-ink-2); font-weight: 600;">정렬:</span>
+          <span style="color: var(--pt-red-300); font-weight: 700;">최신순</span>
+          <span>인기순</span>
+          <span>댓글순</span>
+        </div>
+      </div>
+
+      <div class="news-list">
+
+        <article class="news-row r1">
+          <div class="thumb">
+            <div class="tag-row" style="position:absolute;top:8px;left:8px;display:flex;gap:4px;"><span class="tag-pill ufc" style="font-size:9px;padding:3px 7px;">UFC 328</span></div>
+            <span class="placeholder">PRESS</span>
+          </div>
+          <div class="info">
+            <div class="top-row">
+              <span class="tag-pill ufc" style="background:var(--pt-bg-3);color:var(--pt-ink-2);border:1px solid var(--pt-line-2);">매치업</span>
+              <span class="tag-pill rank">미들급</span>
+            </div>
+            <h4>드리쿠스 두 플레시스 챔피언, 치마예프-스트릭랜드 승자와 9월 통합 타이틀전 확정</h4>
+            <p class="excerpt">UFC 챔피언이 5월 31일 메인 이벤트의 승자와 9월에 통합 타이틀전을 갖기로 공식 발표됐다. 두 플레시스는 두 사람 모두에게 KO 위협을 가하겠다고 자신감을 드러냈다.</p>
+            <div class="meta">
+              <span class="author">UFC.COM</span>
+              <span class="sep">|</span><span><b>30분 전</b></span>
+              <span class="sep">|</span><span class="views">2,184</span>
+              <span class="sep">|</span><span class="comments">28</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="news-row r2">
+          <div class="thumb">
+            <span class="placeholder">P4P</span>
+          </div>
+          <div class="info">
+            <div class="top-row">
+              <span class="tag-pill rank">랭킹</span>
+              <span class="tag-pill" style="background:var(--pt-bg-3);color:var(--pt-ink-2);border:1px solid var(--pt-line-2);">5월 둘째주</span>
+            </div>
+            <h4>2026 5월 P4P 랭킹 업데이트 — 마하체프 정상, 페레이라 3위 → 카드 정리</h4>
+            <p class="excerpt">5월 둘째주 P4P 랭킹 보정 결과, 라이트급 챔피언 이슬람 마하체프가 정상을 지켰다. 라이트헤비급 페레이라가 3위로 올라왔고, 존스가 4위로 한 칸 내려갔다.</p>
+            <div class="meta">
+              <span class="author">PICKTAGON</span>
+              <span class="sep">|</span><span><b>2시간 전</b></span>
+              <span class="sep">|</span><span class="views">5,418</span>
+              <span class="sep">|</span><span class="comments">94</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="news-row r3">
+          <div class="thumb">
+            <span class="placeholder">CHIMAEV</span>
+          </div>
+          <div class="info">
+            <div class="top-row">
+              <span class="tag-pill interview">인터뷰</span>
+              <span class="tag-pill" style="background:var(--pt-bg-3);color:var(--pt-ink-2);border:1px solid var(--pt-line-2);">파이터</span>
+            </div>
+            <h4>치마예프 "스트릭랜드는 만만치 않다 — 그러나 1라운드 끝낸다"</h4>
+            <p class="excerpt">파이트 위크 미디어 데이에서 치마예프는 라이벌의 레슬링 디펜스 약점을 언급하며 1라운드 안에 SUB으로 종결시킬 것이라고 단언했다.</p>
+            <div class="meta">
+              <span class="author">스포츠 코리아</span>
+              <span class="sep">|</span><span><b>4시간 전</b></span>
+              <span class="sep">|</span><span class="views">8,720</span>
+              <span class="sep">|</span><span class="comments">142</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="news-row r4">
+          <div class="thumb">
+            <span class="placeholder">A.PICO</span>
+          </div>
+          <div class="info">
+            <div class="top-row">
+              <span class="tag-pill" style="background:rgba(225,6,0,0.15);color:var(--pt-red-300);border:1px solid var(--pt-red-700);">데뷔</span>
+              <span class="tag-pill" style="background:var(--pt-bg-3);color:var(--pt-ink-2);border:1px solid var(--pt-line-2);">신예</span>
+            </div>
+            <h4>아아론 피코, UFC 데뷔전 1라운드 KO — 미들급 #12 진입</h4>
+            <p class="excerpt">전 Bellator 라이트급 챔피언 출신 피코가 UFC 무대 첫 출전에서 강력한 라이트 훅으로 상대를 단번에 끝내며 화려한 데뷔를 했다. 평점단의 평균은 9.4/10.</p>
+            <div class="meta">
+              <span class="author">UFC 옥타곤 인사이드</span>
+              <span class="sep">|</span><span><b>6시간 전</b></span>
+              <span class="sep">|</span><span class="views">3,891</span>
+              <span class="sep">|</span><span class="comments">52</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="news-row r5">
+          <div class="thumb">
+            <span class="placeholder">정찬성</span>
+          </div>
+          <div class="info">
+            <div class="top-row">
+              <span class="tag-pill" style="background:rgba(225,6,0,0.15);color:var(--pt-red-300);border:1px solid var(--pt-red-700);">🇰🇷 한국</span>
+              <span class="tag-pill analysis">분석</span>
+            </div>
+            <h4>정찬성, 6월 UFC FN 컴백전 결정 — 페더급 컨텐더 매치업</h4>
+            <p class="excerpt">"코리안 좀비" 정찬성이 약 18개월 만에 옥타곤에 복귀한다. 상대는 페더급 #8 랭커 캘빈 카타르. 한국에서 열리는 첫 UFC 이벤트가 될 가능성도 거론된다.</p>
+            <div class="meta">
+              <span class="author">한국 MMA</span>
+              <span class="sep">|</span><span><b>10시간 전</b></span>
+              <span class="sep">|</span><span class="views">14,283</span>
+              <span class="sep">|</span><span class="comments">428</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="news-row r6">
+          <div class="thumb">
+            <span class="placeholder">UFC 329</span>
+          </div>
+          <div class="info">
+            <div class="top-row">
+              <span class="tag-pill ufc" style="background:rgba(244,180,0,0.15);color:var(--pt-warn);border:1px solid rgba(244,180,0,0.4);">UFC 329</span>
+              <span class="tag-pill" style="background:var(--pt-bg-3);color:var(--pt-ink-2);border:1px solid var(--pt-line-2);">메인카드</span>
+            </div>
+            <h4>UFC 329 인터내셔널 파이트 위크 — 5경기 메인카드 확정</h4>
+            <p class="excerpt">6월 21일 라스베가스에서 열리는 UFC 329의 메인카드 5경기가 모두 공식 발표됐다. 메인은 아담산 vs. 페티스, 코메인은 휘태커 vs. 코스타의 라이트헤비급 매치업.</p>
+            <div class="meta">
+              <span class="author">PICKTAGON</span>
+              <span class="sep">|</span><span><b>14시간 전</b></span>
+              <span class="sep">|</span><span class="views">6,142</span>
+              <span class="sep">|</span><span class="comments">87</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="news-row r7">
+          <div class="thumb">
+            <span class="placeholder">EVENT</span>
+          </div>
+          <div class="info">
+            <div class="top-row">
+              <span class="tag-pill" style="background:rgba(31,111,235,0.15);color:#6FA8FF;border:1px solid rgba(31,111,235,0.4);">비즈니스</span>
+            </div>
+            <h4>UFC, 2027년 시즌부터 아시아 정기 이벤트 5회 개최 발표</h4>
+            <p class="excerpt">데이나 화이트 UFC 대표는 2027년부터 아시아에서 연간 5회의 정기 이벤트를 개최한다고 발표했다. 서울, 도쿄, 마닐라, 자카르타, 싱가포르 5개 도시가 후보로 거론된다.</p>
+            <div class="meta">
+              <span class="author">ESPN MMA</span>
+              <span class="sep">|</span><span><b>1일 전</b></span>
+              <span class="sep">|</span><span class="views">28,420</span>
+              <span class="sep">|</span><span class="comments">512</span>
+            </div>
+          </div>
+        </article>
+
+        <div class="news-foot">
+          <span class="meta">432개 기사 중 1–7</span>
+          <div class="pages">
+            <span class="page-btn is-active">1</span>
+            <span class="page-btn">2</span>
+            <span class="page-btn">3</span>
+            <span class="page-btn">…</span>
+            <span class="page-btn">62</span>
+            <span class="page-btn">›</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 사이드 -->
+    <aside>
+      <!-- 가장 많이 읽은 -->
+      <div class="side-card">
+        <h3>가장 많이 읽은 <span class="meta">최근 24시간</span></h3>
+        <div>
+          <div class="pop-row top">
+            <span class="pop-rank">1</span>
+            <div class="pop-info">
+              <div class="pop-title">"케이지를 바닥부터 부숴버린다" — 치마예프 선언</div>
+              <div class="pop-meta">👁 <b>14,287</b> · 💬 187</div>
+            </div>
+          </div>
+          <div class="pop-row top">
+            <span class="pop-rank">2</span>
+            <div class="pop-info">
+              <div class="pop-title">정찬성, 6월 UFC FN 컴백전 결정</div>
+              <div class="pop-meta">👁 <b>14,283</b> · 💬 428</div>
+            </div>
+          </div>
+          <div class="pop-row top">
+            <span class="pop-rank">3</span>
+            <div class="pop-info">
+              <div class="pop-title">UFC 아시아 정기 이벤트 5회 개최 발표</div>
+              <div class="pop-meta">👁 <b>28,420</b> · 💬 512</div>
+            </div>
+          </div>
+          <div class="pop-row">
+            <span class="pop-rank">4</span>
+            <div class="pop-info">
+              <div class="pop-title">치마예프 인터뷰 — "1라운드 끝낸다"</div>
+              <div class="pop-meta">👁 <b>8,720</b> · 💬 142</div>
+            </div>
+          </div>
+          <div class="pop-row">
+            <span class="pop-rank">5</span>
+            <div class="pop-info">
+              <div class="pop-title">UFC 329 메인카드 5경기 확정</div>
+              <div class="pop-meta">👁 <b>6,142</b> · 💬 87</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 영상 -->
+      <div class="side-card">
+        <h3>영상 뉴스 <span class="meta">하이라이트</span></h3>
+        <div>
+          <div class="video-row v1">
+            <div class="video-thumb"><span class="dur">02:14</span></div>
+            <div class="video-info">
+              <div class="video-title">UFC 328 프리뷰 — 메인카드 5경기 완벽 분석</div>
+              <div class="video-meta">조회 18.4K · 1일 전</div>
+            </div>
+          </div>
+          <div class="video-row v2">
+            <div class="video-thumb"><span class="dur">04:32</span></div>
+            <div class="video-info">
+              <div class="video-title">치마예프 트레이닝 캠프 — 그라운드 게임 비밀</div>
+              <div class="video-meta">조회 12.1K · 3일 전</div>
+            </div>
+          </div>
+          <div class="video-row v3">
+            <div class="video-thumb"><span class="dur">01:48</span></div>
+            <div class="video-info">
+              <div class="video-title">아아론 피코 KO 풀 하이라이트 (R1 1:32)</div>
+              <div class="video-meta">조회 9.8K · 6시간 전</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 다음 이벤트 -->
+      <div class="side-card">
+        <h3>다가오는 이벤트 <span class="meta">이번 달</span></h3>
+        <div>
+          <div class="schedule-row" style="background: linear-gradient(90deg, rgba(225,6,0,0.10), transparent); border-radius: 8px; padding: 10px;">
+            <div class="sch-date" style="border-color: var(--pt-red-700);"><div class="m">5월</div><div class="d">31</div></div>
+            <div class="sch-info">
+              <div class="sch-name">UFC 328 · 라스베가스</div>
+              <div class="sch-main">치마예프 vs. 스트릭랜드 · D-5</div>
+            </div>
+          </div>
+          <div class="schedule-row">
+            <div class="sch-date"><div class="m">6월</div><div class="d">07</div></div>
+            <div class="sch-info">
+              <div class="sch-name">UFC FN · 솔트레이크</div>
+              <div class="sch-main">홀로웨이 vs. 알도</div>
+            </div>
+          </div>
+          <div class="schedule-row">
+            <div class="sch-date"><div class="m">6월</div><div class="d">14</div></div>
+            <div class="sch-info">
+              <div class="sch-name">UFC FN · 한국 서울 (예정)</div>
+              <div class="sch-main">정찬성 컴백전 · 페더급</div>
+            </div>
+          </div>
+          <div class="schedule-row">
+            <div class="sch-date"><div class="m">6월</div><div class="d">21</div></div>
+            <div class="sch-info">
+              <div class="sch-name">UFC 329 · 라스베가스</div>
+              <div class="sch-main">아담산 vs. 페티스</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+</div>
+
+</body>
+</html>

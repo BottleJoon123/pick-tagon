@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Pick-tagon · 프로필</title>
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="screen-shell.css" />
+<style>
+  /* === 프로필 히어로 === */
+  .profile-hero {
+    position: relative;
+    background:
+      radial-gradient(60% 80% at 0% 50%, rgba(139,63,227,0.30), transparent 60%),
+      radial-gradient(50% 80% at 100% 50%, rgba(225,6,0,0.20), transparent 60%),
+      linear-gradient(180deg, #0E0F12, #07080A);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 20px;
+    overflow: hidden;
+    padding: 32px 36px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 32px;
+  }
+  .profile-hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(transparent 96%, rgba(255,255,255,0.04) 96%),
+      linear-gradient(90deg, transparent 96%, rgba(255,255,255,0.04) 96%);
+    background-size: 32px 32px;
+    pointer-events: none;
+  }
+  .profile-hero > * { position: relative; z-index: 1; }
+  .ph-ava {
+    position: relative;
+    width: 140px; height: 140px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--pt-red-700), var(--pt-red-500));
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    color: #fff; font-size: 56px;
+    border: 4px solid var(--pt-bg-0);
+    box-shadow: 0 12px 32px rgba(225,6,0,0.4);
+  }
+  .ph-ava::after {
+    content: '✎';
+    position: absolute; bottom: 6px; right: 6px;
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--pt-bg-3); border: 2px solid var(--pt-bg-0);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; color: var(--pt-ink-2);
+    cursor: pointer;
+  }
+  .ph-info {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .ph-meta {
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--pt-font-mono); font-size: 12px; color: var(--pt-ink-3);
+  }
+  .ph-meta .belt-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 5px 14px 5px 5px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(139,63,227,0.25), rgba(139,63,227,0.05));
+    border: 1px solid rgba(139,63,227,0.4);
+    font-size: 12px; font-weight: 700; color: #C39DF1;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .ph-meta .belt-pill .strip {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #8B3FE3; border: 2px solid var(--pt-bg-2);
+  }
+  .ph-name {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    text-transform: uppercase; font-size: 64px; line-height: 0.92;
+    letter-spacing: -0.01em;
+    color: var(--pt-ink-0);
+  }
+  .ph-ko { font-size: 15px; color: var(--pt-ink-2); }
+  .ph-tags {
+    display: flex; align-items: center; gap: 14px;
+    margin-top: 10px;
+    font-size: 13px; color: var(--pt-ink-3);
+  }
+  .ph-tags span { display: inline-flex; align-items: center; gap: 6px; }
+  .ph-tags .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--pt-ink-4); }
+
+  .ph-stats {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    border-left: 1px solid var(--pt-line-2);
+    padding-left: 32px;
+  }
+  .ph-stat {
+    display: flex; flex-direction: column; gap: 4px;
+    text-align: right;
+  }
+  .ph-stat .v {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800;
+    font-size: 38px; line-height: 1; color: var(--pt-ink-0);
+  }
+  .ph-stat .v.warn { color: var(--pt-warn); }
+  .ph-stat .v.red  { color: var(--pt-red-500); }
+  .ph-stat .v small { font-size: 18px; color: var(--pt-ink-2); margin-left: 2px; }
+  .ph-stat .l {
+    font-family: var(--pt-font-eyebrow); font-size: 10px; letter-spacing: 0.18em;
+    color: var(--pt-ink-3); font-weight: 600;
+  }
+
+  /* === 벨트 승급 트래커 === */
+  .belt-tracker {
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 14px;
+    padding: 24px 28px;
+    margin-top: 16px;
+  }
+  .bt-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 22px;
+  }
+  .bt-head h3 {
+    margin: 0;
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800;
+    text-transform: uppercase; font-size: 20px; color: var(--pt-ink-0);
+  }
+  .bt-head .info { font-size: 13px; color: var(--pt-ink-3); }
+  .bt-head .info b { color: var(--pt-warn); font-family: var(--pt-font-mono); }
+
+  .belt-line {
+    position: relative;
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    align-items: flex-start;
+    padding-top: 6px;
+  }
+  .belt-line::before {
+    content: '';
+    position: absolute; top: 18px; left: 10%; right: 10%;
+    height: 4px; background: var(--pt-bg-4); border-radius: 2px;
+  }
+  .belt-line::after {
+    content: '';
+    position: absolute; top: 18px; left: 10%;
+    height: 4px;
+    width: 47%;
+    background: linear-gradient(90deg, #ECECEE 0%, #1F6FEB 30%, #8B3FE3 60%);
+    border-radius: 2px;
+  }
+  .belt-stop {
+    position: relative; z-index: 1;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+  }
+  .belt-stop .dot {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 4px solid var(--pt-bg-2);
+    box-shadow: 0 0 0 1px var(--pt-line-2);
+  }
+  .belt-stop .nm { font-size: 12px; font-weight: 700; color: var(--pt-ink-2); margin-top: 6px; }
+  .belt-stop .pts { font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); }
+  .belt-stop.done .nm { color: var(--pt-ink-0); }
+  .belt-stop.current .dot {
+    box-shadow: 0 0 0 1px var(--pt-red-500), 0 0 0 6px rgba(139,63,227,0.25);
+    border-color: var(--pt-bg-2);
+    transform: scale(1.15);
+  }
+  .belt-stop.current .nm { color: #C39DF1; }
+  .belt-stop.current .pts { color: var(--pt-warn); font-weight: 700; }
+  .belt-stop.next .nm { color: var(--pt-ink-3); }
+  .belt-stop.next .dot { opacity: 0.5; }
+
+  .bt-progress {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--pt-line-1);
+    display: flex; align-items: center; gap: 14px;
+  }
+  .bt-progress .label {
+    font-family: var(--pt-font-eyebrow); font-size: 10px; letter-spacing: 0.18em;
+    color: var(--pt-ink-3); font-weight: 600;
+  }
+  .bt-bar {
+    flex: 1; height: 8px; background: var(--pt-bg-4);
+    border-radius: 4px; overflow: hidden; position: relative;
+  }
+  .bt-bar .fill {
+    height: 100%; width: 60%;
+    background: linear-gradient(90deg, #8B3FE3, #B5803A);
+    border-radius: 4px;
+  }
+  .bt-progress .text {
+    font-family: var(--pt-font-mono); font-size: 13px; color: var(--pt-ink-1); font-weight: 700;
+  }
+  .bt-progress .text b { color: var(--pt-warn); }
+
+  /* === 페이지 내 섹션 헤더 === */
+  .px-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin: 32px 0 16px;
+  }
+  .px-head h2 {
+    margin: 0;
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800;
+    text-transform: uppercase; font-size: 24px; color: var(--pt-ink-0);
+    letter-spacing: -0.01em;
+  }
+  .px-head h2 em { color: var(--pt-red-500); font-style: italic; }
+  .px-head .filters { display: flex; gap: 8px; }
+  .chip {
+    padding: 6px 12px; border-radius: 999px;
+    background: var(--pt-bg-3); border: 1px solid var(--pt-line-2);
+    font-size: 12px; color: var(--pt-ink-2); font-weight: 600; cursor: pointer;
+  }
+  .chip.is-active { background: var(--pt-red-500); color: #fff; border-color: var(--pt-red-500); }
+
+  /* === 2-col 메인 === */
+  .profile-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 24px;
+  }
+
+  /* === 픽 히스토리 === */
+  .pick-history {
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .ph-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--pt-line-1);
+    transition: background 0.15s;
+  }
+  .ph-row:last-child { border-bottom: 0; }
+  .ph-row:hover { background: var(--pt-bg-3); }
+  .ph-icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0;
+    font-weight: 700;
+  }
+  .ph-icon.win { background: rgba(31,191,107,0.15); border: 1px solid rgba(31,191,107,0.4); color: var(--pt-win); }
+  .ph-icon.loss { background: var(--pt-red-900); border: 1px solid var(--pt-red-700); color: var(--pt-red-300); }
+  .ph-icon.pending { background: var(--pt-bg-3); border: 1px solid var(--pt-line-2); color: var(--pt-ink-3); }
+  .ph-match { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .ph-match .matchup {
+    font-size: 14px; font-weight: 700; color: var(--pt-ink-0);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .ph-match .matchup .picked { color: var(--pt-red-500); }
+  .ph-match .matchup .picked.b { color: var(--pt-corner-blue); }
+  .ph-match .matchup .vs { color: var(--pt-ink-4); font-family: var(--pt-font-mono); font-size: 11px; }
+  .ph-match .meta {
+    font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3);
+  }
+  .ph-method {
+    font-family: var(--pt-font-eyebrow); font-size: 10px; letter-spacing: 0.16em;
+    padding: 3px 8px; border-radius: 4px;
+    background: var(--pt-bg-3); border: 1px solid var(--pt-line-2);
+    color: var(--pt-ink-2); font-weight: 600;
+    text-align: center; min-width: 70px;
+  }
+  .ph-points {
+    font-family: var(--pt-font-mono);
+    font-size: 15px; font-weight: 700;
+    text-align: right; min-width: 80px;
+  }
+  .ph-points.win  { color: var(--pt-win); }
+  .ph-points.loss { color: var(--pt-red-500); }
+  .ph-points.pending { color: var(--pt-warn); }
+
+  /* === 사이드 카드 === */
+  .side-card {
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 14px;
+    padding: 20px;
+  }
+  .side-card + .side-card { margin-top: 16px; }
+  .side-card h3 {
+    margin: 0 0 16px;
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800;
+    text-transform: uppercase; font-size: 18px; color: var(--pt-ink-0);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .side-card h3 .meta {
+    font-family: 'Pretendard', sans-serif; font-style: normal; font-weight: 600;
+    font-size: 12px; color: var(--pt-ink-3);
+    text-transform: none; letter-spacing: 0;
+  }
+
+  /* 체급별 정확도 */
+  .weight-bar { display: flex; flex-direction: column; gap: 10px; }
+  .wb-row { display: grid; grid-template-columns: 80px 1fr auto; align-items: center; gap: 12px; }
+  .wb-name { font-size: 12px; color: var(--pt-ink-1); font-weight: 600; }
+  .wb-bar {
+    height: 8px; background: var(--pt-bg-4); border-radius: 4px;
+    overflow: hidden; position: relative;
+  }
+  .wb-bar .fill { height: 100%; background: linear-gradient(90deg, var(--pt-red-700), var(--pt-red-500)); border-radius: 4px; }
+  .wb-val { font-family: var(--pt-font-mono); font-size: 12px; color: var(--pt-ink-2); font-weight: 700; min-width: 56px; text-align: right; }
+
+  /* 업적 */
+  .achievements {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  }
+  .ach {
+    background: var(--pt-bg-3); border: 1px solid var(--pt-line-2);
+    border-radius: 10px; padding: 14px 12px;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    text-align: center;
+    position: relative;
+  }
+  .ach.unlocked {
+    background: linear-gradient(135deg, rgba(225,6,0,0.18), rgba(225,6,0,0.05));
+    border-color: var(--pt-red-700);
+  }
+  .ach.locked { opacity: 0.45; }
+  .ach-ico {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--pt-bg-2); border: 1px solid var(--pt-line-2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .ach.unlocked .ach-ico { background: var(--pt-red-500); border-color: var(--pt-red-500); color: #fff; }
+  .ach-name { font-size: 11px; font-weight: 700; color: var(--pt-ink-0); line-height: 1.3; }
+  .ach-desc { font-size: 10px; color: var(--pt-ink-3); line-height: 1.3; }
+  .ach .badge-new {
+    position: absolute; top: 6px; right: 6px;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--pt-red-500);
+    box-shadow: 0 0 0 3px rgba(225,6,0,0.3);
+    animation: pulse 1.6s infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+  /* 최근 활동 한줄 */
+  .summary-strip {
+    background: var(--pt-bg-3); border: 1px solid var(--pt-line-1);
+    border-radius: 10px; padding: 12px 14px;
+    display: flex; align-items: center; gap: 14px;
+    font-size: 12px; color: var(--pt-ink-2);
+    margin-bottom: 14px;
+  }
+  .summary-strip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--pt-win); }
+  .summary-strip b { color: var(--pt-ink-0); }
+  .summary-strip .pts { color: var(--pt-warn); font-family: var(--pt-font-mono); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="app-header-inner">
+    <a class="app-logo" href="screen-home.html">
+      <svg width="28" height="28" viewBox="0 0 200 200" fill="none">
+        <polygon points="60,10 140,10 190,60 190,140 140,190 60,190 10,140 10,60" fill="none" stroke="#E10600" stroke-width="14"/>
+        <path d="M70 102 L92 124 L138 78" stroke="#FFFFFF" stroke-width="22" fill="none" stroke-linejoin="miter"/>
+        <path d="M70 102 L92 124 L138 78" stroke="#E10600" stroke-width="10" fill="none" stroke-linejoin="miter"/>
+      </svg>
+      <span class="word">PICK-TAGON</span>
+    </a>
+    <nav class="app-nav">
+      <a href="screen-home.html">홈</a>
+      <a href="screen-event.html">이벤트</a>
+      <a href="#">랭킹</a>
+      <a href="#">커뮤니티</a>
+      <a href="#">뉴스</a>
+    </nav>
+    <div class="app-search">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg>
+      <input placeholder="파이터 · 이벤트 검색" />
+    </div>
+    <span class="app-balance">3,005 P</span>
+    <span class="app-belt"><span class="strip"></span>퍼플</span>
+    <span class="app-avatar">KB</span>
+  </div>
+</header>
+
+<div class="app-container">
+
+  <!-- 프로필 히어로 -->
+  <section class="profile-hero">
+    <div class="ph-ava">KB</div>
+    <div class="ph-info">
+      <div class="ph-meta">
+        <span class="belt-pill"><span class="strip"></span>PURPLE BELT</span>
+        <span>· 시즌 2026 · 시즌 랭킹 31위 · 한국 13위</span>
+      </div>
+      <div class="ph-name">KINGBOTTLE</div>
+      <div class="ph-ko">킹보틀 · 가입 2025.11.04</div>
+      <div class="ph-tags">
+        <span>🇰🇷 한국</span>
+        <span class="dot"></span>
+        <span>활동 142일째</span>
+        <span class="dot"></span>
+        <span>팔로워 24 · 팔로잉 38</span>
+        <span class="dot"></span>
+        <span>선호 체급 라이트헤비급</span>
+      </div>
+    </div>
+    <div class="ph-stats">
+      <div class="ph-stat">
+        <div class="v warn">3,005<small>P</small></div>
+        <div class="l">시즌 포인트</div>
+      </div>
+      <div class="ph-stat">
+        <div class="v red">68.2<small>%</small></div>
+        <div class="l">정확도</div>
+      </div>
+      <div class="ph-stat">
+        <div class="v">7</div>
+        <div class="l">현재 연승</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 벨트 트래커 -->
+  <section class="belt-tracker">
+    <div class="bt-head">
+      <h3>벨트 승급 트래커</h3>
+      <div class="info">다음 등급까지 <b>+1,995 P</b> 남음</div>
+    </div>
+    <div class="belt-line">
+      <div class="belt-stop done">
+        <div class="dot" style="background:#ECECEE;"></div>
+        <div class="nm">화이트</div>
+        <div class="pts">0 P</div>
+      </div>
+      <div class="belt-stop done">
+        <div class="dot" style="background:#1F6FEB;"></div>
+        <div class="nm">블루</div>
+        <div class="pts">1,000 P</div>
+      </div>
+      <div class="belt-stop done current">
+        <div class="dot" style="background:#8B3FE3;"></div>
+        <div class="nm">퍼플 (현재)</div>
+        <div class="pts">2,000 P → 3,005</div>
+      </div>
+      <div class="belt-stop next">
+        <div class="dot" style="background:#B5803A;"></div>
+        <div class="nm">브라운</div>
+        <div class="pts">5,000 P</div>
+      </div>
+      <div class="belt-stop next">
+        <div class="dot" style="background:#0E0F12; box-shadow: 0 0 0 1px #71757F;"></div>
+        <div class="nm">블랙</div>
+        <div class="pts">10,000 P</div>
+      </div>
+    </div>
+    <div class="bt-progress">
+      <span class="label">퍼플 → 브라운</span>
+      <div class="bt-bar"><div class="fill" style="width: 33.5%;"></div></div>
+      <span class="text">3,005 / 5,000 P · <b>33.5%</b></span>
+    </div>
+  </section>
+
+  <!-- 메인 2-col -->
+  <div class="profile-grid">
+
+    <!-- 왼쪽: 픽 히스토리 -->
+    <div>
+      <div class="px-head">
+        <h2>픽 <em>·</em> 히스토리</h2>
+        <div class="filters">
+          <span class="chip is-active">전체</span>
+          <span class="chip">적중 19</span>
+          <span class="chip">실패 9</span>
+          <span class="chip">대기 8</span>
+        </div>
+      </div>
+
+      <div class="summary-strip">
+        <span class="dot"></span>
+        <span>지난 7일: <b>5승 1패</b> · 누적 <span class="pts">+ 450P</span> · 정확도 <b>83%</b> · 시즌 평균보다 <b style="color:var(--pt-win);">▲ 14.8%p</b></span>
+      </div>
+
+      <div class="pick-history">
+
+        <div class="ph-row">
+          <div class="ph-icon pending">⏱</div>
+          <div class="ph-match">
+            <div class="matchup"><span class="picked">치마예프</span> <span class="vs">VS</span> 스트릭랜드 <span class="vs">· SUB · R3</span></div>
+            <div class="meta">UFC 328 · 메인이벤트 · 미들급 · 2026.05.31 · D-5</div>
+          </div>
+          <div class="ph-method">PENDING</div>
+          <div class="ph-points pending">+120 P</div>
+        </div>
+
+        <div class="ph-row">
+          <div class="ph-icon pending">⏱</div>
+          <div class="ph-match">
+            <div class="matchup">페레이라 <span class="vs">VS</span> <span class="picked b">앙칼라예프</span> <span class="vs">· KO</span></div>
+            <div class="meta">UFC 328 · 라이트헤비급 · 2026.05.31 · D-5</div>
+          </div>
+          <div class="ph-method">PENDING</div>
+          <div class="ph-points pending">+95 P</div>
+        </div>
+
+        <div class="ph-row">
+          <div class="ph-icon win">✓</div>
+          <div class="ph-match">
+            <div class="matchup"><span class="picked">치마예프</span> <span class="vs">VS</span> 무하마드 <span class="vs">· R2 · KO</span></div>
+            <div class="meta">UFC 327 · 미들급 · 2026.05.10 · 적중 · 정확 (KO·라운드)</div>
+          </div>
+          <div class="ph-method">KO R2</div>
+          <div class="ph-points win">+150 P</div>
+        </div>
+
+        <div class="ph-row">
+          <div class="ph-icon win">✓</div>
+          <div class="ph-match">
+            <div class="matchup">존스 <span class="vs">VS</span> <span class="picked b">미오치치</span> <span class="vs">· 판정</span></div>
+            <div class="meta">UFC 327 · 헤비급 · 2026.05.10 · 적중</div>
+          </div>
+          <div class="ph-method">판정</div>
+          <div class="ph-points win">+85 P</div>
+        </div>
+
+        <div class="ph-row">
+          <div class="ph-icon loss">✗</div>
+          <div class="ph-match">
+            <div class="matchup"><span class="picked">맥그리거</span> <span class="vs">VS</span> 차브리쿠 <span class="vs">· KO</span></div>
+            <div class="meta">UFC 327 · 라이트급 · 2026.05.10 · 실패 (판정으로 종료)</div>
+          </div>
+          <div class="ph-method">실 패</div>
+          <div class="ph-points loss">-80 P</div>
+        </div>
+
+        <div class="ph-row">
+          <div class="ph-icon win">✓</div>
+          <div class="ph-match">
+            <div class="matchup">홀로웨이 <span class="vs">VS</span> <span class="picked b">카네로</span> <span class="vs">· 판정</span></div>
+            <div class="meta">UFC FN · 페더급 · 2026.05.03 · 적중</div>
+          </div>
+          <div class="ph-method">판정</div>
+          <div class="ph-points win">+95 P</div>
+        </div>
+
+        <div class="ph-row">
+          <div class="ph-icon win">✓</div>
+          <div class="ph-match">
+            <div class="matchup"><span class="picked">아담산</span> <span class="vs">VS</span> 슈피츠 <span class="vs">· R1 · KO</span></div>
+            <div class="meta">UFC FN · 미들급 · 2026.05.03 · 적중 · 정확 (KO·라운드)</div>
+          </div>
+          <div class="ph-method">KO R1</div>
+          <div class="ph-points win">+165 P</div>
+        </div>
+
+        <div class="ph-row">
+          <div class="ph-icon win">✓</div>
+          <div class="ph-match">
+            <div class="matchup">맥켄지 <span class="vs">VS</span> <span class="picked b">코르도바</span> <span class="vs">· SUB</span></div>
+            <div class="meta">UFC FN · 밴텀급 · 2026.05.03 · 적중</div>
+          </div>
+          <div class="ph-method">SUB</div>
+          <div class="ph-points win">+110 P</div>
+        </div>
+
+        <div class="ph-row">
+          <div class="ph-icon loss">✗</div>
+          <div class="ph-match">
+            <div class="matchup"><span class="picked">우스만</span> <span class="vs">VS</span> 무하마드 <span class="vs">· 판정</span></div>
+            <div class="meta">UFC 326 · 웰터급 · 2026.04.26 · 실패</div>
+          </div>
+          <div class="ph-method">실 패</div>
+          <div class="ph-points loss">-60 P</div>
+        </div>
+
+        <div class="ph-row">
+          <div class="ph-icon win">✓</div>
+          <div class="ph-match">
+            <div class="matchup"><span class="picked">은가누</span> <span class="vs">VS</span> 가르브란트 <span class="vs">· R3 · TKO</span></div>
+            <div class="meta">UFC 326 · 헤비급 · 2026.04.26 · 적중 · 부분 정확 (방법만)</div>
+          </div>
+          <div class="ph-method">TKO</div>
+          <div class="ph-points win">+125 P</div>
+        </div>
+
+      </div>
+
+      <div style="text-align: center; margin-top: 16px;">
+        <button style="background: transparent; border: 1px solid var(--pt-line-2); color: var(--pt-ink-2); padding: 12px 24px; border-radius: 10px; font-weight: 600; font-size: 13px; cursor: pointer;">전체 36개 픽 더 보기 →</button>
+      </div>
+    </div>
+
+    <!-- 오른쪽 사이드바 -->
+    <aside>
+
+      <!-- 시즌 통계 -->
+      <div class="side-card">
+        <h3>시즌 통계 <span class="meta">2026 시즌</span></h3>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div style="background: var(--pt-bg-3); border: 1px solid var(--pt-line-1); border-radius: 10px; padding: 14px; text-align: center;">
+            <div style="font-family: var(--pt-font-display); font-style: italic; font-weight: 800; font-size: 28px; line-height: 1; color: var(--pt-ink-0);">36</div>
+            <div style="font-family: var(--pt-font-eyebrow); font-size: 10px; letter-spacing: 0.18em; color: var(--pt-ink-3); margin-top: 6px; font-weight: 600;">총 픽 수</div>
+          </div>
+          <div style="background: var(--pt-bg-3); border: 1px solid var(--pt-line-1); border-radius: 10px; padding: 14px; text-align: center;">
+            <div style="font-family: var(--pt-font-display); font-style: italic; font-weight: 800; font-size: 28px; line-height: 1; color: var(--pt-win);">19 <span style="color: var(--pt-ink-3); font-size: 16px;">/ 28</span></div>
+            <div style="font-family: var(--pt-font-eyebrow); font-size: 10px; letter-spacing: 0.18em; color: var(--pt-ink-3); margin-top: 6px; font-weight: 600;">적중 / 종료</div>
+          </div>
+          <div style="background: var(--pt-bg-3); border: 1px solid var(--pt-line-1); border-radius: 10px; padding: 14px; text-align: center;">
+            <div style="font-family: var(--pt-font-display); font-style: italic; font-weight: 800; font-size: 28px; line-height: 1; color: var(--pt-red-500);">68.2<span style="font-size: 18px; color: var(--pt-ink-2);">%</span></div>
+            <div style="font-family: var(--pt-font-eyebrow); font-size: 10px; letter-spacing: 0.18em; color: var(--pt-ink-3); margin-top: 6px; font-weight: 600;">정확도</div>
+          </div>
+          <div style="background: var(--pt-bg-3); border: 1px solid var(--pt-line-1); border-radius: 10px; padding: 14px; text-align: center;">
+            <div style="font-family: var(--pt-font-display); font-style: italic; font-weight: 800; font-size: 28px; line-height: 1; color: var(--pt-warn);">9</div>
+            <div style="font-family: var(--pt-font-eyebrow); font-size: 10px; letter-spacing: 0.18em; color: var(--pt-ink-3); margin-top: 6px; font-weight: 600;">최고 연승</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 체급별 정확도 -->
+      <div class="side-card">
+        <h3>체급별 정확도 <span class="meta">시즌 누적</span></h3>
+        <div class="weight-bar">
+          <div class="wb-row">
+            <span class="wb-name">라이트헤비</span>
+            <div class="wb-bar"><div class="fill" style="width: 87%;"></div></div>
+            <span class="wb-val">87% (7/8)</span>
+          </div>
+          <div class="wb-row">
+            <span class="wb-name">미들급</span>
+            <div class="wb-bar"><div class="fill" style="width: 75%;"></div></div>
+            <span class="wb-val">75% (6/8)</span>
+          </div>
+          <div class="wb-row">
+            <span class="wb-name">밴텀급</span>
+            <div class="wb-bar"><div class="fill" style="width: 67%;"></div></div>
+            <span class="wb-val">67% (4/6)</span>
+          </div>
+          <div class="wb-row">
+            <span class="wb-name">헤비급</span>
+            <div class="wb-bar"><div class="fill" style="width: 50%;"></div></div>
+            <span class="wb-val">50% (1/2)</span>
+          </div>
+          <div class="wb-row">
+            <span class="wb-name">웰터급</span>
+            <div class="wb-bar"><div class="fill" style="width: 25%;"></div></div>
+            <span class="wb-val">25% (1/4)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 업적 -->
+      <div class="side-card">
+        <h3>업적 <span class="meta">7 / 24 달성</span></h3>
+        <div class="achievements">
+          <div class="ach unlocked">
+            <div class="badge-new"></div>
+            <div class="ach-ico">🥋</div>
+            <div class="ach-name">퍼플 벨트</div>
+            <div class="ach-desc">2,000P 달성</div>
+          </div>
+          <div class="ach unlocked">
+            <div class="ach-ico">🔥</div>
+            <div class="ach-name">7연승</div>
+            <div class="ach-desc">연속 적중</div>
+          </div>
+          <div class="ach unlocked">
+            <div class="ach-ico">🎯</div>
+            <div class="ach-name">정밀 사격</div>
+            <div class="ach-desc">KO·라운드 동시 적중</div>
+          </div>
+          <div class="ach unlocked">
+            <div class="ach-ico">⚡</div>
+            <div class="ach-name">언더독 헌터</div>
+            <div class="ach-desc">+200 배당 5회 적중</div>
+          </div>
+          <div class="ach unlocked">
+            <div class="ach-ico">🇰🇷</div>
+            <div class="ach-name">국대급</div>
+            <div class="ach-desc">한국 TOP 50 진입</div>
+          </div>
+          <div class="ach unlocked">
+            <div class="ach-ico">📊</div>
+            <div class="ach-name">데이터 마니아</div>
+            <div class="ach-desc">스탯 비교 100회</div>
+          </div>
+          <div class="ach locked">
+            <div class="ach-ico">🥋</div>
+            <div class="ach-name">브라운 벨트</div>
+            <div class="ach-desc">5,000P 달성</div>
+          </div>
+          <div class="ach locked">
+            <div class="ach-ico">⚜</div>
+            <div class="ach-name">완벽한 밤</div>
+            <div class="ach-desc">한 이벤트 100% 적중</div>
+          </div>
+          <div class="ach locked">
+            <div class="ach-ico">🌍</div>
+            <div class="ach-name">월드 TOP 100</div>
+            <div class="ach-desc">전세계 100위 진입</div>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+  </div>
+
+</div>
+
+</body>
+</html>

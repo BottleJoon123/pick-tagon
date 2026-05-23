@@ -1,0 +1,1091 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Pick-tagon Design System</title>
+<link rel="stylesheet" href="tokens.css" />
+<style>
+  body {
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    background: var(--pt-bg-1);
+    color: var(--pt-ink-1);
+    margin: 0;
+  }
+
+  /* ===== 인덱스 헤더 ===== */
+  .ix-top {
+    background: var(--pt-bg-0);
+    border-bottom: 1px solid var(--pt-line-2);
+    padding: 16px 48px;
+    display: flex; align-items: center; gap: 24px;
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: blur(10px);
+    background: rgba(7,8,10,0.92);
+  }
+  .ix-brand {
+    display: flex; align-items: center; gap: 10px;
+    text-decoration: none;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .ix-brand .word {
+    font-family: var(--pt-font-display);
+    font-style: italic; font-weight: 900;
+    text-transform: uppercase; color: var(--pt-red-500);
+    font-size: 18px; letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+  .ix-brand .ds {
+    font-family: var(--pt-font-mono); font-size: 11px;
+    color: var(--pt-ink-3); margin-left: 4px;
+    padding: 3px 8px; border-radius: 4px;
+    background: var(--pt-bg-3); border: 1px solid var(--pt-line-2);
+    white-space: nowrap;
+  }
+  .ix-nav {
+    display: flex; gap: 4px; margin-left: auto;
+    flex-shrink: 0;
+  }
+  .ix-nav a {
+    padding: 7px 14px; font-size: 13px; font-weight: 600;
+    color: var(--pt-ink-3); text-decoration: none; border-radius: 8px;
+    white-space: nowrap;
+  }
+  .ix-nav a:hover { color: var(--pt-ink-0); background: var(--pt-bg-3); }
+  .ix-meta {
+    font-family: var(--pt-font-mono); font-size: 11px;
+    color: var(--pt-ink-3);
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .ix-meta b { color: var(--pt-warn); }
+
+  /* ===== 히어로 ===== */
+  .ix-hero {
+    position: relative;
+    padding: 80px 48px 64px;
+    background:
+      radial-gradient(60% 80% at 0% 30%, rgba(225,6,0,0.30), transparent 60%),
+      radial-gradient(50% 70% at 100% 70%, rgba(31,111,235,0.20), transparent 60%),
+      linear-gradient(180deg, var(--pt-bg-0), var(--pt-bg-1));
+    border-bottom: 1px solid var(--pt-line-1);
+    overflow: hidden;
+  }
+  .ix-hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(transparent 96%, rgba(255,255,255,0.04) 96%),
+      linear-gradient(90deg, transparent 96%, rgba(255,255,255,0.04) 96%);
+    background-size: 32px 32px;
+    pointer-events: none;
+  }
+  .ix-hero > * { position: relative; z-index: 1; }
+  .ix-hero-inner { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: 1.6fr 1fr; gap: 48px; align-items: end; }
+
+  .ix-hero .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--pt-font-eyebrow);
+    font-size: 11px; letter-spacing: 0.22em;
+    color: var(--pt-red-500); font-weight: 700;
+    margin-bottom: 18px;
+  }
+  .ix-hero .eyebrow::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--pt-red-500);
+    box-shadow: 0 0 0 3px rgba(225,6,0,0.3);
+  }
+  .ix-hero h1 {
+    margin: 0;
+    font-family: var(--pt-font-display);
+    font-style: italic; font-weight: 900;
+    text-transform: uppercase;
+    font-size: 96px; line-height: 0.88;
+    letter-spacing: -0.02em;
+    color: var(--pt-ink-0);
+  }
+  .ix-hero h1 em { color: var(--pt-red-500); font-style: italic; }
+  .ix-hero p {
+    margin: 20px 0 0;
+    color: var(--pt-ink-2); font-size: 16px; line-height: 1.55;
+    max-width: 560px;
+  }
+
+  /* 히어로 우측: 통계 */
+  .ix-hero-stats {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    padding: 24px;
+    background: rgba(7,8,10,0.6);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--pt-line-2);
+    border-radius: 18px;
+  }
+  .ix-hero-stat {
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .ix-hero-stat .v {
+    font-family: var(--pt-font-display);
+    font-style: italic; font-weight: 800;
+    font-size: 36px; line-height: 1; color: var(--pt-ink-0);
+  }
+  .ix-hero-stat .v.r { color: var(--pt-red-500); }
+  .ix-hero-stat .l {
+    font-family: var(--pt-font-eyebrow); font-size: 10px; letter-spacing: 0.18em;
+    color: var(--pt-ink-3); margin-top: 8px; font-weight: 600;
+  }
+
+  /* ===== 메인 컨테이너 ===== */
+  .ix-body {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 56px 48px 80px;
+  }
+
+  /* 섹션 헤더 */
+  .ix-section { margin-bottom: 64px; }
+  .ix-section:last-child { margin-bottom: 0; }
+  .ix-section-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--pt-line-1);
+  }
+  .ix-section-num {
+    font-family: var(--pt-font-display);
+    font-style: italic; font-weight: 900;
+    font-size: 22px; color: var(--pt-red-500);
+    margin-right: 14px; line-height: 1;
+  }
+  .ix-section-head h2 {
+    margin: 0; flex: 1;
+    font-family: var(--pt-font-display);
+    font-style: italic; font-weight: 800;
+    text-transform: uppercase;
+    font-size: 36px; line-height: 1;
+    color: var(--pt-ink-0); letter-spacing: -0.01em;
+  }
+  .ix-section-head .count {
+    font-family: var(--pt-font-mono); font-size: 12px; color: var(--pt-ink-3);
+  }
+  .ix-section-head .count b { color: var(--pt-ink-1); }
+
+  /* ===== 카드 그리드 (디자인 시스템) ===== */
+  .ds-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+  }
+  .ds-card {
+    display: block;
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 18px;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s;
+  }
+  .ds-card:hover {
+    border-color: var(--pt-line-3);
+    transform: translateY(-2px);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.4);
+  }
+  .ds-card .preview {
+    aspect-ratio: 16/10;
+    background: var(--pt-bg-0);
+    border-bottom: 1px solid var(--pt-line-1);
+    position: relative;
+    overflow: hidden;
+    padding: 20px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ds-card .body {
+    padding: 16px 20px 18px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .ds-card .num {
+    font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3);
+    letter-spacing: 0.04em;
+  }
+  .ds-card .nm {
+    font-size: 17px; font-weight: 800; color: var(--pt-ink-0);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .ds-card .nm::after {
+    content: '→';
+    color: var(--pt-red-500);
+    font-family: var(--pt-font-display); font-style: italic;
+    font-size: 18px;
+    margin-left: auto;
+    transition: transform 0.2s;
+  }
+  .ds-card:hover .nm::after { transform: translateX(4px); }
+  .ds-card .desc {
+    font-size: 13px; color: var(--pt-ink-2); line-height: 1.5; margin-top: 4px;
+  }
+
+  /* 브랜드 카드 프리뷰 */
+  .pv-brand {
+    background:
+      radial-gradient(60% 60% at 50% 50%, rgba(225,6,0,0.20), transparent),
+      var(--pt-bg-0);
+  }
+  .pv-brand .mark {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .pv-brand .word {
+    font-family: var(--pt-font-display);
+    font-style: italic; font-weight: 900;
+    text-transform: uppercase; color: var(--pt-red-500);
+    font-size: 32px; letter-spacing: -0.01em;
+  }
+
+  /* 컬러 카드 프리뷰 */
+  .pv-colors {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;
+    width: 100%; height: 100%; padding: 0;
+  }
+  .pv-colors > div { border-radius: 4px; }
+
+  /* 타이포 카드 프리뷰 */
+  .pv-type {
+    text-align: center;
+    line-height: 0.95;
+  }
+  .pv-type .a {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    color: var(--pt-ink-0); font-size: 56px; line-height: 0.9;
+    text-transform: uppercase; letter-spacing: -0.01em;
+  }
+  .pv-type .a em { color: var(--pt-red-500); font-style: italic; }
+  .pv-type .b {
+    font-family: var(--pt-font-eyebrow); font-size: 11px;
+    letter-spacing: 0.22em; color: var(--pt-ink-3);
+    margin-top: 8px;
+  }
+
+  /* 여백 카드 프리뷰 */
+  .pv-spacing {
+    display: flex; flex-direction: column; gap: 6px;
+    width: 100%; padding: 0 30px;
+  }
+  .pv-spacing > div {
+    height: 8px; background: var(--pt-red-500); border-radius: 2px;
+  }
+
+  /* 컴포넌트 코어 카드 프리뷰 */
+  .pv-core {
+    display: flex; flex-direction: column; gap: 10px; align-items: flex-start;
+  }
+  .pv-core .btn {
+    background: var(--pt-red-500); color: #fff;
+    padding: 10px 16px; border-radius: 8px;
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.04em; box-shadow: 0 8px 20px rgba(225,6,0,0.3);
+  }
+  .pv-core .badges { display: flex; gap: 6px; }
+  .pv-core .badge {
+    font-family: var(--pt-font-eyebrow);
+    font-size: 9px; letter-spacing: 0.16em;
+    padding: 3px 8px; border-radius: 3px;
+  }
+  .pv-core .badge.live { background: var(--pt-red-500); color: #fff; }
+  .pv-core .badge.up { background: rgba(31,191,107,0.15); color: var(--pt-win); border: 1px solid rgba(31,191,107,0.3); }
+  .pv-core .badge.main { background: var(--pt-red-900); color: var(--pt-red-300); border: 1px solid var(--pt-red-700); }
+
+  /* 매치업 카드 프리뷰 */
+  .pv-match {
+    display: grid; grid-template-columns: 1fr auto 1fr;
+    align-items: center; gap: 16px; width: 100%;
+  }
+  .pv-match .side {
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .pv-match .side.r { text-align: right; align-items: flex-end; }
+  .pv-match .corner {
+    font-family: var(--pt-font-eyebrow);
+    font-size: 9px; letter-spacing: 0.18em; font-weight: 600;
+    padding: 2px 7px; border-radius: 3px;
+  }
+  .pv-match .side.r .corner { background: var(--pt-red-500); color: #fff; }
+  .pv-match .side.b .corner { background: var(--pt-corner-blue); color: #fff; }
+  .pv-match .nm {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    text-transform: uppercase; font-size: 22px; line-height: 1; color: var(--pt-ink-0);
+    margin-top: 4px;
+  }
+  .pv-match .vs {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    font-size: 28px; color: var(--pt-ink-0);
+  }
+
+  /* ===== 화면 그리드 ===== */
+  .screens-grid {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 18px;
+  }
+  .screens-grid > a:nth-child(1) { grid-column: 1 / 2; grid-row: 1 / 3; }
+
+  .sc-card {
+    display: block;
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 18px;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .sc-card:hover { border-color: var(--pt-line-3); transform: translateY(-2px); box-shadow: 0 16px 48px rgba(0,0,0,0.4); }
+  .sc-card .browser {
+    background: var(--pt-bg-0);
+    padding: 10px 14px;
+    display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid var(--pt-line-1);
+  }
+  .sc-card .browser .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .sc-card .browser .url {
+    margin-left: 12px;
+    font-family: var(--pt-font-mono); font-size: 10px; color: var(--pt-ink-3);
+  }
+  .sc-card .body {
+    padding: 16px 20px;
+    display: flex; flex-direction: column; gap: 4px;
+    border-top: 1px solid var(--pt-line-1);
+  }
+  .sc-card .num {
+    font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3);
+  }
+  .sc-card .nm {
+    font-size: 16px; font-weight: 800; color: var(--pt-ink-0);
+    display: flex; align-items: center;
+  }
+  .sc-card .nm::after {
+    content: '→';
+    color: var(--pt-red-500);
+    font-family: var(--pt-font-display); font-style: italic;
+    font-size: 16px; margin-left: auto;
+    transition: transform 0.2s;
+  }
+  .sc-card:hover .nm::after { transform: translateX(4px); }
+  .sc-card .desc { font-size: 12px; color: var(--pt-ink-3); }
+
+  /* 화면 미니 미리보기 */
+  .sc-preview {
+    aspect-ratio: 16/10;
+    background: var(--pt-bg-1);
+    padding: 14px;
+    overflow: hidden;
+    position: relative;
+  }
+  .sc-card.featured .sc-preview {
+    aspect-ratio: 16/11;
+    padding: 16px;
+  }
+  .sc-mini-header {
+    background: var(--pt-bg-0);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 6px;
+    padding: 6px 8px;
+    display: flex; align-items: center; gap: 4px;
+    margin-bottom: 8px;
+    font-size: 8px;
+  }
+  .sc-mini-header .logo {
+    width: 10px; height: 10px;
+    background: var(--pt-red-500);
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .sc-mini-header .nav {
+    font-family: var(--pt-font-mono); color: var(--pt-ink-3);
+    font-size: 8px; flex: 1;
+  }
+  .sc-mini-header .pill {
+    background: var(--pt-bg-3);
+    width: 24px; height: 8px; border-radius: 4px;
+  }
+
+  .sc-mini-body { display: flex; flex-direction: column; gap: 6px; }
+
+  /* 홈 미니 */
+  .mini-home-hero {
+    background:
+      radial-gradient(50% 80% at 0% 50%, rgba(225,6,0,0.45), transparent 60%),
+      radial-gradient(50% 80% at 100% 50%, rgba(31,111,235,0.45), transparent 60%),
+      var(--pt-bg-0);
+    border-radius: 6px;
+    padding: 16px 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px;
+  }
+  .mini-home-hero .nm {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    color: var(--pt-ink-0); font-size: 18px; text-transform: uppercase;
+    line-height: 0.92;
+  }
+  .mini-home-hero .vs {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    color: var(--pt-ink-0); font-size: 22px;
+  }
+  .mini-stat-row {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+  }
+  .mini-stat {
+    background: var(--pt-bg-2); border: 1px solid var(--pt-line-1);
+    border-radius: 5px; padding: 6px;
+    text-align: center;
+  }
+  .mini-stat .v {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800;
+    font-size: 14px; color: var(--pt-ink-0); line-height: 1;
+  }
+  .mini-stat .v.w { color: var(--pt-warn); }
+  .mini-stat .v.r { color: var(--pt-red-500); }
+  .mini-stat .l {
+    font-family: var(--pt-font-eyebrow); font-size: 6px; letter-spacing: 0.16em;
+    color: var(--pt-ink-3); margin-top: 2px; font-weight: 600;
+  }
+  .mini-cards-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 6px; }
+  .mini-card {
+    background: var(--pt-bg-2); border: 1px solid var(--pt-line-1);
+    border-radius: 5px; padding: 6px;
+    height: 48px;
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .mini-line { background: var(--pt-bg-3); border-radius: 2px; height: 5px; }
+  .mini-line.short { width: 60%; }
+  .mini-line.med { width: 80%; }
+  .mini-line.r { background: var(--pt-red-500); }
+  .mini-line.b { background: var(--pt-corner-blue); }
+
+  /* 이벤트 미니 */
+  .mini-evt-hero {
+    background:
+      radial-gradient(50% 80% at 0% 50%, rgba(225,6,0,0.45), transparent 60%),
+      radial-gradient(50% 80% at 100% 50%, rgba(31,111,235,0.45), transparent 60%),
+      var(--pt-bg-0);
+    border-radius: 6px;
+    padding: 12px;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  }
+  .mini-evt-hero .nm {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    color: var(--pt-ink-0); font-size: 14px; text-transform: uppercase; line-height: 0.92;
+  }
+  .mini-evt-hero .vs {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    color: var(--pt-ink-0); font-size: 16px;
+  }
+  .mini-pick-row {
+    background: var(--pt-bg-2); border: 1px solid var(--pt-line-1);
+    border-radius: 5px; padding: 5px;
+    display: grid; grid-template-columns: 1fr auto 1fr; gap: 4px; align-items: center;
+    font-size: 8px;
+  }
+  .mini-pick-row.picked {
+    border-color: var(--pt-red-500);
+    box-shadow: 0 0 0 1px var(--pt-red-500) inset;
+  }
+  .mini-pick-row .side {
+    background: var(--pt-bg-3); border-radius: 3px; padding: 4px 6px;
+    font-weight: 700; color: var(--pt-ink-0); font-size: 8px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .mini-pick-row .side.b { justify-content: flex-end; }
+  .mini-pick-row .side .ava {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--pt-red-500);
+    font-size: 6px;
+    display: flex; align-items: center; justify-content: center; color: #fff;
+  }
+  .mini-pick-row .side.b .ava { background: var(--pt-corner-blue); }
+  .mini-pick-row .vs {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    color: var(--pt-ink-3); font-size: 10px;
+  }
+
+  /* 프로필 미니 */
+  .mini-prof-hero {
+    background:
+      radial-gradient(60% 80% at 0% 50%, rgba(139,63,227,0.30), transparent 60%),
+      var(--pt-bg-0);
+    border-radius: 6px;
+    padding: 10px 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .mini-prof-hero .ava {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--pt-red-700), var(--pt-red-500));
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 900; font-size: 11px;
+  }
+  .mini-prof-hero .nm {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    color: var(--pt-ink-0); font-size: 14px; text-transform: uppercase;
+  }
+  .mini-prof-hero .belt {
+    font-family: var(--pt-font-mono); font-size: 8px; color: #C39DF1;
+  }
+  .mini-belt-line {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--pt-bg-2); border: 1px solid var(--pt-line-1);
+    border-radius: 5px; padding: 6px;
+  }
+  .mini-belt-line .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .mini-belt-line .dot.cur { box-shadow: 0 0 0 2px var(--pt-red-500); }
+  .mini-belt-line .bar {
+    flex: 1; height: 2px; background: var(--pt-bg-4); border-radius: 1px;
+  }
+
+  /* 랭킹 미니 */
+  .mini-champion {
+    background:
+      radial-gradient(60% 60% at 0% 50%, rgba(225,6,0,0.40), transparent 60%),
+      linear-gradient(135deg, #2A0500, var(--pt-bg-0));
+    border: 1px solid var(--pt-red-700);
+    border-radius: 6px;
+    padding: 10px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .mini-champion .nm {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    color: var(--pt-ink-0); font-size: 14px; text-transform: uppercase;
+  }
+  .mini-champion .tag {
+    font-family: var(--pt-font-eyebrow);
+    font-size: 7px; letter-spacing: 0.16em;
+    background: var(--pt-warn); color: #0E0F12;
+    padding: 2px 6px; border-radius: 2px; font-weight: 700;
+  }
+  .mini-rank-row {
+    display: grid; grid-template-columns: 16px 1fr 30px; gap: 6px; align-items: center;
+    background: var(--pt-bg-2); border: 1px solid var(--pt-line-1);
+    border-radius: 4px; padding: 4px 8px;
+    font-size: 9px;
+  }
+  .mini-rank-row .n {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800;
+    color: var(--pt-ink-0); font-size: 12px;
+  }
+  .mini-rank-row .who {
+    font-weight: 700; color: var(--pt-ink-0); font-size: 9px;
+  }
+  .mini-rank-row .rec {
+    font-family: var(--pt-font-mono); font-size: 8px; color: var(--pt-ink-3); text-align: right;
+  }
+
+  /* 리더보드 미니 */
+  .mini-podium {
+    display: grid; grid-template-columns: 1fr 1.1fr 1fr; gap: 4px; align-items: end;
+  }
+  .mini-pod {
+    background: var(--pt-bg-2); border: 1px solid var(--pt-line-1);
+    border-radius: 5px; padding: 8px 6px;
+    text-align: center;
+  }
+  .mini-pod.p1 {
+    background:
+      radial-gradient(80% 80% at 50% 0%, rgba(225,6,0,0.30), transparent),
+      var(--pt-bg-2);
+    border-color: var(--pt-red-700);
+    padding: 11px 6px;
+  }
+  .mini-pod .ava {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: linear-gradient(135deg, #B5803A, #6B4A1F);
+    margin: 0 auto 4px;
+  }
+  .mini-pod.p1 .ava { background: linear-gradient(135deg, #B5803A, #6B4A1F); width: 22px; height: 22px; box-shadow: 0 0 0 2px var(--pt-red-500); }
+  .mini-pod.p2 .ava { background: linear-gradient(135deg, #0E0F12, #232730); box-shadow: 0 0 0 2px rgba(255,255,255,0.4); }
+  .mini-pod.p3 .ava { background: linear-gradient(135deg, #8B3FE3, #4A1B7B); box-shadow: 0 0 0 2px #B5803A; }
+  .mini-pod .pts {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800;
+    font-size: 11px; color: var(--pt-warn); line-height: 1;
+  }
+  .mini-pod.p1 .pts { font-size: 13px; }
+  .mini-pod .nm { font-size: 7px; font-weight: 700; color: var(--pt-ink-2); margin-top: 2px; }
+
+  /* ===== 푸터 ===== */
+  .ix-foot {
+    border-top: 1px solid var(--pt-line-2);
+    padding: 32px 48px;
+    background: var(--pt-bg-0);
+    color: var(--pt-ink-3);
+    font-size: 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-family: var(--pt-font-mono);
+  }
+  .ix-foot b { color: var(--pt-red-500); }
+</style>
+</head>
+<body>
+
+<!-- 상단 -->
+<header class="ix-top">
+  <a class="ix-brand" href="#">
+    <svg width="24" height="24" viewBox="0 0 200 200" fill="none">
+      <polygon points="60,10 140,10 190,60 190,140 140,190 60,190 10,140 10,60" fill="none" stroke="#E10600" stroke-width="14"/>
+      <path d="M70 102 L92 124 L138 78" stroke="#FFFFFF" stroke-width="22" fill="none" stroke-linejoin="miter"/>
+      <path d="M70 102 L92 124 L138 78" stroke="#E10600" stroke-width="10" fill="none" stroke-linejoin="miter"/>
+    </svg>
+    <span class="word">PICK-TAGON</span>
+    <span class="ds">DESIGN SYSTEM</span>
+  </a>
+  <nav class="ix-nav">
+    <a href="#foundations">파운데이션</a>
+    <a href="#components">컴포넌트</a>
+    <a href="#screens">화면</a>
+  </nav>
+  <span class="ix-meta">v1.0 · <b>업데이트 2026.05.21</b></span>
+</header>
+
+<!-- 히어로 -->
+<section class="ix-hero">
+  <div class="ix-hero-inner">
+    <div>
+      <span class="eyebrow">DESIGN SYSTEM · INTERNAL</span>
+      <h1>FIGHT-NIGHT<br/><em>INTELLIGENCE</em><br/>CONSOLE.</h1>
+      <p>UFC 파이트 카드의 에너지를 디지털로 옮긴 디자인 시스템. 다크 아레나, UFC 레드 액센트, 벨트 등급 시스템을 핵심으로 6개의 파운데이션 카드 + 11개 컴포넌트 + 5개 실제 화면 시안으로 구성됩니다.</p>
+    </div>
+    <div class="ix-hero-stats">
+      <div class="ix-hero-stat"><div class="v">5</div><div class="l">파운데이션</div></div>
+      <div class="ix-hero-stat"><div class="v">2</div><div class="l">컴포넌트 카드</div></div>
+      <div class="ix-hero-stat"><div class="v r">5</div><div class="l">화면 시안</div></div>
+      <div class="ix-hero-stat"><div class="v r">11</div><div class="l">총 카드</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 본문 -->
+<main class="ix-body">
+
+  <!-- 섹션 1: 파운데이션 -->
+  <section class="ix-section" id="foundations">
+    <div class="ix-section-head">
+      <div style="display:flex; align-items:baseline;">
+        <span class="ix-section-num">01</span>
+        <h2>파운데이션</h2>
+      </div>
+      <span class="count"><b>5</b>개 카드 · 토큰 · 규칙</span>
+    </div>
+
+    <div class="ds-grid">
+      <!-- 브랜드 -->
+      <a class="ds-card" href="brand-logo.html">
+        <div class="preview pv-brand">
+          <div class="mark">
+            <svg width="40" height="40" viewBox="0 0 200 200" fill="none">
+              <polygon points="60,10 140,10 190,60 190,140 140,190 60,190 10,140 10,60" fill="none" stroke="#E10600" stroke-width="14"/>
+              <path d="M70 102 L92 124 L138 78" stroke="#FFFFFF" stroke-width="22" fill="none" stroke-linejoin="miter"/>
+              <path d="M70 102 L92 124 L138 78" stroke="#E10600" stroke-width="10" fill="none" stroke-linejoin="miter"/>
+            </svg>
+            <span class="word">PICK-TAGON</span>
+          </div>
+        </div>
+        <div class="body">
+          <span class="num">01 · BRAND</span>
+          <span class="nm">브랜드 · 로고</span>
+          <p class="desc">옥타곤 마크 + 워드마크 분해도, 3가지 변형, 배경 규칙, 금지 사항</p>
+        </div>
+      </a>
+
+      <!-- 컬러 -->
+      <a class="ds-card" href="colors.html">
+        <div class="preview" style="padding: 28px;">
+          <div class="pv-colors">
+            <div style="background:#E10600;"></div>
+            <div style="background:#FF5D55;"></div>
+            <div style="background:#9A0400;"></div>
+            <div style="background:#1F6FEB;"></div>
+            <div style="background:#8B3FE3;"></div>
+            <div style="background:#0E0F12; border:1px solid #232730;"></div>
+            <div style="background:#14161B; border:1px solid #232730;"></div>
+            <div style="background:#1B1E25; border:1px solid #232730;"></div>
+            <div style="background:#B5803A;"></div>
+            <div style="background:#ECECEE;"></div>
+          </div>
+        </div>
+        <div class="body">
+          <span class="num">02 · COLOR</span>
+          <span class="nm">컬러 · 팔레트</span>
+          <p class="desc">UFC 레드 + 다크 아레나 + 벨트 등급 + 코너 + 상태 (5그룹)</p>
+        </div>
+      </a>
+
+      <!-- 타이포 -->
+      <a class="ds-card" href="type.html">
+        <div class="preview">
+          <div class="pv-type">
+            <div class="a">FIGHT<br/><em>NIGHT</em></div>
+            <div class="b">BARLOW CONDENSED · BEBAS · PRETENDARD</div>
+          </div>
+        </div>
+        <div class="body">
+          <span class="num">03 · TYPE</span>
+          <span class="nm">타이포 · 스케일</span>
+          <p class="desc">4가지 폰트 패밀리 + 9단계 스케일 + 한·영·숫자 혼용 규칙</p>
+        </div>
+      </a>
+
+      <!-- 여백 -->
+      <a class="ds-card" href="spacing.html">
+        <div class="preview">
+          <div class="pv-spacing">
+            <div style="width:8px;"></div>
+            <div style="width:16px;"></div>
+            <div style="width:24px;"></div>
+            <div style="width:40px;"></div>
+            <div style="width:64px;"></div>
+            <div style="width:96px;"></div>
+            <div style="width:140px;"></div>
+            <div style="width:180px;"></div>
+          </div>
+        </div>
+        <div class="body">
+          <span class="num">04 · SPACE</span>
+          <span class="nm">여백 · 라디우스 · 그림자</span>
+          <p class="desc">10단계 여백 + 6단계 모서리 + 3단계 그림자 + 12 컬럼 그리드</p>
+        </div>
+      </a>
+
+      <!-- 컴포넌트 코어 -->
+      <a class="ds-card" href="components-core.html">
+        <div class="preview">
+          <div class="pv-core">
+            <span class="btn">픽 제출 →</span>
+            <div class="badges">
+              <span class="badge live">● LIVE</span>
+              <span class="badge up">UPCOMING</span>
+              <span class="badge main">MAIN EVENT</span>
+            </div>
+          </div>
+        </div>
+        <div class="body">
+          <span class="num">05 · COMPONENTS</span>
+          <span class="nm">핵심 컴포넌트</span>
+          <p class="desc">버튼 · 배지 · 벨트 칩 · 입력 필드 · 필터 칩 · 토스트</p>
+        </div>
+      </a>
+
+      <!-- 컴포넌트 매치업 -->
+      <a class="ds-card" href="components-matchup.html">
+        <div class="preview">
+          <div class="pv-match">
+            <div class="side r">
+              <span class="corner">RED</span>
+              <span class="nm">CHIMAEV</span>
+            </div>
+            <span class="vs">VS</span>
+            <div class="side b">
+              <span class="corner">BLUE</span>
+              <span class="nm">STRICK</span>
+            </div>
+          </div>
+        </div>
+        <div class="body">
+          <span class="num">06 · MATCHUP</span>
+          <span class="nm">매치업 컴포넌트</span>
+          <p class="desc">이벤트 히어로 · VS 바 · 파이터 카드 · 픽 카드 · 스탯 비교 · 결과 카드</p>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <!-- 섹션 2: 화면 시안 -->
+  <section class="ix-section" id="screens">
+    <div class="ix-section-head">
+      <div style="display:flex; align-items:baseline;">
+        <span class="ix-section-num">02</span>
+        <h2>화면 시안</h2>
+      </div>
+      <span class="count"><b>5</b>개 화면 · 디자인 시스템 적용 사례</span>
+    </div>
+
+    <div class="screens-grid">
+      <!-- 1. 홈 (큰 카드) -->
+      <a class="sc-card featured" href="screen-home.html">
+        <div class="browser">
+          <span class="dot" style="background:#FF5F57;"></span>
+          <span class="dot" style="background:#FEBC2E;"></span>
+          <span class="dot" style="background:#28C840;"></span>
+          <span class="url">pick-tagon.com</span>
+        </div>
+        <div class="sc-preview">
+          <div class="sc-mini-header">
+            <div class="logo"></div>
+            <span class="nav">PICK-TAGON · 홈 / 이벤트 / 랭킹 / 커뮤니티 / 뉴스</span>
+            <div class="pill"></div>
+            <div class="pill" style="background: var(--pt-red-700);"></div>
+          </div>
+          <div class="sc-mini-body">
+            <div class="mini-home-hero">
+              <div>
+                <div style="font-family: var(--pt-font-eyebrow); font-size: 7px; letter-spacing: 0.18em; color: #fff; opacity: 0.7; margin-bottom: 4px;">MAIN EVENT · UFC 328</div>
+                <div class="nm">CHIMAEV</div>
+              </div>
+              <div class="vs">VS</div>
+              <div style="text-align:right;">
+                <div style="font-family: var(--pt-font-mono); font-size: 8px; color: var(--pt-red-500); font-weight: 700; margin-bottom: 4px;">D-5 · 14:23:18</div>
+                <div class="nm">STRICKLAND</div>
+              </div>
+            </div>
+            <div class="mini-stat-row">
+              <div class="mini-stat"><div class="v w">3,005</div><div class="l">포인트</div></div>
+              <div class="mini-stat"><div class="v r">68%</div><div class="l">정확도</div></div>
+              <div class="mini-stat"><div class="v">7연승</div><div class="l">스트릭</div></div>
+              <div class="mini-stat"><div class="v" style="font-size: 11px;">PURPLE</div><div class="l">벨트</div></div>
+            </div>
+            <div class="mini-cards-row">
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <div class="mini-card">
+                  <div class="mini-line med"></div>
+                  <div class="mini-line short r"></div>
+                  <div class="mini-line"></div>
+                </div>
+                <div class="mini-card">
+                  <div class="mini-line med"></div>
+                  <div class="mini-line short b"></div>
+                  <div class="mini-line"></div>
+                </div>
+                <div class="mini-card">
+                  <div class="mini-line med"></div>
+                  <div class="mini-line short"></div>
+                  <div class="mini-line"></div>
+                </div>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <div class="mini-card">
+                  <div class="mini-line short"></div>
+                  <div class="mini-line med"></div>
+                  <div class="mini-line short"></div>
+                  <div class="mini-line med"></div>
+                </div>
+                <div class="mini-card">
+                  <div class="mini-line short"></div>
+                  <div class="mini-line med"></div>
+                  <div class="mini-line short"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="body">
+          <span class="num">화면 01 — 메인</span>
+          <span class="nm">홈 대시보드</span>
+          <p class="desc">다음 이벤트 히어로 + 4-stat + 빠른 픽 + 리더보드 + 뉴스</p>
+        </div>
+      </a>
+
+      <!-- 2. 이벤트 -->
+      <a class="sc-card" href="screen-event.html">
+        <div class="browser">
+          <span class="dot" style="background:#FF5F57;"></span>
+          <span class="dot" style="background:#FEBC2E;"></span>
+          <span class="dot" style="background:#28C840;"></span>
+          <span class="url">pick-tagon.com/events/ufc-328</span>
+        </div>
+        <div class="sc-preview">
+          <div class="sc-mini-header">
+            <div class="logo"></div>
+            <span class="nav">이벤트 › UFC 328</span>
+          </div>
+          <div class="sc-mini-body">
+            <div class="mini-evt-hero">
+              <div class="nm">CHIMAEV</div>
+              <div class="vs">VS</div>
+              <div class="nm">STRICK</div>
+            </div>
+            <div class="mini-pick-row picked">
+              <div class="side"><span class="ava">CH</span>치마예프</div>
+              <span class="vs">VS</span>
+              <div class="side b">스트릭랜드<span class="ava">ST</span></div>
+            </div>
+            <div class="mini-pick-row">
+              <div class="side"><span class="ava">OM</span>오말리</div>
+              <span class="vs">VS</span>
+              <div class="side b">드발리시빌리<span class="ava">DV</span></div>
+            </div>
+            <div class="mini-pick-row">
+              <div class="side"><span class="ava">PE</span>페레이라</div>
+              <span class="vs">VS</span>
+              <div class="side b">앙칼라예프<span class="ava">AN</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="body">
+          <span class="num">화면 02 — 이벤트</span>
+          <span class="nm">이벤트 상세 / 픽</span>
+          <p class="desc">11매치 픽 + 스탯 비교 + 커뮤니티 픽 분포</p>
+        </div>
+      </a>
+
+      <!-- 3. 프로필 -->
+      <a class="sc-card" href="screen-profile.html">
+        <div class="browser">
+          <span class="dot" style="background:#FF5F57;"></span>
+          <span class="dot" style="background:#FEBC2E;"></span>
+          <span class="dot" style="background:#28C840;"></span>
+          <span class="url">pick-tagon.com/@kingbottle</span>
+        </div>
+        <div class="sc-preview">
+          <div class="sc-mini-header">
+            <div class="logo"></div>
+            <span class="nav">프로필 · KINGBOTTLE</span>
+          </div>
+          <div class="sc-mini-body">
+            <div class="mini-prof-hero">
+              <div class="ava">KB</div>
+              <div>
+                <div class="belt">● PURPLE BELT</div>
+                <div class="nm">KINGBOTTLE</div>
+              </div>
+            </div>
+            <div class="mini-belt-line">
+              <div class="dot" style="background:#ECECEE;"></div>
+              <div class="bar"></div>
+              <div class="dot" style="background:#1F6FEB;"></div>
+              <div class="bar"></div>
+              <div class="dot cur" style="background:#8B3FE3;"></div>
+              <div class="bar"></div>
+              <div class="dot" style="background:#B5803A; opacity:0.4;"></div>
+              <div class="bar"></div>
+              <div class="dot" style="background:#0E0F12; border:1px solid #71757F; opacity:0.4;"></div>
+            </div>
+            <div class="mini-stat-row" style="grid-template-columns: 1fr 1fr 1fr;">
+              <div class="mini-stat"><div class="v w">3,005P</div><div class="l">시즌</div></div>
+              <div class="mini-stat"><div class="v r">68%</div><div class="l">정확도</div></div>
+              <div class="mini-stat"><div class="v">9</div><div class="l">최고연승</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="body">
+          <span class="num">화면 03 — 프로필</span>
+          <span class="nm">프로필 / 시즌 기록</span>
+          <p class="desc">벨트 트래커 + 픽 히스토리 + 체급별 통계 + 업적</p>
+        </div>
+      </a>
+
+      <!-- 4. 랭킹 -->
+      <a class="sc-card" href="screen-rankings.html">
+        <div class="browser">
+          <span class="dot" style="background:#FF5F57;"></span>
+          <span class="dot" style="background:#FEBC2E;"></span>
+          <span class="dot" style="background:#28C840;"></span>
+          <span class="url">pick-tagon.com/rankings/middleweight</span>
+        </div>
+        <div class="sc-preview">
+          <div class="sc-mini-header">
+            <div class="logo"></div>
+            <span class="nav">UFC 랭킹 · 미들급</span>
+          </div>
+          <div class="sc-mini-body">
+            <div class="mini-champion">
+              <div>
+                <div class="tag">★ CHAMPION</div>
+                <div class="nm" style="margin-top:4px;">DU PLESSIS</div>
+              </div>
+              <div style="font-family: var(--pt-font-mono); font-size: 8px; color: var(--pt-ink-2);">22W·2L</div>
+            </div>
+            <div class="mini-rank-row">
+              <span class="n">1</span>
+              <span class="who">STRICKLAND</span>
+              <span class="rec">28-6</span>
+            </div>
+            <div class="mini-rank-row">
+              <span class="n">2</span>
+              <span class="who">CHIMAEV ▲2</span>
+              <span class="rec">14-0</span>
+            </div>
+            <div class="mini-rank-row">
+              <span class="n">3</span>
+              <span class="who">ADESANYA</span>
+              <span class="rec">24-4</span>
+            </div>
+            <div class="mini-rank-row">
+              <span class="n">4</span>
+              <span class="who">COSTA</span>
+              <span class="rec">14-3</span>
+            </div>
+          </div>
+        </div>
+        <div class="body">
+          <span class="num">화면 04 — 랭킹</span>
+          <span class="nm">UFC 미들급 랭킹</span>
+          <p class="desc">챔피언 + TOP 15 + 변동 인사이트 + 챔피언 변천</p>
+        </div>
+      </a>
+
+      <!-- 5. 리더보드 -->
+      <a class="sc-card" href="screen-leaderboard.html">
+        <div class="browser">
+          <span class="dot" style="background:#FF5F57;"></span>
+          <span class="dot" style="background:#FEBC2E;"></span>
+          <span class="dot" style="background:#28C840;"></span>
+          <span class="url">pick-tagon.com/leaderboard/2026</span>
+        </div>
+        <div class="sc-preview">
+          <div class="sc-mini-header">
+            <div class="logo"></div>
+            <span class="nav">시즌 리더보드 · 2026</span>
+          </div>
+          <div class="sc-mini-body">
+            <div class="mini-podium">
+              <div class="mini-pod p2">
+                <div class="ava"></div>
+                <div class="pts">8,891</div>
+                <div class="nm">XYANGNYO</div>
+              </div>
+              <div class="mini-pod p1">
+                <div class="ava"></div>
+                <div class="pts">9,420</div>
+                <div class="nm">DARKHORSE</div>
+              </div>
+              <div class="mini-pod p3">
+                <div class="ava"></div>
+                <div class="pts">7,602</div>
+                <div class="nm">SHIN_ISLAND</div>
+              </div>
+            </div>
+            <div class="mini-rank-row">
+              <span class="n">4</span>
+              <span class="who">KO_THUNDER</span>
+              <span class="rec">6,144P</span>
+            </div>
+            <div class="mini-rank-row">
+              <span class="n">5</span>
+              <span class="who">RAVEN_PICK</span>
+              <span class="rec">5,038P</span>
+            </div>
+            <div class="mini-rank-row" style="background: rgba(225,6,0,0.10); border-color: var(--pt-red-700);">
+              <span class="n" style="color: var(--pt-red-500);">31</span>
+              <span class="who" style="color: var(--pt-red-300);">KINGBOTTLE (나)</span>
+              <span class="rec">3,005P</span>
+            </div>
+          </div>
+        </div>
+        <div class="body">
+          <span class="num">화면 05 — 리더보드</span>
+          <span class="nm">시즌 리더보드</span>
+          <p class="desc">TOP 3 포디움 + 18,432명 표 + 내 주변 + 벨트 분포</p>
+        </div>
+      </a>
+    </div>
+  </section>
+
+</main>
+
+<!-- 푸터 -->
+<footer class="ix-foot">
+  <span>PICK-TAGON DESIGN SYSTEM v1.0 · <b>예측 · 경쟁 · 승리</b></span>
+  <span>11 카드 · 마지막 업데이트 2026.05.21</span>
+</footer>
+
+</body>
+</html>

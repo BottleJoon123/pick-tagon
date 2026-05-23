@@ -1,0 +1,796 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Pick-tagon · UFC 랭킹</title>
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="screen-shell.css" />
+<style>
+  /* === 페이지 헤더 === */
+  .page-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .page-head h1 {
+    margin: 0;
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    text-transform: uppercase; font-size: 48px; line-height: 0.95;
+    color: var(--pt-ink-0); letter-spacing: -0.01em;
+  }
+  .page-head h1 em { color: var(--pt-red-500); font-style: italic; }
+  .page-head .desc {
+    color: var(--pt-ink-2); font-size: 14px; margin-top: 8px;
+    font-family: var(--pt-font-mono);
+  }
+  .page-head .right {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .toggle-group {
+    display: inline-flex;
+    background: var(--pt-bg-3);
+    border: 1px solid var(--pt-line-2);
+    border-radius: 999px;
+    padding: 3px;
+  }
+  .toggle-group .item {
+    padding: 7px 16px;
+    font-size: 12px; font-weight: 700;
+    color: var(--pt-ink-3);
+    border-radius: 999px;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+  }
+  .toggle-group .item.is-active { background: var(--pt-red-500); color: #fff; }
+
+  /* === 메인 레이아웃 === */
+  .rank-layout {
+    display: grid;
+    grid-template-columns: 220px 1fr 280px;
+    gap: 24px;
+  }
+
+  /* === 체급 사이드바 === */
+  .weight-nav {
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 14px;
+    padding: 8px;
+    align-self: flex-start;
+    position: sticky;
+    top: 80px;
+  }
+  .wn-section {
+    padding: 12px 12px 6px;
+    font-family: var(--pt-font-eyebrow);
+    font-size: 10px; letter-spacing: 0.18em; color: var(--pt-ink-3);
+    font-weight: 600;
+  }
+  .wn-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px; font-weight: 600;
+    color: var(--pt-ink-2);
+    cursor: pointer;
+  }
+  .wn-item:hover { background: var(--pt-bg-3); color: var(--pt-ink-0); }
+  .wn-item.is-active {
+    background: var(--pt-red-500); color: #fff;
+  }
+  .wn-item .lb {
+    font-family: var(--pt-font-mono); font-size: 10px;
+    color: var(--pt-ink-3);
+  }
+  .wn-item.is-active .lb { color: rgba(255,255,255,0.8); }
+
+  /* === 챔피언 카드 === */
+  .champion-card {
+    position: relative;
+    background:
+      radial-gradient(70% 60% at 0% 50%, rgba(225,6,0,0.40), transparent 60%),
+      linear-gradient(135deg, #2A0500, #0E0F12);
+    border: 1px solid var(--pt-red-700);
+    border-radius: 18px;
+    overflow: hidden;
+    padding: 28px 32px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 24px;
+    align-items: center;
+  }
+  .champion-card::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(transparent 96%, rgba(255,255,255,0.04) 96%),
+      linear-gradient(90deg, transparent 96%, rgba(255,255,255,0.04) 96%);
+    background-size: 32px 32px;
+    pointer-events: none;
+  }
+  .champion-card > * { position: relative; z-index: 1; }
+  .cc-info { display: flex; flex-direction: column; gap: 6px; }
+  .cc-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--pt-font-eyebrow);
+    font-size: 10px; letter-spacing: 0.18em; font-weight: 700;
+    background: linear-gradient(90deg, #F4B400, #B5803A);
+    color: #0E0F12;
+    padding: 5px 12px; border-radius: 4px;
+    align-self: flex-start;
+  }
+  .cc-tag::before { content: '★'; font-size: 11px; }
+  .cc-name {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    text-transform: uppercase; font-size: 54px; line-height: 0.95;
+    color: var(--pt-ink-0); letter-spacing: -0.01em;
+  }
+  .cc-ko { font-size: 14px; color: var(--pt-ink-2); }
+  .cc-meta {
+    display: flex; align-items: center; gap: 12px;
+    color: var(--pt-ink-3); font-size: 12px; margin-top: 4px;
+    font-family: var(--pt-font-mono);
+  }
+  .cc-meta .pipe { color: var(--pt-line-3); }
+  .cc-meta b { color: var(--pt-ink-1); }
+  .cc-stats {
+    display: grid; grid-template-columns: repeat(4, auto);
+    gap: 20px; margin-top: 18px;
+    padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.10);
+  }
+  .cc-stat { display: flex; flex-direction: column; gap: 2px; }
+  .cc-stat .v {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800;
+    font-size: 26px; line-height: 1; color: var(--pt-ink-0);
+  }
+  .cc-stat .v.w { color: var(--pt-win); }
+  .cc-stat .v.l { color: var(--pt-red-500); }
+  .cc-stat .v.warn { color: var(--pt-warn); }
+  .cc-stat .l {
+    font-family: var(--pt-font-eyebrow); font-size: 10px; letter-spacing: 0.18em;
+    color: var(--pt-ink-3); font-weight: 600;
+  }
+
+  /* 챔피언 사진 placeholder */
+  .cc-photo {
+    width: 200px; height: 200px;
+    background:
+      radial-gradient(60% 60% at 50% 30%, rgba(225,6,0,0.4), transparent 70%),
+      var(--pt-bg-0);
+    border-radius: 16px;
+    border: 1px solid var(--pt-line-2);
+    display: flex; align-items: flex-end; justify-content: center;
+    padding-bottom: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cc-photo .figure {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900;
+    font-size: 96px; line-height: 0.8;
+    color: rgba(255,255,255,0.10);
+  }
+  .cc-photo .flag {
+    position: absolute; top: 10px; right: 10px;
+    background: rgba(0,0,0,0.5); color: #fff;
+    font-size: 11px; padding: 3px 8px; border-radius: 4px;
+    font-family: var(--pt-font-mono);
+  }
+
+  /* === 랭킹 표 === */
+  .rank-table {
+    margin-top: 24px;
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .rt-head {
+    display: grid;
+    grid-template-columns: 60px 1fr 90px 100px 100px 100px 80px;
+    align-items: center; gap: 12px;
+    padding: 12px 20px;
+    background: var(--pt-bg-3);
+    border-bottom: 1px solid var(--pt-line-1);
+    font-family: var(--pt-font-eyebrow);
+    font-size: 10px; letter-spacing: 0.16em;
+    color: var(--pt-ink-3); font-weight: 700;
+  }
+  .rt-head .right { text-align: right; }
+  .rt-row {
+    display: grid;
+    grid-template-columns: 60px 1fr 90px 100px 100px 100px 80px;
+    align-items: center; gap: 12px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--pt-line-1);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .rt-row:last-child { border-bottom: 0; }
+  .rt-row:hover { background: var(--pt-bg-3); }
+  .rt-rank {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .rt-rank .num {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800;
+    font-size: 22px; color: var(--pt-ink-0); line-height: 1; min-width: 32px;
+  }
+  .rt-rank.up   .delta { color: var(--pt-win); }
+  .rt-rank.down .delta { color: var(--pt-red-500); }
+  .rt-rank.same .delta { color: var(--pt-ink-4); }
+  .rt-rank .delta {
+    font-family: var(--pt-font-mono); font-size: 11px; font-weight: 700;
+    display: flex; flex-direction: column; align-items: center; gap: 0;
+  }
+
+  .rt-fighter { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .rt-ava {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--pt-bg-4); border: 1px solid var(--pt-line-2);
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; color: var(--pt-ink-0);
+  }
+  .rt-name { display: flex; flex-direction: column; gap: 1px; min-width: 0; line-height: 1.2; }
+  .rt-en {
+    font-weight: 800; font-size: 14px; color: var(--pt-ink-0);
+    text-transform: uppercase;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .rt-ko { font-size: 11px; color: var(--pt-ink-3); }
+  .rt-record { font-family: var(--pt-font-mono); font-size: 12px; color: var(--pt-ink-2); }
+  .rt-record .w { color: var(--pt-win); font-weight: 700; }
+  .rt-record .l { color: var(--pt-red-500); }
+  .rt-finish {
+    font-family: var(--pt-font-mono); font-size: 12px; color: var(--pt-ink-2);
+    font-feature-settings: 'tnum' 1;
+  }
+  .rt-streak {
+    font-family: var(--pt-font-mono); font-size: 12px;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .rt-streak.win { color: var(--pt-win); }
+  .rt-streak.win::before { content: '▲'; font-size: 10px; }
+  .rt-streak.loss { color: var(--pt-red-500); }
+  .rt-streak.loss::before { content: '▼'; font-size: 10px; }
+  .rt-next {
+    font-family: var(--pt-font-mono); font-size: 11px;
+    text-align: right; color: var(--pt-ink-2);
+  }
+  .rt-next b { color: var(--pt-warn); }
+  .rt-next.none { color: var(--pt-ink-4); }
+  .rt-flag { font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); text-align: right; }
+
+  /* === 사이드: 변동 / 챔피언 변천 === */
+  .side-stack {
+    display: flex; flex-direction: column; gap: 16px;
+    align-self: flex-start;
+    position: sticky;
+    top: 80px;
+  }
+  .side-card {
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 14px;
+    padding: 18px 20px;
+  }
+  .side-card h3 {
+    margin: 0 0 14px;
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800;
+    text-transform: uppercase; font-size: 17px; color: var(--pt-ink-0);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .side-card h3 .meta {
+    font-family: 'Pretendard', sans-serif; font-style: normal; font-weight: 600;
+    font-size: 11px; color: var(--pt-ink-3); letter-spacing: 0; text-transform: none;
+  }
+
+  .mover-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--pt-line-1);
+  }
+  .mover-row:last-child { border-bottom: 0; }
+  .mover-arrow {
+    width: 24px; height: 24px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800;
+    flex-shrink: 0;
+  }
+  .mover-arrow.up { background: rgba(31,191,107,0.15); color: var(--pt-win); border: 1px solid rgba(31,191,107,0.4); }
+  .mover-arrow.down { background: var(--pt-red-900); color: var(--pt-red-300); border: 1px solid var(--pt-red-700); }
+  .mover-info { flex: 1; min-width: 0; line-height: 1.3; }
+  .mover-name { font-size: 13px; font-weight: 700; color: var(--pt-ink-0); }
+  .mover-meta { font-family: var(--pt-font-mono); font-size: 10px; color: var(--pt-ink-3); }
+  .mover-delta {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800;
+    font-size: 18px; line-height: 1;
+  }
+  .mover-delta.up { color: var(--pt-win); }
+  .mover-delta.down { color: var(--pt-red-500); }
+
+  /* 챔피언 변천 */
+  .title-history { display: flex; flex-direction: column; gap: 0; }
+  .th-row {
+    display: grid; grid-template-columns: 50px 1fr; gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--pt-line-1);
+  }
+  .th-row:last-child { border-bottom: 0; }
+  .th-year {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800;
+    font-size: 18px; color: var(--pt-red-500); line-height: 1;
+  }
+  .th-content { line-height: 1.4; }
+  .th-name { font-size: 13px; font-weight: 700; color: var(--pt-ink-0); }
+  .th-meta { font-size: 11px; color: var(--pt-ink-3); margin-top: 2px; }
+
+  /* 통계 카드 */
+  .insight-stat {
+    text-align: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--pt-line-1);
+  }
+  .insight-stat:last-child { border-bottom: 0; }
+  .insight-stat .v {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800;
+    font-size: 28px; color: var(--pt-ink-0); line-height: 1;
+  }
+  .insight-stat .v.r { color: var(--pt-red-500); }
+  .insight-stat .l {
+    font-family: var(--pt-font-eyebrow); font-size: 10px; letter-spacing: 0.18em;
+    color: var(--pt-ink-3); margin-top: 6px; font-weight: 600;
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="app-header-inner">
+    <a class="app-logo" href="screen-home.html">
+      <svg width="28" height="28" viewBox="0 0 200 200" fill="none">
+        <polygon points="60,10 140,10 190,60 190,140 140,190 60,190 10,140 10,60" fill="none" stroke="#E10600" stroke-width="14"/>
+        <path d="M70 102 L92 124 L138 78" stroke="#FFFFFF" stroke-width="22" fill="none" stroke-linejoin="miter"/>
+        <path d="M70 102 L92 124 L138 78" stroke="#E10600" stroke-width="10" fill="none" stroke-linejoin="miter"/>
+      </svg>
+      <span class="word">PICK-TAGON</span>
+    </a>
+    <nav class="app-nav">
+      <a href="screen-home.html">홈</a>
+      <a href="screen-event.html">이벤트</a>
+      <a href="#" class="is-active">랭킹</a>
+      <a href="#">커뮤니티</a>
+      <a href="#">뉴스</a>
+    </nav>
+    <div class="app-search">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg>
+      <input placeholder="파이터 · 이벤트 검색" />
+    </div>
+    <span class="app-balance">3,005 P</span>
+    <span class="app-belt"><span class="strip"></span>퍼플</span>
+    <span class="app-avatar">KB</span>
+  </div>
+</header>
+
+<div class="app-container">
+
+  <!-- 페이지 헤더 -->
+  <div class="page-head">
+    <div>
+      <h1>UFC <em>·</em> 미들급 랭킹</h1>
+      <div class="desc">최신 업데이트 2026.05.18 · 챔피언 + TOP 15 컨텐더 · 매 이벤트 후 갱신</div>
+    </div>
+    <div class="right">
+      <div class="toggle-group">
+        <span class="item is-active">남자부</span>
+        <span class="item">여자부</span>
+      </div>
+      <div class="toggle-group">
+        <span class="item is-active">현재</span>
+        <span class="item">최근 변동</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 메인 레이아웃 -->
+  <div class="rank-layout">
+
+    <!-- 좌측: 체급 네비 -->
+    <aside class="weight-nav">
+      <div class="wn-section">파운드 포 파운드</div>
+      <div class="wn-item">P4P 종합 <span class="lb">15</span></div>
+
+      <div class="wn-section">남자부 체급</div>
+      <div class="wn-item">플라이급 <span class="lb">125 lbs</span></div>
+      <div class="wn-item">밴텀급 <span class="lb">135 lbs</span></div>
+      <div class="wn-item">페더급 <span class="lb">145 lbs</span></div>
+      <div class="wn-item">라이트급 <span class="lb">155 lbs</span></div>
+      <div class="wn-item">웰터급 <span class="lb">170 lbs</span></div>
+      <div class="wn-item is-active">미들급 <span class="lb">185 lbs</span></div>
+      <div class="wn-item">라이트헤비급 <span class="lb">205 lbs</span></div>
+      <div class="wn-item">헤비급 <span class="lb">265 lbs</span></div>
+    </aside>
+
+    <!-- 중앙: 챔피언 + 랭킹 표 -->
+    <div>
+      <!-- 챔피언 카드 -->
+      <div class="champion-card">
+        <div class="cc-info">
+          <span class="cc-tag">UNDISPUTED CHAMPION</span>
+          <div class="cc-name">DRICUS<br/>DU PLESSIS</div>
+          <div class="cc-ko">드리쿠스 두 플레시스 · 미들급 챔피언</div>
+          <div class="cc-meta">
+            <span>🇿🇦 남아공</span>
+            <span class="pipe">|</span>
+            <span><b>2024.01</b> 타이틀 획득</span>
+            <span class="pipe">|</span>
+            <span><b>3회</b> 방어 성공</span>
+          </div>
+          <div class="cc-stats">
+            <div class="cc-stat"><div class="v w">22</div><div class="l">통산 승</div></div>
+            <div class="cc-stat"><div class="v l">2</div><div class="l">통산 패</div></div>
+            <div class="cc-stat"><div class="v">17</div><div class="l">KO/SUB</div></div>
+            <div class="cc-stat"><div class="v warn">5</div><div class="l">현재 연승</div></div>
+          </div>
+        </div>
+        <div class="cc-photo">
+          <span class="flag">🇿🇦 RSA</span>
+          <span class="figure">DDP</span>
+        </div>
+      </div>
+
+      <!-- 랭킹 표 -->
+      <div class="rank-table">
+        <div class="rt-head">
+          <span>RANK</span>
+          <span>FIGHTER</span>
+          <span>RECORD</span>
+          <span>KO/SUB</span>
+          <span>STREAK</span>
+          <span class="right">NEXT FIGHT</span>
+          <span class="right">국적</span>
+        </div>
+
+        <div class="rt-row">
+          <div class="rt-rank same">
+            <span class="num">1</span>
+            <span class="delta">–</span>
+          </div>
+          <div class="rt-fighter">
+            <div class="rt-ava">ST</div>
+            <div class="rt-name">
+              <span class="rt-en">STRICKLAND</span>
+              <span class="rt-ko">션 스트릭랜드</span>
+            </div>
+          </div>
+          <div class="rt-record"><span class="w">28</span>-<span class="l">6</span>-0</div>
+          <div class="rt-finish">11 (39%)</div>
+          <div><span class="rt-streak loss">1L</span></div>
+          <div class="rt-next"><b>UFC 328</b> · vs. CHIMAEV</div>
+          <div class="rt-flag">🇺🇸 USA</div>
+        </div>
+
+        <div class="rt-row">
+          <div class="rt-rank up">
+            <span class="num">2</span>
+            <span class="delta">▲ 2</span>
+          </div>
+          <div class="rt-fighter">
+            <div class="rt-ava">CH</div>
+            <div class="rt-name">
+              <span class="rt-en">CHIMAEV</span>
+              <span class="rt-ko">함자트 치마예프</span>
+            </div>
+          </div>
+          <div class="rt-record"><span class="w">14</span>-<span class="l">0</span>-0</div>
+          <div class="rt-finish">10 (71%)</div>
+          <div><span class="rt-streak win">14W</span></div>
+          <div class="rt-next"><b>UFC 328</b> · vs. STRICKLAND</div>
+          <div class="rt-flag">🇷🇺 RUS</div>
+        </div>
+
+        <div class="rt-row">
+          <div class="rt-rank down">
+            <span class="num">3</span>
+            <span class="delta">▼ 1</span>
+          </div>
+          <div class="rt-fighter">
+            <div class="rt-ava">AD</div>
+            <div class="rt-name">
+              <span class="rt-en">ADESANYA</span>
+              <span class="rt-ko">이스라엘 아데산야</span>
+            </div>
+          </div>
+          <div class="rt-record"><span class="w">24</span>-<span class="l">4</span>-0</div>
+          <div class="rt-finish">15 (62%)</div>
+          <div><span class="rt-streak loss">1L</span></div>
+          <div class="rt-next none">미정</div>
+          <div class="rt-flag">🇳🇿 NZL</div>
+        </div>
+
+        <div class="rt-row">
+          <div class="rt-rank same">
+            <span class="num">4</span>
+            <span class="delta">–</span>
+          </div>
+          <div class="rt-fighter">
+            <div class="rt-ava">CO</div>
+            <div class="rt-name">
+              <span class="rt-en">COSTA</span>
+              <span class="rt-ko">파울로 코스타</span>
+            </div>
+          </div>
+          <div class="rt-record"><span class="w">14</span>-<span class="l">3</span>-0</div>
+          <div class="rt-finish">11 (78%)</div>
+          <div><span class="rt-streak win">2W</span></div>
+          <div class="rt-next"><b>UFC 329</b> · vs. WHITTAKER</div>
+          <div class="rt-flag">🇧🇷 BRA</div>
+        </div>
+
+        <div class="rt-row">
+          <div class="rt-rank up">
+            <span class="num">5</span>
+            <span class="delta">▲ 1</span>
+          </div>
+          <div class="rt-fighter">
+            <div class="rt-ava">WH</div>
+            <div class="rt-name">
+              <span class="rt-en">WHITTAKER</span>
+              <span class="rt-ko">로버트 휘태커</span>
+            </div>
+          </div>
+          <div class="rt-record"><span class="w">26</span>-<span class="l">8</span>-0</div>
+          <div class="rt-finish">9 (35%)</div>
+          <div><span class="rt-streak win">1W</span></div>
+          <div class="rt-next"><b>UFC 329</b> · vs. COSTA</div>
+          <div class="rt-flag">🇦🇺 AUS</div>
+        </div>
+
+        <div class="rt-row">
+          <div class="rt-rank down">
+            <span class="num">6</span>
+            <span class="delta">▼ 1</span>
+          </div>
+          <div class="rt-fighter">
+            <div class="rt-ava">CA</div>
+            <div class="rt-name">
+              <span class="rt-en">CANNONIER</span>
+              <span class="rt-ko">재러드 캐노니어</span>
+            </div>
+          </div>
+          <div class="rt-record"><span class="w">17</span>-<span class="l">8</span>-0</div>
+          <div class="rt-finish">11 (65%)</div>
+          <div><span class="rt-streak loss">1L</span></div>
+          <div class="rt-next none">미정</div>
+          <div class="rt-flag">🇺🇸 USA</div>
+        </div>
+
+        <div class="rt-row">
+          <div class="rt-rank up">
+            <span class="num">7</span>
+            <span class="delta">▲ 2</span>
+          </div>
+          <div class="rt-fighter">
+            <div class="rt-ava">IM</div>
+            <div class="rt-name">
+              <span class="rt-en">IMAVOV</span>
+              <span class="rt-ko">나심 이마보프</span>
+            </div>
+          </div>
+          <div class="rt-record"><span class="w">15</span>-<span class="l">4</span>-0</div>
+          <div class="rt-finish">7 (47%)</div>
+          <div><span class="rt-streak win">3W</span></div>
+          <div class="rt-next"><b>UFC FN</b> · vs. CANNONIER</div>
+          <div class="rt-flag">🇫🇷 FRA</div>
+        </div>
+
+        <div class="rt-row">
+          <div class="rt-rank same">
+            <span class="num">8</span>
+            <span class="delta">–</span>
+          </div>
+          <div class="rt-fighter">
+            <div class="rt-ava">DA</div>
+            <div class="rt-name">
+              <span class="rt-en">DARIUSH</span>
+              <span class="rt-ko">베이트 다리우시</span>
+            </div>
+          </div>
+          <div class="rt-record"><span class="w">22</span>-<span class="l">5</span>-1</div>
+          <div class="rt-finish">8 (36%)</div>
+          <div><span class="rt-streak loss">1L</span></div>
+          <div class="rt-next none">미정</div>
+          <div class="rt-flag">🇺🇸 USA</div>
+        </div>
+
+        <div class="rt-row">
+          <div class="rt-rank up">
+            <span class="num">9</span>
+            <span class="delta">▲ 1</span>
+          </div>
+          <div class="rt-fighter">
+            <div class="rt-ava">BR</div>
+            <div class="rt-name">
+              <span class="rt-en">BRUNSON</span>
+              <span class="rt-ko">데렉 브런슨</span>
+            </div>
+          </div>
+          <div class="rt-record"><span class="w">23</span>-<span class="l">8</span>-0</div>
+          <div class="rt-finish">11 (47%)</div>
+          <div><span class="rt-streak win">2W</span></div>
+          <div class="rt-next none">미정</div>
+          <div class="rt-flag">🇺🇸 USA</div>
+        </div>
+
+        <div class="rt-row">
+          <div class="rt-rank down">
+            <span class="num">10</span>
+            <span class="delta">▼ 1</span>
+          </div>
+          <div class="rt-fighter">
+            <div class="rt-ava">VE</div>
+            <div class="rt-name">
+              <span class="rt-en">VETTORI</span>
+              <span class="rt-ko">마빈 베토리</span>
+            </div>
+          </div>
+          <div class="rt-record"><span class="w">19</span>-<span class="l">7</span>-1</div>
+          <div class="rt-finish">7 (37%)</div>
+          <div><span class="rt-streak loss">2L</span></div>
+          <div class="rt-next none">미정</div>
+          <div class="rt-flag">🇮🇹 ITA</div>
+        </div>
+
+        <div class="rt-row">
+          <div class="rt-rank same">
+            <span class="num">11</span>
+            <span class="delta">–</span>
+          </div>
+          <div class="rt-fighter">
+            <div class="rt-ava">HE</div>
+            <div class="rt-name">
+              <span class="rt-en">HERMANSSON</span>
+              <span class="rt-ko">잭 헤르만손</span>
+            </div>
+          </div>
+          <div class="rt-record"><span class="w">23</span>-<span class="l">8</span>-0</div>
+          <div class="rt-finish">14 (61%)</div>
+          <div><span class="rt-streak win">1W</span></div>
+          <div class="rt-next none">미정</div>
+          <div class="rt-flag">🇸🇪 SWE</div>
+        </div>
+
+        <div class="rt-row">
+          <div class="rt-rank up">
+            <span class="num">12</span>
+            <span class="delta">▲ 3</span>
+          </div>
+          <div class="rt-fighter">
+            <div class="rt-ava">PI</div>
+            <div class="rt-name">
+              <span class="rt-en">PICO</span>
+              <span class="rt-ko">아아론 피코</span>
+            </div>
+          </div>
+          <div class="rt-record"><span class="w">14</span>-<span class="l">4</span>-0</div>
+          <div class="rt-finish">11 (79%)</div>
+          <div><span class="rt-streak win">3W</span></div>
+          <div class="rt-next"><b>UFC 330</b> · vs. BRUNSON</div>
+          <div class="rt-flag">🇺🇸 USA</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 우측: 변동 + 차트 -->
+    <aside class="side-stack">
+
+      <!-- 인사이트 -->
+      <div class="side-card">
+        <h3>체급 인사이트 <span class="meta">2026 시즌</span></h3>
+        <div class="insight-stat">
+          <div class="v">8.4</div>
+          <div class="l">평균 전적 (승)</div>
+        </div>
+        <div class="insight-stat">
+          <div class="v r">55%</div>
+          <div class="l">평균 피니시 비율</div>
+        </div>
+        <div class="insight-stat">
+          <div class="v">31.2</div>
+          <div class="l">평균 연령</div>
+        </div>
+      </div>
+
+      <!-- 변동 큰 파이터 -->
+      <div class="side-card">
+        <h3>이번 주 변동 <span class="meta">최근 7일</span></h3>
+        <div class="mover-row">
+          <div class="mover-arrow up">▲</div>
+          <div class="mover-info">
+            <div class="mover-name">CHIMAEV (#2)</div>
+            <div class="mover-meta">치마예프 · 무하마드전 KO 승</div>
+          </div>
+          <div class="mover-delta up">+2</div>
+        </div>
+        <div class="mover-row">
+          <div class="mover-arrow up">▲</div>
+          <div class="mover-info">
+            <div class="mover-name">PICO (#12)</div>
+            <div class="mover-meta">피코 · 신예 데뷔전 KO 승</div>
+          </div>
+          <div class="mover-delta up">+3</div>
+        </div>
+        <div class="mover-row">
+          <div class="mover-arrow up">▲</div>
+          <div class="mover-info">
+            <div class="mover-name">IMAVOV (#7)</div>
+            <div class="mover-meta">이마보프 · 3연승 행진</div>
+          </div>
+          <div class="mover-delta up">+2</div>
+        </div>
+        <div class="mover-row">
+          <div class="mover-arrow down">▼</div>
+          <div class="mover-info">
+            <div class="mover-name">VETTORI (#10)</div>
+            <div class="mover-meta">베토리 · 2연패</div>
+          </div>
+          <div class="mover-delta down">-2</div>
+        </div>
+        <div class="mover-row">
+          <div class="mover-arrow down">▼</div>
+          <div class="mover-info">
+            <div class="mover-name">ADESANYA (#3)</div>
+            <div class="mover-meta">아데산야 · 두 플레시스전 패</div>
+          </div>
+          <div class="mover-delta down">-1</div>
+        </div>
+      </div>
+
+      <!-- 챔피언 변천 -->
+      <div class="side-card">
+        <h3>챔피언 변천 <span class="meta">최근 5년</span></h3>
+        <div class="title-history">
+          <div class="th-row">
+            <span class="th-year">'24</span>
+            <div class="th-content">
+              <div class="th-name">DU PLESSIS (현재)</div>
+              <div class="th-meta">vs. STRICKLAND · 분할판정 · UFC 297</div>
+            </div>
+          </div>
+          <div class="th-row">
+            <span class="th-year">'23</span>
+            <div class="th-content">
+              <div class="th-name">STRICKLAND</div>
+              <div class="th-meta">vs. ADESANYA · 만장일치 · UFC 293</div>
+            </div>
+          </div>
+          <div class="th-row">
+            <span class="th-year">'22</span>
+            <div class="th-content">
+              <div class="th-name">ADESANYA (재탈환)</div>
+              <div class="th-meta">vs. PEREIRA · KO R2 · UFC 287</div>
+            </div>
+          </div>
+          <div class="th-row">
+            <span class="th-year">'22</span>
+            <div class="th-content">
+              <div class="th-name">PEREIRA</div>
+              <div class="th-meta">vs. ADESANYA · TKO R5 · UFC 281</div>
+            </div>
+          </div>
+          <div class="th-row">
+            <span class="th-year">'19</span>
+            <div class="th-content">
+              <div class="th-name">ADESANYA</div>
+              <div class="th-meta">vs. WHITTAKER · KO R2 · UFC 243</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+  </div>
+
+</div>
+
+</body>
+</html>
