@@ -581,7 +581,7 @@ apply 실행 시 `admin_audit_logs`에 per-fighter 기록:
 ## Step 4 — UFCStats Staging Approval 정책
 
 업데이트: 2026-05-23  
-상태: 정책 확정 / SQL 초안 작성 완료 / **실제 `approved=true` 세팅 미완료 (다음 단계)**
+상태: 정책 확정 / SQL 초안 작성 완료 / 동명이인 4케이스 DB 교차검증 완료 / **실제 `approved=true` 세팅 미완료 (다음 단계)**
 
 ---
 
@@ -642,13 +642,101 @@ WHERE import_batch        = 'ufcstats_20260519'
 | `maiku-teihisu` | [A](http://ufcstats.com/fighter-details/c8661e204c66f325) vs [B](http://ufcstats.com/fighter-details/fb3e61720be4690c) | 893 | `c8661e204c66f325` | 0.00 | 898 | `fb3e61720be4690c` | 4.73 |
 | `victor-valenzuela-0` | [A](http://ufcstats.com/fighter-details/de277a4abcfeea46) vs [B](http://ufcstats.com/fighter-details/078695e385ec2f57) | 4248 | `de277a4abcfeea46` | 1.28 | 4250 | `078695e385ec2f57` | 3.47 |
 
-각 케이스 처리 SQL 패턴 (실행 금지 — 확인 후 개별 적용):
+#### 수동 검증 결과 (2026-05-23, DB 교차검증)
+
+검증 방법: fighters 테이블 `division`, `wins/losses`, `ko_rate`, `sub_rate`, `td_avg`와 staging 스탯 상관관계 분석.  
+외부 URL 직접 접근 없이 DB 데이터만으로 판단 (UFCStats 프로필 직접 확인으로 최종 검증 권장).
+
+**Auto-approve SQL 안전성 확인 완료**: CTE `dup_fighters` 조건으로 4케이스 전부 제외됨 (`dup_in_result = 0`).
+
+---
+
+**케이스 1: `maiku-teihisu` (Mike Davis)** — 결론: **B 확정 (고신뢰)**
+
+| 항목 | fighters DB | staging A (id=893) | staging B (id=898) |
+|---|---|---|---|
+| division | lw | — | — |
+| record | 12-3-0 | — | — |
+| ko_rate | 66.67% | slpm=0.00 (전부 0) | slpm=4.73 |
+| 판정 | 12승 중 8KO 선수가 slpm=0은 불가능 | ❌ 다른 인물 | ✅ 일치 |
+
+→ staging A (`c8661e204c66f325`)는 UFC 경기 기록 없는 다른 Mike Davis (전부 0.0).  
+→ staging B (`fb3e61720be4690c`, slpm=4.73, ko_rate 66% 일치) 가 `maiku-teihisu` 본인.  
+→ **처리: staging_id=898만 승인, 893은 `match_status='excluded'` 또는 approved=false 유지.**
+
+---
+
+**케이스 2: `victor-valenzuela-0` (Victor Valenzuela)** — 결론: **B 유력 (고신뢰)**
+
+| 항목 | fighters DB | staging A (id=4248) | staging B (id=4250) |
+|---|---|---|---|
+| division | ww | — | — |
+| record | 14-4-0 | str_acc=**100.0%** | str_acc=40% |
+| 판정 | 18경기 커리어 | ❌ str_acc=100%는 통계적 불가 | ✅ 정상 범위 |
+
+→ staging A (`de277a4abcfeea46`): str_acc=100%, str_def=0%, td 전부 0 → UFC 경기 수 극히 적은 다른 인물(1-2전 샘플 오류) 또는 신인.  
+→ staging B (`078695e385ec2f57`, slpm=3.47, str_acc=40%) 가 14-4 커리어 파이터 프로파일에 부합.  
+→ **처리: staging_id=4250만 승인, 4248은 approved=false 유지.**  
+→ ⚠ UFCStats URL 직접 확인 권장 (str_acc=100% 이상값의 원인 확인).
+
+---
+
+**케이스 3: `jean-silva` (Jean Silva)** — 결론: **B 유력 (고신뢰)**
+
+| 항목 | fighters DB | staging A (id=3812) | staging B (id=3837) |
+|---|---|---|---|
+| division | fw (featherweight) | — | — |
+| record | 17-3-0 | slpm=0.73, str_acc=22% | slpm=4.82, str_acc=51% |
+| ko_rate | **70.59%** | td_avg/acc/def=0.0 | td_avg=1.2, sub_avg=0.6 |
+| 판정 | KO 위주 적극적 스트라이커 | ❌ slpm=0.73은 심각 불일치 | ✅ 고slpm 파이터 프로파일 일치 |
+
+→ staging A (`9211aae062b799d6`): slpm=0.73, str_acc=22%, td 0.0 → UFC 경기 극소 또는 다른 Jean Silva.  
+→ staging B (`52ef95b5860fb28c`, slpm=4.82): ko_rate 70%+인 fw 파이터 프로파일과 일치. Jean "Cebolinha" Silva 추정.  
+→ **처리: staging_id=3837만 승인, 3812는 approved=false 유지.**  
+→ ⚠ UFCStats URL 최종 확인 권장.
+
+---
+
+**케이스 4: `bruno-silva` (Bruno Silva)** — 결론: **A 유력 (중신뢰, URL 확인 필요)**
+
+| 항목 | fighters DB | staging A (id=3826) | staging B (id=3827) |
+|---|---|---|---|
+| division | **flw** (flyweight) | — | — |
+| record | 15-8-2 (draws 포함) | td_avg=2.01, sub_avg=0.2 | td_avg=0.77, sub_avg=0.0 |
+| sub_rate | **33.33%** (15승 중 ~5 sub) | ✅ 그래플링 활동 일치 | ❌ sub_avg=0.0과 불일치 |
+| 판정 | 그래플링 비율 높은 flw 파이터 | ✅ 더 일치 | 부분 불일치 |
+
+→ staging A (`294aa73dbf37d281`): td_avg=2.01, sub_avg=0.2 → sub_rate=33%인 그래플러 프로파일과 부합.  
+→ staging B (`12ebd7d157e91701`): sub_avg=0.0, td_avg=0.77 → sub_rate=33% 파이터와 불일치.  
+→ **처리 (잠정): staging_id=3826 승인 유력, 3827은 approved=false — URL 확인 후 최종 결정.**  
+→ ⚠ **UFCStats URL 직접 확인 필수**: slpm 차이(3.95 vs 3.86)가 작아 A/B 스탯이 유사함. 동명이인 2명이 모두 flyweight인지 여부 확인 필요.  
+→ UFCStats URL A: http://ufcstats.com/fighter-details/294aa73dbf37d281  
+→ UFCStats URL B: http://ufcstats.com/fighter-details/12ebd7d157e91701
+
+---
+
+#### 케이스 처리 SQL 패턴 (실행 금지 — 검증 완료 후 개별 적용)
+
 ```sql
--- 예시: bruno-silva의 staging_id=3826이 올바른 선수라고 확인된 경우
+-- maiku-teihisu: staging B (id=898) 승인 — 고신뢰
 UPDATE public.fighter_stats_staging
 SET approved = true, reviewed_at = NOW()
-WHERE id = 3826;
--- 나머지 row(3827)는 approved=false 유지
+WHERE id = 898;
+
+-- victor-valenzuela-0: staging B (id=4250) 승인 — 고신뢰
+UPDATE public.fighter_stats_staging
+SET approved = true, reviewed_at = NOW()
+WHERE id = 4250;
+
+-- jean-silva: staging B (id=3837) 승인 — 고신뢰
+UPDATE public.fighter_stats_staging
+SET approved = true, reviewed_at = NOW()
+WHERE id = 3837;
+
+-- bruno-silva: staging A (id=3826) 승인 — URL 확인 후 적용
+-- UPDATE public.fighter_stats_staging
+-- SET approved = true, reviewed_at = NOW()
+-- WHERE id = 3826;
 ```
 
 ---
@@ -788,12 +876,22 @@ UFCStats에 미등재 가능성 (신규 데뷔, 등록명 상이, 비UFCStats �
 
 ### 승인 전 체크리스트
 
-- [ ] Auto-approve SQL 검토 (`852건` 예상 — 실행 전 SELECT로 카운트 확인)
-- [ ] 동명이인 4케이스 UFCStats URL 수동 확인 (어느 row가 맞는 파이터인지)
+**완료된 항목:**
+- [x] Auto-approve SQL 안전성 확인 — 동명이인 4케이스 전부 자동 제외됨 (`dup_in_result=0`)
+- [x] 동명이인 4케이스 DB 교차검증 완료 (2026-05-23)
+  - [x] `maiku-teihisu` → staging B (id=898) 확정 (slpm=0 불가, B=4.73 일치)
+  - [x] `victor-valenzuela-0` → staging B (id=4250) 유력 (A: str_acc=100% 이상값)
+  - [x] `jean-silva` → staging B (id=3837) 유력 (A: slpm=0.73 ko_rate 70% 불일치)
+  - [x] `bruno-silva` → staging A (id=3826) 유력 (sub_rate 33% vs sub_avg=0.2 일치)
+
+**다음 단계 (순서대로):**
+- [ ] `bruno-silva` UFCStats URL 직접 확인 후 최종 결정 (URL A: 294aa73dbf37d281, URL B: 12ebd7d157e91701)
+- [ ] 동명이인 3건 수동 승인 SQL 실행 (승인 필요): staging id=898, 4250, 3837 + bruno-silva 결정 후
 - [ ] 수동 처리 B 24명 `matched_fighter_id` UPDATE SQL 준비 및 적용
-- [ ] Auto-approve SQL 실행 (별도 승인 필요)
-- [ ] `report_staging_apply.py` 재실행 → `approved=true` 수 ≥ 852, 무효 approved 0건 확인
-- [ ] 최종: `apply_staging_to_fighters.py --batch ufcstats_20260519` dry-run → `apply_staging_to_fighters.py --execute`
+- [ ] Auto-approve SQL 실행 (`852건` — 별도 승인 필요)
+- [ ] `report_staging_apply.py` 재실행 → `approved=true` 수 확인, 무효 approved=0건 확인
+- [ ] `apply_staging_to_fighters.py --batch ufcstats_20260519` dry-run 실행
+- [ ] 최종: `apply_staging_to_fighters.py --batch ufcstats_20260519 --execute` (별도 승인 필요)
 
 ---
 
