@@ -962,7 +962,84 @@ fighters raw stat (pre-apply): slpm NULL = 940/940
 | stats[] 배열 | 미변경 (기존값 유지) ✅ |
 | stats_updated_at | 880명 2026-05-23 06:01:50 갱신 ✅ |
 
-**다음 단계: `admin_recompute_fighter_stats(p_dry_run=true)` 실행 → stats[] 배열 재계산 검증 (별도 승인 필요)**
+**다음 단계: `admin_recompute_fighter_stats(p_dry_run=false)` 실행 (별도 승인 필요) — dry-run 결과 아래 참조**
+
+---
+
+## Step 6 — Computed Stats Recompute Dry-run (2026-05-23)
+
+### 실행 방법
+
+`admin_recompute_fighter_stats(p_dry_run := true)` 는 `private.is_admin()` 세션 체크로 직접 호출 불가.  
+함수 소스코드 추출 후 동일 공식을 SQL로 시뮬레이션 수행.
+
+### 카운트 요약
+
+| 항목 | 값 |
+|---|---|
+| total_fighters | 940 |
+| has_slpm (재계산 주 대상) | 880 |
+| slpm NULL (skip 대상) | 60 |
+| missing_raw_all (11개 전부 NULL) | 46 |
+| missing_ko_rate / dec_rate | 129 (별도 계산에서 fallback 적용) |
+
+### Stats 분포 (880명 기준)
+
+| stat | avg | min | max | at_floor(45) | at_ceil(98) |
+|---|---|---|---|---|---|
+| s0 Striking | 55 | 45 | 98 | **400 (45.5%)** | 9 |
+| s1 Grappling | 49 | 45 | 98 | **666 (75.7%)** | — |
+| s2 Stamina | 55 | 45 | 98 | — | — |
+| s3 Defense | 49 | 45 | 98 | — | — |
+| s4 Speed | 61 | 45 | 98 | — | — |
+
+### 핵심 발견
+
+**1. Grappling floor 집중 (666/880 = 75.7%)**  
+grappling 공식 baseline: td_avg p05=0.0, p95=4.5. 대부분 UFC 파이터의 td_avg가 4.5 미만이므로  
+raw score가 45 미만 → floor 클램프. 설계적 특성이며 blocking 이슈 아님.  
+단, grappling 차별화 낮음 — 향후 baseline 재조정 검토 권장.
+
+- all_zero_grappling (td_avg=td_acc=sub_avg=0): **181명**
+- td_avg > 0이지만 score < 45: **485명** (td_avg 낮아 raw score 부족)
+- grappling > 45: **214명** (td_avg ≥ ~2.0 이상인 파이터)
+
+**2. Striking floor (400/880 = 45.5%)**  
+- slpm = 0: 27명 (UFC 경기 없는 선수, 예상값)
+- slpm < 1.5 (baseline 미달): 46명
+- slpm > 0 이지만 score = 45: 373명 (str_acc 낮아 가중합이 floor 미달)
+
+**3. 이상값 — Iwo Baraniewski (lhw): slpm=15.77**  
+전체 880명 중 최대값. 소수 경기 샘플 편향 가능성.  
+→ stats[0]=98 (striking), stats[4]=98 (speed). 게임 카드 UX 상 문제는 없으나 주의.
+
+### 샘플 10명 (before → after)
+
+| 파이터 | div | slpm | td_avg | before_stats | after_stats 예상 |
+|---|---|---|---|---|---|
+| Tom Aspinall | hw | 7.63 | 2.62 | [50,50,50,50,52] | **[98,72,45,61,98]** |
+| Eduardo Neves | hw | 7.69 | 5.77 | [50,50,50,50,33] | **[98,77,45,45,98]** |
+| Iwo Baraniewski | lhw | **15.77** | 0.0 | [50,50,50,50,48] | **[98,45,45,45,98]** ⚠ |
+| Lerryan Douglas | fw | 8.67 | 0.0 | [50,50,50,50,43] | **[98,45,45,45,98]** |
+| Ramiro Jimenez | fw | 14.22 | 5.2 | [50,50,50,50,34] | **[98,80,49,98,97]** |
+| Abdul Rakhman Yakhyaev | lhw | 7.40 | 11.49 | [50,50,50,50,40] | **[98,98,50,63,84]** |
+| Zhang Mingyang | lhw | 7.71 | 0.0 | [50,50,50,50,52] | **[97,45,45,45,98]** |
+
+기존 stats는 전부 [50,50,50,50,X] 수렴 패턴 → 재계산 후 개별 프로파일로 다양화 확인 ✅
+
+### 실제 stats[] 변경 없음 확인 ✅
+
+Tom Aspinall.stats = [50,50,50,50,52] (기존값 유지 중)  
+recompute p_dry_run=false 실행 전까지 stats[] 배열 변경 없음.
+
+### Recompute 실행 전 체크리스트
+
+- [x] dry-run 분포 확인: avg_striking=55, avg_speed=61, avg_grappling=49 (정상 범위)
+- [x] floor 집중 확인: grappling 75.7% → 설계적 특성, blocking 아님
+- [x] 이상값 확인: Iwo Baraniewski slpm=15.77 → game UX 이상 없음, 문서화 완료
+- [x] before_stats 기존 수동값 → after_stats raw stat 기반 다양화 확인
+- [x] stats[] 배열 현재 미변경 확인
+- [ ] **`admin_recompute_fighter_stats(p_dry_run=false)` 실행 승인** ← 대기 중
 
 ---
 
