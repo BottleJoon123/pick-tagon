@@ -1,8 +1,8 @@
 # Fighter Stats Auto-Scoring Plan
 
 작성: 2026-05-18
-업데이트: 2026-05-19 (Step B RPC 구현 + dry_run 검증 + raw stat 데이터 수급 전략 수립 + UFCStats 스크래퍼 완료 + CSV 검증 완료)
-구현 상태: Step A 완료 + Race-condition 버그 수정 + clamp [45, 98] 적용 + Step B RPC 배포 완료 (dry_run=true 검증 통과) + UFCStats CSV 수집 완료 (4,494건)
+업데이트: 2026-05-23 (Step B RPC 구현 + dry_run 검증 + raw stat 데이터 수급 전략 수립 + UFCStats 스크래퍼 완료 + CSV 검증 완료 + Staging import 완료 + Match report 생성)
+구현 상태: Step A 완료 + Race-condition 버그 수정 + clamp [45, 98] 적용 + Step B RPC 배포 완료 (dry_run=true 검증 통과) + UFCStats CSV 수집 완료 (4,494건) + Staging import 완료 (4,494행) + Match report 완료
 
 ---
 
@@ -377,11 +377,52 @@ staging 테이블 채워진 후 `admin_match_staging_report()` (또는 SELECT �
 ### 다음 작업 단계
 
 1. ~~Python 스크래퍼 작성~~ **완료** (`scripts/scrape_ufcstats.py`, CSV 4,494행)
-2. `fighter_stats_staging` 테이블 migration 작성 + 적용 ← **다음 단계**
-3. CSV → staging 테이블 import (Python INSERT)
-4. 매칭 SQL 실행 → match report 확인
-5. 미매칭/ambiguous admin 검토
+2. ~~`fighter_stats_staging` 테이블 migration 작성 + 적용~~ **완료** (`supabase/migrations/20260519_fighter_stats_staging.sql`)
+3. ~~CSV → staging 테이블 import (45개 배치, `data/_jsonbatches/batch_000~044.sql`)~~ **완료** (4,494행)
+4. ~~매칭 SQL 실행 → match report 확인~~ **완료** (아래 Step 2 참조)
+5. 미매칭/ambiguous admin 검토 ← **다음 단계**
 6. dry-run 재실행 → QA 통과 → 승인 → apply
+
+---
+
+### Step 2: Staging Import + Match Report (2026-05-23 완료)
+
+#### Import 결과
+
+| 항목 | 값 |
+|---|---|
+| import_batch | `ufcstats_20260519` |
+| 총 import 행수 | **4,494** |
+| 배치 파일 수 | 45개 (batch_000 ~ batch_044, 각 100행, 마지막 배치 94행) |
+| ON CONFLICT DO NOTHING 스킵 | 6행 (late-addition 파이터 중복, 정상) |
+| staging 테이블 적용 migration | `supabase/migrations/20260519_fighter_stats_staging.sql` |
+
+#### 매칭 결과
+
+| 항목 | 값 |
+|---|---|
+| 전체 행 | 4,494 |
+| exact (name_match) | **860** (19.1%) |
+| exact (ufc_stats_id_match) | 0 (fighters.ufc_stats_id 미입력 상태) |
+| ambiguous | 0 |
+| unmatched | **3,634** (80.9%) |
+
+#### 해석
+
+- **80.9% unmatched는 예상된 정상 결과**: UFCStats에는 역대 UFC 출전 파이터 4,494명이 있으나, 우리 `fighters` 테이블은 현재 로스터 **940명**만 보유.
+- **860 / 940 = 91.5%** — 현재 활성 파이터 중 91.5%가 name_match 성공.
+- 미매칭 80명: 닉네임 등록, 한글명 불일치, 최근 추가 파이터 등.
+- `ufc_stats_id` 컬럼 (fighters 테이블)은 현재 전체 0건. 향후 이 컬럼에 hash 채우면 id_match 100%로 개선 가능.
+
+#### fighters 테이블 무결성 확인
+
+- `fighters` 테이블: 940행, `updated_at` 1시간 내 변경 0건 → **운영 데이터 미변경 확인**
+
+#### Top 30 Unmatched (active roster 미매칭 후보 일부, 알파벳 순)
+
+Aalon Cruz, Aaron Brink, Aaron Ely, Aaron Jeffery, Aaron Lanfranco, Aaron Miller, Aaron Phillips, Aaron Riley, Aaron Rosa, Aaron Simpson, Aaron Tau, Aaron Trujillo, Aaron Wetherspoon, Aaron Wilkinson, Abdellah Er-Ramy, Abdul Razak Alhassan, Abdul-Kerim Edilov, Abel Cullum, Abel Trujillo, Abner Lloveras, Abongo Humphrey, Abram Torres, Abu Azaitar, Abubakar Vagaev, Acacio Dos Santos, Achilles Estremadura, Achmed Labasanov, Adam Antolin, Adam Bramhald, Adam Cella
+
+*(대부분 former UFC 파이터 — 현재 로스터에 없음. 활성 파이터 미매칭은 별도 수동 검토 필요.)*
 
 ---
 
