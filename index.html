@@ -6,6 +6,8 @@
 <title>Pick-tagon | Ultimate Fighter IQ Platform</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&family=Inter:wght@300;400;500;600&family=Oswald:wght@400;700;900&display=swap" rel="stylesheet">
+<link href="/css/tokens.css" rel="stylesheet">
+<link href="/css/theme-bridge.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 <!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -16,14 +18,7 @@ theme: { extend: {
     fontFamily: { barlow:['Barlow Condensed','sans-serif'], inter:['Inter','sans-serif'], oswald:['Oswald','sans-serif'] }
 }}}</script>
 <style>
-:root {
-    --red: #e8000d;
-    --red-dim: rgba(232,0,13,0.15);
-    --red-glow: 0 0 40px rgba(232,0,13,0.4);
-    --glass: rgba(255,255,255,0.03);
-    --glass-border: rgba(255,255,255,0.08);
-    --dark: #0c0c0c;
-}
+/* :root legacy vars moved to public/css/theme-bridge.css */
 
 * { box-sizing: border-box; }
 

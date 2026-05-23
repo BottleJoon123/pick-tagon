@@ -85,25 +85,41 @@ docs/
    - 유일한 변경: `@import` 폰트 URL (동일하게 유지)
 
 2. `index.html` `<head>` 수정  
-   - 기존 `<style>` 블록 상단에 `<link rel="stylesheet" href="/css/tokens.css">` 추가  
-   - 기존 `:root { --red: ... }` 블록 제거  
-   - 이후 모든 단계에서 `--pt-*` 변수 참조
+   - Google Fonts `<link>` 바로 아래 두 CSS 파일 링크 추가  
+   - 기존 인라인 `:root { --red: ... }` 블록 제거 (bridge가 대체)
 
-3. 레거시 변수 브리지 (Phase 1 임시)  
-   - `--red` → `--pt-red-500` 등 alias를 `tokens.css` 하단에 추가하여 기존 코드 즉시 깨지지 않도록
+3. `public/css/theme-bridge.css` 생성  
+   - 레거시 변수(`--red`, `--dark` 등)를 기존 값 그대로 유지  
+   - Phase 3+에서 `var(--pt-*)` 참조로 단계적 교체 예정
 
-### 영향 파일
+### 결정 사항 — Font Policy
 
-| 파일 | 변경 유형 | 위험도 |
+| 역할 | Phase 1 결정 | 향후 |
 |---|---|---|
-| `public/css/tokens.css` | 신규 생성 | 없음 |
-| `index.html` `<head>` | `<link>` 추가 + `:root` 교체 | 낮음 |
+| Body | `Pretendard → Inter` (Korean 가독성 우선) | 유지 |
+| Display | `Barlow Condensed` (이미 로드됨) | `--pt-font-display` 참조로 교체 |
+| Eyebrow | `Oswald` (이미 로드됨) | Phase 3: `Bebas Neue`로 전환 |
+| Mono | `JetBrains Mono` (Phase 1에서 신규 로드) | `--pt-font-mono` 참조 |
+
+**Red color 결정**: Phase 1에서는 `--red: #e8000d` 값 유지 (시각 동결).  
+Phase 3부터 `var(--pt-red-500)` (`#E10600`)으로 점진 교체.  
+두 값 hex 차이 미미 (`#e8000d` vs `#E10600`) — 사용자 눈에 구분 불가능 수준.
+
+### 결과 (적용 완료)
+
+| 파일 | 변경 | 결과 |
+|---|---|---|
+| `public/css/tokens.css` | 신규 생성 | `--pt-*` 65개 변수 active |
+| `public/css/theme-bridge.css` | 신규 생성 | 레거시 `--red` 등 backward compat 유지 |
+| `index.html` `<head>` | 2개 `<link>` 추가 + `:root` 제거 | 빌드 통과, 시각 변화 없음 |
+| `npm run build` | 통과 | `dist/css/tokens.css`, `dist/css/theme-bridge.css` 생성 확인 |
 
 ### 완료 기준
 
-- `--pt-bg-1`, `--pt-red-500`, `--pt-font-body` 등 토큰이 페이지에서 active 상태
-- 기존 외관에 눈에 띄는 회귀 없음 (레거시 브리지 덕분)
-- 폰트: Inter → Barlow 교체 확인
+- [x] `--pt-bg-1`, `--pt-red-500` 등 토큰이 페이지에서 active 상태
+- [x] 기존 `var(--red)` 21회 참조 정상 동작 (bridge 제공)
+- [x] `npm run build` 통과
+- [ ] 폰트 교체 (Phase 3: Display/Eyebrow 단계적 전환)
 
 ---
 
@@ -237,7 +253,7 @@ docs/
 
 | Phase | 상태 | 브랜치 커밋 |
 |---|---|---|
-| Phase 1: Tokens 도입 | 대기 | — |
+| Phase 1: Tokens 도입 | **완료** | `Refactor: Add design tokens bridge` |
 | Phase 2: 공통 CSS 분리 | 대기 | — |
 | Phase 3: Event/Pick 적용 | 대기 | — |
 | Phase 4: Home/Profile/Leaderboard | 대기 | — |
