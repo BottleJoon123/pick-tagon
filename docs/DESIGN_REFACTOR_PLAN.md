@@ -280,13 +280,43 @@ const stats1 = f1.stats || [75, 75, 75, 75, 75];
 - [ ] 미선택 버튼 보더 `var(--pt-line-2)` 색상
 
 **Pick 상태 배너**
-- [ ] Pending 상태: 레드/블루 `rgba(210,10,10,0.07)` 인라인 bg (JS 제어, CSS 무관)
+- [ ] Pending 상태: 레드/블루 인라인 bg (JS 제어, CSS 무관)
 - [ ] Settled WIN: 레드 bg + `text-ufcRed` (JS 제어)
 - [ ] Settled LOSE: `text-gray-400` (JS 제어)
 
 **레이더 차트**
 - [ ] fighterDB에 이름이 일치하는 fighter가 있으면 실제 stats 표시
 - [ ] 불일치 시 차트 blank (크래시 없음)
+
+---
+
+## Phase 3E — Red Token Hardcode Cleanup
+
+**목표:** Phase 4 진입 전 red color foundation 정리 — `#e8000d` / `#d20a0a` 잔존값을 design token 기준으로 교체.
+
+### 변경 내용
+
+| 파일 | 변경 유형 | 결과 |
+|---|---|---|
+| `index.html:18` | Tailwind config `ufcRed` 값 | `'#e8000d'` → `'#E10600'` |
+| `index.html` CSS block | `color: #e8000d` → `color: var(--red)` | ~8개 CSS 규칙 |
+| `index.html` CSS block | `background: #e8000d` → `background: var(--red)` | ~2개 CSS 규칙 |
+| `index.html` CSS block | `border-left: 2px solid #e8000d` → `var(--red)` | 1개 CSS 규칙 |
+| `index.html` static span | `color:#e8000d` → `color:var(--red)` | KO/TKO 보너스 span |
+| `index.html` JS constant | `CAT_BAR_HEX.ufc` | `'#e8000d'` → `'#E10600'` |
+| `index.html` Chart.js | `STAT_COLORS[0]`, radar dataset borderColor | `'#d20a0a'` → `'#E10600'` |
+| `index.html` Chart.js | radar dataset backgroundColor | `rgba(210,10,10,` → `rgba(225,6,0,` |
+| `public/js/fights-render.js` | Chart.js radar dataset | `'#d20a0a'` → `'#E10600'`, rgba 동일 |
+| `public/js/h2h.js` | comparison bar + radar dataset | `'#d20a0a'` → `'#E10600'`, rgba 동일 |
+
+### 의도적으로 변경하지 않은 항목
+
+| 위치 | 이유 |
+|---|---|
+| `index.html` JS 이벤트 핸들러 (onmouseover/out) | JS 문자열 내 값 — 동작 연동 위험 |
+| `index.html` battle UI JS-generated HTML (lines 5001, 5782, 5812, 5909, 5921, 5945) | 동적 생성 HTML — 기능 영향 가능 |
+| `index.html` 알림 배지 JS cssText (line 4962) | JS inline style string |
+| `public/js/community.js` (lines 107, 108, 115, 326, 477) | community 렌더 함수 — 별도 Phase에서 일괄 처리 예정 |
 
 ---
 
@@ -351,8 +381,8 @@ const stats1 = f1.stats || [75, 75, 75, 75, 75];
 | 항목 | 설명 | Phase 3C 이후 상태 |
 |---|---|---|
 | **폰트 로딩** | Barlow / Bebas Neue Google Fonts 의존 — 오프라인/느린 네트워크 시 폴백 필요 | 미해결 |
-| **색상 미세 차이** | `#e8000d` vs `#E10600` — Phase 3A에서 `--red: var(--pt-red-500)` 마이그레이션 완료 | **해결** |
-| **Tailwind `ufcRed`** | `tailwind.config` 내 `ufcRed: '#e8000d'` 는 CSS 변수와 무관하게 하드코딩 — Phase 3D에서 `'#E10600'`으로 업데이트 필요 | 미해결 |
+| **색상 미세 차이** | `#e8000d` vs `#E10600` — Phase 3A: `--red: var(--pt-red-500)` 마이그레이션, Phase 3E: CSS/Chart.js 잔존값 정리 완료 | **해결** |
+| **Tailwind `ufcRed`** | `tailwind.config` `ufcRed:'#e8000d'` → `'#E10600'` Phase 3E에서 수정 완료 | **해결** (3E) |
 | **Pretendard** | `screen-shell.css`가 `'Pretendard'` 사용 → tokens.css는 `'Barlow'`. 실제 앱에선 Pretendard 유지 결정 | 미해결 |
 | **JS 클래스 참조** | `public/js/*.js` 파일들이 DOM 클래스명을 직접 참조하는 경우 마크업 변경 시 동반 수정 필요 | 미해결 |
 | **index.html 규모** | 단일 파일이라 회귀 테스트 범위 넓음 — Phase별 작은 단위 커밋 필수 | 미해결 |
@@ -375,6 +405,7 @@ const stats1 = f1.stats || [75, 75, 75, 75, 75];
 | Phase 3D-2: matchups fighter_id 기반 매핑 설계 | **완료** | `Docs: Plan matchup fighter ID mapping` |
 | Phase 3D-2: SELECT 추가 + ID 우선 매핑 구현 | **완료** | `Fix: Use fighter ID for matchup lookup with name fallback` |
 | Phase 3D-3: 운영 DB 컬럼 존재 검증 | **완료** | `Docs: Verify matchup fighter ID column readiness` |
+| Phase 3E: red token hardcode cleanup | **완료** | `Refactor: Align red styling with design tokens` |
 | Phase 4: Home/Profile/Leaderboard | 대기 | — |
 | Phase 5: Community/News/Admin | 대기 | — |
 

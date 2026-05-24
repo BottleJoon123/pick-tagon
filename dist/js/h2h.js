@@ -186,7 +186,7 @@ function renderH2H() {
                     <span class="oswald-sharp text-xs font-black italic ${adv === 'right' ? 'text-ufcBlue' : 'text-gray-400'}">${v2}</span>
                 </div>
                 <div class="flex h-2.5 rounded-full overflow-hidden gap-px">
-                    <div class="h-full rounded-l-full transition-all duration-700" style="width:${pct1}%; background:${adv === 'left' ? '#d20a0a' : 'rgba(255,255,255,0.12)'}"></div>
+                    <div class="h-full rounded-l-full transition-all duration-700" style="width:${pct1}%; background:${adv === 'left' ? '#E10600' : 'rgba(255,255,255,0.12)'}"></div>
                     <div class="h-full rounded-r-full transition-all duration-700" style="width:${pct2}%; background:${adv === 'right' ? '#3b82f6' : 'rgba(255,255,255,0.12)'}"></div>
                 </div>
             </div>`;
@@ -207,7 +207,7 @@ function renderH2H() {
 
     <!-- 종합 판정 -->
     <div class="glass-card rounded-2xl p-6 text-center border ${overallAdv === 'EVEN' ? 'border-white/10' : 'border-ufcRed/20'}"
-        style="${overallAdv !== 'EVEN' ? 'background:rgba(210,10,10,0.05)' : ''}">
+        style="${overallAdv !== 'EVEN' ? 'background:rgba(225,6,0,0.05)' : ''}">
         <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-widest italic mb-2">스탯 우위 종합</p>
         <p class="oswald-sharp text-2xl lg:text-3xl font-black italic text-white uppercase tracking-tighter">
             ${overallAdv === 'EVEN' ? '⚖️ EVEN' : `🏆 ${overallAdv}`}
@@ -225,7 +225,7 @@ function renderH2H() {
             data: {
                 labels: STAT_LABELS,
                 datasets: [
-                    { label: f1.name, data: stats1, fill: true, backgroundColor: 'rgba(210,10,10,0.25)', borderColor: '#d20a0a', pointBackgroundColor: '#d20a0a', pointRadius: 4, borderWidth: 2 },
+                    { label: f1.name, data: stats1, fill: true, backgroundColor: 'rgba(225,6,0,0.25)', borderColor: '#E10600', pointBackgroundColor: '#E10600', pointRadius: 4, borderWidth: 2 },
                     { label: f2.name, data: stats2, fill: true, backgroundColor: 'rgba(59,130,246,0.25)', borderColor: '#3b82f6', pointBackgroundColor: '#3b82f6', pointRadius: 4, borderWidth: 2 }
                 ]
             },

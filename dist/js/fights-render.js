@@ -491,9 +491,9 @@ function initRadarChart(fightId) {
                     label: fight.f1.name,
                     data: fight.f1.stats,
                     fill: true,
-                    backgroundColor: 'rgba(210, 10, 10, 0.35)',
-                    borderColor: '#d20a0a',
-                    pointBackgroundColor: '#d20a0a',
+                    backgroundColor: 'rgba(225,6,0,0.35)',
+                    borderColor: '#E10600',
+                    pointBackgroundColor: '#E10600',
                     pointBorderColor: '#fff',
                 },
                 {
