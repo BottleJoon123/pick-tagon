@@ -782,6 +782,84 @@ Phase 5A에서 학습한 패턴 적용:
 | Phase 6F: Community/News upgrade | **완료** | `Style: Upgrade community news design` |
 | Phase 6F-QA: Community/News visible upgrade QA | **완료** | `Fix: Polish community news visible QA findings` |
 | Phase 6C-2: Event/Pick card detail polish | **완료** | `Style: Polish event pick card details` |
+| Phase 6C-2-QA: Event/Pick detail polish QA | **완료** | `Fix: Polish event pick detail QA findings` |
+
+---
+
+## Phase 6C-2-QA — Event/Pick Detail Polish QA (2026-05-25)
+
+**분석 방법:** 정적 코드 분석 (JS 코드 경로, CSS specificity, DOM 구조 분석)
+
+### CTA 상태 검증
+
+| 검증 항목 | 결과 | 근거 |
+|---|---|---|
+| no pick: "TAP TO PICK ›" 유지 | PASS | `renderHeroCard` 템플릿 — odds 없을 때 "TAP TO PICK ›" 초기값 ✓ |
+| pending selected side: "CHANGE PICK ›" | PASS | `updateAllFightCards` pending 블록 — `cta-l/r-{id}` innerHTML 업데이트 ✓ |
+| pending opposite side 문구 | PASS | 반대 side는 변경 없음 — `fc-card-pending` cursor:default로 시각적 잠금 표현 ✓ |
+| settled: CTA 클리어 | PASS | settled 블록 `ctaL/R.innerHTML = ''` — 클릭 유도 문구 제거 ✓ |
+| `cta-l/r-{id}` ID 중복 여부 | PASS | fight.id는 DB 유니크 키, 화면에 동시에 동일 ID 없음 ✓ |
+| strip row에서 `getElementById` null 처리 | PASS | strip row는 cta-l/r 요소 없음 → `if (ctaL)` null-guard로 안전 처리 ✓ |
+
+### P2 버그 발견 및 수정 — CTA reset 경로 누락
+
+**원인:** `updateAllFightCards`가 `supabase.js:500` (`loadUserPicksFromDB` 완료 후)에서 renderFightCards 없이 단독 호출됨. 리셋 블록이 CTA 텍스트를 원복하지 않아 stale "CHANGE PICK ›"가 남을 수 있었음.
+
+**시나리오:** localStorage에 pending이 있는 상태로 페이지 로드 → renderFightCards 시 CTA = "TAP TO PICK" → updateAllFightCards가 pending 적용 → "CHANGE PICK ›" 표시. 이후 loadUserPicksFromDB에서 DB 데이터 우선 재적용 시, 해당 픽이 DB에 없으면 state.pendings 클리어 → 리셋 블록 실행되지만 CTA 텍스트는 복원 안 됨 → "CHANGE PICK ›" 잔존.
+
+**수정:** 리셋 블록에 CTA 원복 로직 추가 — `_fightCardCache[fight.id]`에서 odds 정보 읽어 innerHTML 복원.
+
+| 적용 파일 | 변경 |
+|---|---|
+| `fights-render.js` reset 블록 (line 444 이후) | `_cached` 기반 `cta-l/r` innerHTML 원복 5줄 추가 |
+
+### 코드 경로 검증
+
+| 검증 항목 | 결과 | 근거 |
+|---|---|---|
+| `openPickSlip` 로직 변경 없음 | PASS | Phase 6C-2 fights-render.js 에서 해당 함수 내부 무변경 ✓ |
+| `selectPickFighter` / `confirmBetSlip` 무변경 | PASS | 픽 제출 경로 전체 미변경 ✓ |
+| `state.pendings` / `state.settled` 데이터 구조 | PASS | updateAllFightCards에서 읽기만, 쓰기 없음 ✓ |
+| `supabase.js:500` 독립 호출 경로 | PASS (after fix) | P2 fix로 CTA 원복 보장 ✓ |
+
+### Fighter Image 검증
+
+| 검증 항목 | 결과 | 근거 |
+|---|---|---|
+| `filter` 적용 대상 | PASS | `fc-hero-img-l/r` — background-image 전용 div, 자식 요소 없음 ✓ |
+| `filter` stacking context | PASS | `z-20` fighter info 요소는 형제 노드 — filter stacking context에 포함되지 않음 ✓ |
+| red/blue 균형 | PASS | 동일 `filter: brightness(1.18) contrast(1.04)` 양쪽 적용 ✓ |
+| mask-image 상호작용 | PASS | filter는 mask 적용 후의 결과에 적용 — 페이드 엣지 유지, 밝기만 올라감 ✓ |
+| top fade 0.40 텍스트 가독성 | PASS | 텍스트(fighter info z-20, 이름/CTA)는 bottom fade 영역에 위치 — top fade는 이미지 상단만 영향 ✓ |
+| image fallback (imgUrl 없을 때) | PASS | fallback은 `background: linear-gradient(...)` — filter 적용되지만 gradient에 brightness는 무영향 ✓ |
+
+### Scrollbar 검증
+
+| 검증 항목 | 결과 | 근거 |
+|---|---|---|
+| `#event-sidebar-content`에만 적용 | PASS | 셀렉터가 ID 기반 — 다른 `overflow-y: auto` 요소에 전파 없음 ✓ |
+| `#mobile-sidebar-panel` 적용 | PASS | 동일 규칙 세트 병기 ✓ |
+| body/global scrollbar 영향 없음 | PASS | `::-webkit-scrollbar` 규칙이 ID 스코프 — body scrollbar 무변경 ✓ |
+| Firefox 지원 | PASS (after fix) | P3 fix — `scrollbar-width: thin; scrollbar-color: var(--pt-line-2) var(--pt-bg-1)` 추가 ✓ |
+| Webkit fallback | PASS | `-webkit-scrollbar*` 규칙 — Chrome/Safari/Edge 지원 ✓ |
+
+### 수정 사항
+
+| 우선순위 | 내용 | 파일 |
+|---|---|---|
+| P2 | CTA 리셋 경로 누락 — `updateAllFightCards` 리셋 블록에 `_fightCardCache` 기반 CTA 원복 추가 | `fights-render.js` |
+| P3 | Firefox scrollbar fallback — `scrollbar-width: thin; scrollbar-color:` 추가 | `app.css` |
+
+### 완료 기준
+
+- [x] CTA 상태별 동작 6개 검증 완료
+- [x] P2 fix: CTA reset 경로 보강
+- [x] P3 fix: Firefox scrollbar fallback 추가
+- [x] fighter image filter / stacking context 검증 완료
+- [x] 코드 경로 4개 검증 완료
+- [x] `npm run build` 통과 (376.42 kB / 79.34 kB gzip)
+- [x] docs 업데이트
+- [x] 커밋: `Fix: Polish event pick detail QA findings`
 
 ---
 

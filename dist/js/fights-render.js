@@ -442,6 +442,14 @@ function updateAllFightCards() {
         if (settledDiv) { settledDiv.classList.add('hidden'); settledDiv.classList.remove('fc-settled-win', 'fc-settled-lose'); settledDiv.style.background = ''; }
         if (myPickEl) { myPickEl.classList.add('hidden'); myPickEl.innerHTML = ''; myPickEl.style.background = ''; }
         if (cardEl) { cardEl.classList.remove('fc-card-pending', 'fc-card-settled'); }
+        // Restore CTA text on each reset so supabase.js re-calls get clean state
+        const _cached = _fightCardCache[fight.id];
+        if (_cached) {
+            const ctaLr = document.getElementById(`cta-l-${fight.id}`);
+            const ctaRr = document.getElementById(`cta-r-${fight.id}`);
+            if (ctaLr) ctaLr.innerHTML = _cached.f1.odds ? `ODDS ${_cached.f1.odds} &nbsp;·&nbsp; +${Math.round(_cached.f1.odds * 100)}P` : 'TAP TO PICK ›';
+            if (ctaRr) ctaRr.innerHTML = _cached.f2.odds ? `ODDS ${_cached.f2.odds} &nbsp;·&nbsp; +${Math.round(_cached.f2.odds * 100)}P` : 'TAP TO PICK ›';
+        }
 
         if (pending) {
             if (btn1) { btn1.disabled = true; btn1.classList.add('opacity-40', 'cursor-not-allowed'); }

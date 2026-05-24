@@ -758,7 +758,12 @@ textarea, select {
     filter: brightness(1.18) contrast(1.04);
 }
 
-/* UFC 일정 panel — dark scrollbar */
+/* UFC 일정 panel — dark scrollbar (Firefox + Webkit) */
+#event-sidebar-content,
+#mobile-sidebar-panel {
+    scrollbar-width: thin;
+    scrollbar-color: var(--pt-line-2) var(--pt-bg-1);
+}
 #event-sidebar-content::-webkit-scrollbar,
 #mobile-sidebar-panel::-webkit-scrollbar   { width: 4px; }
 #event-sidebar-content::-webkit-scrollbar-track,
