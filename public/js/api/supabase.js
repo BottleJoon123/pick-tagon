@@ -350,7 +350,7 @@ async function fetchUpcomingMatchups() {
         }
 
         var mRes = await sb.from('matchups')
-            .select('id, event_id, red_fighter_name, blue_fighter_name, red_image_url, blue_image_url, weight_class, card_segment, sort_order, is_main_event, left_bias, result_status, result_winner, result_winner_side, result_method, result_round, result_time')
+            .select('id, event_id, red_fighter_id, blue_fighter_id, red_fighter_name, blue_fighter_name, red_image_url, blue_image_url, weight_class, card_segment, sort_order, is_main_event, left_bias, result_status, result_winner, result_winner_side, result_method, result_round, result_time')
             .eq('event_id', event.id)
             .order('card_segment', { ascending: true })
             .order('sort_order', { ascending: true });
@@ -372,12 +372,24 @@ async function fetchUpcomingMatchups() {
             } else {
                 tag = 'PRELIMS';
             }
-            var _f1db = (typeof fighterDB !== 'undefined' && fighterDB.length)
-                ? fighterDB.find(function(d) { return d.name === m.red_fighter_name; })
-                : null;
-            var _f2db = (typeof fighterDB !== 'undefined' && fighterDB.length)
-                ? fighterDB.find(function(d) { return d.name === m.blue_fighter_name; })
-                : null;
+            var _f1db = null;
+            if (typeof fighterDB !== 'undefined' && fighterDB.length) {
+                _f1db = m.red_fighter_id
+                    ? fighterDB.find(function(d) { return d.id === m.red_fighter_id; })
+                    : null;
+                if (!_f1db) {
+                    _f1db = fighterDB.find(function(d) { return d.name === m.red_fighter_name; });
+                }
+            }
+            var _f2db = null;
+            if (typeof fighterDB !== 'undefined' && fighterDB.length) {
+                _f2db = m.blue_fighter_id
+                    ? fighterDB.find(function(d) { return d.id === m.blue_fighter_id; })
+                    : null;
+                if (!_f2db) {
+                    _f2db = fighterDB.find(function(d) { return d.name === m.blue_fighter_name; });
+                }
+            }
             return {
                 id: m.id,
                 section: isMainCard ? 'main' : 'prelim',
