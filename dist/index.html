@@ -859,7 +859,7 @@ theme: { extend: {
         </div>
 
         <!-- Belt Legend -->
-        <div class="grid grid-cols-5 gap-2 lg:gap-4 mb-6 lg:mb-10">
+        <div id="lb-belt-legend" class="grid grid-cols-5 gap-2 lg:gap-4 mb-6 lg:mb-10">
             <div class="glass-card rounded-2xl p-3 lg:p-5 text-center border border-white/10">
                 <div class="w-5 h-5 lg:w-7 lg:h-7 rounded-full bg-white mx-auto mb-2 shadow-lg"></div>
                 <p class="oswald-sharp text-[8px] lg:text-xs font-black italic text-gray-300 uppercase">White</p>
@@ -3431,7 +3431,7 @@ async function publishPost() {
             const belt = getBeltInfo(u.points);
             const isUser = u.isUser;
             return `
-            <div class="grid grid-cols-12 px-6 lg:px-10 py-5 lg:py-7 border-b border-white/[0.06] items-center transition-all hover:bg-white/[0.03] ${rank<=3?'border-l-4 border-l-red-600':''} ${isUser?'lb-row-me':''}">
+            <div class="grid grid-cols-12 px-6 lg:px-10 py-5 lg:py-7 border-b border-white/[0.06] items-center transition-all hover:bg-white/[0.03] ${rank<=3?`border-l-4 lb-row-top${rank}`:''} ${isUser?'lb-row-me':''}">
                 <div class="col-span-1 text-center">
                     ${rank <= 3 ? `<span class="text-lg lg:text-2xl">${medals[rank-1]}</span>` : `<span class="oswald-sharp text-gray-500 font-black italic text-sm lg:text-xl">${rank}</span>`}
                 </div>
@@ -6182,7 +6182,7 @@ async function addCommentToDB(postDbId, userNick, text) {
                         '<span class="oswald-sharp text-[9px] text-gray-600 italic">' + (isOpen ? '▲' : '▼') + '</span>' +
                       '</div>' +
                     '</div>' +
-                    '<div class="w-full bg-white/5 rounded-full h-1.5 mb-1">' +
+                    '<div class="lb-faction-bar w-full bg-white/5 rounded-full h-1.5 mb-1">' +
                       '<div class="h-1.5 rounded-full bg-ufcRed transition-all duration-700" style="width:' + pct + '%"></div>' +
                     '</div>' +
                     '<p class="oswald-sharp text-[9px] italic uppercase tracking-widest mb-1">' + statsLine + '</p>' +

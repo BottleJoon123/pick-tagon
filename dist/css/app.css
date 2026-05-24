@@ -637,3 +637,48 @@ textarea, select {
     transform: scale(1.30);
 }
 .pt-belt-stop.current .pt-belt-nm { color: #C39DF1; }
+
+/* ── Rankings / Leaderboard — Phase 6E upgrade ── */
+
+/* My rank card: left-side red radial gradient + stronger border + glow (overrides Phase 4B) */
+#my-rank-card {
+    background:
+      radial-gradient(55% 65% at 0% 55%, rgba(225,6,0,0.10), transparent 55%),
+      var(--pt-bg-2);
+    border-color: rgba(225,6,0,0.28);
+    box-shadow: 0 0 40px rgba(225,6,0,0.18), 0 0 0 1px rgba(225,6,0,0.12) !important;
+}
+#my-rank-num { text-shadow: 0 0 16px rgba(225,6,0,0.45); }
+
+/* Leaderboard table header: elevated bg-3 surface */
+#leaderboard-player-panel > div:first-child {
+    background: var(--pt-bg-3);
+    border-bottom-color: var(--pt-line-2);
+}
+
+/* Top 3 rows: gold / silver / bronze left-border (ID context beats Tailwind border-l-red-600) */
+#leaderboard-player-panel .lb-row-top1 { border-left-color: #D4AF37; }
+#leaderboard-player-panel .lb-row-top2 { border-left-color: rgba(192,192,210,0.75); }
+#leaderboard-player-panel .lb-row-top3 { border-left-color: #B5803A; }
+
+/* My faction card: red radial glow + ring (overrides glass-card bg) */
+#faction-ranking-board .faction-ranking-mine {
+    background:
+      radial-gradient(55% 65% at 0% 55%, rgba(225,6,0,0.08), transparent 55%),
+      var(--pt-bg-2);
+    box-shadow: 0 0 24px rgba(225,6,0,0.10), 0 0 0 1px rgba(225,6,0,0.22);
+}
+
+/* Faction card hover: subtle white lift instead of global red glow */
+#faction-ranking-board .glass-card:hover {
+    border-color: rgba(255,255,255,0.12);
+    box-shadow: 0 0 16px rgba(225,6,0,0.07);
+}
+#faction-ranking-board .faction-ranking-mine:hover { border-color: rgba(225,6,0,0.40); }
+
+/* Faction score bar: taller (8px) + gradient fill */
+#faction-ranking-board .lb-faction-bar { height: 8px; background: rgba(255,255,255,0.06); }
+#faction-ranking-board .lb-faction-bar > div {
+    height: 100%;
+    background: linear-gradient(90deg, var(--pt-red-500), rgba(225,6,0,0.55));
+}

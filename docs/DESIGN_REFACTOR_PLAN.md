@@ -777,6 +777,65 @@ Phase 5A에서 학습한 패턴 적용:
 | Phase 6C-QA: Event/Pick card state QA | **완료** | `Fix: Polish event pick card QA findings` |
 | Phase 6D: Profile design upgrade | **완료** | `Style: Upgrade profile design` |
 | Phase 6D-QA: Profile visible upgrade QA | **완료** | `Fix: Polish profile visible QA findings` |
+| Phase 6E: Leaderboard/Rankings upgrade | **완료** | `Style: Upgrade leaderboard rankings design` |
+
+---
+
+## Phase 6E — Leaderboard / Rankings 디자인 업그레이드 (2026-05-24)
+
+**브랜치:** `main`  
+**기준 커밋:** `6262113`
+
+### 변경 사항
+
+#### `public/css/app.css` — Phase 6E CSS block 추가
+
+| 규칙 | 적용 효과 |
+|---|---|
+| `#my-rank-card` background | Phase 4B 단색 `bg-2` → 왼쪽 red radial gradient overlay + `bg-2` base |
+| `#my-rank-card` border-color | `ufcRed/30` → `rgba(225,6,0,0.28)` (ID specificity로 Tailwind 우선) |
+| `#my-rank-card` box-shadow | 인라인 `0 0 30px 0.1` → `0 0 40px 0.18 + ring 0.12` (!important override) |
+| `#my-rank-num` text-shadow | 없음 → `0 0 16px rgba(225,6,0,0.45)` subtle red glow |
+| `#leaderboard-player-panel > div:first-child` | `bg-white/[0.02]` → `var(--pt-bg-3)` + `border-line-2` |
+| `#leaderboard-player-panel .lb-row-top1/top2/top3` | 모두 red border → gold `#D4AF37` / silver `rgba(192,192,210,0.75)` / bronze `#B5803A` |
+| `#faction-ranking-board .faction-ranking-mine` | `glass-card` 기본 bg → red radial gradient + `bg-2` + ring shadow |
+| `#faction-ranking-board .glass-card:hover` | 전역 red glow → subtle white lift `rgba(255,255,255,0.12)` + dim shadow |
+| `#faction-ranking-board .faction-ranking-mine:hover` | mine card hover border `rgba(225,6,0,0.40)` 유지 |
+| `#faction-ranking-board .lb-faction-bar` | `h-1.5` → `8px` (ID context beats Tailwind) |
+| `#faction-ranking-board .lb-faction-bar > div` | `bg-ufcRed` 단색 → `linear-gradient(red → faded red)` + `height:100%` |
+
+#### `index.html` — 마크업/템플릿 변경
+
+| 위치 | 변경 내용 |
+|---|---|
+| Belt legend grid | `id="lb-belt-legend"` 추가 (향후 per-belt 타겟팅 대비) |
+| `renderLeaderboardList` row template | `${rank<=3?'border-l-4 border-l-red-600':''}` → `` ${rank<=3?`border-l-4 lb-row-top${rank}`:''} `` — Tailwind color 제거, CSS 클래스로 gold/silver/bronze 색상 제어 |
+| `renderFactionRanking` progress bar | `w-full bg-white/5 ... h-1.5` → `lb-faction-bar` 클래스 추가 (CSS로 height/bg override) |
+
+### 변경하지 않은 항목
+- `setRankTab()` 로직 및 className string 변경 없음
+- `renderLeaderboardList()` 랭킹/정렬/포인트 계산 로직 무변경
+- `renderFactionRanking()` faction 정렬/통계 계산 로직 무변경
+- `toggleFactionMemberRanking()` 토글 로직 무변경
+- 모든 JS 바인딩 ID (`my-rank-num`, `my-rank-pts`, `my-rank-acc`, `my-belt-badge`, `rank-tab-player`, `rank-tab-faction`, `leaderboard-list`, `leaderboard-player-panel`, `leaderboard-faction-panel`, `faction-ranking-board`) 유지
+
+### 완료 기준
+
+- [x] My rank card red radial gradient + stronger glow
+- [x] Leaderboard table header elevated surface
+- [x] Top 3 rows gold/silver/bronze left-border accent
+- [x] Faction mine card red gradient glow
+- [x] Faction card hover subtler (white lift vs red)
+- [x] Faction score bar 8px + gradient fill
+- [x] `npm run build` 통과 (376.41 kB / 79.33 kB gzip)
+- [x] setRankTab/renderLeaderboardList/renderFactionRanking 로직 유지 확인
+
+**브라우저 확인 필요 (코드 범위 밖):**
+- [ ] My rank card gradient 좌측 강도 — 너무 강하거나 약하지 않은지 확인
+- [ ] Top 3 gold/silver/bronze border — 실제 색감 확인
+- [ ] Faction mine card gradient ring — ring 1px 가시성 확인
+- [ ] Faction bar 8px height — 레이아웃 overflow 확인
+- [ ] Mobile 375px: My rank card flex (`flex items-center justify-between flex-wrap`) — points/acc/belt badge 줄바꿈 여부 확인
 
 ---
 
