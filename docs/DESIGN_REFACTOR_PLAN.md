@@ -771,6 +771,39 @@ Phase 5A에서 학습한 패턴 적용:
 | Browser QA Round 1 | **완료** | `Docs: Add browser QA for design refactor` |
 | P2 fix: remaining section headers | **완료** | `Style: Polish remaining section headers` |
 | Phase 6A: Global header/nav upgrade | **완료** | `Style: Upgrade global navigation design` |
+| Phase 6B: Home hero upgrade | **완료** | `Style: Upgrade home hero design` |
+
+---
+
+## Phase 6B — Home Hero 디자인 업그레이드 (2026-05-24)
+
+**브랜치:** `main`  
+**기준 커밋:** `ea5c91f`
+
+### 변경 사항
+
+| 영역 | 이전 | 이후 |
+|---|---|---|
+| `#home` 배경 | Unsplash 사진 URL + gradient overlay | `radial-gradient` red/blue corner + `linear-gradient` dark base (토큰 시스템) |
+| `#home::before` | 없음 | 28px grid cage texture overlay (subtle) |
+| `#hero-event-label` | 일반 텍스트 | red tinted pill (rgba border + bg) via CSS |
+| `hero-faceoff-card` 배경 | `rgba(10,10,14,0.7)` + `backdrop-blur-xl` | `.hero-faceoff` (0.90 opacity) + red/blue dual box-shadow |
+| 코너 gradient 강도 | `red-500/20 → transparent` | `rgba(225,6,0,0.28) → transparent 60%` (더 선명) |
+| 상단 highlight line | `from-transparent via-white/20 to-transparent` | red→neutral→blue gradient (방향성 강조) |
+| 카드 내부 grid texture | 없음 | 20px `.hero-grid-overlay` |
+| 카드 헤더 | "Main Event Face-off" 일반 텍스트 | "Main Event" red pill badge + "Face-off" dimmed |
+| Fighter image 높이 | `h-40 lg:h-48` | `h-44 lg:h-56` (더 큰 fighter silhouette) |
+| Fighter image class | 없음 | `.hero-fighter-img` (hover lift effect on card hover) |
+| Fighter name | `text-sm lg:text-base` inline Tailwind | `.hero-fighter-name` CSS class |
+| Corner label | 일반 `text-gray-400` 텍스트 | `.hero-corner-pill .hero-corner-red / .hero-corner-blue` (색상 pill) |
+| VS 배지 | 단순 border + bg inline | `.hero-vs-badge` (50% border-radius, dual glow, 더 큰 크기) |
+| Faceoff card 너비 (xl) | `xl:w-auto` | `xl:max-w-[460px]` |
+
+### 변경하지 않은 항목
+- 모든 JS 바인딩 ID (`hero-red-img`, `hero-blue-img`, `hero-red-name`, `hero-blue-name`, `hero-event-label`, `cd-d/h/m/s`)
+- `navigateTo('matchups')` CTA 동작
+- Countdown 계산 로직
+- Home 전체 layout (headline → CTA → faceoff card → ticker → news)
 
 ---
 

@@ -449,3 +449,104 @@ textarea, select {
 #admin-panel-settings > .glass-card { background: var(--pt-bg-2); border-color: var(--pt-line-1); }
 /* admin-gate modal surface (outside #admin section) */
 #admin-gate-modal .glass-card { background: var(--pt-bg-2); border-color: var(--pt-line-1); }
+
+/* ── Home Hero — Phase 6B upgrade ── */
+
+/* Section bg: token gradient replaces Unsplash photo */
+#home {
+    background:
+      radial-gradient(60% 80% at 5% 55%, rgba(225,6,0,0.18), transparent 60%),
+      radial-gradient(55% 75% at 96% 55%, rgba(31,111,235,0.14), transparent 60%),
+      linear-gradient(180deg, #0A0B0E 0%, #07080A 100%) !important;
+}
+/* Grid cage texture overlay */
+#home::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(transparent 96.5%, rgba(255,255,255,0.025) 96.5%),
+      linear-gradient(90deg, transparent 96.5%, rgba(255,255,255,0.025) 96.5%);
+    background-size: 28px 28px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Hero event label — styled pill */
+#hero-event-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    background: rgba(225,6,0,0.10);
+    border: 1px solid rgba(225,6,0,0.22);
+    color: rgba(255,100,80,1);
+}
+
+/* Faceoff card */
+.hero-faceoff {
+    background: rgba(10,11,14,0.90);
+    box-shadow:
+      0 0 60px rgba(225,6,0,0.09),
+      0 0 30px rgba(31,111,235,0.07),
+      inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+/* Grid cage texture on faceoff card */
+.hero-grid-overlay {
+    background-image:
+      linear-gradient(transparent 96%, rgba(255,255,255,0.028) 96%),
+      linear-gradient(90deg, transparent 96%, rgba(255,255,255,0.028) 96%);
+    background-size: 20px 20px;
+    z-index: 0;
+}
+
+/* Fighter image hover lift */
+.hero-fighter-img { transition: transform 0.4s ease; }
+.hero-faceoff:hover .hero-fighter-img { transform: translateY(-4px); }
+
+/* Fighter name */
+.hero-fighter-name {
+    font-size: 0.85rem;
+    text-align: center;
+    letter-spacing: 0.18em;
+    max-width: 100px;
+    word-break: break-word;
+    line-height: 1.2;
+}
+@media(min-width:1024px){ .hero-fighter-name { font-size: 1rem; max-width: 120px; } }
+
+/* Corner label pills */
+.hero-corner-pill {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 8px;
+    font-weight: 700;
+    font-style: italic;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 3px;
+}
+.hero-corner-red {
+    background: rgba(225,6,0,0.18);
+    border: 1px solid rgba(225,6,0,0.35);
+    color: rgba(255,110,90,1);
+}
+.hero-corner-blue {
+    background: rgba(31,111,235,0.16);
+    border: 1px solid rgba(31,111,235,0.32);
+    color: rgba(100,160,255,1);
+}
+
+/* VS badge */
+.hero-vs-badge {
+    font-size: 1.8rem;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 50%;
+    width: 52px; height: 52px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.6);
+    box-shadow: 0 0 20px rgba(225,6,0,0.35), 0 0 10px rgba(31,111,235,0.2);
+    letter-spacing: 0;
+}
+@media(min-width:1024px){ .hero-vs-badge { font-size: 2.2rem; width: 60px; height: 60px; } }

@@ -24,13 +24,9 @@ theme: { extend: {
 
 /* ── Home hero ── */
 #home {
-    position:relative;
-    background: linear-gradient(180deg, rgba(8,8,8,0) 0%, rgba(8,8,8,0.6) 50%, rgba(8,8,8,1) 100%),
-                url('https://images.unsplash.com/photo-1569517282132-25d22f4573e6?auto=format&fit=crop&q=80&w=1600') center/cover no-repeat;
-    background-size: cover;
-    background-position: center;
+    position: relative;
+    /* gradient bg + texture applied via app.css Phase 6B */
 }
-/* background-attachment fixed removed */
 
 /* ── Hero text animations ── */
 .hero-line { overflow:hidden; }
@@ -658,25 +654,37 @@ theme: { extend: {
                 </div>
 
                 <!-- Right: Main Event Face-off card -->
-                <div id="hero-faceoff-card" class="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-5 lg:p-6 backdrop-blur-xl flex-shrink-0 w-full xl:w-auto transition-all duration-700" style="background:rgba(10,10,14,0.7)">
-                    <div class="absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-red-500/20 via-red-500/5 to-transparent pointer-events-none"></div>
-                    <div class="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-blue-500/20 via-blue-500/5 to-transparent pointer-events-none"></div>
-                    <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none"></div>
+                <div id="hero-faceoff-card" class="hero-faceoff relative overflow-hidden rounded-[1.5rem] border border-white/10 p-5 lg:p-6 flex-shrink-0 w-full xl:max-w-[460px] transition-all duration-700">
+                    <!-- Red/blue corner gradients (stronger) -->
+                    <div class="absolute inset-y-0 left-0 w-3/5 pointer-events-none" style="background:linear-gradient(to right,rgba(225,6,0,0.28) 0%,rgba(225,6,0,0.07) 60%,transparent 100%)"></div>
+                    <div class="absolute inset-y-0 right-0 w-3/5 pointer-events-none" style="background:linear-gradient(to left,rgba(31,111,235,0.24) 0%,rgba(31,111,235,0.07) 60%,transparent 100%)"></div>
+                    <!-- Top edge highlight (red → blue) -->
+                    <div class="absolute inset-x-0 top-0 h-px pointer-events-none" style="background:linear-gradient(to right,rgba(225,6,0,0.7),rgba(255,255,255,0.06) 50%,rgba(31,111,235,0.6))"></div>
+                    <!-- Grid cage texture -->
+                    <div class="hero-grid-overlay absolute inset-0 pointer-events-none"></div>
                     <div class="relative">
-                        <div class="barlow text-[10px] font-bold italic tracking-[0.28em] text-white/40 uppercase mb-4">Main Event Face-off</div>
-                        <div class="grid grid-cols-[1fr_auto_1fr] items-end gap-3 lg:gap-5">
+                        <!-- Card header -->
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="barlow text-[9px] font-bold italic tracking-[0.22em] uppercase px-2 py-0.5 rounded" style="background:rgba(225,6,0,0.14);border:1px solid rgba(225,6,0,0.28);color:rgba(255,110,90,1)">Main Event</span>
+                            <span class="barlow text-[9px] font-bold italic tracking-[0.18em] text-white/25 uppercase">Face-off</span>
+                        </div>
+                        <!-- Fighter grid -->
+                        <div class="grid grid-cols-[1fr_auto_1fr] items-end gap-2 lg:gap-4">
+                            <!-- Red corner -->
                             <div class="flex flex-col items-center">
-                                <div id="hero-red-img" class="h-40 lg:h-48 w-24 lg:w-28 rounded-[999px_999px_16px_16px] border border-red-400/25 bg-cover bg-top" style="background:linear-gradient(to bottom, rgba(225,6,0,0.3), rgba(40,40,50,0.6), rgba(0,0,0,0.95))"></div>
-                                <div id="hero-red-name" class="oswald-sharp mt-3 text-sm lg:text-base font-black italic uppercase tracking-[0.2em] text-white/85">TBA</div>
-                                <div class="barlow text-[9px] italic text-gray-400 mt-0.5">Red Corner</div>
+                                <div id="hero-red-img" class="hero-fighter-img h-44 lg:h-56 w-24 lg:w-28 rounded-[999px_999px_16px_16px] border border-red-400/30 bg-cover bg-top" style="background:linear-gradient(to bottom,rgba(225,6,0,0.35),rgba(40,40,50,0.6),rgba(0,0,0,0.95))"></div>
+                                <div id="hero-red-name" class="hero-fighter-name oswald-sharp mt-3 font-black italic uppercase text-white/90">TBA</div>
+                                <div class="hero-corner-pill hero-corner-red mt-1.5">Red Corner</div>
                             </div>
-                            <div class="flex items-center justify-center pb-10">
-                                <div class="oswald-sharp rounded-full border border-white/15 px-3 py-2 text-base lg:text-lg font-black italic leading-none text-white" style="background:rgba(0,0,0,0.6); box-shadow:0 0 20px rgba(225,6,0,0.3)">VS</div>
+                            <!-- VS -->
+                            <div class="flex flex-col items-center justify-center pb-10 gap-1">
+                                <div class="hero-vs-badge oswald-sharp font-black italic leading-none text-white">VS</div>
                             </div>
+                            <!-- Blue corner -->
                             <div class="flex flex-col items-center">
-                                <div id="hero-blue-img" class="h-40 lg:h-48 w-24 lg:w-28 rounded-[999px_999px_16px_16px] border border-blue-400/25 bg-cover bg-top" style="background:linear-gradient(to bottom, rgba(37,99,235,0.3), rgba(40,40,50,0.6), rgba(0,0,0,0.95))"></div>
-                                <div id="hero-blue-name" class="oswald-sharp mt-3 text-sm lg:text-base font-black italic uppercase tracking-[0.2em] text-white/85">TBA</div>
-                                <div class="barlow text-[9px] italic text-gray-400 mt-0.5">Blue Corner</div>
+                                <div id="hero-blue-img" class="hero-fighter-img h-44 lg:h-56 w-24 lg:w-28 rounded-[999px_999px_16px_16px] border border-blue-400/30 bg-cover bg-top" style="background:linear-gradient(to bottom,rgba(37,99,235,0.35),rgba(40,40,50,0.6),rgba(0,0,0,0.95))"></div>
+                                <div id="hero-blue-name" class="hero-fighter-name oswald-sharp mt-3 font-black italic uppercase text-white/90">TBA</div>
+                                <div class="hero-corner-pill hero-corner-blue mt-1.5">Blue Corner</div>
                             </div>
                         </div>
                     </div>
