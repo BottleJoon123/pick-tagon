@@ -5,6 +5,13 @@
            admin.js (getActiveFights), utils.js (escapeHtml)
 ============================== */
 
+// Returns a valid 5-element stats array for display, falling back to [75,75,75,75,75].
+// [] is truthy in JS so the || operator alone cannot detect empty arrays.
+function _getDisplayStats(f) {
+    var s = f && f.stats;
+    return (Array.isArray(s) && s.length === 5) ? s : [75, 75, 75, 75, 75];
+}
+
 function openH2H() {
     const modal = document.getElementById('h2h-modal');
     modal.classList.remove('hidden');
@@ -59,8 +66,8 @@ function renderH2H() {
     const f2 = all.find(f => f.id === f2Id);
     if (!f1 || !f2) return;
 
-    const stats1 = f1.stats || [75, 75, 75, 75, 75];
-    const stats2 = f2.stats || [75, 75, 75, 75, 75];
+    const stats1 = _getDisplayStats(f1);
+    const stats2 = _getDisplayStats(f2);
     const STAT_LABELS = ['Striking', 'Grappling', 'Stamina', 'Defense', 'Speed'];
 
     // 스탯 우위
