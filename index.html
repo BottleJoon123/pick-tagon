@@ -2796,7 +2796,7 @@ theme: { extend: {
                 { nm: '브라운', pts: 5000,  color: '#B5803A' },
                 { nm: '블랙',   pts: 10000, color: '#2A2A2A', border: '1px solid #71757F' },
             ];
-            var pts = state.points;
+            var pts = state.points || 0;
             var ci = 0;
             for (var _i = _bStops.length - 1; _i >= 0; _i--) {
                 if (pts >= _bStops[_i].pts) { ci = _i; break; }

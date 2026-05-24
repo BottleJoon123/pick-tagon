@@ -328,7 +328,10 @@ textarea, select {
 }
 .pt-belt-stop.done .pt-belt-nm  { color: var(--pt-ink-2); }
 .pt-belt-stop.current .pt-belt-nm { color: var(--pt-ink-0); }
-.pt-belt-pts { font-size: 8px; color: var(--pt-ink-4); font-family: 'Inter', monospace; }
+.pt-belt-pts {
+    font-size: 8px; color: var(--pt-ink-4); font-family: 'Inter', monospace;
+    word-break: keep-all; overflow-wrap: normal;
+}
 .pt-belt-stop.current .pt-belt-pts { color: var(--pt-warn); font-weight: 700; }
 @media(min-width:1024px) {
     .pt-belt-dot { width: 24px; height: 24px; }
@@ -337,11 +340,8 @@ textarea, select {
 }
 
 /* ── Profile section glass-card surface upgrade (Phase 4A) ── */
-#profile .glass-card {
+/* Exclude profile-report-card to preserve its subtle red accent border (ufcRed/15) */
+#profile .glass-card:not(#profile-report-card) {
     background: var(--pt-bg-2);
     border-color: var(--pt-line-1);
-}
-/* Keep analyst report red accent border */
-#profile #profile-report-card {
-    border-color: var(--pt-line-red);
 }

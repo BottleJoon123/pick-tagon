@@ -343,14 +343,31 @@ const stats1 = f1.stats || [75, 75, 75, 75, 75];
 - `.pt-belt-stop` (`.done`, `.current`, `.next`) — belt 상태별 스타일
 - `.pt-belt-dot`, `.pt-belt-nm`, `.pt-belt-pts`
 
-### QA 필요 항목 (브라우저 확인)
+### Phase 4A-QA 코드 검토 결과 (2026-05-24)
 
-- [ ] Belt tracker 5 dots 가로 정렬 — mobile 375px에서 pt-belt-nm 텍스트 잘림 여부
-- [ ] Progress fill line이 current dot까지 정확히 도달하는지
-- [ ] profile-hero-card radial gradient가 아바타 영역을 가리지 않는지
-- [ ] `#profile .glass-card` override가 community 섹션 glass-card에 영향 없는지 (CSS ID selector scope 확인)
-- [ ] logout 버튼, 닉네임 변경 버튼 동작 유지 확인
-- [ ] prof-pts / prof-tot / prof-acc 값이 state 반영 후 정상 표시
+**발견 및 수정:**
+
+| 항목 | 내용 | 처리 |
+|---|---|---|
+| `#profile #profile-report-card { border-color: var(--pt-line-red) }` | `--pt-line-red: rgba(225,6,0,0.55)` — 원본 `ufcRed/15(0.15)` 대비 너무 진함 | `#profile .glass-card:not(#profile-report-card)` 로 교체 |
+| `var pts = state.points` | undefined/NaN 시 bt-next-label에 "NaN P" 표시 가능 | `state.points \|\| 0` 가드 추가 |
+| `pt-belt-pts` overflow | "10,000P" 등 숫자 텍스트 모바일 잘림 가능성 | `word-break: keep-all` 추가 |
+
+**코드 QA 확인:**
+
+- ✅ `onclick="openNicknameModal()"`, `onclick="logoutUser()"` 변경 없음
+- ✅ `id="prof-pts/tot/acc/belt-box/belt-name"` 모두 유지
+- ✅ `#profile .glass-card` CSS — `#profile` ID selector scope으로 community 섹션 영향 없음
+- ✅ `top: 40px` track 라인 — lg(24px 도트): 정확히 도트 센터. mobile(20px 도트): 2px 아래 (불가시)
+- ✅ `state.points || 0` — White belt(0P) fallback 정상 (0 >= 0 이므로 ci=0 유지)
+- ✅ progress bar `flex-1` — 양 shrink-0 레이블 사이 공간 확보됨
+- ✅ `profile-hero-card::before` radial gradient — `pointer-events: none`, `> * { position: relative }` 로 아바타 위에 오버레이 없음
+
+**브라우저 확인 필요 (코드 범위 밖):**
+
+- [ ] Belt tracker 5 dots 정렬 — mobile 375px 시각 확인
+- [ ] Profile-hero-card gradient 아바타 가림 없음
+- [ ] logout/닉네임 변경 버튼 실제 동작
 
 ---
 
@@ -441,6 +458,7 @@ const stats1 = f1.stats || [75, 75, 75, 75, 75];
 | Phase 3D-3: 운영 DB 컬럼 존재 검증 | **완료** | `Docs: Verify matchup fighter ID column readiness` |
 | Phase 3E: red token hardcode cleanup | **완료** | `Refactor: Align red styling with design tokens` |
 | Phase 4A: Profile 디자인 1차 적용 | **완료** | `Style: Apply profile design system polish` |
+| Phase 4A-QA: Profile 코드 QA + fix | **완료** | `Fix: Polish profile design QA findings` |
 | Phase 4B: Home / Leaderboard | 대기 | — |
 | Phase 5: Community/News/Admin | 대기 | — |
 
