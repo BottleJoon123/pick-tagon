@@ -1,0 +1,116 @@
+/* ============================================================
+   Pick-tagon Design Tokens  (variables only — no global resets)
+   Based on: docs/design_handoff_picktagon/design-system/tokens.css
+   Phase 1: :root token definitions + supplemental font load.
+   Body/reset styles intentionally excluded — handled by index.html.
+   ============================================================ */
+
+/* Supplement existing font load (Barlow Condensed / Inter / Oswald already
+   loaded by index.html). Only new families added here. */
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+:root {
+  /* ---------- Surface (deepest → lifted) ---------- */
+  --pt-bg-0: #07080A;
+  --pt-bg-1: #0E0F12;
+  --pt-bg-2: #14161B;
+  --pt-bg-3: #1B1E25;
+  --pt-bg-4: #232730;
+
+  /* ---------- Border / hairline ---------- */
+  --pt-line-1: rgba(255,255,255,0.06);
+  --pt-line-2: rgba(255,255,255,0.10);
+  --pt-line-3: rgba(255,255,255,0.18);
+  --pt-line-red: rgba(225,6,0,0.55);
+
+  /* ---------- Ink ---------- */
+  --pt-ink-0: #FFFFFF;
+  --pt-ink-1: #ECECEE;
+  --pt-ink-2: #B3B5BC;
+  --pt-ink-3: #71757F;
+  --pt-ink-4: #4A4D55;
+
+  /* ---------- Pick-tagon Red ---------- */
+  --pt-red-50:  #FFE9E8;
+  --pt-red-100: #FFC7C4;
+  --pt-red-300: #FF5D55;
+  --pt-red-500: #E10600;
+  --pt-red-600: #C20500;
+  --pt-red-700: #9A0400;
+  --pt-red-900: #3A0100;
+  --pt-red-glow: 0 0 24px rgba(225,6,0,0.45);
+
+  /* ---------- Corner colors ---------- */
+  --pt-corner-red:       #E10600;
+  --pt-corner-red-deep:  #6B0200;
+  --pt-corner-blue:      #1F6FEB;
+  --pt-corner-blue-deep: #0A2A66;
+
+  /* ---------- Status ---------- */
+  --pt-win:  #1FBF6B;
+  --pt-loss: #E10600;
+  --pt-draw: #71757F;
+  --pt-warn: #F4B400;
+  --pt-info: #1F6FEB;
+
+  /* ---------- Belt tiers ---------- */
+  --pt-belt-white:  #ECECEE;
+  --pt-belt-blue:   #1F6FEB;
+  --pt-belt-purple: #8B3FE3;
+  --pt-belt-brown:  #B5803A;
+  --pt-belt-black:  #0E0F12;
+
+  /* ---------- Type ---------- */
+  --pt-font-display: 'Barlow Condensed', 'Oswald', system-ui, sans-serif;
+  --pt-font-eyebrow: 'Bebas Neue', 'Oswald', sans-serif;
+  --pt-font-body:    'Barlow', system-ui, -apple-system, sans-serif;
+  --pt-font-mono:    'JetBrains Mono', ui-monospace, monospace;
+
+  /* type scale */
+  --pt-fs-hero:    112px;
+  --pt-fs-display:  72px;
+  --pt-fs-h1:       48px;
+  --pt-fs-h2:       32px;
+  --pt-fs-h3:       22px;
+  --pt-fs-body:     15px;
+  --pt-fs-small:    13px;
+  --pt-fs-eyebrow:  11px;
+
+  --pt-lh-tight: 0.92;
+  --pt-lh-snug:  1.1;
+  --pt-lh-body:  1.5;
+  --pt-tracking-eyebrow: 0.18em;
+  --pt-tracking-display: -0.01em;
+
+  /* ---------- Space ---------- */
+  --pt-space-1:   4px;
+  --pt-space-2:   8px;
+  --pt-space-3:  12px;
+  --pt-space-4:  16px;
+  --pt-space-5:  20px;
+  --pt-space-6:  24px;
+  --pt-space-8:  32px;
+  --pt-space-10: 40px;
+  --pt-space-12: 56px;
+  --pt-space-16: 80px;
+
+  /* ---------- Radius ---------- */
+  --pt-r-xs:   4px;
+  --pt-r-sm:   8px;
+  --pt-r-md:  12px;
+  --pt-r-lg:  18px;
+  --pt-r-xl:  24px;
+  --pt-r-pill: 999px;
+
+  /* ---------- Shadow ---------- */
+  --pt-shadow-card: 0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 24px rgba(0,0,0,0.35);
+  --pt-shadow-pop:  0 18px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.06);
+  --pt-shadow-red:  0 12px 36px rgba(225,6,0,0.35);
+
+  /* ---------- Motion ---------- */
+  --pt-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --pt-ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --pt-dur-fast: 120ms;
+  --pt-dur-base: 220ms;
+  --pt-dur-slow: 420ms;
+}
