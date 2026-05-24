@@ -612,17 +612,88 @@ const stats1 = f1.stats || [75, 75, 75, 75, 75];
 
 ---
 
-## Phase 5B — Admin 디자인 적용 (예정)
+## Phase 5B — Admin 화면 디자인 polish
 
-**목표:** Admin 화면 내부 CSS 정리 (기능 안정성 우선).
+**브랜치:** `refactor/admin-design-polish`  
+**기준 커밋:** `155bf4d` (main)  
+**핸드오프:** `docs/design_handoff_picktagon/screens/screen-admin.html`
 
-### 핸드오프 기준 파일
+**목표:** Admin 화면 section header, tab bar, panel surface, modal surface를 design token 기반으로 1차 정리. 운영 기능/로직은 변경하지 않는다.
 
-- `docs/design_handoff_picktagon/screens/screen-admin.html`
+---
 
-### 주의
+### Admin 섹션 구조 파악
 
-- Admin 화면: 내부 도구 성격 — 디자인 완성도보다 기능 안정성 우선
+| 탭 | ID | 렌더 방식 |
+|---|---|---|
+| 대시보드 | `admin-panel-dashboard` | 100% JS (`renderAdminDashboard()`) |
+| 파이터 DB | `admin-panel-fighters` | JS + HTML 골격 |
+| 대진표 관리 | `admin-panel-ufc` | HTML 골격 (`bg-zinc-900/60`) |
+| 아카이브 | `admin-panel-archive` | HTML 골격 |
+| 뉴스 관리 | `admin-panel-news` | HTML 골격 |
+| 시즌 관리 | `admin-panel-season` | HTML 골격 (yellow accent + danger zone) |
+| 설정 | `admin-panel-settings` | HTML 골격 (glass-card) |
+
+---
+
+### 적용 범위 (low-risk CSS only)
+
+| 영역 | 현재 | 변경 방향 | 위치 |
+|---|---|---|---|
+| Admin 섹션 헤더 | `border-l-8 lg:border-l-[12px] border-ufcRed pl-4 lg:pl-8` | → `.sx-head` | index.html |
+| Tab bar border | `border-b border-white/10` | → `var(--pt-line-1)` | app.css |
+| `.admin-tab` base border | `rgba(255,255,255,0.07)` | → `var(--pt-line-1)` | app.css |
+| `.admin-tab:hover` bg | `rgba(255,255,255,0.04)` | → `var(--pt-bg-3)` | app.css |
+| `#admin .glass-card` surface | `rgba(255,255,255,0.04)` | → `var(--pt-bg-2) / var(--pt-line-1)` | app.css |
+| `#admin-panel-ufc .glass-card` bg | `bg-zinc-900/60` (Tailwind) | → `var(--pt-bg-2)` via ID scope | app.css |
+| Admin gate modal inner panel | `glass-card border-white/10` | → `var(--pt-bg-2) / var(--pt-line-1)` | app.css |
+| Settings `hr` divider | `border-white/10` | → `var(--pt-line-1)` (CSS scope) | app.css |
+
+---
+
+### 변경하지 않을 항목 — 위험 경로
+
+| 항목 | 이유 |
+|---|---|
+| `renderAdminDashboard()` JS 출력 | 100% JS 생성, CSS override만으로 대응 (대시보드 stat card 색상은 JS inline style) |
+| `admin-tab.active-tab` red bg/border | 탭 active state 식별 색상, 기능 의존 |
+| Season 현재 시즌 카드 `yellow-500/20` | 의도적 accent (현재 시즌 강조) |
+| Season Danger Zone `ufcRed/20` bg | 파괴적 작업 경고 UI — 의도적 red accent |
+| `confirmSeasonReset` 버튼 | 파괴적 DB 작업, 변경 금지 |
+| `adminSettleEvent` / `adminSetMatchupResult` / `adminArchiveEvent` | result settlement 로직, 변경 금지 |
+| `saveFighter` / `deleteFighter` / `syncAllFighters` / `purgeInactiveFighters` | 파이터 DB 작업, 변경 금지 |
+| `saveMatchupFromModal` / `deleteMatchupFromModal` / `saveNewEvent` | Event builder 로직, 변경 금지 |
+| `openResultModal` / `openMatchupEditModal` | Result/matchup edit modal 기능, 변경 금지 |
+| Fighter modal (`openFighterModal`) | 파이터 편집 modal 기능, 변경 금지 |
+| News admin `openNewsModal` | 뉴스 추가 기능, 변경 금지 |
+
+---
+
+### 특이사항 — CSS 우선순위 주의점
+
+Phase 5A에서 학습한 패턴 적용:
+- `#admin .admin-tab` (1,1,0) > `.admin-tab` 인라인 CSS (0,1,0) → 탭 base border override 가능
+- `.admin-tab.active-tab` (0,2,0) < `#admin .admin-tab.active-tab` (1,2,0) → active 보존 시 명시 rule 필요
+- `#admin .admin-tab:hover:not(.active-tab)` — 현재 인라인 hover rule도 동일하게 명시 필요
+
+---
+
+### 완료 기준 (Phase 5B)
+
+- [ ] Admin 섹션 헤더 `.sx-head` 통일
+- [ ] Tab bar + `.admin-tab` token border 적용
+- [ ] `#admin .glass-card` surface token 적용
+- [ ] `#admin-panel-ufc` bg-zinc-900 override
+- [ ] Admin gate modal surface
+- [ ] `npm run build` 통과
+- [ ] docs 업데이트
+- [ ] 커밋: `Style: Apply admin design system polish`
+
+**브라우저 확인 필요 (코드 범위 밖):**
+- [ ] 대시보드 stat card JS inline style과 충돌 여부
+- [ ] 탭 전환 시 active-tab 시각 확인
+- [ ] Season danger zone 강조색 보존 확인
+- [ ] Mobile 375px admin tab overflow
 
 ---
 
