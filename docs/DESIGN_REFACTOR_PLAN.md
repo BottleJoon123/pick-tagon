@@ -772,6 +772,52 @@ Phase 5A에서 학습한 패턴 적용:
 | P2 fix: remaining section headers | **완료** | `Style: Polish remaining section headers` |
 | Phase 6A: Global header/nav upgrade | **완료** | `Style: Upgrade global navigation design` |
 | Phase 6B: Home hero upgrade | **완료** | `Style: Upgrade home hero design` |
+| Phase 6B-QA: Home hero QA | **완료** | `Fix: Polish home hero QA findings` |
+
+---
+
+## Phase 6B-QA — Home Hero QA (2026-05-24)
+
+**분석 방법:** 코드 정적 분석 (CSS specificity, HTML 구조, JS 바인딩 경로)
+
+### QA 항목
+
+| 항목 | 상태 | 근거 |
+|---|---|---|
+| `#home::before` z-index vs content | PASS (code) | `z-index:0`, 콘텐츠 `relative z-10`, ticker `relative z-10` — 정상 적층 |
+| `#home` display:flex vs `::before` position:absolute | PASS (code) | absolute는 flex flow 제외, `#home { position:relative }` 포함 블록 제공 ✓ |
+| `hero-event-label` — JS textContent 덮어쓰기 | PASS (code) | JS는 textContent만 변경, CSS pill 스타일 무영향 ✓ |
+| `hero-red-img / hero-blue-img` — JS backgroundImage | PASS (code) | JS: `style.backgroundImage = 'gradient, url(...)'` + size/position/repeat — inline style이 CSS 우선 ✓ |
+| `renderFaceOffGlow` boxShadow override | PASS (code) | `card.style.boxShadow=''` 시 `.hero-faceoff` CSS 복원 ✓ |
+| `hero-event-label` 색상 — `text-gray-500` vs CSS | **ISSUE P2** | ID(1,0,0) > class(0,1,0) → CSS 이김. 그러나 overridden class 잔존 → `text-gray-500` 제거 |
+| 375px: faceoff card grid 너비 | PASS (code) | content 335px, fighter col 133px, w-24=96px — 마진 18px씩 여유 ✓ |
+| 375px: VS badge (52px) center column | PASS (code) | (335-52-16)/2=133px/col — fighter image 넘치지 않음 ✓ |
+| Fighter image h-44 lg:h-56 overflow | PASS (code) | card `overflow-hidden` + 302px card height ≈ 37% 375×812 viewport ✓ |
+| `.hero-fighter-name max-width:100px` | PASS (code) | Oswald condensed "CHIMAEV"(7ch) ≈ 73px < 100px, word-break 적용 ✓ |
+| VS badge `pb-10` 수직 정렬 | PASS (code) | 기존 동일 패턴 — `items-end` + pb-10 offset 유지 ✓ |
+| `bg-cover bg-top` Tailwind vs JS | PASS (code) | JS `style.backgroundSize/Position` inline > stylesheet — fallback gradient 무해 ✓ |
+| hero-fighter-img hover lift | PASS (code) | `.hero-faceoff:hover .hero-fighter-img { transform: translateY(-4px) }` — overflow:hidden 내 ✓ |
+| `hero-grid-overlay` z-index 0 vs card content | PASS (code) | inner `.relative` div DOM order 이후 → content on top ✓ |
+| JS 바인딩 ID 6종 | PASS (code) | hero-red-img, hero-blue-img, hero-red-name, hero-blue-name, hero-event-label, cd-d/h/m/s 모두 존재 ✓ |
+| `navigateTo('matchups')` CTA | PASS (code) | line 637 유지 ✓ |
+
+### 수정 내역
+
+| 우선순위 | 항목 | 조치 |
+|---|---|---|
+| **P2** | `#hero-event-label` class에 `text-gray-500` 잔존 | 제거 (CSS ID rule이 완전 제어) |
+
+### NEEDS_BROWSER (시각 확인 필요)
+
+| 항목 | 이유 |
+|---|---|
+| Red/blue gradient 강도 | 0.18/0.14 opacity — 미묘한 값, 시각 확인 필요 |
+| Grid texture 가시성 | 0.025/0.028 opacity — 실제 렌더 확인 |
+| Fighter image 실사진 framing | JS `bg-top center` → 상반신 중심 크롭 확인 |
+| VS badge 크기/위치 시각 | 52px circle on mobile vs 60px desktop |
+| Corner pill 가독성 | 8px italic font — 너무 작지 않은지 확인 |
+| hero-event-label pill 렌더 | red-tinted border+bg — 실제 색감 확인 |
+| `renderFaceOffGlow` 결과 | pick 상태에서 card box-shadow override 시각 확인 |
 
 ---
 
