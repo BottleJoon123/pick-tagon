@@ -298,7 +298,7 @@ Phase 3부터 `var(--pt-red-500)` (`#E10600`)으로 점진 교체.
 | Phase 2: 공통 CSS 분리 | **완료** | `Refactor: Extract shared app styles` |
 | Phase 3A: Event/Pick 1차 토큰 적용 | **완료** | `Style: Apply event pick design system polish` |
 | Phase 3B-1: 섹션 헤더 .sx-head 적용 | **완료** | `Style: Polish matchups section header` |
-| Phase 3B-2: stats[] 레이더 차트 fix | 대기 | — |
+| Phase 3B-2: fighter stats UI 매핑 fix | **완료** | `Fix: Map persisted fighter stats into UI models` |
 | Phase 4: Home/Profile/Leaderboard | 대기 | — |
 | Phase 5: Community/News/Admin | 대기 | — |
 
