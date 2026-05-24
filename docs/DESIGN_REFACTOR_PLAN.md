@@ -680,14 +680,17 @@ Phase 5A에서 학습한 패턴 적용:
 
 ### 완료 기준 (Phase 5B)
 
-- [ ] Admin 섹션 헤더 `.sx-head` 통일
-- [ ] Tab bar + `.admin-tab` token border 적용
-- [ ] `#admin .glass-card` surface token 적용
-- [ ] `#admin-panel-ufc` bg-zinc-900 override
-- [ ] Admin gate modal surface
-- [ ] `npm run build` 통과
-- [ ] docs 업데이트
-- [ ] 커밋: `Style: Apply admin design system polish`
+- [x] Admin 섹션 헤더 `.sx-head` 통일
+- [x] Tab bar + `.admin-tab` token border 적용
+- [x] `#admin .glass-card` surface token 적용
+- [x] `#admin-panel-ufc` bg-zinc-900 override
+- [x] Admin gate modal surface
+- [x] `npm run build` 통과
+- [x] docs 업데이트
+- [x] 커밋: `Style: Apply admin design system polish`
+
+> **Phase 5B-1 완료** (`refactor/admin-design-polish`, 2026-05-24)  
+> Notes: tab bar `border-white/10` = `rgba(255,255,255,0.10)` = `--pt-line-2` 와 동일값이므로 별도 override 생략. Settings `hr` divider = 다음 QA에서 확인.
 
 **브라우저 확인 필요 (코드 범위 밖):**
 - [ ] 대시보드 stat card JS inline style과 충돌 여부

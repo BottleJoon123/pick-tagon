@@ -430,3 +430,14 @@ textarea, select {
     background: var(--pt-bg-2);
     border-color: var(--pt-line-1);
 }
+
+/* ── Admin — Phase 5B token upgrade ── */
+/* admin-tab base border token (beats inline <style> 0,1,0 via ID-scoped 1,1,0) */
+#admin .admin-tab { border-color: var(--pt-line-1); }
+/* active/hover must be 1,2,0+ to beat #admin .admin-tab fallback */
+#admin .admin-tab:hover:not(.active-tab) { background: var(--pt-bg-3); }
+#admin .admin-tab.active-tab { border-color: rgba(225,6,0,0.35); }
+/* glass-card surfaces — also overrides bg-zinc-900/60 on admin-panel-ufc */
+#admin .glass-card { background: var(--pt-bg-2); border-color: var(--pt-line-1); }
+/* admin-gate modal surface (outside #admin section) */
+#admin-gate-modal .glass-card { background: var(--pt-bg-2); border-color: var(--pt-line-1); }
