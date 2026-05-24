@@ -85,7 +85,7 @@ function renderHeroCard(fight, idx) {
 
     _fightCardCache[fight.id] = fight;
     return `
-    <div id="card-${fight.id}" onclick="if(event.target.closest('button,[data-no-pick]')) return; openPickSlipFromCard('${fight.id}')" class="glass-card ${isMain ? 'rounded-[2.5rem] lg:rounded-[4rem]' : 'rounded-[2rem] lg:rounded-[3rem]'} overflow-hidden transition-all duration-500" style="${glowStyle}">
+    <div id="card-${fight.id}" onclick="if(event.target.closest('button,[data-no-pick]')) return; openPickSlipFromCard('${fight.id}')" class="fc-hero-card glass-card ${isMain ? 'rounded-[2.5rem] lg:rounded-[4rem]' : 'rounded-[2rem] lg:rounded-[3rem]'} overflow-hidden transition-all duration-500" style="${glowStyle}">
         <!-- Card Header -->
         <div class="flex items-center justify-between px-5 lg:px-10 py-3 lg:py-4 border-b border-white/10 bg-black/30">
             <div class="flex items-center gap-3">
@@ -103,7 +103,7 @@ function renderHeroCard(fight, idx) {
         </div>
 
         <!-- Community Pick Bar -->
-        <div class="px-5 lg:px-10 py-4 bg-black/20 border-b border-white/5">
+        <div class="fc-pick-bar px-5 lg:px-10 py-4 bg-black/20 border-b border-white/5">
             <div class="flex items-center justify-between mb-2">
                 <span id="live-pct-l-${fight.id}" class="barlow text-sm font-black italic text-red-400 uppercase">${f1Last} 0%</span>
                 <span class="barlow text-[10px] font-bold italic text-gray-600 uppercase tracking-widest">커뮤니티 픽</span>
@@ -222,7 +222,7 @@ function renderStripRow(fight) {
 
     _fightCardCache[fight.id] = fight;
     return `
-    <div id="card-${fight.id}" onclick="openPickSlipFromCard('${fight.id}')" class="glass-card rounded-2xl overflow-hidden transition-all duration-300 border ${glow} cursor-pointer">
+    <div id="card-${fight.id}" onclick="openPickSlipFromCard('${fight.id}')" class="fc-strip-card glass-card rounded-2xl overflow-hidden transition-all duration-300 border ${glow} cursor-pointer">
         <!-- Thin community pick bar at top -->
         <div id="live-bar-${fight.id}" class="h-1 flex w-full bg-white/5">
             <div class="live-bar-left h-full transition-all duration-700" style="width:50%; background:var(--red)"></div>
@@ -238,7 +238,7 @@ function renderStripRow(fight) {
             <!-- F1 Thumbnail -->
             ${f1Img ? `<div class="flex-shrink-0 w-10 h-14 rounded-lg overflow-hidden border border-white/10" style="background-image:url('${f1Img}');background-size:cover;background-position:center 15%;"></div>` : ''}
             <!-- Fighter 1 -->
-            <div class="flex-1 min-w-0">
+            <div class="fc-red-side flex-1 min-w-0">
                 <div class="flex items-center gap-1.5">
                     <span class="oswald-sharp text-xs lg:text-sm font-black italic uppercase text-white truncate">${fight.f1.name}</span>
                     <div class="flex gap-0.5 flex-shrink-0">${renderDotForm(fight.f1.recent)}</div>
@@ -253,7 +253,7 @@ function renderStripRow(fight) {
                 <span class="oswald-sharp text-[10px] font-black italic text-gray-700">VS</span>
             </div>
             <!-- Fighter 2 -->
-            <div class="flex-1 min-w-0 text-right">
+            <div class="fc-blue-side flex-1 min-w-0 text-right">
                 <div class="flex items-center justify-end gap-1.5">
                     <div class="flex gap-0.5 flex-shrink-0">${renderDotForm(fight.f2.recent)}</div>
                     <span class="oswald-sharp text-xs lg:text-sm font-black italic uppercase text-white truncate">${fight.f2.name}</span>
@@ -435,19 +435,22 @@ function updateAllFightCards() {
         const settledDiv = document.getElementById(`settled-${fight.id}`);
         const settledText = document.getElementById(`settled-text-${fight.id}`);
         const myPickEl = document.getElementById(`my-pick-${fight.id}`);
+        const cardEl = document.getElementById(`card-${fight.id}`);
 
         if (btn1) { btn1.disabled = false; btn1.classList.remove('opacity-40', 'cursor-not-allowed'); }
         if (btn2) { btn2.disabled = false; btn2.classList.remove('opacity-40', 'cursor-not-allowed'); }
-        if (settledDiv) { settledDiv.classList.add('hidden'); settledDiv.style.background = ''; }
+        if (settledDiv) { settledDiv.classList.add('hidden'); settledDiv.classList.remove('fc-settled-win', 'fc-settled-lose'); settledDiv.style.background = ''; }
         if (myPickEl) { myPickEl.classList.add('hidden'); myPickEl.innerHTML = ''; myPickEl.style.background = ''; }
+        if (cardEl) { cardEl.classList.remove('fc-card-pending', 'fc-card-settled'); }
 
         if (pending) {
             if (btn1) { btn1.disabled = true; btn1.classList.add('opacity-40', 'cursor-not-allowed'); }
             if (btn2) { btn2.disabled = true; btn2.classList.add('opacity-40', 'cursor-not-allowed'); }
+            if (cardEl) cardEl.classList.add('fc-card-pending');
             if (myPickEl) {
                 const isLeft = pending.side === 'left';
-                myPickEl.className = 'border-t border-white/5 py-2 px-5 lg:px-10 text-center';
-                myPickEl.style.background = isLeft ? 'rgba(210,10,10,0.07)' : 'rgba(37,99,235,0.07)';
+                myPickEl.className = `fc-my-pick ${isLeft ? 'fc-pick-red' : 'fc-pick-blue'}`;
+                myPickEl.style.background = '';
                 myPickEl.innerHTML = `<span class="block max-w-full oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest truncate ${isLeft ? 'text-ufcRed' : 'text-blue-400'}">★ MY PICK · ${escapeHtml(pending.pick)}</span>`;
             }
             return;
@@ -456,6 +459,7 @@ function updateAllFightCards() {
         if (settled && settledDiv && settledText) {
             if (btn1) { btn1.disabled = true; btn1.classList.add('opacity-40', 'cursor-not-allowed'); }
             if (btn2) { btn2.disabled = true; btn2.classList.add('opacity-40', 'cursor-not-allowed'); }
+            if (cardEl) cardEl.classList.add('fc-card-settled');
             settledDiv.classList.remove('hidden');
             if (settled.result === 'WIN') {
                 const bonusTags = [];
@@ -464,9 +468,11 @@ function updateAllFightCards() {
                 if (settled.hadUpsetBonus) bonusTags.push('<span class="text-orange-400">🔥업셋</span>');
                 const bonusHtml = bonusTags.length ? ' · ' + bonusTags.join(' ') : '';
                 settledText.innerHTML = `<span class="text-ufcRed">★ WIN +${settled.payout}P · ${escapeHtml(settled.actualWinner)} (${escapeHtml(settled.actualMethod || '—')}) ★</span>${bonusHtml}`;
-                settledDiv.style.background = 'rgba(210,10,10,0.08)';
+                settledDiv.classList.add('fc-settled-win');
+                settledDiv.style.background = '';
             } else {
                 settledText.innerHTML = `<span class="text-gray-400">✗ LOSE · 승자: ${escapeHtml(settled.actualWinner)} (${escapeHtml(settled.actualMethod || '—')})</span>`;
+                settledDiv.classList.add('fc-settled-lose');
             }
         }
     });

@@ -773,6 +773,7 @@ Phase 5A에서 학습한 패턴 적용:
 | Phase 6A: Global header/nav upgrade | **완료** | `Style: Upgrade global navigation design` |
 | Phase 6B: Home hero upgrade | **완료** | `Style: Upgrade home hero design` |
 | Phase 6B-QA: Home hero QA | **완료** | `Fix: Polish home hero QA findings` |
+| Phase 6C: Event/Pick card upgrade | **완료** | `Style: Upgrade event pick card design` |
 
 ---
 
@@ -850,6 +851,74 @@ Phase 5A에서 학습한 패턴 적용:
 - `navigateTo('matchups')` CTA 동작
 - Countdown 계산 로직
 - Home 전체 layout (headline → CTA → faceoff card → ticker → news)
+
+---
+
+## Phase 6C — Event / Pick Card 디자인 업그레이드 (2026-05-24)
+
+**브랜치:** `main`  
+**기준 커밋:** `ee14956`
+
+### 변경 사항
+
+#### `public/js/fights-render.js` — CSS class hooks 추가
+
+| 위치 | 변경 내용 |
+|---|---|
+| `renderHeroCard` outer div | `fc-hero-card` 클래스 추가 |
+| `renderHeroCard` pick bar section | `fc-pick-bar` 클래스 추가 |
+| `renderStripRow` outer div | `fc-strip-card` 클래스 추가 |
+| `renderStripRow` F1 info div | `fc-red-side` 클래스 추가 |
+| `renderStripRow` F2 info div | `fc-blue-side` 클래스 추가 |
+
+#### `public/js/fights-render.js` — `updateAllFightCards` state 로직 업그레이드
+
+| 상태 | 이전 | 이후 |
+|---|---|---|
+| 카드 초기화 | 없음 | `cardEl.classList.remove('fc-card-pending', 'fc-card-settled')` |
+| 픽 pending | `myPickEl.className` = Tailwind 유틸 + `myPickEl.style.background` 인라인 | `myPickEl.className = 'fc-my-pick fc-pick-red/blue'` + `style.background=''` 클리어 |
+| 픽 pending 카드 | 없음 | `cardEl.classList.add('fc-card-pending')` |
+| settled WIN | `settledDiv.style.background` 인라인 | `settledDiv.classList.add('fc-settled-win')` + `style.background=''` |
+| settled LOSE | `settledDiv.style.background` 인라인 | `settledDiv.classList.add('fc-settled-lose')` + `style.background=''` |
+| settled 카드 | 없음 | `cardEl.classList.add('fc-card-settled')` |
+
+#### `public/css/app.css` — Phase 6C CSS block 추가
+
+| 클래스 | 적용 효과 |
+|---|---|
+| `.fc-pick-bar` | `var(--pt-bg-1)` surface, `var(--pt-line-1)` border |
+| `.fc-strip-card .fc-red-side` | `2px solid rgba(225,6,0,0.30)` 좌측 border + padding-left |
+| `.fc-strip-card .fc-blue-side` | `2px solid rgba(31,111,235,0.25)` 우측 border + padding-right |
+| `.fc-card-pending`, `.fc-card-settled` | `cursor: default !important` (hero card 인라인 `cursor:pointer` override) |
+| `.fc-my-pick` | min-height 36px, flex center, padding, border-top transparent |
+| `.fc-pick-red` | `linear-gradient(to right, red tint)` + 3px red left border |
+| `.fc-pick-blue` | `linear-gradient(to left, blue tint)` + 3px blue right border |
+| `.fc-settled-win` | `rgba(225,6,0,0.06)` bg + red border-top |
+| `.fc-settled-lose` | `var(--pt-bg-1)` bg + `opacity: 0.7` |
+
+모든 규칙: `#fight-cards-container .fc-*` (specificity 1,1,0) — Tailwind CDN JIT (0,1,0) override.
+
+### 변경하지 않은 항목
+- `openBetSlip` / `confirmBetSlip` 로직 — 완전 무변경
+- `state.pendings` / `state.settled` 데이터 구조 — 무변경
+- pick submit / scoring / settlement 로직 — 무변경
+- Community pick ratio 계산/렌더 — 무변경
+- H2H / radar fallback 경로 — 무변경
+
+### 완료 기준
+
+- [x] `fights-render.js` CSS class hooks 추가 (`fc-hero-card`, `fc-pick-bar`, `fc-strip-card`, `fc-red-side`, `fc-blue-side`)
+- [x] `fights-render.js` `updateAllFightCards` state 클래스 기반으로 업그레이드
+- [x] `app.css` Phase 6C CSS block 추가
+- [x] `npm run build` 통과
+- [x] docs 업데이트
+- [x] 커밋: `Style: Upgrade event pick card design`
+
+**브라우저 확인 필요 (코드 범위 밖):**
+- [ ] Strip row red/blue side border — mobile 375px 확인
+- [ ] MY PICK banner gradient — pending pick 선택 후 시각 확인
+- [ ] settled WIN/LOSE 배경 — 결과 확정 카드 시각 확인
+- [ ] Hero card `cursor:default` — pending/settled 시 cursor override 동작 확인
 
 ---
 
