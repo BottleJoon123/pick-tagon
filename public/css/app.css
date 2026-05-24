@@ -239,12 +239,14 @@ textarea, select {
 }
 
 /* ── Section header — design-token variant ── */
+/* 8px/12px border: matches pick-tagon's larger section header aesthetic
+   (handoff default is 4px/10px; adjusted upward for visual weight parity). */
 .sx-head {
-    border-left: 4px solid var(--pt-red-500);
+    border-left: 8px solid var(--pt-red-500);
     padding-left: 1rem;
 }
 @media(min-width:1024px){
-    .sx-head { border-left-width:10px; padding-left:2rem; }
+    .sx-head { border-left-width:12px; padding-left:2rem; }
 }
 
 /* ── Event Fight Cards — Phase 3A token upgrade ── */
