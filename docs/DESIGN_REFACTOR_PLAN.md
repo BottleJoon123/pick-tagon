@@ -774,6 +774,7 @@ Phase 5A에서 학습한 패턴 적용:
 | Phase 6B: Home hero upgrade | **완료** | `Style: Upgrade home hero design` |
 | Phase 6B-QA: Home hero QA | **완료** | `Fix: Polish home hero QA findings` |
 | Phase 6C: Event/Pick card upgrade | **완료** | `Style: Upgrade event pick card design` |
+| Phase 6C-QA: Event/Pick card state QA | **완료** | `Fix: Polish event pick card QA findings` |
 
 ---
 
@@ -851,6 +852,97 @@ Phase 5A에서 학습한 패턴 적용:
 - `navigateTo('matchups')` CTA 동작
 - Countdown 계산 로직
 - Home 전체 layout (headline → CTA → faceoff card → ticker → news)
+
+---
+
+## Phase 6C-QA — Event/Pick Card State QA (2026-05-24)
+
+**분석 방법:** 정적 코드 분석 (CSS specificity, JS 상태 경로, HTML 구조, 함수 흐름)
+
+### 코드 경로 검증
+
+| 검증 항목 | 결과 | 근거 |
+|---|---|---|
+| `updateAllFightCards` 리셋 블록 | PASS | `fc-card-pending/settled` 제거, `myPickEl` hidden+class clear, `settledDiv` hidden+class clear ✓ |
+| pending → `fc-card-pending` 추가 | PASS | `cardEl.classList.add('fc-card-pending')` + early return ✓ |
+| pending → `fc-my-pick` 클래스 교체 | PASS | `className` 완전 교체로 `hidden` 제거, `fc-my-pick fc-pick-red/blue` 적용 ✓ |
+| settled → `fc-card-settled` 추가 | PASS | `cardEl.classList.add('fc-card-settled')` ✓ |
+| settled → `fc-settled-win/lose` 추가 | PASS | `settledDiv.classList.add('fc-settled-win/lose')` + `style.background=''` ✓ |
+| `hidden` show/hide 로직 | PASS | Tailwind `hidden { display:none !important }` > `.fc-my-pick { display:flex }` → 표시/숨김 정상 ✓ |
+| `openPickSlip` / `selectPickFighter` 로직 | PASS | Phase 6C 변경 없음, 회귀 없음 ✓ |
+| `confirmBetSlip` / `castVote` 로직 | PASS | Phase 6C 변경 없음, 회귀 없음 ✓ |
+| `openBetSlip` (index.html 레거시) | PASS | Phase 6C 변경 없음 ✓ |
+| `state.pendings` 구조 | PASS | `{side:'left'/'right', pick, payout, ...}` — `side` key 'left'/'right' → `isLeft` 분기 정확 ✓ |
+| `state.settled` 구조 (DB sync) | PASS | `supabase.js:481` `{result:'WIN'/'LOSE', actualWinner, actualMethod, payout}` → WIN/LOSE 분기 정확 ✓ |
+| `state.settled` 로컬 write (season reset) | PASS | `season.js:404` `state.settled = {}` 초기화 ✓ |
+| H2H/radar `initRadarChart` | PASS | Phase 6C 변경 없음 ✓ |
+| `toggleStatsOverlay` / `toggleAnalysis` | PASS | Phase 6C 변경 없음 ✓ |
+| `bet-btn-f1/f2-*` guard no-ops | PASS | 해당 ID 카드 마크업에 없음, `if(btn1)` 가드로 안전 ✓ |
+
+### CSS Specificity 검증
+
+| 규칙 | Specificity | Tailwind 경쟁 | 결과 |
+|---|---|---|---|
+| `#fight-cards-container .fc-pick-bar` bg | (1,1,0) | `bg-black/20` (0,1,0) | 우리 CSS 승 ✓ |
+| `#fight-cards-container .fc-pick-bar` border-color | (1,1,0) | `border-white/5` (0,1,0) | 우리 CSS 승 ✓ |
+| `#fight-cards-container .fc-strip-card .fc-red-side` | (1,2,0) | 경쟁 클래스 없음 | 안전 ✓ |
+| `#fight-cards-container .fc-card-pending/settled` cursor | (1,1,0) + `!important` | hero 인라인 `cursor:pointer`, strip `cursor-pointer` | `!important` 승 ✓ |
+| `#fight-cards-container .fc-pick-red` border-top-color | (1,1,0) | `border-white/10` (0,1,0) | 우리 CSS 승 ✓ |
+| `#fight-cards-container .fc-settled-win` border-top | (1,1,0) | `border-white/10` (0,1,0) | 우리 CSS 승 (shorthand) ✓ |
+| `#fight-cards-container .fc-settled-win/lose` bg | (1,1,0) | `bg-black/20` (0,1,0, strip) | 우리 CSS 승 ✓ |
+
+### 상태별 UI 검증 (코드 기준)
+
+| 상태 | 확인 항목 | 결과 |
+|---|---|---|
+| no pick | 양쪽 fighter 동등 노출 | PASS — fc-red/blue-side 미선택 시 동일 border opacity ✓ |
+| pending | MY PICK 배너 방향 gradient | PASS — `isLeft ? fc-pick-red : fc-pick-blue` 정확히 분기 ✓ |
+| pending | 카드 cursor | PASS — `fc-card-pending cursor:default !important` ✓ |
+| settled WIN | 레드 tint bg + 보너스 태그 | PASS — `fc-settled-win` + bonusHtml (DB 미포함 시 empty string — 기존 동작) ✓ |
+| settled LOSE | 흐릿한 외관 | PASS — `fc-settled-lose opacity:0.7` ✓ |
+| settled | 클릭 불가 외관 | PASS — `fc-card-settled cursor:default !important` ✓ |
+
+### 모바일 375px 레이아웃 검증
+
+| 항목 | 결과 | 근거 |
+|---|---|---|
+| strip row fc-red-side border-left + padding-left | PASS | box-sizing border-box → content area ≈100px, 파이터명 truncate ✓ |
+| fc-blue-side border-right + padding-right | PASS | 동일 ✓ |
+| fc-my-pick banner overflow | PASS | inner span `truncate`, 카드 너비 이내 ✓ |
+| hero card my-pick banner 위치 | PASS | community pick bar 아래, face-off 위에 삽입 ✓ |
+| strip row my-pick banner 위치 | PASS | 메인 flex row 아래, settled badge 위에 삽입 ✓ |
+
+### 기존 기능 영향 확인
+
+| 기능 | 결과 |
+|---|---|
+| pick submit (castVote → DB 저장) | 변경 없음 ✓ |
+| settlement / scoring 로직 | 변경 없음 ✓ |
+| community pick ratio 업데이트 | 변경 없음 ✓ |
+| analysis 4탭 (radar/stats/insight/recent) | 변경 없음 ✓ |
+| H2H 레이더 차트 fallback | 변경 없음 ✓ |
+
+### Pre-existing 항목 (Phase 6C 무관)
+
+| 항목 | 설명 | 심각도 |
+|---|---|---|
+| DB-loaded settled에 `hadMethodBonus` 등 없음 | `supabase.js:481-488` DB sync 시 해당 필드 미포함 → 보너스 태그 표시 안됨 | 낮음 (데이터 없는 기능 — Phase 6C 이전 동작과 동일) |
+
+### 수정 내역
+
+없음 — 정적 분석 결과 모든 Phase 6C 변경이 정상 동작.
+
+### NEEDS_BROWSER (시각 확인 필요)
+
+| 항목 | 이유 |
+|---|---|
+| fc-my-pick gradient visibility | `rgba(225,6,0,0.10 → 0.04)` — 매우 미묘한 opacity, 실제 렌더 확인 필요 |
+| fc-pick-red/blue border accent | 3px 좌/우 accent — 두께/강도 시각 확인 |
+| fc-strip-card red/blue side border | `rgba(225,6,0,0.30)` 2px — mobile에서 가시성 확인 |
+| fc-settled-lose opacity:0.7 | LOSE 텍스트 `opacity:0.7` — 가독성 확인 |
+| cursor:default on pending/settled | 브라우저 devtools로 인라인 `cursor:pointer` override 확인 |
+| fc-pick-bar bg `#0E0F12` vs 카드 bg `#14161B` | 약간 더 어두운 pick bar — 시각적 구분감 확인 |
+| hero card MY PICK banner 삽입 위치 | community bar 아래 face-off 위 — mobile 흐름 자연스러움 확인 |
 
 ---
 
