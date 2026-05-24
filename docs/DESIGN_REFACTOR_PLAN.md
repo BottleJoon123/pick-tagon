@@ -783,6 +783,9 @@ Phase 5A에서 학습한 패턴 적용:
 | Phase 6F-QA: Community/News visible upgrade QA | **완료** | `Fix: Polish community news visible QA findings` |
 | Phase 6C-2: Event/Pick card detail polish | **완료** | `Style: Polish event pick card details` |
 | Phase 6C-2-QA: Event/Pick detail polish QA | **완료** | `Fix: Polish event pick detail QA findings` |
+| **Phase 6 Closeout** | **완료** | `Docs: Close out visible design round` |
+
+> Phase 6 마감 문서 → [`docs/PHASE6_VISIBLE_DESIGN_CLOSEOUT.md`](PHASE6_VISIBLE_DESIGN_CLOSEOUT.md)
 
 ---
 
