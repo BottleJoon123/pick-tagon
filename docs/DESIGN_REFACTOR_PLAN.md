@@ -356,7 +356,7 @@ const stats1 = f1.stats || [75, 75, 75, 75, 75];
 | **Pretendard** | `screen-shell.css`가 `'Pretendard'` 사용 → tokens.css는 `'Barlow'`. 실제 앱에선 Pretendard 유지 결정 | 미해결 |
 | **JS 클래스 참조** | `public/js/*.js` 파일들이 DOM 클래스명을 직접 참조하는 경우 마크업 변경 시 동반 수정 필요 | 미해결 |
 | **index.html 규모** | 단일 파일이라 회귀 테스트 범위 넓음 — Phase별 작은 단위 커밋 필수 | 미해결 |
-| **stats 이름 매칭** | `matchups.red_fighter_name` ↔ `fighters.name` 정확 일치 요구 — Phase 3D에서 ID 기반 매핑으로 전환 예정 | **Phase 3D 예정** |
+| **stats 이름 매칭** | ID 우선 매핑 구현 완료 (3D-2). "King Green"→"bobby-green" ID로 name mismatch 해결 확인. 나머지 NULL ID 행은 name fallback 처리. | **해결** (3D-2/3D-3) |
 | **`[]` truthy 문제** | `h2h.js` `stats \|\| [75,75,75,75,75]` 가 빈 배열 통과 → `_getDisplayStats()` 헬퍼로 해결 | **해결** (3D-1) |
 
 ---
@@ -372,7 +372,9 @@ const stats1 = f1.stats || [75, 75, 75, 75, 75];
 | Phase 3B-2: fighter stats UI 매핑 fix | **완료** | `Fix: Map persisted fighter stats into UI models` |
 | Phase 3C: QA & 리스크 리뷰 | **완료** | `Docs: Record event pick QA and stats mapping risks` |
 | Phase 3D-1: H2H stats empty-array fallback fix | **완료** | `Fix: Fallback empty fighter stats in H2H radar` |
-| Phase 3D-2: matchups fighter_id 기반 매핑 | 대기 | — |
+| Phase 3D-2: matchups fighter_id 기반 매핑 설계 | **완료** | `Docs: Plan matchup fighter ID mapping` |
+| Phase 3D-2: SELECT 추가 + ID 우선 매핑 구현 | **완료** | `Fix: Use fighter ID for matchup lookup with name fallback` |
+| Phase 3D-3: 운영 DB 컬럼 존재 검증 | **완료** | `Docs: Verify matchup fighter ID column readiness` |
 | Phase 4: Home/Profile/Leaderboard | 대기 | — |
 | Phase 5: Community/News/Admin | 대기 | — |
 

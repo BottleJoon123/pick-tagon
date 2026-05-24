@@ -1,8 +1,8 @@
 # Matchup Fighter ID Mapping Plan
 
 > 브랜치: `refactor/design-apply`  
-> 작성: 2026-05-24  
-> 관련 Phase: 3D-2
+> 작성: 2026-05-24 / 검증: 2026-05-24  
+> 관련 Phase: 3D-2, 3D-3
 
 ---
 
@@ -21,6 +21,46 @@
 | **`_f1db` / `_f2db` 매칭 로직** | ❌ name-only (`d.name === m.red_fighter_name`) |
 
 **결론: DB 스키마 변경(migration) 불필요. SELECT 컬럼 추가 + 매핑 로직 2순위 변경만 필요.**
+
+---
+
+## Phase 3D-3 운영 DB 검증 결과 (2026-05-24)
+
+### 컬럼 존재 확인 ✅
+
+Supabase `information_schema.columns` 직접 조회:
+
+| 컬럼 | 타입 | nullable | 상태 |
+|---|---|---|---|
+| `matchups.red_fighter_id` | TEXT | YES | ✅ 존재 |
+| `matchups.blue_fighter_id` | TEXT | YES | ✅ 존재 |
+| `fighters.id` | TEXT | NO | ✅ 타입 일치 |
+
+### SELECT 안전성 ✅
+
+- 컬럼이 실제 존재하므로 `fetchUpcomingMatchups` SELECT에 추가해도 에러 없음
+- 에러 발생 시 `mRes.error` 체크 → `renderFightCards()` 호출 후 return (graceful degradation)
+- fighter_id가 NULL인 행도 JS에서 name fallback으로 처리됨
+
+### upcoming 매치업 ID 채움 현황
+
+전체 `matchups` 65행 중 upcoming 이벤트 소속 27행:
+- sort_order=99 (오래된/정렬 미설정 데이터): 16행 — 모두 fighter_id NULL
+- 정상 정렬 매치업: 11행
+
+**정상 매치업 ID 채움률 (11행 기준):**
+
+| | red_fighter_id | blue_fighter_id |
+|---|---|---|
+| 채움 | 9/11 (82%) | 7/11 (64%) |
+| NULL | 2/11 (18%) | 4/11 (36%) |
+
+### 주목할 데이터 이슈
+
+`red_fighter_name = "King Green"`, `red_fighter_id = "bobby-green"`:
+- name-only 매핑: fighterDB에 "Bobby Green"으로 등록 → 매칭 실패 → stats `[]`
+- **ID 우선 매핑 (Phase 3D-2 구현 후)**: `d.id === "bobby-green"` → 정확히 매칭 → stats 정상 표시
+- 이 케이스가 ID 기반 매핑의 실제 필요성을 증명함
 
 ---
 
@@ -153,8 +193,9 @@ if (!_f1db) {
 | DB 스키마 조사 (컬럼 존재 확인) | ✅ 완료 |
 | admin 저장 경로 확인 | ✅ 완료 |
 | 설계 문서화 | ✅ 완료 |
-| SELECT 컬럼 추가 + ID 우선 매핑 구현 | 대기 |
+| SELECT 컬럼 추가 + ID 우선 매핑 구현 | ✅ 완료 (22be5d4) |
+| 운영 DB 컬럼 존재 검증 | ✅ 완료 (Phase 3D-3) |
 
 ---
 
-*작성: 2026-05-24*
+*작성: 2026-05-24 / 최종 업데이트: 2026-05-24*
