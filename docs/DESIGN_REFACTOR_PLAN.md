@@ -523,31 +523,67 @@ const stats1 = f1.stats || [75, 75, 75, 75, 75];
 
 ---
 
-## Phase 5 — Community / News / Admin 적용
+## Phase 5A — Community / News 디자인 1차 적용
 
-**목표:** 나머지 화면 일괄 정리 (낮은 노출 빈도)
+**목표:** Community 피드 / News 뉴스 화면 section header, card surface, filter chips, modal surface를 design token 기반으로 1차 정리. Admin은 Phase 5B 별도 처리.
+
+### 변경 내용
+
+| 영역 | 변경 내용 |
+|---|---|
+| Community 섹션 헤더 | `border-l-4 border-ufcRed pl-3` → `.sx-head` (index.html) |
+| News 섹션 헤더 | `border-l-8 lg:border-l-[12px] border-ufcRed pl-4 lg:pl-8` → `.sx-head` (index.html) |
+| `post-list-container` | `border: #1a1a1a` → `var(--pt-line-2)` (app.css) |
+| `post-list-head` | `background: #0d0d0d` → `var(--pt-bg-1)`, border → `var(--pt-line-2)` |
+| `post-row` hover | `rgba(255,255,255,0.02)` → `var(--pt-bg-3)` |
+| `post-row` border | `#111` → `var(--pt-line-1)` |
+| `post-expand-body` left border | `#252525` → `var(--pt-line-2)` |
+| `post-com-input` border | `#1e1e1e` → `var(--pt-line-1)` |
+| `comm-filter-btn` border | `#222` → `var(--pt-line-2)` |
+| `comm-dropdown` bg/border | `#0d0d0d / #222` → `var(--pt-bg-1) / var(--pt-line-2)` |
+| `#post-detail-modal .glass-card` | `pt-bg-2 + pt-line-1` surface |
+| `#news-grid .glass-card` | `pt-bg-2 + pt-line-1` surface; hover → `pt-bg-3 + shadow:none` |
+| `#news-detail-modal .glass-card` | `pt-bg-2 + pt-line-1` surface |
+
+### 변경하지 않은 항목 (이유)
+
+| 항목 | 이유 |
+|---|---|
+| `comm-filter-btn.active` red bg | 이미 rgba(232,0,13,...) — 기능적 강조, 변경 불필요 |
+| `my-battle-panel` border-ufcRed/20 | 내 배틀 패널 강조를 위한 의도적 accent |
+| `post-type-tag` 카테고리 색상 | 카테고리별 구분 색상 (analysis/fighter/live/news/humor) |
+| `post-comment-block` left border (--red) | 댓글 강조 기능 색상 |
+| `news-cat-tabs` active 클래스 | JS 생성 (youtube.js), ufcRed는 theme-bridge로 pt-red-500 연결됨 |
+| Admin 섹션 | Phase 5B 별도 처리 |
+
+### 완료 기준
+
+- [x] Community / News 섹션 헤더 `.sx-head` 통일
+- [x] post-list surface token 적용
+- [x] filter chips/dropdown token 적용
+- [x] post-detail-modal + news-detail-modal surface 적용
+- [x] news-grid cards `pt-bg-2` surface
+- [x] `npm run build` 통과
+
+**브라우저 확인 필요 (코드 범위 밖):**
+- [ ] 모바일 375px comm-filter-bar overflow (flex-wrap 동작 확인)
+- [ ] post-row hover bg `pt-bg-3` 시각 확인
+- [ ] post-expand 열렸을 때 배경 자연스러움
+- [ ] news-detail-modal glass 배경 확인
+
+---
+
+## Phase 5B — Admin 디자인 적용 (예정)
+
+**목표:** Admin 화면 내부 CSS 정리 (기능 안정성 우선).
 
 ### 핸드오프 기준 파일
 
-- `docs/design_handoff_picktagon/screens/screen-community.html`
-- `docs/design_handoff_picktagon/screens/screen-news.html`
 - `docs/design_handoff_picktagon/screens/screen-admin.html`
 
 ### 주의
 
-- **Admin 화면**: 내부 도구 성격 — 디자인 완성도보다 기능 안정성 우선
-- Community 피드 카드: `.pt-card` 기반 통일
-- News 카드: 섬네일 비율, 카테고리 뱃지 (`--pt-belt-*` 색상 활용 가능)
-
-### 영향 파일
-
-| 파일 | 변경 유형 | 위험도 |
-|---|---|---|
-| `index.html` (Community 섹션) | 마크업 + CSS | 낮음 |
-| `public/js/community.js` | 클래스명 업데이트 | 낮음 |
-| `index.html` (News 섹션) | 마크업 + CSS | 낮음 |
-| `public/js/news.js` | 클래스명 업데이트 | 낮음 |
-| `index.html` (Admin 섹션) | CSS만 | 낮음 |
+- Admin 화면: 내부 도구 성격 — 디자인 완성도보다 기능 안정성 우선
 
 ---
 

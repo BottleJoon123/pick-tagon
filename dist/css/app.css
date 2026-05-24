@@ -383,3 +383,48 @@ textarea, select {
 .lb-row-me:hover {
     background: linear-gradient(90deg, rgba(225,6,0,0.15), transparent) !important;
 }
+
+/* ── Community — Phase 5A token upgrade ── */
+/* post-list surface */
+#community .post-list-container { border-color: var(--pt-line-2); }
+#community .post-list-head {
+    background: var(--pt-bg-1);
+    border-bottom-color: var(--pt-line-2);
+}
+#community .post-row { border-bottom-color: var(--pt-line-1); }
+#community .post-row:hover { background: var(--pt-bg-3); }
+#community .post-expand {
+    background: rgba(0,0,0,0.2);
+    border-bottom-color: var(--pt-line-1);
+}
+#community .post-expand-body { border-left-color: var(--pt-line-2); }
+#community .post-com-input { border-color: var(--pt-line-1); }
+/* filter chips + dropdowns */
+#community .comm-filter-btn { border-color: var(--pt-line-2); }
+#community .comm-dropdown {
+    background: var(--pt-bg-1);
+    border-color: var(--pt-line-2);
+}
+#community .comm-dropdown:hover,
+#community .comm-dropdown:focus { border-color: var(--pt-line-3); }
+/* post-detail-modal surface (glass-card inner panel) */
+#post-detail-modal .glass-card {
+    background: var(--pt-bg-2);
+    border-color: var(--pt-line-1);
+}
+
+/* ── News (MMA) — Phase 5A token upgrade ── */
+/* news-grid cards */
+#news-grid .glass-card {
+    background: var(--pt-bg-2);
+    border-color: var(--pt-line-1);
+}
+#news-grid .glass-card:hover {
+    background: var(--pt-bg-3);
+    box-shadow: none;
+}
+/* news-detail-modal surface */
+#news-detail-modal .glass-card {
+    background: var(--pt-bg-2);
+    border-color: var(--pt-line-1);
+}
