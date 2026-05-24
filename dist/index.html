@@ -6,109 +6,21 @@
 <title>Pick-tagon | Ultimate Fighter IQ Platform</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&family=Inter:wght@300;400;500;600&family=Oswald:wght@400;700;900&display=swap" rel="stylesheet">
+<link href="/pick-tagon/css/tokens.css" rel="stylesheet">
+<link href="/pick-tagon/css/theme-bridge.css" rel="stylesheet">
+<link href="/pick-tagon/css/app.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 <!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 tailwind.config = {
 theme: { extend: {
-    colors: { dark:'#080808', ufcRed:'#e8000d', ufcBlue:'#2563eb', gold:'#f59e0b' },
+    colors: { dark:'#080808', ufcRed:'#E10600', ufcBlue:'#2563eb', gold:'#f59e0b' },
     fontFamily: { barlow:['Barlow Condensed','sans-serif'], inter:['Inter','sans-serif'], oswald:['Oswald','sans-serif'] }
 }}}</script>
 <style>
-:root {
-    --red: #e8000d;
-    --red-dim: rgba(232,0,13,0.15);
-    --red-glow: 0 0 40px rgba(232,0,13,0.4);
-    --glass: rgba(255,255,255,0.03);
-    --glass-border: rgba(255,255,255,0.08);
-    --dark: #0c0c0c;
-}
-
-* { box-sizing: border-box; }
-
-body {
-    background: #0c0c0c;
-    font-family: 'Inter', sans-serif;
-    color: #fff;
-    overflow-x: hidden;
-    min-height: 100vh;
-    padding-bottom: 72px;
-}
-@media(min-width:1024px){ body { padding-bottom:0; } }
-
-.build-badge {
-    position: fixed;
-    top: 12px;
-    right: 12px;
-    z-index: 80;
-    padding: 8px 12px;
-    border-radius: 999px;
-    background: rgba(8,8,8,0.82);
-    border: 1px solid rgba(255,255,255,0.1);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    font-family: 'Oswald', sans-serif;
-    font-size: 0.65rem;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: rgba(255,255,255,0.78);
-}
-
-/* ── Typography ── */
-.barlow { font-family:'Barlow Condensed',sans-serif; }
-.oswald-sharp { font-family:'Oswald',sans-serif; letter-spacing:-0.02em; text-transform:uppercase; }
-
-/* ── Glass Card ── */
-.glass-card {
-    background: rgba(255,255,255,0.04);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255,255,255,0.09);
-    transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
-}
-.glass-card:hover {
-    border-color: rgba(232,0,13,0.35);
-    box-shadow: 0 0 24px rgba(232,0,13,0.12);
-}
-.glass-card-gold:hover {
-    border-color: rgba(245,158,11,0.4);
-    box-shadow: 0 0 24px rgba(245,158,11,0.12);
-}
-
-/* noise overlay removed */
-
-/* ── Section transitions ── */
-.section-animate {
-    display:none !important;
-}
-.section-animate.active {
-    display:block !important;
-    animation: sectionFade 0.3s ease forwards;
-}
-#home.section-animate.active {
-    display:flex !important;
-    flex-direction:column;
-    justify-content:flex-end;
-}
-@keyframes sectionFade { from { opacity:0.8; } to { opacity:1; } }
-
-/* ── Nav ── */
-.nav-link { position:relative; transition:color 0.2s; }
-.nav-link.active { color:var(--red); }
-@media(min-width:1024px){
-    .nav-link.active::after {
-        content:'';
-        position:absolute;
-        bottom:-6px; left:0;
-        width:100%; height:2px;
-        background:var(--red);
-        box-shadow:0 0 8px var(--red);
-        border-radius:2px;
-    }
-}
-.bottom-nav-item.active { color:var(--red); }
+/* Base / nav / glass / shared components → public/css/app.css
+   :root legacy vars → public/css/theme-bridge.css */
 
 /* ── Home hero ── */
 #home {
@@ -134,8 +46,8 @@ body {
 
 /* ── Countdown ── */
 .countdown-unit {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
     border-radius:16px;
     padding: 12px 16px;
     min-width: 64px;
@@ -177,158 +89,13 @@ body {
     color:var(--red);
 }
 
-/* ── Red glow button ── */
-.btn-red {
-    background: var(--red);
-    color:#fff;
-    font-family:'Barlow Condensed',sans-serif;
-    font-weight:900;
-    font-style:italic;
-    font-size:1.25rem;
-    letter-spacing:0.1em;
-    text-transform:uppercase;
-    padding: 18px 48px;
-    border-radius:100px;
-    border:none;
-    cursor:pointer;
-    position:relative;
-    overflow:hidden;
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-.btn-red::before {
-    content:'';
-    position:absolute;
-    inset:0;
-    background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 100%);
-    border-radius:inherit;
-}
-.btn-red:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 32px rgba(232,0,13,0.5), 0 0 0 1px rgba(232,0,13,0.3);
-}
-.btn-red:active { transform:translateY(0); }
 
-/* ── Fight card hover ── */
-.fight-card-hover {
-    transition: transform 0.3s cubic-bezier(0.4,0,0.2,1), box-shadow 0.3s ease;
-}
-.fight-card-hover:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-}
-
-/* ── Ticker tape ── */
-.ticker-wrap {
-    overflow:hidden;
-    border-top:1px solid rgba(255,255,255,0.06);
-    border-bottom:1px solid rgba(255,255,255,0.06);
-    background: rgba(232,0,13,0.04);
-}
-.ticker-content {
-    display:inline-flex;
-    gap:48px;
-    animation: ticker 30s linear infinite;
-    white-space:nowrap;
-}
-@keyframes ticker { from { transform:translateX(0); } to { transform:translateX(-50%); } }
-
-/* ── Progress bar ── */
-.progress-bar-fill { transition: width 1.2s cubic-bezier(0.65,0,0.35,1); }
-
-/* ── Pulse dot ── */
-.pulse-dot {
-    width:8px; height:8px;
-    background:var(--red);
-    border-radius:50%;
-    position:relative;
-    display:inline-block;
-}
-.pulse-dot::after {
-    content:'';
-    position:absolute;
-    inset:-4px;
-    border-radius:50%;
-    background:var(--red);
-    opacity:0.3;
-    animation: pulse 2s ease-in-out infinite;
-}
-@keyframes pulse { 0%,100%{transform:scale(1);opacity:0.3;} 50%{transform:scale(1.8);opacity:0;} }
-
-/* ── Mobile nav ── */
-#mobile-nav {
-    background: rgba(8,8,8,0.92);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border-top: 1px solid rgba(255,255,255,0.06);
-}
-
-/* ── Scrollbar hide ── */
-.scrollbar-hide::-webkit-scrollbar { display:none; }
-.scrollbar-hide { -ms-overflow-style:none; scrollbar-width:none; }
-
-/* ── Toast ── */
-#toast-container {
-    position:fixed; bottom:90px; left:50%; transform:translateX(-50%);
-    z-index:9999; width:90%; max-width:380px;
-}
-@media(min-width:1024px){ #toast-container { bottom:32px; } }
-.toast {
-    background: rgba(20,20,20,0.95);
-    border: 1px solid rgba(232,0,13,0.4);
-    color:#fff;
-    padding:12px 20px;
-    border-radius:100px;
-    font-family:'Barlow Condensed',sans-serif;
-    font-weight:700;
-    font-style:italic;
-    font-size:0.9rem;
-    letter-spacing:0.05em;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.6), var(--red-glow);
-    margin-bottom:8px;
-    text-align:center;
-    animation: toastIn 0.3s ease-out, toastOut 0.3s ease-in 2.7s forwards;
-}
-@keyframes toastIn { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
-@keyframes toastOut { to{transform:translateY(20px);opacity:0} }
-
-/* ── Stat slider ── */
-.stat-slider { -webkit-appearance:none; appearance:none; width:100%; height:3px; border-radius:2px; background:rgba(255,255,255,0.1); outline:none; }
-.stat-slider::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:14px; height:14px; border-radius:50%; background:var(--red); cursor:pointer; box-shadow:0 0 8px rgba(232,0,13,0.6); }
-.stat-slider::-moz-range-thumb { width:14px; height:14px; border-radius:50%; background:var(--red); cursor:pointer; border:none; }
 
 /* ── Admin tabs ── */
 .admin-tab { background:transparent; border:1px solid rgba(255,255,255,0.07); transition:all 0.2s; }
 .admin-tab.active-tab { background:rgba(232,0,13,0.12); border-color:rgba(232,0,13,0.35); color:var(--red); }
 .admin-tab:hover:not(.active-tab) { background:rgba(255,255,255,0.04); color:#fff; }
 
-/* ── Chart ── */
-.chart-wrapper { position:relative; margin:2rem auto; width:100%; max-width:500px; height:350px; }
-
-/* ── Keyframes ── */
-@keyframes spin { to { transform:rotate(360deg); } }
-@keyframes slideUp { to { opacity:1; transform:translateY(0); } }
-
-/* ── Input override ── */
-input[type="text"], input[type="password"], input[type="number"],
-input[type="email"], input[type="date"], input[type="search"],
-textarea, select {
-    text-transform:none !important;
-    font-family:'Inter',sans-serif !important;
-    letter-spacing:0 !important;
-}
-
-/* ── Method btn ── */
-.method-btn { transition:all 0.2s ease; }
-.round-btn { transition:all 0.2s ease; }
-
-/* ── Section divider ── */
-.section-header-line {
-    border-left: 4px solid var(--red);
-    padding-left: 1rem;
-}
-@media(min-width:1024px){
-    .section-header-line { border-left-width:10px; padding-left:2rem; }
-}
 
 /* ── Octagon Fighter Animations ── */
 @keyframes fighter-jab {
@@ -404,7 +171,7 @@ textarea, select {
     transform: translateY(-2px);
 }
 .faction-card.selected {
-    border-color: #e8000d;
+    border-color: var(--red);
     background: rgba(232,0,13,0.15);
     box-shadow: 0 0 24px rgba(232,0,13,0.35);
 }
@@ -440,7 +207,7 @@ textarea, select {
     padding: 3px 9px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.07em;
     display: inline-block;
 }
-.matchup-tag-main  { background: #e8000d; color: #fff; }
+.matchup-tag-main  { background: var(--red); color: #fff; }
 .matchup-tag-co    { background: transparent; border: 1px solid #444; color: #999; }
 .matchup-tag-bout  { background: transparent; border: 1px solid #2a2a2a; color: #555; }
 .matchup-names { display: flex; align-items: center; gap: 8px; margin: 12px 0 8px; }
@@ -451,7 +218,7 @@ textarea, select {
 .matchup-fighter-name.right { text-align: right; }
 .matchup-vs-label {
     font-family: 'Oswald', sans-serif; font-size: 13px; font-weight: 900;
-    color: #e8000d; flex-shrink: 0; padding: 0 6px; font-style: italic;
+    color: var(--red); flex-shrink: 0; padding: 0 6px; font-style: italic;
 }
 .matchup-bar-wrap { height: 5px; background: #1e1e1e; border-radius: 3px; overflow: hidden; margin: 8px 0 6px; }
 .matchup-bar-fill { height: 100%; width: 100%; border-radius: 3px; transition: background 0.6s ease; }
@@ -460,7 +227,7 @@ textarea, select {
     font-family: 'Oswald', sans-serif; font-size: 11px; font-weight: 900; font-style: italic;
     color: #666; margin-bottom: 12px;
 }
-.matchup-pct-row .pct-hot { color: #e8000d; }
+.matchup-pct-row .pct-hot { color: var(--red); }
 .matchup-card-foot { display: flex; align-items: center; justify-content: space-between; }
 .matchup-weight-lbl {
     font-family: 'Inter', sans-serif; font-size: 10px; color: #666;
@@ -469,12 +236,12 @@ textarea, select {
 .matchup-go-btn {
     font-family: 'Oswald', sans-serif; font-size: 10px; font-weight: 900; font-style: italic;
     text-transform: uppercase; background: transparent;
-    border: 1px solid rgba(232,0,13,0.4); color: #e8000d;
+    border: 1px solid rgba(232,0,13,0.4); color: var(--red);
     padding: 5px 14px; border-radius: 5px; cursor: pointer;
     transition: background 0.15s; letter-spacing: 0.06em;
 }
 .matchup-go-btn:hover { background: rgba(232,0,13,0.1); }
-.matchup-go-btn.picked { background: rgba(232,0,13,0.15); border-color: #e8000d; color: #fff; }
+.matchup-go-btn.picked { background: rgba(232,0,13,0.15); border-color: var(--red); color: #fff; }
 
 /* Post list — dense table */
 .post-list-container {
@@ -510,9 +277,9 @@ textarea, select {
     padding: 3px 7px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.04em;
     display: inline-block; white-space: nowrap;
 }
-.post-type-tag.pick         { background: rgba(232,0,13,0.1);   border: 1px solid rgba(232,0,13,0.2);   color: #e8000d; }
+.post-type-tag.pick         { background: rgba(232,0,13,0.1);   border: 1px solid rgba(232,0,13,0.2);   color: var(--red); }
 .post-type-tag.post         { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #999; }
-.post-type-tag.cat-analysis { background: rgba(232,0,13,0.1);   border: 1px solid rgba(232,0,13,0.2);   color: #e8000d; }
+.post-type-tag.cat-analysis { background: rgba(232,0,13,0.1);   border: 1px solid rgba(232,0,13,0.2);   color: var(--red); }
 .post-type-tag.cat-fighter  { background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.25); color: #a78bfa; }
 .post-type-tag.cat-live     { background: rgba(220,38,38,0.12); border: 1px solid rgba(220,38,38,0.3);  color: #fca5a5; }
 .post-type-tag.cat-news     { background: rgba(37,99,235,0.1);  border: 1px solid rgba(37,99,235,0.25); color: #60a5fa; }
@@ -530,7 +297,7 @@ textarea, select {
     display: flex; gap: 10px; font-family: 'Inter', sans-serif;
     font-size: 11px; color: #888; font-weight: 500;
 }
-.post-row-stats .stat-hot { color: #e8000d; }
+.post-row-stats .stat-hot { color: var(--red); }
 .post-row-date {
     font-family: 'Inter', sans-serif; font-size: 10px; color: #777; font-weight: 400;
 }
@@ -541,8 +308,8 @@ textarea, select {
     color: #888; padding: 4px 9px; border-radius: 4px; cursor: pointer;
     transition: all 0.1s; letter-spacing: 0.04em; white-space: nowrap;
 }
-.post-act-btn:hover { border-color: rgba(232,0,13,0.5); color: #e8000d; }
-.post-act-btn.liked { border-color: rgba(232,0,13,0.4); color: #e8000d; }
+.post-act-btn:hover { border-color: rgba(232,0,13,0.5); color: var(--red); }
+.post-act-btn.liked { border-color: rgba(232,0,13,0.4); color: var(--red); }
 
 /* Post expand — inline detail */
 .post-expand {
@@ -557,7 +324,7 @@ textarea, select {
     white-space: pre-wrap; word-break: break-word;
 }
 .post-comment-block {
-    background: rgba(0,0,0,0.35); border-left: 2px solid #e8000d;
+    background: rgba(0,0,0,0.35); border-left: 2px solid var(--red);
     border-radius: 6px; padding: 8px 12px; margin-bottom: 6px;
 }
 .post-comment-nick {
@@ -572,10 +339,10 @@ textarea, select {
     border-radius: 6px; padding: 7px 11px; color: #ddd; font-size: 12px;
     font-family: 'Inter', sans-serif; outline: none; transition: border-color 0.12s;
 }
-.post-com-input:focus { border-color: #e8000d; }
+.post-com-input:focus { border-color: var(--red); }
 .post-com-send {
     font-family: 'Oswald', sans-serif; font-size: 9px; font-weight: 900; font-style: italic;
-    text-transform: uppercase; background: #e8000d; border: none; color: #fff;
+    text-transform: uppercase; background: var(--red); border: none; color: #fff;
     padding: 7px 14px; border-radius: 6px; cursor: pointer; letter-spacing: 0.06em;
     white-space: nowrap;
 }
@@ -638,25 +405,25 @@ textarea, select {
 #bet-slip-backdrop.bs-open { opacity: 1; pointer-events: all; }
 #bet-slip-panel {
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 601;
-    background: #111; border-radius: 1.5rem 1.5rem 0 0;
+    background: var(--pt-bg-2); border-radius: 1.5rem 1.5rem 0 0;
     transform: translateY(100%);
     transition: transform 0.38s cubic-bezier(0.32, 0.72, 0, 1);
     max-height: 92vh; overflow-y: auto;
-    border-top: 1px solid rgba(255,255,255,0.07);
+    border-top: 1px solid var(--pt-line-2);
 }
 #bet-slip-panel.bs-open { transform: translateY(0); }
 .bs-method-btn, .bs-round-btn {
     font-family: 'Oswald', sans-serif; font-weight: 900; font-style: italic;
     text-transform: uppercase; letter-spacing: 0.05em;
-    border: 1px solid rgba(255,255,255,0.12); background: transparent;
-    color: #666; cursor: pointer; transition: all 0.15s; text-align: left;
+    border: 1px solid var(--pt-line-2); background: transparent;
+    color: var(--pt-ink-3); cursor: pointer; transition: all 0.15s; text-align: left;
 }
-.bs-method-btn.bs-sel-ko  { border-color: #e8000d; background: rgba(232,0,13,.12); color: #fff; }
+.bs-method-btn.bs-sel-ko  { border-color: var(--pt-red-500); background: rgba(225,6,0,.12); color: #fff; }
 .bs-method-btn.bs-sel-sub { border-color: #a855f7; background: rgba(168,85,247,.12); color: #fff; }
-.bs-method-btn.bs-sel-ud  { border-color: #2563eb; background: rgba(37,99,235,.12); color: #fff; }
-.bs-method-btn.bs-sel-any { border-color: rgba(255,255,255,.35); background: rgba(255,255,255,.05); color: #ddd; }
+.bs-method-btn.bs-sel-ud  { border-color: var(--pt-corner-blue); background: rgba(31,111,235,.12); color: #fff; }
+.bs-method-btn.bs-sel-any { border-color: var(--pt-line-3); background: rgba(255,255,255,.05); color: var(--pt-ink-1); }
 .bs-round-btn { text-align: center; }
-.bs-round-btn.bs-sel { border-color: #eab308; color: #eab308; background: rgba(234,179,8,.12); }
+.bs-round-btn.bs-sel { border-color: var(--pt-warn); color: var(--pt-warn); background: rgba(244,180,0,.12); }
 </style>
 </head>
 <body class="antialiased font-roboto">
@@ -716,7 +483,7 @@ textarea, select {
             <p class="oswald-sharp" style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:.25em;font-style:italic;margin-bottom:10px">🎯 승리 방식 예측 — 맞추면 보너스!</p>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
                 <button id="bs-mb-ko" onclick="selectMethod('KO/TKO')" class="bs-method-btn" style="font-size:12px;padding:12px 14px;border-radius:12px">
-                    🥊 KO/TKO<br><span style="font-size:10px;color:#e8000d;font-style:normal;text-transform:none;letter-spacing:0;font-weight:400">+30% 보너스</span>
+                    🥊 KO/TKO<br><span style="font-size:10px;color:var(--red);font-style:normal;text-transform:none;letter-spacing:0;font-weight:400">+30% 보너스</span>
                 </button>
                 <button id="bs-mb-sub" onclick="selectMethod('SUB')" class="bs-method-btn" style="font-size:12px;padding:12px 14px;border-radius:12px">
                     🤼 서브미션<br><span style="font-size:10px;color:#a855f7;font-style:normal;text-transform:none;letter-spacing:0;font-weight:400">+50% 보너스</span>
@@ -894,12 +661,12 @@ textarea, select {
                         <div class="barlow text-[10px] font-bold italic tracking-[0.28em] text-white/40 uppercase mb-4">Main Event Face-off</div>
                         <div class="grid grid-cols-[1fr_auto_1fr] items-end gap-3 lg:gap-5">
                             <div class="flex flex-col items-center">
-                                <div id="hero-red-img" class="h-40 lg:h-48 w-24 lg:w-28 rounded-[999px_999px_16px_16px] border border-red-400/25 bg-cover bg-top" style="background:linear-gradient(to bottom, rgba(210,10,10,0.3), rgba(40,40,50,0.6), rgba(0,0,0,0.95))"></div>
+                                <div id="hero-red-img" class="h-40 lg:h-48 w-24 lg:w-28 rounded-[999px_999px_16px_16px] border border-red-400/25 bg-cover bg-top" style="background:linear-gradient(to bottom, rgba(225,6,0,0.3), rgba(40,40,50,0.6), rgba(0,0,0,0.95))"></div>
                                 <div id="hero-red-name" class="oswald-sharp mt-3 text-sm lg:text-base font-black italic uppercase tracking-[0.2em] text-white/85">TBA</div>
                                 <div class="barlow text-[9px] italic text-gray-400 mt-0.5">Red Corner</div>
                             </div>
                             <div class="flex items-center justify-center pb-10">
-                                <div class="oswald-sharp rounded-full border border-white/15 px-3 py-2 text-base lg:text-lg font-black italic leading-none text-white" style="background:rgba(0,0,0,0.6); box-shadow:0 0 20px rgba(210,10,10,0.3)">VS</div>
+                                <div class="oswald-sharp rounded-full border border-white/15 px-3 py-2 text-base lg:text-lg font-black italic leading-none text-white" style="background:rgba(0,0,0,0.6); box-shadow:0 0 20px rgba(225,6,0,0.3)">VS</div>
                             </div>
                             <div class="flex flex-col items-center">
                                 <div id="hero-blue-img" class="h-40 lg:h-48 w-24 lg:w-28 rounded-[999px_999px_16px_16px] border border-blue-400/25 bg-cover bg-top" style="background:linear-gradient(to bottom, rgba(37,99,235,0.3), rgba(40,40,50,0.6), rgba(0,0,0,0.95))"></div>
@@ -941,8 +708,7 @@ textarea, select {
         <!-- News grid -->
         <div class="relative z-10 px-5 lg:px-16 py-10 lg:py-14 max-w-[1440px] mx-auto w-full">
             <div class="flex items-center justify-between mb-7">
-                <div class="flex items-center gap-3">
-                    <div class="w-1 h-6 rounded-full" style="background:var(--red)"></div>
+                <div class="sx-head">
                     <h3 class="barlow text-xl lg:text-2xl font-black italic tracking-wide uppercase text-white">Latest News</h3>
                 </div>
                 <button onclick="navigateTo('mma-news')" class="barlow text-xs font-bold italic tracking-widest text-gray-500 hover:text-white transition uppercase">전체보기 →</button>
@@ -988,7 +754,7 @@ textarea, select {
         <!-- Event Header -->
         <div class="mb-6 lg:mb-10">
             <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
-                <div class="border-l-8 lg:border-l-[12px] border-ufcRed pl-4 lg:pl-8">
+                <div class="sx-head">
                     <p class="oswald-sharp text-ufcRed text-[10px] lg:text-sm tracking-[0.3em] font-black italic uppercase mb-1" id="event-date-label">NEXT EVENT · DATE TBA</p>
                     <h3 class="oswald-sharp text-3xl lg:text-6xl font-black italic tracking-tighter uppercase leading-none" id="event-name-label">NEXT EVENT</h3>
                 </div>
@@ -997,7 +763,7 @@ textarea, select {
                         <p class="oswald-sharp text-[8px] lg:text-[10px] text-gray-500 tracking-widest uppercase italic">Active Picks</p>
                         <p id="event-total-picks" class="oswald-sharp text-lg lg:text-2xl font-black italic text-white">0</p>
                     </div>
-                    <div id="event-countdown-widget" class="glass-card px-4 lg:px-8 py-2 lg:py-3 rounded-full border border-ufcRed/30 text-center" style="box-shadow:0 0 20px rgba(210,10,10,0.1)">
+                    <div id="event-countdown-widget" class="glass-card px-4 lg:px-8 py-2 lg:py-3 rounded-full border border-ufcRed/30 text-center" style="box-shadow:0 0 20px rgba(225,6,0,0.1)">
                         <p id="event-countdown-label" class="oswald-sharp text-[8px] lg:text-[10px] text-gray-500 tracking-widest uppercase italic">Pick Closes</p>
                         <p id="event-countdown-value" class="oswald-sharp text-lg lg:text-2xl font-black italic text-ufcRed">—</p>
                     </div>
@@ -1074,7 +840,7 @@ textarea, select {
 
     <!-- [SECTION: RANKINGS] -->
     <section id="rankings" class="section-animate max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-12 lg:pt-8 lg:pb-20">
-        <div class="mb-6 lg:mb-10 border-l-8 lg:border-l-[12px] border-ufcRed pl-4 lg:pl-8">
+        <div class="sx-head mb-6 lg:mb-10">
             <h3 class="oswald-sharp text-3xl lg:text-6xl font-black italic tracking-tighter uppercase">World Leaderboard</h3>
             <p class="text-gray-500 oswald-sharp uppercase tracking-widest mt-1 lg:mt-2 italic text-[10px] lg:text-sm">글로벌 파이터 IQ 랭킹 시즌 4</p>
         </div>
@@ -1101,7 +867,7 @@ textarea, select {
                 <p class="oswald-sharp text-[8px] lg:text-xs font-black italic text-yellow-500 uppercase">Brown</p>
                 <p class="oswald-sharp text-[8px] lg:text-[10px] italic text-gray-600 uppercase">5,001–10,000P</p>
             </div>
-            <div class="glass-card rounded-2xl p-3 lg:p-5 text-center border border-ufcRed/40" style="box-shadow: 0 0 20px rgba(210,10,10,0.15);">
+            <div class="glass-card rounded-2xl p-3 lg:p-5 text-center border border-ufcRed/40" style="box-shadow: 0 0 20px rgba(225,6,0,0.15);">
                 <div class="w-5 h-5 lg:w-7 lg:h-7 rounded-full bg-ufcRed mx-auto mb-2 shadow-lg shadow-red-900/50"></div>
                 <p class="oswald-sharp text-[8px] lg:text-xs font-black italic text-ufcRed uppercase">Black</p>
                 <p class="oswald-sharp text-[8px] lg:text-[10px] italic text-gray-600 uppercase">10,001P+</p>
@@ -1109,7 +875,7 @@ textarea, select {
         </div>
 
         <!-- My Rank Card -->
-        <div id="my-rank-card" class="glass-card rounded-[2rem] p-6 lg:p-10 mb-5 lg:mb-8 border border-ufcRed/30" style="box-shadow: 0 0 30px rgba(210,10,10,0.1);">
+        <div id="my-rank-card" class="glass-card rounded-[2rem] p-6 lg:p-10 mb-5 lg:mb-8 border border-ufcRed/30" style="box-shadow: 0 0 30px rgba(225,6,0,0.1);">
             <div class="flex items-center justify-between flex-wrap gap-4">
                 <div class="flex items-center space-x-4 lg:space-x-6">
                     <div class="oswald-sharp text-ufcRed font-black italic text-2xl lg:text-4xl tracking-tighter">#<span id="my-rank-num">—</span></div>
@@ -1154,7 +920,7 @@ textarea, select {
 
         <!-- Leaderboard Table (개인) -->
         <div id="leaderboard-player-panel" class="glass-card rounded-[2rem] overflow-hidden">
-            <div class="grid grid-cols-12 px-6 lg:px-10 py-4 lg:py-5 border-b border-white/5 bg-black/30">
+            <div class="grid grid-cols-12 px-6 lg:px-10 py-4 lg:py-5 border-b border-white/[0.06] bg-white/[0.02]">
                 <span class="col-span-1 oswald-sharp text-[8px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest text-center">#</span>
                 <span class="col-span-5 oswald-sharp text-[8px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest pl-2">Fighter</span>
                 <span class="col-span-3 oswald-sharp text-[8px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest text-center">Points</span>
@@ -1191,7 +957,7 @@ textarea, select {
     <!-- [SECTION: MMA NEWS] -->
     <section id="mma-news" class="section-animate max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-12 lg:pt-8 lg:pb-20">
         <div class="mb-5 lg:mb-8 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
-            <div class="border-l-8 lg:border-l-[12px] border-ufcRed pl-4 lg:pl-8">
+            <div class="sx-head">
                 <p class="oswald-sharp text-ufcRed text-[10px] tracking-[0.3em] font-black italic uppercase mb-1">AI POWERED</p>
                 <h3 class="oswald-sharp text-3xl lg:text-6xl font-black italic tracking-tighter uppercase leading-none">MMA 뉴스</h3>
                 <p class="text-gray-500 oswald-sharp uppercase tracking-widest mt-2 text-[10px] lg:text-sm italic">한국어 최신 MMA 뉴스 + 유튜브</p>
@@ -1218,7 +984,7 @@ textarea, select {
 
         <!-- 헤더 -->
         <div class="flex items-center justify-between mb-4">
-            <div class="border-l-4 border-ufcRed pl-3">
+            <div class="sx-head">
                 <h3 class="oswald-sharp text-2xl lg:text-3xl font-black italic tracking-tight uppercase text-white leading-none">Community</h3>
                 <p class="text-gray-600 text-[10px] mt-0.5">격투기 팬들의 뜨거운 설전과 분석</p>
             </div>
@@ -1315,13 +1081,13 @@ textarea, select {
     <section id="profile" class="section-animate max-w-5xl mx-auto px-4 lg:px-6 pt-6 pb-16 lg:pb-20">
 
         <!-- 헤더 타이틀 -->
-        <div class="border-l-4 border-ufcRed pl-3 mb-5">
+        <div class="sx-head mb-5">
             <h3 class="oswald-sharp text-2xl lg:text-3xl font-black italic tracking-tight uppercase text-white leading-none">Dashboard</h3>
             <p class="text-gray-600 text-[10px] mt-0.5 oswald-sharp italic uppercase tracking-widest">내 픽 통계 및 커뮤니티 랭크</p>
         </div>
 
         <!-- 프로필 아이덴티티 카드 -->
-        <div class="glass-card rounded-2xl p-5 lg:p-7 border border-white/5 mb-5 flex items-center gap-4 flex-wrap">
+        <div class="profile-hero-card rounded-2xl p-5 lg:p-7 mb-5 flex items-center gap-4 flex-wrap">
             <!-- 아바타 -->
             <div class="w-14 h-14 lg:w-16 lg:h-16 rounded-xl bg-gradient-to-br from-ufcRed/20 to-black border border-ufcRed/20 flex items-center justify-center flex-shrink-0">
                 <span class="oswald-sharp text-2xl font-black italic text-ufcRed select-none">⚡</span>
@@ -1347,17 +1113,35 @@ textarea, select {
             </div>
         </div>
 
+        <!-- 벨트 승급 트래커 -->
+        <div id="belt-tracker-panel" class="pt-belt-tracker rounded-2xl p-5 lg:p-6 mb-5">
+            <div class="flex items-center justify-between mb-5">
+                <h4 class="oswald-sharp text-xs lg:text-sm font-black italic uppercase text-white tracking-widest">Belt Progression</h4>
+                <span id="bt-next-label" class="oswald-sharp text-[9px] text-gray-500 italic uppercase tracking-widest"></span>
+            </div>
+            <div id="bt-stops" class="pt-belt-line">
+                <div class="progress-fill" id="bt-line-fill"></div>
+            </div>
+            <div class="flex items-center gap-3 mt-4 pt-3 border-t border-white/[0.06]">
+                <span id="bt-prog-label" class="oswald-sharp text-[9px] text-gray-500 italic uppercase tracking-widest shrink-0"></span>
+                <div class="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                    <div id="bt-prog-fill" class="h-full rounded-full transition-all duration-700" style="width:0%;background:var(--pt-red-500)"></div>
+                </div>
+                <span id="bt-prog-text" class="oswald-sharp text-[10px] font-black italic text-white shrink-0"></span>
+            </div>
+        </div>
+
         <!-- 4 핵심 지표 카드 -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-            <div class="glass-card p-5 lg:p-7 flex flex-col justify-between h-28 lg:h-36 rounded-2xl border border-white/5">
+            <div class="glass-card p-5 lg:p-7 flex flex-col justify-between h-28 lg:h-36 rounded-2xl border border-white/10">
                 <span class="oswald-sharp text-[9px] tracking-[.2em] italic font-black uppercase text-gray-500">Balance</span>
                 <h4 id="prof-pts" class="oswald-sharp text-2xl lg:text-3xl text-yellow-400 font-black italic tracking-tighter leading-none">1,000 P</h4>
             </div>
-            <div class="glass-card p-5 lg:p-7 flex flex-col justify-between h-28 lg:h-36 rounded-2xl border border-white/5">
+            <div class="glass-card p-5 lg:p-7 flex flex-col justify-between h-28 lg:h-36 rounded-2xl border border-white/10">
                 <span class="oswald-sharp text-[9px] tracking-[.2em] italic font-black uppercase text-gray-500">Forecasts</span>
                 <h4 id="prof-tot" class="oswald-sharp text-2xl lg:text-3xl font-black italic tracking-tighter text-white leading-none">0 회</h4>
             </div>
-            <div class="glass-card p-5 lg:p-7 flex flex-col justify-between h-28 lg:h-36 rounded-2xl border border-white/5">
+            <div class="glass-card p-5 lg:p-7 flex flex-col justify-between h-28 lg:h-36 rounded-2xl border border-white/10">
                 <span class="oswald-sharp text-[9px] tracking-[.2em] italic font-black uppercase text-gray-500">Accuracy</span>
                 <h4 id="prof-acc" class="oswald-sharp text-2xl lg:text-3xl font-black italic tracking-tighter text-ufcRed leading-none">0 %</h4>
             </div>
@@ -1379,7 +1163,7 @@ textarea, select {
 
             <!-- 나만의 분석 리포트 -->
             <div id="profile-report-card" class="glass-card rounded-2xl p-6 lg:p-8 border border-ufcRed/15"
-                style="background:linear-gradient(135deg,rgba(210,10,10,0.06) 0%,rgba(0,0,0,0) 55%)">
+                style="background:linear-gradient(135deg,rgba(225,6,0,0.06) 0%,rgba(0,0,0,0) 55%)">
                 <div class="flex items-center justify-between mb-5 flex-wrap gap-3">
                     <div>
                         <p class="oswald-sharp text-[9px] text-ufcRed uppercase tracking-[.3em] font-black italic mb-1">MY ANALYST REPORT</p>
@@ -1668,7 +1452,7 @@ textarea, select {
             </div>
 
             <!-- Danger Zone: Season Reset -->
-            <div class="glass-card rounded-2xl p-5 lg:p-7 border border-ufcRed/20" style="background: rgba(210,10,10,0.03)">
+            <div class="glass-card rounded-2xl p-5 lg:p-7 border border-ufcRed/20" style="background: rgba(225,6,0,0.03)">
                 <div class="flex items-start justify-between gap-6 flex-wrap">
                     <div>
                         <p class="oswald-sharp text-[9px] text-ufcRed/70 uppercase tracking-widest font-black italic mb-2">⚠ DANGER ZONE</p>
@@ -2219,7 +2003,7 @@ textarea, select {
     <div class="glass-card rounded-[2.5rem] w-full max-w-2xl border border-white/10 overflow-hidden max-h-[94vh] overflow-y-auto">
 
         <!-- Hero Header -->
-        <div id="fp-header" class="relative px-8 lg:px-14 pt-10 pb-8 lg:pt-14 lg:pb-10 border-b border-white/10" style="background: linear-gradient(135deg, rgba(210,10,10,0.12) 0%, rgba(0,0,0,0) 60%)">
+        <div id="fp-header" class="relative px-8 lg:px-14 pt-10 pb-8 lg:pt-14 lg:pb-10 border-b border-white/10" style="background: linear-gradient(135deg, rgba(225,6,0,0.12) 0%, rgba(0,0,0,0) 60%)">
             <button onclick="closeFighterProfile()" class="absolute top-5 right-5 w-9 h-9 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/15 text-gray-400 hover:text-white transition text-lg">✕</button>
             <div class="flex items-start gap-5 lg:gap-8">
                 <!-- Avatar Ring -->
@@ -2875,9 +2659,9 @@ textarea, select {
         // 현재(진행 중) 이벤트
         if (currentEvent) {
             const dateLabel = currentEvent.event_date ? new Date(currentEvent.event_date).toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric'}) : '';
-            html += `<div class="px-4 py-3 border-b border-white/[0.06]" style="background:rgba(210,10,10,0.07)">
+            html += `<div class="px-4 py-3 border-b border-white/[0.06]" style="background:rgba(225,6,0,0.07)">
                 <div class="flex items-center gap-2 mb-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-ufcRed flex-shrink-0" style="box-shadow:0 0 6px rgba(210,10,10,0.8)"></span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-ufcRed flex-shrink-0" style="box-shadow:0 0 6px rgba(225,6,0,0.8)"></span>
                     <span class="oswald-sharp text-[8px] font-black italic uppercase tracking-widest text-ufcRed">진행 중 / 예정</span>
                 </div>
                 <p class="oswald-sharp text-sm font-black italic uppercase text-white leading-tight">${escapeHtml(currentEvent.title)}</p>
@@ -2887,9 +2671,9 @@ textarea, select {
             // DB 이벤트 없으면 localStorage fallback
             const n = (typeof eventInfo !== 'undefined' && eventInfo.name) ? eventInfo.name : 'UFC 이벤트';
             const d = (typeof eventInfo !== 'undefined' && eventInfo.date) ? eventInfo.date : '';
-            html += `<div class="px-4 py-3 border-b border-white/[0.06]" style="background:rgba(210,10,10,0.07)">
+            html += `<div class="px-4 py-3 border-b border-white/[0.06]" style="background:rgba(225,6,0,0.07)">
                 <div class="flex items-center gap-2 mb-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-ufcRed flex-shrink-0" style="box-shadow:0 0 6px rgba(210,10,10,0.8)"></span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-ufcRed flex-shrink-0" style="box-shadow:0 0 6px rgba(225,6,0,0.8)"></span>
                     <span class="oswald-sharp text-[8px] font-black italic uppercase tracking-widest text-ufcRed">진행 중</span>
                 </div>
                 <p class="oswald-sharp text-sm font-black italic uppercase text-white leading-tight">${n}</p>
@@ -3001,6 +2785,64 @@ textarea, select {
                 bName.innerText="Black Belt";
             }
         }
+
+        // Belt progression tracker
+        (function() {
+            var _bStops = [
+                { nm: '화이트', pts: 0,     color: '#ECECEE' },
+                { nm: '블루',   pts: 1000,  color: '#1F6FEB' },
+                { nm: '퍼플',   pts: 2000,  color: '#8B3FE3' },
+                { nm: '브라운', pts: 5000,  color: '#B5803A' },
+                { nm: '블랙',   pts: 10000, color: '#2A2A2A', border: '1px solid #71757F' },
+            ];
+            var pts = state.points || 0;
+            var ci = 0;
+            for (var _i = _bStops.length - 1; _i >= 0; _i--) {
+                if (pts >= _bStops[_i].pts) { ci = _i; break; }
+            }
+            var stopsEl = document.getElementById('bt-stops');
+            if (!stopsEl) return;
+            var html = '<div class="progress-fill" id="bt-line-fill"></div>';
+            _bStops.forEach(function(s, i) {
+                var cls = i < ci ? 'done' : (i === ci ? 'current' : 'next');
+                var bStyle = s.border ? 'border:' + s.border + ';' : '';
+                html += '<div class="pt-belt-stop ' + cls + '">' +
+                    '<div class="pt-belt-dot" style="background:' + s.color + ';' + bStyle + '"></div>' +
+                    '<div class="pt-belt-nm">' + s.nm + '</div>' +
+                    '<div class="pt-belt-pts">' + (s.pts > 0 ? s.pts.toLocaleString() + 'P' : 'START') + '</div>' +
+                    '</div>';
+            });
+            stopsEl.innerHTML = html;
+            // Line fill: each stop spans 20% of an 80% track (left:10% to right:10%)
+            var baseW = [0, 20, 40, 60, 80];
+            var partialW = (ci < 4) ? ((pts - _bStops[ci].pts) / (_bStops[ci + 1].pts - _bStops[ci].pts)) * 20 : 0;
+            var lineW = Math.min(80, baseW[ci] + partialW);
+            var fillEl = document.getElementById('bt-line-fill');
+            if (fillEl) {
+                fillEl.style.width = lineW + '%';
+                fillEl.style.background = 'linear-gradient(90deg,#ECECEE,' + _bStops[ci].color + ')';
+            }
+            // Progress bar
+            var nextLabel = document.getElementById('bt-next-label');
+            var progLabel = document.getElementById('bt-prog-label');
+            var progFill  = document.getElementById('bt-prog-fill');
+            var progText  = document.getElementById('bt-prog-text');
+            if (ci < 4) {
+                var toPts = _bStops[ci + 1].pts;
+                var fromPts = _bStops[ci].pts;
+                var pct = Math.round((pts - fromPts) / (toPts - fromPts) * 100);
+                if (nextLabel) nextLabel.textContent = '다음까지 ' + (toPts - pts).toLocaleString() + ' P';
+                if (progLabel) progLabel.textContent = _bStops[ci].nm + ' → ' + _bStops[ci + 1].nm;
+                if (progFill)  progFill.style.width = pct + '%';
+                if (progText)  progText.textContent = pts.toLocaleString() + ' / ' + toPts.toLocaleString() + ' P';
+            } else {
+                if (nextLabel) nextLabel.textContent = 'MAX RANK';
+                if (progLabel) progLabel.textContent = '최고 등급';
+                if (progFill)  progFill.style.width = '100%';
+                if (progText)  progText.textContent = pts.toLocaleString() + ' P';
+            }
+        })();
+
 
         const hList = document.getElementById('history-card-list');
         if(hList) {
@@ -3577,7 +3419,7 @@ async function publishPost() {
             const belt = getBeltInfo(u.points);
             const isUser = u.isUser;
             return `
-            <div class="grid grid-cols-12 px-6 lg:px-10 py-5 lg:py-7 border-b border-white/5 items-center transition-all hover:bg-white/[0.03] ${rank<=3?'border-l-4 border-l-red-600':''} ${isUser?'bg-red-950/20':''}">
+            <div class="grid grid-cols-12 px-6 lg:px-10 py-5 lg:py-7 border-b border-white/[0.06] items-center transition-all hover:bg-white/[0.03] ${rank<=3?'border-l-4 border-l-red-600':''} ${isUser?'lb-row-me':''}">
                 <div class="col-span-1 text-center">
                     ${rank <= 3 ? `<span class="text-lg lg:text-2xl">${medals[rank-1]}</span>` : `<span class="oswald-sharp text-gray-500 font-black italic text-sm lg:text-xl">${rank}</span>`}
                 </div>
@@ -3656,7 +3498,7 @@ async function publishPost() {
     let fpRadarChart = null;
 
     const STAT_LABELS = ['Striking', 'Grappling', 'Stamina', 'Defense', 'Speed'];
-    const STAT_COLORS = ['#d20a0a', '#3b82f6', '#22c55e', '#f59e0b', '#a855f7'];
+    const STAT_COLORS = ['#E10600', '#3b82f6', '#22c55e', '#f59e0b', '#a855f7'];
 
     async function openFighterProfile(fighter) {
         // If passed as string (from onclick attr), parse it
@@ -3766,9 +3608,9 @@ async function publishPost() {
                 labels: STAT_LABELS,
                 datasets: [{
                     data: stats,
-                    backgroundColor: 'rgba(210,10,10,0.15)',
-                    borderColor: '#d20a0a',
-                    pointBackgroundColor: '#d20a0a',
+                    backgroundColor: 'rgba(225,6,0,0.15)',
+                    borderColor: '#E10600',
+                    pointBackgroundColor: '#E10600',
                     pointRadius: 4,
                     borderWidth: 2,
                 }]
@@ -4488,7 +4330,7 @@ async function publishPost() {
         const ctx = document.getElementById('fp-radar-canvas').getContext('2d');
         fpRadarChart = new Chart(ctx, {
             type:'radar',
-            data:{ labels:STAT_LABELS, datasets:[{ data:stats, backgroundColor:'rgba(210,10,10,0.15)', borderColor:'#d20a0a', pointBackgroundColor:'#d20a0a', pointRadius:4, borderWidth:2 }] },
+            data:{ labels:STAT_LABELS, datasets:[{ data:stats, backgroundColor:'rgba(225,6,0,0.15)', borderColor:'#E10600', pointBackgroundColor:'#E10600', pointRadius:4, borderWidth:2 }] },
             options:{ responsive:true, maintainAspectRatio:false, scales:{ r:{ min:0, max:100, ticks:{display:false}, grid:{color:'rgba(255,255,255,0.06)'}, angleLines:{color:'rgba(255,255,255,0.06)'}, pointLabels:{color:'#9ca3af', font:{family:'Oswald',size:10,weight:'700',style:'italic'}} } }, plugins:{legend:{display:false}} }
         });
 
@@ -4609,7 +4451,7 @@ async function publishPost() {
     async function openNewsDetail(idx) {
         var n = cachedNews[idx];
         if (!n) return;
-        var CAT_BAR_HEX = { ufc:'#e8000d', fighter:'#2563eb', event:'#9333ea', result:'#16a34a', ranking:'#eab308' };
+        var CAT_BAR_HEX = { ufc:'#E10600', fighter:'#2563eb', event:'#9333ea', result:'#16a34a', ranking:'#eab308' };
         var CAT_BADGE = { ufc:'bg-ufcRed/15 text-ufcRed', fighter:'bg-blue-600/15 text-blue-400', event:'bg-purple-600/15 text-purple-400', result:'bg-green-600/15 text-green-400', ranking:'bg-yellow-500/15 text-yellow-400' };
         var CAT_LBL = { ufc:'UFC', fighter:'선수', event:'이벤트', result:'결과', ranking:'랭킹' };
         var modal = document.getElementById('news-detail-modal');

@@ -217,7 +217,7 @@ function renderNewsCards(newsItems) {
                 '<div class="relative overflow-hidden" style="height:170px">' +
                 '<img src="' + imgSrc + '" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.src=\'' + _NEWS_FALLBACK_IMG + '\'">' +
                 '<div class="absolute inset-0 pointer-events-none" style="background:linear-gradient(to top,rgba(0,0,0,0.55) 0%,transparent 55%)"></div>' +
-                (safeSource ? '<div class="absolute top-3 left-3 barlow text-[10px] font-bold italic tracking-widest uppercase px-2 py-1 rounded" style="background:rgba(210,10,10,0.9);color:#fff">' + safeSource + '</div>' : '') +
+                (safeSource ? '<div class="absolute top-3 left-3 barlow text-[10px] font-bold italic tracking-widest uppercase px-2 py-1 rounded" style="background:rgba(225,6,0,0.9);color:#fff">' + safeSource + '</div>' : '') +
                 '</div>' +
                 '<div class="p-4">' +
                 '<div class="oswald-sharp text-sm lg:text-base font-black italic uppercase text-white line-clamp-2 group-hover:text-ufcRed transition leading-snug">' + safeTitle + '</div>' +

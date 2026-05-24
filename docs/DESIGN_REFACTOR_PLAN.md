@@ -1,0 +1,666 @@
+# Pick-tagon Design System Refactor Plan
+
+> 브랜치: `refactor/design-apply`  
+> 기준 커밋: `83eac18` (main)  
+> 핸드오프 경로: `docs/design_handoff_picktagon/`
+
+---
+
+## 현황 분석
+
+### 현재 index.html CSS 구조
+
+- **총 6,447줄** 단일 HTML 파일 (CSS 인라인 `<style>` 블록 + JS 혼재)
+- `:root` 변수 5개만 정의됨 — 대부분 값이 하드코딩
+
+```css
+/* 현재 index.html :root */
+--red: #e8000d;
+--red-dim: rgba(232,0,13,0.15);
+--red-glow: 0 0 40px rgba(232,0,13,0.4);
+--glass: rgba(255,255,255,0.03);
+--glass-border: rgba(255,255,255,0.08);
+--dark: #0c0c0c;
+```
+
+### 설계 토큰 (`docs/design_handoff_picktagon/design-system/tokens.css`)
+
+`--pt-*` 네임스페이스로 완전히 정의된 시스템 (약 65개 변수):
+
+| 그룹 | 토큰 수 | 예시 |
+|---|---|---|
+| Surface (bg-0~4) | 5 | `--pt-bg-1: #0E0F12` |
+| Border/hairline | 4 | `--pt-line-2: rgba(255,255,255,0.10)` |
+| Ink (ink-0~4) | 5 | `--pt-ink-2: #B3B5BC` |
+| Red scale (50~900) | 8 + glow | `--pt-red-500: #E10600` |
+| Corner colors | 4 | `--pt-corner-blue: #1F6FEB` |
+| Status | 4 | `--pt-win: #1FBF6B` |
+| Belt tiers | 5 | `--pt-belt-purple: #8B3FE3` |
+| Typography | 4 fonts + 8 sizes + 5 lh/tracking | `--pt-font-body: 'Barlow'` |
+| Space | 10 | `--pt-space-4: 16px` |
+| Radius | 6 | `--pt-r-md: 12px` |
+| Shadow | 3 | `--pt-shadow-card` |
+| Motion | 3 easing + 3 duration | `--pt-dur-base: 220ms` |
+
+### 주요 변경 포인트 (현재 → 토큰)
+
+| 항목 | 현재 값 | 토큰 값 |
+|---|---|---|
+| Red accent | `#e8000d` | `--pt-red-500: #E10600` |
+| Background | `#0c0c0c` | `--pt-bg-1: #0E0F12` |
+| Body font | `'Inter'` | `--pt-font-body: 'Barlow'` |
+| Display font | `'Oswald'` | `--pt-font-display: 'Barlow Condensed'` |
+| Card bg | hardcoded `#131313` | `--pt-bg-2: #14161B` |
+| Border | `rgba(255,255,255,0.08)` | `--pt-line-2: rgba(255,255,255,0.10)` |
+| Ink secondary | `rgba(255,255,255,0.78)` | `--pt-ink-1: #ECECEE` |
+
+---
+
+## 파일 구조 목표
+
+```
+index.html           (CSS 인라인 → <link> 참조로 이동)
+public/
+  css/
+    tokens.css       ← Phase 1: 핸드오프 tokens.css 이식
+    shell.css        ← Phase 2: 앱 헤더/컨테이너 공통 CSS
+    components.css   ← Phase 2: 재사용 컴포넌트 (card, button, badge 등)
+  js/
+    ...              (기존 유지)
+docs/
+  design_handoff_picktagon/
+    design-system/tokens.css   ← 원본 기준 자료 (수정 금지)
+```
+
+---
+
+## Phase 1 — Design Tokens 도입
+
+**목표:** 하드코딩된 색상/폰트/간격 값을 `--pt-*` 토큰으로 교체하는 기반 마련
+
+### 작업 범위
+
+1. `public/css/tokens.css` 생성  
+   - `docs/design_handoff_picktagon/design-system/tokens.css` 내용 그대로 이식  
+   - 유일한 변경: `@import` 폰트 URL (동일하게 유지)
+
+2. `index.html` `<head>` 수정  
+   - Google Fonts `<link>` 바로 아래 두 CSS 파일 링크 추가  
+   - 기존 인라인 `:root { --red: ... }` 블록 제거 (bridge가 대체)
+
+3. `public/css/theme-bridge.css` 생성  
+   - 레거시 변수(`--red`, `--dark` 등)를 기존 값 그대로 유지  
+   - Phase 3+에서 `var(--pt-*)` 참조로 단계적 교체 예정
+
+### 결정 사항 — Font Policy
+
+| 역할 | Phase 1 결정 | 향후 |
+|---|---|---|
+| Body | `Pretendard → Inter` (Korean 가독성 우선) | 유지 |
+| Display | `Barlow Condensed` (이미 로드됨) | `--pt-font-display` 참조로 교체 |
+| Eyebrow | `Oswald` (이미 로드됨) | Phase 3: `Bebas Neue`로 전환 |
+| Mono | `JetBrains Mono` (Phase 1에서 신규 로드) | `--pt-font-mono` 참조 |
+
+**Red color 결정**: Phase 1에서는 `--red: #e8000d` 값 유지 (시각 동결).  
+Phase 3부터 `var(--pt-red-500)` (`#E10600`)으로 점진 교체.  
+두 값 hex 차이 미미 (`#e8000d` vs `#E10600`) — 사용자 눈에 구분 불가능 수준.
+
+### 결과 (적용 완료)
+
+| 파일 | 변경 | 결과 |
+|---|---|---|
+| `public/css/tokens.css` | 신규 생성 | `--pt-*` 65개 변수 active |
+| `public/css/theme-bridge.css` | 신규 생성 | 레거시 `--red` 등 backward compat 유지 |
+| `index.html` `<head>` | 2개 `<link>` 추가 + `:root` 제거 | 빌드 통과, 시각 변화 없음 |
+| `npm run build` | 통과 | `dist/css/tokens.css`, `dist/css/theme-bridge.css` 생성 확인 |
+
+### 완료 기준
+
+- [x] `--pt-bg-1`, `--pt-red-500` 등 토큰이 페이지에서 active 상태
+- [x] 기존 `var(--red)` 21회 참조 정상 동작 (bridge 제공)
+- [x] `npm run build` 통과
+- [ ] 폰트 교체 (Phase 3: Display/Eyebrow 단계적 전환)
+
+---
+
+## Phase 2 — 공통 CSS 분리
+
+**목표:** `index.html` 인라인 `<style>` 에서 재사용 가능한 컴포넌트/셸 CSS를 별도 파일로 추출
+
+### 결과 (적용 완료)
+
+**추출 → `public/css/app.css`** (221줄):
+
+| 그룹 | 클래스 |
+|---|---|
+| Base reset | `*`, `body`, media |
+| Build badge | `.build-badge` |
+| Typography | `.barlow`, `.oswald-sharp` |
+| Glass card | `.glass-card`, `.glass-card-gold` |
+| Section transitions | `.section-animate`, `@keyframes sectionFade` |
+| Nav | `.nav-link`, `.bottom-nav-item` |
+| Button | `.btn-red` |
+| Card hover | `.fight-card-hover` |
+| Ticker | `.ticker-wrap`, `.ticker-content`, `@keyframes ticker` |
+| Progress/Pulse | `.progress-bar-fill`, `.pulse-dot`, `@keyframes pulse` |
+| Mobile nav | `#mobile-nav`, `.scrollbar-hide` |
+| Toast | `#toast-container`, `.toast`, keyframes |
+| Stat slider | `.stat-slider` |
+| Chart | `.chart-wrapper`, `@keyframes spin/slideUp` |
+| Input override | `input[type=*]`, `textarea`, `select` |
+| Transition helpers | `.method-btn`, `.round-btn` |
+| Section divider | `.section-header-line` |
+
+**남은 index.html `<style>`** (405줄 — 원래 635줄에서 -230줄):
+
+| 그룹 | 이유 |
+|---|---|
+| `#home` hero + animations | Home 화면 전용 |
+| `.countdown-unit/num/label` | Home 화면 전용 |
+| `.stat-counter` | Home 화면 전용 |
+| `.admin-tab` | Admin 화면 전용 |
+| `@keyframes fighter-*` + `.anim-*` | Pick 화면 전용 |
+| `.faction-card` | Community 전용 |
+| Community Dense UI (matchup/post) | Community 전용 |
+| `#bet-slip-*` | Pick/Bet 전용 |
+
+### 영향 파일
+
+| 파일 | 변경 유형 | 결과 |
+|---|---|---|
+| `public/css/app.css` | 신규 생성 (221줄) | 17개 그룹 공통 스타일 분리 |
+| `index.html` `<style>` | 230줄 제거 + link 추가 | 635줄 → 405줄 (-36%) |
+| `npm run build` | 통과 | `dist/css/app.css` 생성 확인 |
+
+---
+
+## Phase 3 — Event / Pick 화면 디자인 적용
+
+**목표:** 가장 노출 빈도 높은 두 화면을 핸드오프 기준으로 재구현
+
+### 핸드오프 기준 파일
+
+- `docs/design_handoff_picktagon/screens/screen-event.html`
+- `docs/design_handoff_picktagon/screens/screen-home.html` (Pick 탭 포함)
+
+### Phase 3A 결과 (적용 완료)
+
+| 파일 | 변경 | 결과 |
+|---|---|---|
+| `public/css/theme-bridge.css` | `--red: var(--pt-red-500)` 마이그레이션 | 모든 `var(--red)` 참조(JS 인라인 포함)가 `#E10600`으로 해결 |
+| `public/css/app.css` | `#fight-cards-container .glass-card` 토큰 업그레이드 + `.sx-head` + `.live-bar-*` | 파이트 카드 배경 `--pt-bg-2`, 테두리 `--pt-line-1` 적용 |
+| `index.html` 인라인 `<style>` | 베팅 슬립 CSS 토큰화 | `#111` → `var(--pt-bg-2)`, `#e8000d` → `var(--pt-red-500)` 등 |
+| `npm run build` | 통과 | `dist/css/*` 3개 파일 갱신 확인 |
+
+### Phase 3A 완료 기준
+
+- [x] `--red` 마이그레이션: `#e8000d` → `var(--pt-red-500)` (theme-bridge.css)
+- [x] 파이트 카드 배경 `--pt-bg-2` 적용 (`#fight-cards-container .glass-card`)
+- [x] 베팅 슬립 패널 배경 `--pt-bg-2`, 테두리 `--pt-line-2`
+- [x] `.sx-head` 유틸리티 클래스 추가
+- [x] `.live-bar-left/.live-bar-right` CSS 토큰 기본값 정의
+- [x] `npm run build` 통과
+- [ ] `api/supabase.js:383` `stats: []` 수정 (레이더 차트 빈값) — Phase 3B로 이월
+
+### Phase 3B 완료 기준
+
+- [x] `#matchups` 섹션 헤더 `.sx-head` 적용 (3B-1)
+- [x] `stats: []` 하드코딩 제거 — `fighterDB` 이름 매칭으로 대체 (3B-2)
+- [x] `_parseStats` 헬퍼 추가 (JSONB 배열 / JSON 문자열 / 미존재 3가지 경로 처리)
+- [x] `record`, `nameEn`, `recent` 도 fighterDB에서 함께 매핑
+
+---
+
+## Phase 3C — QA & 리스크 리뷰
+
+**목표:** Phase 3A/3B 변경이 코드·빌드 기준으로 안전한지 검증하고 잔여 리스크를 문서화한다.
+
+### 코드 경로 검증 결과
+
+| 검증 항목 | 결과 |
+|---|---|
+| `stats: []` 하드코딩 잔존 여부 (`rg "stats: \[\]"`) | **없음** — 완전 제거 |
+| `_parseStats` / `_f1db` dist 반영 | `dist/js/api/supabase.js` 정상 반영 |
+| `npm run build` | **통과** (370.51 kB, 297 ms) |
+| DB write 경로(`supabase.update/upsert`) 변경 | **없음** |
+| `openBetSlip` / `confirmBetSlip` / `updateAllFightCards` 변경 | **없음** |
+| `analyzeStyleMatchup` 호출 경로 (`h2h.js:75`) | 변경 없음 — `stats1 = f1.stats \|\| [75,75,75,75,75]` 유지 |
+
+### 이름 매칭 리스크 분석
+
+**현재 동작:**
+- `fetchUpcomingMatchups` → `fighterDB.find(d.name === m.red_fighter_name)` 정확히 일치 시 stats 전달
+- 불일치 시 `stats: []`, `record: ''`, `recent: []` fallback (기존과 동일)
+
+**잔여 리스크:**
+
+| 리스크 | 영향 | 심각도 |
+|---|---|---|
+| `matchups.red_fighter_name`이 `fighters.name`과 대소문자·공백 차이 | stats 빈값 → 레이더 차트 blank | 중간 |
+| `[]` 는 JS truthy → `h2h.js:62` `f.stats \|\| [75,75,75,75,75]` 가 `[]`를 그냥 통과시킴 | H2H 레이더 차트 빈값 표시 (크래시 없음) | 낮음 |
+| `analyzeStyleMatchup([])` → `undefined` 비교 → "올라운더" 반환 | 분석 텍스트 부정확 (크래시 없음) | 낮음 |
+| `fighterDB`가 비어있는 cold start (admin 탭 미방문) | 매핑 불가 → fallback | 낮음 |
+
+**`[]` truthy 문제 상세:**
+```js
+// h2h.js:62 — [] 는 truthy이므로 || 가 작동 안 함
+const stats1 = f1.stats || [75, 75, 75, 75, 75];
+// f1.stats = [] → stats1 = [] (의도와 다름)
+// 수정 권장: f1.stats?.length ? f1.stats : [75, 75, 75, 75, 75]
+```
+
+### 권장 후속 개선 (Phase 3D)
+
+| 우선순위 | 개선안 | 근거 |
+|---|---|---|
+| 1 | `matchups` 테이블에 `red_fighter_id` / `blue_fighter_id` FK 추가 후 ID 기반 매핑으로 전환 | 이름 불일치 리스크 근본 해결 |
+| 2 | `h2h.js:62-63` fallback 수정: `f.stats?.length ? f.stats : [75,75,75,75,75]` | `[]` truthy 문제 해결 |
+| 3 | `index.html` tailwind.config `ufcRed: '#e8000d'` → `'#E10600'` | CSS `var(--red)` 마이그레이션과 일치 |
+| 4 | `fighterDB`가 비어있을 때 `fetchUpcomingMatchups` 내에서 fighters 테이블 서브쿼리 추가 | cold start 신뢰성 향상 |
+
+### Visual QA 체크리스트
+
+브라우저에서 직접 확인 필요 (코드 검증 범위 밖):
+
+**Event 화면 (desktop)**
+- [ ] `#matchups` 섹션 헤더 좌측 8px 레드 보더 + `--pt-red-500` 컬러
+- [ ] 파이트 카드 배경 `var(--pt-bg-2)` (`#14161B`) — 이전보다 약간 더 진한 다크
+- [ ] 카드 hover 시 `var(--pt-line-red)` 보더 + 글로우 적용
+- [ ] 커뮤니티 픽 바 레드 컬러 (`--pt-red-500 #E10600`, 이전 `#e8000d`와 시각 동일)
+
+**Event 화면 (mobile 375px / 430px)**
+- [ ] 섹션 헤더 텍스트·버튼이 flex-wrap으로 줄바꿈 처리 — overflow 없음
+- [ ] `glass-card` 위젯(Active Picks, Pick Closes) 모바일에서 잘림 없음
+
+**Bet Slip (Pick 선택 후)**
+- [ ] 패널 배경 `var(--pt-bg-2)` (`#14161B`) — 이전 `#111`보다 약간 밝음
+- [ ] KO/TKO 선택 시 `var(--pt-red-500)` 보더·배경
+- [ ] 판정(UD) 선택 시 `var(--pt-corner-blue)` 보더
+- [ ] 라운드 선택 시 `var(--pt-warn)` 보더·텍스트
+- [ ] 미선택 버튼 보더 `var(--pt-line-2)` 색상
+
+**Pick 상태 배너**
+- [ ] Pending 상태: 레드/블루 인라인 bg (JS 제어, CSS 무관)
+- [ ] Settled WIN: 레드 bg + `text-ufcRed` (JS 제어)
+- [ ] Settled LOSE: `text-gray-400` (JS 제어)
+
+**레이더 차트**
+- [ ] fighterDB에 이름이 일치하는 fighter가 있으면 실제 stats 표시
+- [ ] 불일치 시 차트 blank (크래시 없음)
+
+---
+
+## Phase 3E — Red Token Hardcode Cleanup
+
+**목표:** Phase 4 진입 전 red color foundation 정리 — `#e8000d` / `#d20a0a` 잔존값을 design token 기준으로 교체.
+
+### 변경 내용
+
+| 파일 | 변경 유형 | 결과 |
+|---|---|---|
+| `index.html:18` | Tailwind config `ufcRed` 값 | `'#e8000d'` → `'#E10600'` |
+| `index.html` CSS block | `color: #e8000d` → `color: var(--red)` | ~8개 CSS 규칙 |
+| `index.html` CSS block | `background: #e8000d` → `background: var(--red)` | ~2개 CSS 규칙 |
+| `index.html` CSS block | `border-left: 2px solid #e8000d` → `var(--red)` | 1개 CSS 규칙 |
+| `index.html` static span | `color:#e8000d` → `color:var(--red)` | KO/TKO 보너스 span |
+| `index.html` JS constant | `CAT_BAR_HEX.ufc` | `'#e8000d'` → `'#E10600'` |
+| `index.html` Chart.js | `STAT_COLORS[0]`, radar dataset borderColor | `'#d20a0a'` → `'#E10600'` |
+| `index.html` Chart.js | radar dataset backgroundColor | `rgba(210,10,10,` → `rgba(225,6,0,` |
+| `public/js/fights-render.js` | Chart.js radar dataset | `'#d20a0a'` → `'#E10600'`, rgba 동일 |
+| `public/js/h2h.js` | comparison bar + radar dataset | `'#d20a0a'` → `'#E10600'`, rgba 동일 |
+
+### 의도적으로 변경하지 않은 항목
+
+| 위치 | 이유 |
+|---|---|
+| `index.html` JS 이벤트 핸들러 (onmouseover/out) | JS 문자열 내 값 — 동작 연동 위험 |
+| `index.html` battle UI JS-generated HTML (lines 5001, 5782, 5812, 5909, 5921, 5945) | 동적 생성 HTML — 기능 영향 가능 |
+| `index.html` 알림 배지 JS cssText (line 4962) | JS inline style string |
+| `public/js/community.js` (lines 107, 108, 115, 326, 477) | community 렌더 함수 — 별도 Phase에서 일괄 처리 예정 |
+
+---
+
+## Phase 4A — Profile 디자인 1차 적용
+
+**목표:** Profile 화면 hero/belt/stats 영역의 시각 구조 개선. 기능/DB/API/JS 로직 변경 없음.
+
+### 변경 내용
+
+| 영역 | 변경 내용 |
+|---|---|
+| 섹션 헤더 | `border-l-4 border-ufcRed` → `.sx-head` (8px/12px token border) |
+| 프로필 아이덴티티 카드 | `glass-card border-white/5` → `.profile-hero-card` (pt-bg-2 surface + subtle red radial gradient) |
+| Belt Progression Tracker | 신규 HTML 블록 + `refreshUI()` 내 JS 렌더 (5 belt stops + line fill + progress bar) |
+| 4 핵심 지표 카드 border | `border-white/5` → `border-white/10` (pt-line-1 근사값) |
+| Profile 섹션 glass-card | `#profile .glass-card` → `pt-bg-2 + pt-line-1` override (app.css) |
+| Analyst Report 카드 | `#profile #profile-report-card` → `pt-line-red` border 유지 |
+
+### 신규 CSS 클래스 (app.css)
+
+- `.profile-hero-card` — profile identity 카드 표면
+- `.pt-belt-tracker` — belt tracker 컨테이너
+- `.pt-belt-line` + `::before` — track + dot grid
+- `.pt-belt-stop` (`.done`, `.current`, `.next`) — belt 상태별 스타일
+- `.pt-belt-dot`, `.pt-belt-nm`, `.pt-belt-pts`
+
+### Phase 4A-QA 코드 검토 결과 (2026-05-24)
+
+**발견 및 수정:**
+
+| 항목 | 내용 | 처리 |
+|---|---|---|
+| `#profile #profile-report-card { border-color: var(--pt-line-red) }` | `--pt-line-red: rgba(225,6,0,0.55)` — 원본 `ufcRed/15(0.15)` 대비 너무 진함 | `#profile .glass-card:not(#profile-report-card)` 로 교체 |
+| `var pts = state.points` | undefined/NaN 시 bt-next-label에 "NaN P" 표시 가능 | `state.points \|\| 0` 가드 추가 |
+| `pt-belt-pts` overflow | "10,000P" 등 숫자 텍스트 모바일 잘림 가능성 | `word-break: keep-all` 추가 |
+
+**코드 QA 확인:**
+
+- ✅ `onclick="openNicknameModal()"`, `onclick="logoutUser()"` 변경 없음
+- ✅ `id="prof-pts/tot/acc/belt-box/belt-name"` 모두 유지
+- ✅ `#profile .glass-card` CSS — `#profile` ID selector scope으로 community 섹션 영향 없음
+- ✅ `top: 40px` track 라인 — lg(24px 도트): 정확히 도트 센터. mobile(20px 도트): 2px 아래 (불가시)
+- ✅ `state.points || 0` — White belt(0P) fallback 정상 (0 >= 0 이므로 ci=0 유지)
+- ✅ progress bar `flex-1` — 양 shrink-0 레이블 사이 공간 확보됨
+- ✅ `profile-hero-card::before` radial gradient — `pointer-events: none`, `> * { position: relative }` 로 아바타 위에 오버레이 없음
+
+**브라우저 확인 필요 (코드 범위 밖):**
+
+- [ ] Belt tracker 5 dots 정렬 — mobile 375px 시각 확인
+- [ ] Profile-hero-card gradient 아바타 가림 없음
+- [ ] logout/닉네임 변경 버튼 실제 동작
+
+---
+
+## Phase 4B — Rankings / Leaderboard 디자인 1차 적용
+
+**목표:** Rankings 화면 leaderboard/faction 영역을 design token 기반으로 정리. Profile에서 만든 belt/card 시각 언어와 맞춤.
+
+### 변경 내용
+
+| 영역 | 변경 내용 |
+|---|---|
+| 섹션 헤더 | `border-l-8 lg:border-l-[12px] border-ufcRed pl-4 lg:pl-8` → `.sx-head` |
+| 테이블 헤더 배경 | `bg-black/30 border-white/5` → `bg-white/[0.02] border-white/[0.06]` |
+| 현재 유저 행 | `bg-red-950/20` 클래스 → `.lb-row-me` CSS class (gradient + left border) |
+| `#leaderboard-player-panel` | `background: var(--pt-bg-2); border-color: var(--pt-line-1)` |
+| `#my-rank-card` | `background: var(--pt-bg-2)` (ufcRed/30 border + box-shadow inline 유지) |
+| `#faction-ranking-board .glass-card` | `pt-bg-2 + pt-line-1` (`.faction-ranking-mine` 제외) |
+| `getBeltInfo` 벨트 dot 색상 | 설계 토큰 기준으로 정정: Black `#d20a0a→#ffffff`, Brown `#92400e→#B5803A`, Purple `#7c3aed→#8B3FE3`, Blue `#2563eb→#1F6FEB`, White `#ffffff→#ECECEE` |
+
+### 신규 CSS 클래스 (app.css)
+
+- `.lb-row-me` — 현재 유저 행 gradient highlight + 3px red left border
+
+### Phase 4B-QA 코드 검토 결과
+
+**발견 및 수정:**
+
+| 항목 | 내용 | 처리 |
+|---|---|---|
+| `.lb-row-me { padding-left: 21px }` | Tailwind CDN JIT가 static CSS 이후 주입 → `px-6`(24px)이 override, 무효 | `padding-left: 21px` 제거 |
+| `hover:bg-white/[0.03]` Tailwind class | 호버 시 유저 행의 red gradient가 흰색으로 대체됨 | `.lb-row-me:hover { background: linear-gradient(…rgba(225,6,0,0.15)…) !important }` 추가 |
+
+**코드 QA 확인:**
+
+- ✅ `setRankTab` className.replace 로직 — Phase 4B 변경 없음, 정상
+- ✅ `renderFactionRanking` — `faction-ranking-mine` `:not()` 로 ufcRed/50 accent 보존 확인
+- ✅ `#leaderboard-player-panel` ID 선택자 (specificity 1,0,0) — `.glass-card:hover` (0,2,0)보다 높아 hover glow override 없음
+- ✅ `.lb-row-me` + `border-l-4 border-l-red-600` (rank ≤ 3 동시) — Tailwind 4px red 우선, gradient bg 유지
+- ✅ `getBeltInfo` 반환값: `bg`/`text` 클래스 변경 없음, `color` 필드만 token 정렬
+- ✅ `season.js:303` `belt` 미사용 — 기존 dead code, Phase 4B 회귀 없음
+
+**브라우저 확인 필요 (코드 범위 밖):**
+
+- [ ] mobile 375px — 유저 행 border-left + px-6 레이아웃 확인
+- [ ] faction 카드 "내 집단" hover 상태 accent 유지
+- [ ] White belt 점(#ECECEE) / Black belt 점(#ffffff) 시각 구분 확인
+
+### 완료 기준
+
+- [x] 섹션 헤더 `.sx-head` 적용
+- [x] leaderboard table 표면 `pt-bg-2 + pt-line-1`
+- [x] 현재 유저 행 `lb-row-me` 그라데이션 적용 + hover 유지
+- [x] `getBeltInfo` 벨트 색상 design token 기준 정렬
+- [x] `npm run build` 통과
+
+---
+
+## Phase 4C — Home 화면 디자인 1차 적용
+
+**목표:** Home 화면 countdown/news 영역을 design token 기반으로 정리. 기능/JS 로직 변경 없음.
+
+### 변경 내용
+
+| 영역 | 변경 내용 |
+|---|---|
+| `.countdown-unit` bg/border | `rgba(255,255,255,0.04)` / `rgba(255,255,255,0.08)` → `var(--pt-bg-2)` / `var(--pt-line-1)` (index.html inline style) |
+| 뉴스 섹션 헤더 | `w-1 h-6 dot + flex wrap` → `.sx-head` 통일 |
+| `#hero-faceoff-card` border | Tailwind `border-white/10` → `var(--pt-line-1)` (app.css CSS override) |
+| `#home-ticker` border | `border-white/10` → `var(--pt-line-1)` (app.css CSS override) |
+| `#home-news-grid .glass-card` | `pt-bg-2 + pt-line-1` surface; hover → `pt-bg-3 + pt-line-2` (app.css) |
+| `home.js` news badge | `rgba(210,10,10,0.9)` → `rgba(225,6,0,0.9)` (Phase 3E miss 수정) |
+
+### 변경하지 않은 항목 (이유)
+
+| 항목 | 이유 |
+|---|---|
+| `#home` 배경 이미지 / overlay gradient | 헤어로 비주얼 핵심, 변경 시 대규모 재작성 필요 |
+| Hero face-off card 배경 | inline `style` 속성 (CSS override 불가 without `!important`) |
+| `.stat-counter` 색상 | 이미 `var(--red)` → `var(--pt-red-500)` bridge 적용 |
+| Hero text animation 클래스 | 기능 의존 (heroReveal, fadeUp) |
+| Fight/countdown 데이터 바인딩 | JS 로직 변경 금지 |
+| `renderNewsCards` 카드 구조 | JS markup 대규모 변경 금지 (CSS override로 대체) |
+
+### 완료 기준
+
+- [x] `.countdown-unit` token surface 적용
+- [x] 뉴스 섹션 헤더 `.sx-head` 통일
+- [x] `#home-news-grid .glass-card` `pt-bg-2` surface
+- [x] `home.js` news badge red 수정
+- [x] `npm run build` 통과
+
+**브라우저 확인 필요 (코드 범위 밖):**
+
+- [ ] countdown unit mobile 375px 잘림 없음 (min-width: 64px, padding: 12px 16px 확인)
+- [ ] news 카드 hover scale + border 교체 시각 확인
+- [ ] 뉴스 섹션 헤더 sx-head 8px 좌측 보더 시각
+
+---
+
+## Phase 4C-QA — Home 디자인 QA
+
+**목표:** Phase 4C 변경이 desktop/mobile에서 깨지지 않는지 검증.
+
+### QA 결과
+
+| 항목 | 결과 |
+|---|---|
+| `navigateTo('matchups')` CTA 버튼 | ✅ 변경 없음 |
+| `hero-red-name/blue-name/img` 데이터 바인딩 | ✅ 변경 없음 |
+| countdown `cd-d/h/m/s` DOM 바인딩 | ✅ 변경 없음 |
+| countdown unit 375px overflow | ✅ Phase 4C 변경 없음 (기존 pre-existing) |
+| `.sx-head` Home 뉴스 헤더 일관성 | ✅ Profile/Rankings/Matchups와 동일 패턴 |
+| `hover:scale-[1.02]` + grid layout | ✅ transform이 layout flow에 영향 없음 |
+
+### 발견된 이슈 및 수정
+
+**이슈:** `#home-news-grid .glass-card:hover { border-color: var(--pt-line-2) }` (specificity 1,2,0) 가 `news.js renderHomeNewsFromRSS`의 `hover:border-ufcRed/30` Tailwind 클래스 (0,2,0)를 override.
+
+**수정:** `app.css` hover rule에서 `border-color: var(--pt-line-2)` 제거. `box-shadow: none`은 유지하여 glow 억제. 결과: RSS 카드는 `hover:border-ufcRed/30`, DB 카드는 generic `.glass-card:hover` red border — 두 경로 모두 red hover 표시.
+
+### 완료 기준
+
+- [x] `#home-news-grid .glass-card:hover` border-color override 제거
+- [x] `npm run build` 통과
+
+---
+
+## Phase 4 — Home / Profile / Leaderboard 적용
+
+**목표:** 메인 진입 화면 3종 핸드오프 반영
+
+### 핸드오프 기준 파일
+
+- `docs/design_handoff_picktagon/screens/screen-home.html`
+- `docs/design_handoff_picktagon/screens/screen-profile.html`
+- `docs/design_handoff_picktagon/screens/screen-leaderboard.html`
+
+### 주요 변경 포인트
+
+- **Home**: 히어로 배너, 최근 픽 요약 카드, 랭킹 스냅샷
+- **Profile**: 벨트 티어 표시 (`--pt-belt-*`), 승률 통계, 픽 히스토리 타임라인
+- **Leaderboard**: 랭킹 테이블, 1~3위 하이라이트, 벨트 배지
+
+### 영향 파일
+
+| 파일 | 변경 유형 | 위험도 |
+|---|---|---|
+| `index.html` (Home 섹션) | 마크업 + CSS | 중간 |
+| `public/js/home.js` | 렌더 함수 클래스명 업데이트 | 낮음 |
+| `index.html` (Profile 섹션) | 마크업 + CSS | 중간 |
+| `public/js/profile.js` | 렌더 함수 클래스명 업데이트 | 낮음 |
+| `index.html` (Leaderboard 섹션) | 마크업 + CSS | 낮음 |
+
+---
+
+## Phase 5A — Community / News 디자인 1차 적용
+
+**목표:** Community 피드 / News 뉴스 화면 section header, card surface, filter chips, modal surface를 design token 기반으로 1차 정리. Admin은 Phase 5B 별도 처리.
+
+### 변경 내용
+
+| 영역 | 변경 내용 |
+|---|---|
+| Community 섹션 헤더 | `border-l-4 border-ufcRed pl-3` → `.sx-head` (index.html) |
+| News 섹션 헤더 | `border-l-8 lg:border-l-[12px] border-ufcRed pl-4 lg:pl-8` → `.sx-head` (index.html) |
+| `post-list-container` | `border: #1a1a1a` → `var(--pt-line-2)` (app.css) |
+| `post-list-head` | `background: #0d0d0d` → `var(--pt-bg-1)`, border → `var(--pt-line-2)` |
+| `post-row` hover | `rgba(255,255,255,0.02)` → `var(--pt-bg-3)` |
+| `post-row` border | `#111` → `var(--pt-line-1)` |
+| `post-expand-body` left border | `#252525` → `var(--pt-line-2)` |
+| `post-com-input` border | `#1e1e1e` → `var(--pt-line-1)` |
+| `comm-filter-btn` border | `#222` → `var(--pt-line-2)` |
+| `comm-dropdown` bg/border | `#0d0d0d / #222` → `var(--pt-bg-1) / var(--pt-line-2)` |
+| `#post-detail-modal .glass-card` | `pt-bg-2 + pt-line-1` surface |
+| `#news-grid .glass-card` | `pt-bg-2 + pt-line-1` surface; hover → `pt-bg-3 + shadow:none` |
+| `#news-detail-modal .glass-card` | `pt-bg-2 + pt-line-1` surface |
+
+### 변경하지 않은 항목 (이유)
+
+| 항목 | 이유 |
+|---|---|
+| `comm-filter-btn.active` red bg | 이미 rgba(232,0,13,...) — 기능적 강조, 변경 불필요 |
+| `my-battle-panel` border-ufcRed/20 | 내 배틀 패널 강조를 위한 의도적 accent |
+| `post-type-tag` 카테고리 색상 | 카테고리별 구분 색상 (analysis/fighter/live/news/humor) |
+| `post-comment-block` left border (--red) | 댓글 강조 기능 색상 |
+| `news-cat-tabs` active 클래스 | JS 생성 (youtube.js), ufcRed는 theme-bridge로 pt-red-500 연결됨 |
+| Admin 섹션 | Phase 5B 별도 처리 |
+
+### 완료 기준
+
+- [x] Community / News 섹션 헤더 `.sx-head` 통일
+- [x] post-list surface token 적용
+- [x] filter chips/dropdown token 적용
+- [x] post-detail-modal + news-detail-modal surface 적용
+- [x] news-grid cards `pt-bg-2` surface
+- [x] `npm run build` 통과
+
+**브라우저 확인 필요 (코드 범위 밖):**
+- [ ] 모바일 375px comm-filter-bar overflow (flex-wrap 동작 확인)
+- [ ] post-row hover bg `pt-bg-3` 시각 확인
+- [ ] post-expand 열렸을 때 배경 자연스러움
+- [ ] news-detail-modal glass 배경 확인
+
+---
+
+## Phase 5A-QA — Community / News 디자인 QA
+
+**목표:** Phase 5A 변경이 Community/News 기존 상호작용을 깨지 않는지 검증.
+
+### QA 결과
+
+| 항목 | 결과 |
+|---|---|
+| `renderPosts` / `post-list-head` / `post-row` | ✅ 순수 외관 변경, 상호작용 무관 |
+| `openPostDetail` / `closePostDetail` body.overflow 복구 | ✅ 변경 없음 |
+| `sendDetailComment` / `likePost` / `likePostFromDetail` | ✅ 변경 없음 |
+| `my-battle-panel` border-ufcRed/20 accent | ✅ Phase 5A 미변경 (inline 클래스) |
+| `post-act-btn.liked` red accent | ✅ app.css override 없음 |
+| `post-type-tag` 카테고리 색상 | ✅ Phase 5A 미변경 |
+| `openNewsDetail` / `closeNewsDetail` body.overflow 복구 | ✅ 변경 없음 |
+| `news-cat-tabs` active state | ✅ JS 생성 Tailwind 클래스, Phase 5A 미개입 |
+| `#news-grid` hover border | ℹ `hover:border-ufcRed/30` suppressed (이유 아래) |
+
+### 발견된 이슈 및 수정
+
+**이슈 (fix 적용):** `#community .comm-filter-btn` (specificity 1,1,0)이 인라인 CSS `.comm-filter-btn.active { border-color: rgba(232,0,13,0.4) }` (0,2,0)를 override → active 필터 버튼의 빨간 border 손실.
+
+**수정:** `app.css`에 다음 추가:
+```css
+#community .comm-filter-btn:hover { border-color: var(--pt-line-3); }
+#community .comm-filter-btn.active { border-color: rgba(225,6,0,0.4); }
+```
+(specificity 1,2,0 → 인라인 active 규칙 + base 규칙 모두 override)
+
+**문서화 (fix 불필요):** `#news-grid .glass-card { border-color: var(--pt-line-1) }` (1,1,0)이 `hover:border-ufcRed/30` (0,2,0)보다 높은 우선순위를 가져 hover border 변화가 없음. `#news-grid .glass-card:hover { background: var(--pt-bg-3) }` 로 충분한 hover 피드백 제공 (image scale-105 추가). 의도적 허용.
+
+### 완료 기준
+
+- [x] `comm-filter-btn.active` border 복구
+- [x] `comm-filter-btn:hover` border 복구
+- [x] `npm run build` 통과
+
+---
+
+## Phase 5B — Admin 디자인 적용 (예정)
+
+**목표:** Admin 화면 내부 CSS 정리 (기능 안정성 우선).
+
+### 핸드오프 기준 파일
+
+- `docs/design_handoff_picktagon/screens/screen-admin.html`
+
+### 주의
+
+- Admin 화면: 내부 도구 성격 — 디자인 완성도보다 기능 안정성 우선
+
+---
+
+## 리스크 & 전제조건
+
+| 항목 | 설명 | Phase 3C 이후 상태 |
+|---|---|---|
+| **폰트 로딩** | Barlow / Bebas Neue Google Fonts 의존 — 오프라인/느린 네트워크 시 폴백 필요 | 미해결 |
+| **색상 미세 차이** | `#e8000d` vs `#E10600` — Phase 3A: `--red: var(--pt-red-500)` 마이그레이션, Phase 3E: CSS/Chart.js 잔존값 정리 완료 | **해결** |
+| **Tailwind `ufcRed`** | `tailwind.config` `ufcRed:'#e8000d'` → `'#E10600'` Phase 3E에서 수정 완료 | **해결** (3E) |
+| **Pretendard** | `screen-shell.css`가 `'Pretendard'` 사용 → tokens.css는 `'Barlow'`. 실제 앱에선 Pretendard 유지 결정 | 미해결 |
+| **JS 클래스 참조** | `public/js/*.js` 파일들이 DOM 클래스명을 직접 참조하는 경우 마크업 변경 시 동반 수정 필요 | 미해결 |
+| **index.html 규모** | 단일 파일이라 회귀 테스트 범위 넓음 — Phase별 작은 단위 커밋 필수 | 미해결 |
+| **stats 이름 매칭** | ID 우선 매핑 구현 완료 (3D-2). "King Green"→"bobby-green" ID로 name mismatch 해결 확인. 나머지 NULL ID 행은 name fallback 처리. | **해결** (3D-2/3D-3) |
+| **`[]` truthy 문제** | `h2h.js` `stats \|\| [75,75,75,75,75]` 가 빈 배열 통과 → `_getDisplayStats()` 헬퍼로 해결 | **해결** (3D-1) |
+
+---
+
+## 진행 현황
+
+| Phase | 상태 | 브랜치 커밋 |
+|---|---|---|
+| Phase 1: Tokens 도입 | **완료** | `Refactor: Add design tokens bridge` |
+| Phase 2: 공통 CSS 분리 | **완료** | `Refactor: Extract shared app styles` |
+| Phase 3A: Event/Pick 1차 토큰 적용 | **완료** | `Style: Apply event pick design system polish` |
+| Phase 3B-1: 섹션 헤더 .sx-head 적용 | **완료** | `Style: Polish matchups section header` |
+| Phase 3B-2: fighter stats UI 매핑 fix | **완료** | `Fix: Map persisted fighter stats into UI models` |
+| Phase 3C: QA & 리스크 리뷰 | **완료** | `Docs: Record event pick QA and stats mapping risks` |
+| Phase 3D-1: H2H stats empty-array fallback fix | **완료** | `Fix: Fallback empty fighter stats in H2H radar` |
+| Phase 3D-2: matchups fighter_id 기반 매핑 설계 | **완료** | `Docs: Plan matchup fighter ID mapping` |
+| Phase 3D-2: SELECT 추가 + ID 우선 매핑 구현 | **완료** | `Fix: Use fighter ID for matchup lookup with name fallback` |
+| Phase 3D-3: 운영 DB 컬럼 존재 검증 | **완료** | `Docs: Verify matchup fighter ID column readiness` |
+| Phase 3E: red token hardcode cleanup | **완료** | `Refactor: Align red styling with design tokens` |
+| Phase 4A: Profile 디자인 1차 적용 | **완료** | `Style: Apply profile design system polish` |
+| Phase 4A-QA: Profile 코드 QA + fix | **완료** | `Fix: Polish profile design QA findings` |
+| Phase 4B: Home / Leaderboard | 대기 | — |
+| Phase 5: Community/News/Admin | 대기 | — |
+
+---
+
+*최초 작성: 2026-05-23*
