@@ -155,7 +155,7 @@ Phase 3~5B 범위에 포함되지 않았던 두 섹션이 여전히 inline 클�
 |---|---|---|
 | **P0** | 기능 깨짐 | 없음 |
 | **P1** | 모바일 레이아웃 심각 | 없음 (code 분석상) |
-| **P2** | `#ufc-rankings` / `#archive` section header 미변환 | 다음 phase에서 처리 |
+| **P2** | `#ufc-rankings` / `#archive` section header 미변환 | ✅ FIXED — `Style: Polish remaining section headers` (2026-05-24) |
 | **P2** | `#ufc-rankings` / `#archive` glass-card token 미적용 | 다음 phase에서 처리 |
 | **P3** | NEEDS_BROWSER 21개 항목 | 사람이 직접 브라우저 확인 필요 |
 
