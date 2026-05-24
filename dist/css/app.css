@@ -606,3 +606,34 @@ textarea, select {
     background: var(--pt-bg-1);
     opacity: 0.7;
 }
+
+/* ── Profile — Phase 6D upgrade ── */
+
+/* Hero card: purple/red dual-radial gradient + grid cage texture (overrides Phase 4A) */
+.profile-hero-card {
+    background:
+      radial-gradient(60% 90% at 2% 60%, rgba(139,63,227,0.22), transparent 60%),
+      radial-gradient(50% 80% at 98% 50%, rgba(225,6,0,0.14), transparent 60%),
+      var(--pt-bg-2);
+}
+.profile-hero-card::before {
+    background-image:
+      linear-gradient(transparent 96.5%, rgba(255,255,255,0.025) 96.5%),
+      linear-gradient(90deg, transparent 96.5%, rgba(255,255,255,0.025) 96.5%);
+    background-size: 28px 28px;
+}
+
+/* Avatar: red glow for visual depth */
+.prof-avatar-wrap {
+    box-shadow: 0 0 24px rgba(225,6,0,0.25), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+/* Belt tracker current dot: purple glow matching belt color (overrides Phase 4A red glow) */
+.pt-belt-stop.current .pt-belt-dot {
+    box-shadow:
+      0 0 0 1px rgba(139,63,227,0.80),
+      0 0 0 5px rgba(139,63,227,0.22),
+      0 0 12px rgba(139,63,227,0.35);
+    transform: scale(1.30);
+}
+.pt-belt-stop.current .pt-belt-nm { color: #C39DF1; }

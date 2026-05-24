@@ -1096,14 +1096,14 @@ theme: { extend: {
         <!-- 헤더 타이틀 -->
         <div class="sx-head mb-5">
             <h3 class="oswald-sharp text-2xl lg:text-3xl font-black italic tracking-tight uppercase text-white leading-none">Dashboard</h3>
-            <p class="text-gray-600 text-[10px] mt-0.5 oswald-sharp italic uppercase tracking-widest">내 픽 통계 및 커뮤니티 랭크</p>
+            <p class="text-gray-500 text-[10px] mt-0.5 oswald-sharp italic uppercase tracking-widest">내 픽 통계 및 커뮤니티 랭크</p>
         </div>
 
         <!-- 프로필 아이덴티티 카드 -->
         <div class="profile-hero-card rounded-2xl p-5 lg:p-7 mb-5 flex items-center gap-4 flex-wrap">
             <!-- 아바타 -->
-            <div class="w-14 h-14 lg:w-16 lg:h-16 rounded-xl bg-gradient-to-br from-ufcRed/20 to-black border border-ufcRed/20 flex items-center justify-center flex-shrink-0">
-                <span class="oswald-sharp text-2xl font-black italic text-ufcRed select-none">⚡</span>
+            <div class="prof-avatar-wrap w-16 h-16 lg:w-20 lg:h-20 rounded-2xl bg-gradient-to-br from-red-900/60 to-black/90 border border-ufcRed/30 flex items-center justify-center flex-shrink-0">
+                <span class="oswald-sharp text-3xl lg:text-4xl font-black italic text-ufcRed select-none">⚡</span>
             </div>
             <!-- 닉네임 + 팩션 + 벨트 -->
             <div class="flex-1 min-w-0">
@@ -1137,8 +1137,8 @@ theme: { extend: {
             </div>
             <div class="flex items-center gap-3 mt-4 pt-3 border-t border-white/[0.06]">
                 <span id="bt-prog-label" class="oswald-sharp text-[9px] text-gray-500 italic uppercase tracking-widest shrink-0"></span>
-                <div class="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
-                    <div id="bt-prog-fill" class="h-full rounded-full transition-all duration-700" style="width:0%;background:var(--pt-red-500)"></div>
+                <div class="flex-1 h-2 rounded-full bg-white/[0.08] overflow-hidden">
+                    <div id="bt-prog-fill" class="h-full rounded-full transition-all duration-700" style="width:0%;background:linear-gradient(90deg,rgba(139,63,227,0.90),rgba(181,128,58,0.80))"></div>
                 </div>
                 <span id="bt-prog-text" class="oswald-sharp text-[10px] font-black italic text-white shrink-0"></span>
             </div>
@@ -1165,9 +1165,8 @@ theme: { extend: {
         </div>
 
         <!-- 최근 파이트 히스토리 -->
-        <div class="flex items-center gap-4 mb-4">
-            <h4 class="oswald-sharp uppercase italic font-black text-base lg:text-xl tracking-tighter text-white flex-shrink-0">Recent Fight History</h4>
-            <div class="h-px bg-white/8 flex-grow"></div>
+        <div class="sx-head mb-4">
+            <h4 class="oswald-sharp text-base lg:text-xl font-black italic uppercase tracking-tighter text-white leading-none">Recent Fight History</h4>
         </div>
         <div id="history-card-list" class="space-y-2.5 mb-8"></div>
 

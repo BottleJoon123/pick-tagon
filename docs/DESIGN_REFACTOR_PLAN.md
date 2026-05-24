@@ -775,6 +775,7 @@ Phase 5A에서 학습한 패턴 적용:
 | Phase 6B-QA: Home hero QA | **완료** | `Fix: Polish home hero QA findings` |
 | Phase 6C: Event/Pick card upgrade | **완료** | `Style: Upgrade event pick card design` |
 | Phase 6C-QA: Event/Pick card state QA | **완료** | `Fix: Polish event pick card QA findings` |
+| Phase 6D: Profile design upgrade | **완료** | `Style: Upgrade profile design` |
 
 ---
 
@@ -852,6 +853,60 @@ Phase 5A에서 학습한 패턴 적용:
 - `navigateTo('matchups')` CTA 동작
 - Countdown 계산 로직
 - Home 전체 layout (headline → CTA → faceoff card → ticker → news)
+
+---
+
+## Phase 6D — Profile 디자인 업그레이드 (2026-05-24)
+
+**브랜치:** `main`  
+**기준 커밋:** `e499e16`
+
+### 변경 사항
+
+#### `public/css/app.css` — Phase 6D CSS block 추가
+
+| 규칙 | 적용 효과 |
+|---|---|
+| `.profile-hero-card` background | Phase 4A 단일 red radial → purple/red 이중 radial gradient (`rgba(139,63,227,0.22)` left + `rgba(225,6,0,0.14)` right) + `var(--pt-bg-2)` base |
+| `.profile-hero-card::before` | Phase 4A red radial gradient → 28px grid cage texture (home hero와 동일 패턴) |
+| `.prof-avatar-wrap` | red glow `box-shadow: 0 0 24px rgba(225,6,0,0.25)` + inner highlight |
+| `.pt-belt-stop.current .pt-belt-dot` | Phase 4A red glow → purple glow (`rgba(139,63,227,0.80/0.22/0.35)`) — 현재 belt 색상과 일치 |
+| `.pt-belt-stop.current .pt-belt-nm` | Phase 4A `var(--pt-ink-0)` (흰색) → `#C39DF1` (purple tint) — 핸드오프 기준 |
+
+#### `index.html` — 마크업 변경
+
+| 위치 | 변경 내용 |
+|---|---|
+| Profile 섹션 서브타이틀 | `text-gray-600` → `text-gray-500` (가독성) |
+| Avatar div | `w-14 h-14 lg:w-16 lg:h-16 rounded-xl from-ufcRed/20 to-black border-ufcRed/20` → `w-16 h-16 lg:w-20 lg:h-20 rounded-2xl from-red-900/60 to-black/90 border-ufcRed/30` + `prof-avatar-wrap` 클래스 추가 |
+| Avatar 아이콘 | `text-2xl` → `text-3xl lg:text-4xl` |
+| Belt progress bar 트랙 | `h-1.5 bg-white/[0.06]` → `h-2 bg-white/[0.08]` |
+| Belt progress fill | `background:var(--pt-red-500)` → `background:linear-gradient(90deg,rgba(139,63,227,0.90),rgba(181,128,58,0.80))` (purple→brown 그라디언트) |
+| "Recent Fight History" 헤더 | `flex + h-px divider` → `.sx-head` (섹션 헤더 패턴 통일) |
+
+### 변경하지 않은 항목
+- `openNicknameModal()` / `logoutUser()` onclick 유지
+- `state.points || 0` guard 유지
+- `refreshUI()` — `prof-pts`, `prof-tot`, `prof-acc`, `belt-box`, `belt-name`, `bt-line-fill`, `bt-prog-fill` ID 모두 유지
+- belt tracker JS 렌더 로직 (`refreshUI` 내 IIFE) 무변경
+- `renderProfileStats()` / `renderBeltTracker()` 경로 무변경
+
+### 완료 기준
+
+- [x] profile-hero-card purple/red gradient + grid texture
+- [x] avatar 크기/스타일 업그레이드 + prof-avatar-wrap 클래스
+- [x] belt tracker current dot purple glow
+- [x] progress bar 두께 h-2 + purple→brown fill gradient
+- [x] Recent Fight History 헤더 sx-head 통일
+- [x] `npm run build` 통과
+- [x] JS 바인딩 ID 전체 유지 확인
+
+**브라우저 확인 필요 (코드 범위 밖):**
+- [ ] purple/red gradient 강도 — subtle vs 너무 강한지 확인
+- [ ] grid cage texture 가시성 (0.025 opacity) 확인
+- [ ] avatar w-20 — mobile flex 레이아웃에서 버튼 줄바꿈 확인
+- [ ] belt dot purple glow scale(1.30) — 인접 dot label overlap 확인
+- [ ] progress fill purple→brown gradient 시각 확인
 
 ---
 
