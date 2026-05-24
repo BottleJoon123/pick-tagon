@@ -401,6 +401,8 @@ textarea, select {
 #community .post-com-input { border-color: var(--pt-line-1); }
 /* filter chips + dropdowns */
 #community .comm-filter-btn { border-color: var(--pt-line-2); }
+#community .comm-filter-btn:hover { border-color: var(--pt-line-3); }
+#community .comm-filter-btn.active { border-color: rgba(225,6,0,0.4); }
 #community .comm-dropdown {
     background: var(--pt-bg-1);
     border-color: var(--pt-line-2);

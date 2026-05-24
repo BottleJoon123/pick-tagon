@@ -573,6 +573,45 @@ const stats1 = f1.stats || [75, 75, 75, 75, 75];
 
 ---
 
+## Phase 5A-QA — Community / News 디자인 QA
+
+**목표:** Phase 5A 변경이 Community/News 기존 상호작용을 깨지 않는지 검증.
+
+### QA 결과
+
+| 항목 | 결과 |
+|---|---|
+| `renderPosts` / `post-list-head` / `post-row` | ✅ 순수 외관 변경, 상호작용 무관 |
+| `openPostDetail` / `closePostDetail` body.overflow 복구 | ✅ 변경 없음 |
+| `sendDetailComment` / `likePost` / `likePostFromDetail` | ✅ 변경 없음 |
+| `my-battle-panel` border-ufcRed/20 accent | ✅ Phase 5A 미변경 (inline 클래스) |
+| `post-act-btn.liked` red accent | ✅ app.css override 없음 |
+| `post-type-tag` 카테고리 색상 | ✅ Phase 5A 미변경 |
+| `openNewsDetail` / `closeNewsDetail` body.overflow 복구 | ✅ 변경 없음 |
+| `news-cat-tabs` active state | ✅ JS 생성 Tailwind 클래스, Phase 5A 미개입 |
+| `#news-grid` hover border | ℹ `hover:border-ufcRed/30` suppressed (이유 아래) |
+
+### 발견된 이슈 및 수정
+
+**이슈 (fix 적용):** `#community .comm-filter-btn` (specificity 1,1,0)이 인라인 CSS `.comm-filter-btn.active { border-color: rgba(232,0,13,0.4) }` (0,2,0)를 override → active 필터 버튼의 빨간 border 손실.
+
+**수정:** `app.css`에 다음 추가:
+```css
+#community .comm-filter-btn:hover { border-color: var(--pt-line-3); }
+#community .comm-filter-btn.active { border-color: rgba(225,6,0,0.4); }
+```
+(specificity 1,2,0 → 인라인 active 규칙 + base 규칙 모두 override)
+
+**문서화 (fix 불필요):** `#news-grid .glass-card { border-color: var(--pt-line-1) }` (1,1,0)이 `hover:border-ufcRed/30` (0,2,0)보다 높은 우선순위를 가져 hover border 변화가 없음. `#news-grid .glass-card:hover { background: var(--pt-bg-3) }` 로 충분한 hover 피드백 제공 (image scale-105 추가). 의도적 허용.
+
+### 완료 기준
+
+- [x] `comm-filter-btn.active` border 복구
+- [x] `comm-filter-btn:hover` border 복구
+- [x] `npm run build` 통과
+
+---
+
 ## Phase 5B — Admin 디자인 적용 (예정)
 
 **목표:** Admin 화면 내부 CSS 정리 (기능 안정성 우선).
