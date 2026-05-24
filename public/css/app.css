@@ -1,0 +1,239 @@
+/* ============================================================
+   Pick-tagon — Shared App Styles
+   Extracted from index.html <style> block (Phase 2 refactor).
+   Screen-specific CSS (home hero, community, bet-slip, fight
+   animations) remains in index.html until Phase 3-5.
+   ============================================================ */
+
+/* ── Base reset ── */
+* { box-sizing: border-box; }
+
+body {
+    background: #0c0c0c;
+    font-family: 'Inter', sans-serif;
+    color: #fff;
+    overflow-x: hidden;
+    min-height: 100vh;
+    padding-bottom: 72px;
+}
+@media(min-width:1024px){ body { padding-bottom:0; } }
+
+/* ── Build badge ── */
+.build-badge {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 80;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(8,8,8,0.82);
+    border: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.78);
+}
+
+/* ── Typography helpers ── */
+.barlow { font-family:'Barlow Condensed',sans-serif; }
+.oswald-sharp { font-family:'Oswald',sans-serif; letter-spacing:-0.02em; text-transform:uppercase; }
+
+/* ── Glass Card ── */
+.glass-card {
+    background: rgba(255,255,255,0.04);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.09);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+}
+.glass-card:hover {
+    border-color: rgba(232,0,13,0.35);
+    box-shadow: 0 0 24px rgba(232,0,13,0.12);
+}
+.glass-card-gold:hover {
+    border-color: rgba(245,158,11,0.4);
+    box-shadow: 0 0 24px rgba(245,158,11,0.12);
+}
+
+/* ── Section transitions ── */
+.section-animate {
+    display:none !important;
+}
+.section-animate.active {
+    display:block !important;
+    animation: sectionFade 0.3s ease forwards;
+}
+#home.section-animate.active {
+    display:flex !important;
+    flex-direction:column;
+    justify-content:flex-end;
+}
+@keyframes sectionFade { from { opacity:0.8; } to { opacity:1; } }
+
+/* ── Nav ── */
+.nav-link { position:relative; transition:color 0.2s; }
+.nav-link.active { color:var(--red); }
+@media(min-width:1024px){
+    .nav-link.active::after {
+        content:'';
+        position:absolute;
+        bottom:-6px; left:0;
+        width:100%; height:2px;
+        background:var(--red);
+        box-shadow:0 0 8px var(--red);
+        border-radius:2px;
+    }
+}
+.bottom-nav-item.active { color:var(--red); }
+
+/* ── Red glow button ── */
+.btn-red {
+    background: var(--red);
+    color:#fff;
+    font-family:'Barlow Condensed',sans-serif;
+    font-weight:900;
+    font-style:italic;
+    font-size:1.25rem;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    padding: 18px 48px;
+    border-radius:100px;
+    border:none;
+    cursor:pointer;
+    position:relative;
+    overflow:hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.btn-red::before {
+    content:'';
+    position:absolute;
+    inset:0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 100%);
+    border-radius:inherit;
+}
+.btn-red:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 32px rgba(232,0,13,0.5), 0 0 0 1px rgba(232,0,13,0.3);
+}
+.btn-red:active { transform:translateY(0); }
+
+/* ── Fight card hover ── */
+.fight-card-hover {
+    transition: transform 0.3s cubic-bezier(0.4,0,0.2,1), box-shadow 0.3s ease;
+}
+.fight-card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+
+/* ── Ticker tape ── */
+.ticker-wrap {
+    overflow:hidden;
+    border-top:1px solid rgba(255,255,255,0.06);
+    border-bottom:1px solid rgba(255,255,255,0.06);
+    background: rgba(232,0,13,0.04);
+}
+.ticker-content {
+    display:inline-flex;
+    gap:48px;
+    animation: ticker 30s linear infinite;
+    white-space:nowrap;
+}
+@keyframes ticker { from { transform:translateX(0); } to { transform:translateX(-50%); } }
+
+/* ── Progress bar ── */
+.progress-bar-fill { transition: width 1.2s cubic-bezier(0.65,0,0.35,1); }
+
+/* ── Pulse dot ── */
+.pulse-dot {
+    width:8px; height:8px;
+    background:var(--red);
+    border-radius:50%;
+    position:relative;
+    display:inline-block;
+}
+.pulse-dot::after {
+    content:'';
+    position:absolute;
+    inset:-4px;
+    border-radius:50%;
+    background:var(--red);
+    opacity:0.3;
+    animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{transform:scale(1);opacity:0.3;} 50%{transform:scale(1.8);opacity:0;} }
+
+/* ── Mobile nav ── */
+#mobile-nav {
+    background: rgba(8,8,8,0.92);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+/* ── Scrollbar hide ── */
+.scrollbar-hide::-webkit-scrollbar { display:none; }
+.scrollbar-hide { -ms-overflow-style:none; scrollbar-width:none; }
+
+/* ── Toast ── */
+#toast-container {
+    position:fixed; bottom:90px; left:50%; transform:translateX(-50%);
+    z-index:9999; width:90%; max-width:380px;
+}
+@media(min-width:1024px){ #toast-container { bottom:32px; } }
+.toast {
+    background: rgba(20,20,20,0.95);
+    border: 1px solid rgba(232,0,13,0.4);
+    color:#fff;
+    padding:12px 20px;
+    border-radius:100px;
+    font-family:'Barlow Condensed',sans-serif;
+    font-weight:700;
+    font-style:italic;
+    font-size:0.9rem;
+    letter-spacing:0.05em;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6), var(--red-glow);
+    margin-bottom:8px;
+    text-align:center;
+    animation: toastIn 0.3s ease-out, toastOut 0.3s ease-in 2.7s forwards;
+}
+@keyframes toastIn { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
+@keyframes toastOut { to{transform:translateY(20px);opacity:0} }
+
+/* ── Stat slider ── */
+.stat-slider { -webkit-appearance:none; appearance:none; width:100%; height:3px; border-radius:2px; background:rgba(255,255,255,0.1); outline:none; }
+.stat-slider::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:14px; height:14px; border-radius:50%; background:var(--red); cursor:pointer; box-shadow:0 0 8px rgba(232,0,13,0.6); }
+.stat-slider::-moz-range-thumb { width:14px; height:14px; border-radius:50%; background:var(--red); cursor:pointer; border:none; }
+
+/* ── Chart ── */
+.chart-wrapper { position:relative; margin:2rem auto; width:100%; max-width:500px; height:350px; }
+
+/* ── Keyframes ── */
+@keyframes spin { to { transform:rotate(360deg); } }
+@keyframes slideUp { to { opacity:1; transform:translateY(0); } }
+
+/* ── Input override ── */
+input[type="text"], input[type="password"], input[type="number"],
+input[type="email"], input[type="date"], input[type="search"],
+textarea, select {
+    text-transform:none !important;
+    font-family:'Inter',sans-serif !important;
+    letter-spacing:0 !important;
+}
+
+/* ── Transition helpers ── */
+.method-btn { transition:all 0.2s ease; }
+.round-btn { transition:all 0.2s ease; }
+
+/* ── Section divider ── */
+.section-header-line {
+    border-left: 4px solid var(--red);
+    padding-left: 1rem;
+}
+@media(min-width:1024px){
+    .section-header-line { border-left-width:10px; padding-left:2rem; }
+}

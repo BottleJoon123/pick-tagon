@@ -127,27 +127,50 @@ Phase 3부터 `var(--pt-red-500)` (`#E10600`)으로 점진 교체.
 
 **목표:** `index.html` 인라인 `<style>` 에서 재사용 가능한 컴포넌트/셸 CSS를 별도 파일로 추출
 
-### 작업 범위
+### 결과 (적용 완료)
 
-1. `public/css/shell.css` 생성  
-   - 앱 헤더, 네비게이션, 컨테이너, 섹션 헤더 (`app-header`, `app-nav`, `app-container`, `sx-head` 등)  
-   - 핸드오프 `screen-shell.css` 기준 재작성
+**추출 → `public/css/app.css`** (221줄):
 
-2. `public/css/components.css` 생성  
-   - 카드 (`.matchup-card`, `.fighter-card`, `.pt-card`)
-   - 버튼, 뱃지, 탭, 상태 칩
-   - Bottom nav 공통 스타일
+| 그룹 | 클래스 |
+|---|---|
+| Base reset | `*`, `body`, media |
+| Build badge | `.build-badge` |
+| Typography | `.barlow`, `.oswald-sharp` |
+| Glass card | `.glass-card`, `.glass-card-gold` |
+| Section transitions | `.section-animate`, `@keyframes sectionFade` |
+| Nav | `.nav-link`, `.bottom-nav-item` |
+| Button | `.btn-red` |
+| Card hover | `.fight-card-hover` |
+| Ticker | `.ticker-wrap`, `.ticker-content`, `@keyframes ticker` |
+| Progress/Pulse | `.progress-bar-fill`, `.pulse-dot`, `@keyframes pulse` |
+| Mobile nav | `#mobile-nav`, `.scrollbar-hide` |
+| Toast | `#toast-container`, `.toast`, keyframes |
+| Stat slider | `.stat-slider` |
+| Chart | `.chart-wrapper`, `@keyframes spin/slideUp` |
+| Input override | `input[type=*]`, `textarea`, `select` |
+| Transition helpers | `.method-btn`, `.round-btn` |
+| Section divider | `.section-header-line` |
 
-3. `index.html` `<style>` 블록 슬림화  
-   - 추출된 CSS 제거, `<link>` 참조로 교체
+**남은 index.html `<style>`** (405줄 — 원래 635줄에서 -230줄):
+
+| 그룹 | 이유 |
+|---|---|
+| `#home` hero + animations | Home 화면 전용 |
+| `.countdown-unit/num/label` | Home 화면 전용 |
+| `.stat-counter` | Home 화면 전용 |
+| `.admin-tab` | Admin 화면 전용 |
+| `@keyframes fighter-*` + `.anim-*` | Pick 화면 전용 |
+| `.faction-card` | Community 전용 |
+| Community Dense UI (matchup/post) | Community 전용 |
+| `#bet-slip-*` | Pick/Bet 전용 |
 
 ### 영향 파일
 
-| 파일 | 변경 유형 | 위험도 |
+| 파일 | 변경 유형 | 결과 |
 |---|---|---|
-| `public/css/shell.css` | 신규 생성 | 없음 |
-| `public/css/components.css` | 신규 생성 | 없음 |
-| `index.html` `<style>` | 삭제 + link 교체 | 중간 — 셀렉터 충돌 주의 |
+| `public/css/app.css` | 신규 생성 (221줄) | 17개 그룹 공통 스타일 분리 |
+| `index.html` `<style>` | 230줄 제거 + link 추가 | 635줄 → 405줄 (-36%) |
+| `npm run build` | 통과 | `dist/css/app.css` 생성 확인 |
 
 ---
 
@@ -254,7 +277,7 @@ Phase 3부터 `var(--pt-red-500)` (`#E10600`)으로 점진 교체.
 | Phase | 상태 | 브랜치 커밋 |
 |---|---|---|
 | Phase 1: Tokens 도입 | **완료** | `Refactor: Add design tokens bridge` |
-| Phase 2: 공통 CSS 분리 | 대기 | — |
+| Phase 2: 공통 CSS 분리 | **완료** | `Refactor: Extract shared app styles` |
 | Phase 3: Event/Pick 적용 | 대기 | — |
 | Phase 4: Home/Profile/Leaderboard | 대기 | — |
 | Phase 5: Community/News/Admin | 대기 | — |
