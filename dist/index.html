@@ -405,25 +405,25 @@ theme: { extend: {
 #bet-slip-backdrop.bs-open { opacity: 1; pointer-events: all; }
 #bet-slip-panel {
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 601;
-    background: #111; border-radius: 1.5rem 1.5rem 0 0;
+    background: var(--pt-bg-2); border-radius: 1.5rem 1.5rem 0 0;
     transform: translateY(100%);
     transition: transform 0.38s cubic-bezier(0.32, 0.72, 0, 1);
     max-height: 92vh; overflow-y: auto;
-    border-top: 1px solid rgba(255,255,255,0.07);
+    border-top: 1px solid var(--pt-line-2);
 }
 #bet-slip-panel.bs-open { transform: translateY(0); }
 .bs-method-btn, .bs-round-btn {
     font-family: 'Oswald', sans-serif; font-weight: 900; font-style: italic;
     text-transform: uppercase; letter-spacing: 0.05em;
-    border: 1px solid rgba(255,255,255,0.12); background: transparent;
-    color: #666; cursor: pointer; transition: all 0.15s; text-align: left;
+    border: 1px solid var(--pt-line-2); background: transparent;
+    color: var(--pt-ink-3); cursor: pointer; transition: all 0.15s; text-align: left;
 }
-.bs-method-btn.bs-sel-ko  { border-color: #e8000d; background: rgba(232,0,13,.12); color: #fff; }
+.bs-method-btn.bs-sel-ko  { border-color: var(--pt-red-500); background: rgba(225,6,0,.12); color: #fff; }
 .bs-method-btn.bs-sel-sub { border-color: #a855f7; background: rgba(168,85,247,.12); color: #fff; }
-.bs-method-btn.bs-sel-ud  { border-color: #2563eb; background: rgba(37,99,235,.12); color: #fff; }
-.bs-method-btn.bs-sel-any { border-color: rgba(255,255,255,.35); background: rgba(255,255,255,.05); color: #ddd; }
+.bs-method-btn.bs-sel-ud  { border-color: var(--pt-corner-blue); background: rgba(31,111,235,.12); color: #fff; }
+.bs-method-btn.bs-sel-any { border-color: var(--pt-line-3); background: rgba(255,255,255,.05); color: var(--pt-ink-1); }
 .bs-round-btn { text-align: center; }
-.bs-round-btn.bs-sel { border-color: #eab308; color: #eab308; background: rgba(234,179,8,.12); }
+.bs-round-btn.bs-sel { border-color: var(--pt-warn); color: var(--pt-warn); background: rgba(244,180,0,.12); }
 </style>
 </head>
 <body class="antialiased font-roboto">

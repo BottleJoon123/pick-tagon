@@ -237,3 +237,28 @@ textarea, select {
 @media(min-width:1024px){
     .section-header-line { border-left-width:10px; padding-left:2rem; }
 }
+
+/* ── Section header — design-token variant ── */
+.sx-head {
+    border-left: 4px solid var(--pt-red-500);
+    padding-left: 1rem;
+}
+@media(min-width:1024px){
+    .sx-head { border-left-width:10px; padding-left:2rem; }
+}
+
+/* ── Event Fight Cards — Phase 3A token upgrade ── */
+/* Override generic .glass-card in fight card context with --pt-bg-2 surface */
+#fight-cards-container .glass-card {
+    background: var(--pt-bg-2);
+    border-color: var(--pt-line-1);
+}
+#fight-cards-container .glass-card:hover {
+    border-color: var(--pt-line-red);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.55), var(--pt-red-glow);
+}
+
+/* Community pick bar — CSS base colors (JS inline style sets width; background
+   uses var(--red) which now resolves via theme-bridge to --pt-red-500) */
+.live-bar-left  { background: var(--pt-corner-red); }
+.live-bar-right { background: var(--pt-corner-blue); }

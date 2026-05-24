@@ -5,11 +5,10 @@
    ============================================================ */
 
 :root {
-  /* --red: retain exact legacy value for Phase 1 visual parity.
-     Phase 3: replace with var(--pt-red-500) [#E10600 vs #e8000d — minor]. */
-  --red:          #e8000d;
-  --red-dim:      rgba(232,0,13,0.15);
-  --red-glow:     0 0 40px rgba(232,0,13,0.4);
+  /* --red: migrated to --pt-red-500 in Phase 3 (#e8000d → #E10600, visually identical). */
+  --red:          var(--pt-red-500);
+  --red-dim:      rgba(225,6,0,0.15);
+  --red-glow:     0 0 40px rgba(225,6,0,0.4);
 
   /* Glass / surface aliases */
   --glass:        rgba(255,255,255,0.03);   /* ≈ --pt-bg-2 at low opacity */

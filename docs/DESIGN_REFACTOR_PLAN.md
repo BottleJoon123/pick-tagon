@@ -183,14 +183,32 @@ Phase 3부터 `var(--pt-red-500)` (`#E10600`)으로 점진 교체.
 - `docs/design_handoff_picktagon/screens/screen-event.html`
 - `docs/design_handoff_picktagon/screens/screen-home.html` (Pick 탭 포함)
 
-### 작업 범위
+### Phase 3A 결과 (적용 완료)
 
-1. **Event 화면** — 파이트 카드 목록 레이아웃 교체  
-   - 매치업 카드: 현재 스타일 → `--pt-bg-2`, `--pt-line-1`, 코너 컬러 반영  
-   - 섹션 헤더: `.sx-head` 패턴 적용  
-   - 승률 바: 핸드오프 레드/블루 그라디언트
+| 파일 | 변경 | 결과 |
+|---|---|---|
+| `public/css/theme-bridge.css` | `--red: var(--pt-red-500)` 마이그레이션 | 모든 `var(--red)` 참조(JS 인라인 포함)가 `#E10600`으로 해결 |
+| `public/css/app.css` | `#fight-cards-container .glass-card` 토큰 업그레이드 + `.sx-head` + `.live-bar-*` | 파이트 카드 배경 `--pt-bg-2`, 테두리 `--pt-line-1` 적용 |
+| `index.html` 인라인 `<style>` | 베팅 슬립 CSS 토큰화 | `#111` → `var(--pt-bg-2)`, `#e8000d` → `var(--pt-red-500)` 등 |
+| `npm run build` | 통과 | `dist/css/*` 3개 파일 갱신 확인 |
 
-2. **Pick 화면** — 배팅/픽 UI 업데이트  
+### Phase 3A 완료 기준
+
+- [x] `--red` 마이그레이션: `#e8000d` → `var(--pt-red-500)` (theme-bridge.css)
+- [x] 파이트 카드 배경 `--pt-bg-2` 적용 (`#fight-cards-container .glass-card`)
+- [x] 베팅 슬립 패널 배경 `--pt-bg-2`, 테두리 `--pt-line-2`
+- [x] `.sx-head` 유틸리티 클래스 추가
+- [x] `.live-bar-left/.live-bar-right` CSS 토큰 기본값 정의
+- [x] `npm run build` 통과
+- [ ] `api/supabase.js:383` `stats: []` 수정 (레이더 차트 빈값) — Phase 3B로 이월
+
+### Phase 3B 잔여 작업
+
+1. **Event 화면** — 파이트 카드 목록 레이아웃 추가 교체  
+   - 섹션 헤더: `.sx-head` 클래스 실제 마크업 적용  
+   - 추가 코너 컬러 반영 (필요시)
+
+2. **Pick 화면** — 배팅/픽 UI 추가 업데이트  
    - `api/supabase.js:383` `stats: []` 하드코딩 수정 (레이더 차트 빈값 버그)  
    - 픽 카드 레이아웃 핸드오프 기준 재정렬
 
@@ -278,7 +296,8 @@ Phase 3부터 `var(--pt-red-500)` (`#E10600`)으로 점진 교체.
 |---|---|---|
 | Phase 1: Tokens 도입 | **완료** | `Refactor: Add design tokens bridge` |
 | Phase 2: 공통 CSS 분리 | **완료** | `Refactor: Extract shared app styles` |
-| Phase 3: Event/Pick 적용 | 대기 | — |
+| Phase 3A: Event/Pick 1차 토큰 적용 | **완료** | `Style: Apply event pick design system polish` |
+| Phase 3B: Event/Pick 추가 적용 | 대기 | — |
 | Phase 4: Home/Profile/Leaderboard | 대기 | — |
 | Phase 5: Community/News/Admin | 대기 | — |
 
