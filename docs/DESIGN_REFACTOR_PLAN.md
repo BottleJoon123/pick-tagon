@@ -761,8 +761,44 @@ Phase 5A에서 학습한 패턴 적용:
 | Phase 3E: red token hardcode cleanup | **완료** | `Refactor: Align red styling with design tokens` |
 | Phase 4A: Profile 디자인 1차 적용 | **완료** | `Style: Apply profile design system polish` |
 | Phase 4A-QA: Profile 코드 QA + fix | **완료** | `Fix: Polish profile design QA findings` |
-| Phase 4B: Home / Leaderboard | 대기 | — |
-| Phase 5: Community/News/Admin | 대기 | — |
+| Phase 4B: Home / Leaderboard | **완료** | `Style: Apply home/leaderboard design system polish` |
+| Phase 4C-QA: Home news hover fix | **완료** | `Fix: Polish home design QA findings` |
+| Phase 5A: Community / News | **완료** | `Style: Apply community news design system polish` |
+| Phase 5A-QA: filter active border fix | **완료** | `Fix: Polish community news design QA findings` |
+| Phase 5B: Admin low-risk CSS | **완료** | `Style: Apply admin design system polish` |
+| Phase 5B-QA: glass-card 범위 수정 | **완료** | `Fix: Polish admin design QA findings` |
+| Phase 5B → main merge + push | **완료** | `Merge branch 'refactor/admin-design-polish'` |
+| Browser QA Round 1 | **완료** | `Docs: Add browser QA for design refactor` |
+| P2 fix: remaining section headers | **완료** | `Style: Polish remaining section headers` |
+| Phase 6A: Global header/nav upgrade | **완료** | `Style: Upgrade global navigation design` |
+
+---
+
+## Phase 6A — Global Header / Nav 디자인 업그레이드 (2026-05-24)
+
+**브랜치:** `main`  
+**기준 커밋:** `a42e5d3`
+
+### 변경 사항
+
+| 영역 | 이전 | 이후 |
+|---|---|---|
+| Desktop nav 배경 | `rgba(8,8,8,0.85) blur(24px)` | `rgba(7,8,10,0.92) blur(12px) saturate(180%)` |
+| Desktop nav 하단 border | `rgba(255,255,255,0.05)` | `var(--pt-line-2)` |
+| Mobile header 배경/border | 동일 방향으로 업데이트 | — |
+| 로고 | 텍스트만 | SVG 아이콘(octagon) + 텍스트, `var(--pt-red-500)` |
+| Nav link 기본색 | 미지정(흰색) | `var(--pt-ink-2)` (중간 회색) |
+| Nav link hover | 없음 | `var(--pt-ink-0)` (흰색) |
+| Nav active state | 빨간 underline + 빨간 텍스트 | pill bg `var(--pt-bg-3)` + 흰 텍스트 |
+| Points pill | glass-card + pulse dot + "Balance" label | amber `◆` pill — `var(--pt-warn)` 색상 |
+| Bottom nav 배경 | `rgba(8,8,8,0.92)` | `rgba(7,8,10,0.94) saturate(180%)` |
+| Bottom nav border-top | `rgba(255,255,255,0.06)` | `var(--pt-line-1)` |
+
+### 변경하지 않은 항목
+- `navigateTo()` 로직 — `.active` 클래스 토글 그대로
+- `logoutUser()` / `openAdminGate()` / auth modal — 로직 그대로
+- 로그인/로그아웃 버튼 — 기능 그대로 (스타일 소폭 조정 없음)
+- 모바일 바텀 nav active=red — 유지
 
 ---
 
