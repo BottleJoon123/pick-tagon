@@ -776,6 +776,69 @@ Phase 5A에서 학습한 패턴 적용:
 | Phase 6C: Event/Pick card upgrade | **완료** | `Style: Upgrade event pick card design` |
 | Phase 6C-QA: Event/Pick card state QA | **완료** | `Fix: Polish event pick card QA findings` |
 | Phase 6D: Profile design upgrade | **완료** | `Style: Upgrade profile design` |
+| Phase 6D-QA: Profile visible upgrade QA | **완료** | `Fix: Polish profile visible QA findings` |
+
+---
+
+## Phase 6D-QA — Profile Visible Upgrade QA (2026-05-24)
+
+**분석 방법:** 정적 코드 분석 (CSS specificity, JS 바인딩 경로, flex layout 수치 분석)
+
+### 코드 경로 검증
+
+| 검증 항목 | 결과 | 근거 |
+|---|---|---|
+| `refreshUI()` — `prof-pts/prof-tot/prof-acc` textContent | PASS | ID 전부 유지, JS line ~2811 `state.points \|\| 0` guard 유지 ✓ |
+| `refreshUI()` — `belt-box/belt-name` className 할당 | PASS | Phase 6D 마크업 변경 없음, JS 그대로 작동 ✓ |
+| `refreshUI()` — `bt-prog-fill.style.width` | PASS | JS는 `style.width`만 업데이트 — HTML inline `background:linear-gradient(...)` 유지 ✓ |
+| `bt-line-fill.style.width/background` | PASS | belt track line JS 할당 별도 — progress fill과 무관 ✓ |
+| `openNicknameModal()` onclick | PASS | Phase 6D 마크업 변경 없음 ✓ |
+| `logoutUser()` onclick (`id="logout-btn"`) | PASS | Phase 6D 마크업 변경 없음 ✓ |
+| `bt-stops` innerHTML 렌더 IIFE | PASS | `bt-stops` ID 유지, innerHTML 덮어쓰기 — `.pt-belt-stop.current` 클래스 JS가 할당 ✓ |
+| `.pt-belt-stop.current .pt-belt-dot` CSS glow | PASS | `.pt-belt-stop.current` 클래스를 JS가 동적 추가 → CSS 규칙 적용 ✓ |
+
+### CSS 특이성 분석
+
+| 규칙 | 특이성 | 비고 |
+|---|---|---|
+| `.profile-hero-card` (Phase 6D) | (0,1,0) | Phase 4A (0,1,0)과 동일 — 파일 후반부 위치로 우선 ✓ |
+| `.profile-hero-card::before` `background-image:` (Phase 6D) | (0,2,0) | Phase 4A `background:` shorthand는 리셋 — Phase 6D sub-property로 image만 교체, `content/position/inset` 유지 ✓ |
+| `.prof-avatar-wrap` `box-shadow` (Phase 6D) | (0,1,0) | 새 클래스 — Tailwind 충돌 없음 ✓ |
+| `.pt-belt-stop.current .pt-belt-dot` (Phase 6D) | (0,3,0) | Phase 4A (0,3,0) 동일 — Phase 6D 후반부 위치로 우선 ✓ |
+| `.pt-belt-stop.current .pt-belt-nm` (Phase 6D) | (0,3,0) | Phase 4A `color: var(--pt-ink-0)` → Phase 6D `color: #C39DF1` 교체 ✓ |
+
+### 레이아웃 안전성 — Mobile 375px
+
+| 항목 | 검증 | 결과 |
+|---|---|---|
+| Avatar flex row — 버튼 줄바꿈 여부 | avatar 64px + gap-4(16px) + name(min-w-0) + gap-4(16px) + buttons(~130px) = 226px < 335px content | PASS ✓ |
+| Avatar `flex-shrink-0` + name `flex-1 min-w-0` | name 영역 ~109px, `truncate` class 유지 — overflow 없음 | PASS ✓ |
+| Belt dot `scale(1.30)` — 인접 요소 밀림 | `transform` 은 layout flow 외 — 26px 시각 크기, 인접 column 67px(375/5 기준) 여유 있음 | PASS ✓ |
+| Belt dot label(`.pt-belt-nm`) overlap | 2~3자 한국어 label, 14px font, column 67px — 겹침 없음 | PASS ✓ |
+| Progress bar `h-2` — 컨테이너 내 넘침 | 부모 `overflow-hidden rounded-full` 유지 — 두께만 증가, 넘침 없음 | PASS ✓ |
+| `sx-head` 헤더 — flex layout | `.sx-head { display:flex; align-items:center; gap:16px }` + `::after` bar — 375px 전체폭 정상 ✓ | PASS ✓ |
+
+### Desktop 확인
+
+| 항목 | 결과 | 근거 |
+|---|---|---|
+| Avatar `lg:w-20 lg:h-20` (80px) | PASS | hero flex row 충분한 너비 — 버튼 줄바꿈 없음 ✓ |
+| `lg:text-4xl` avatar 아이콘 | PASS | 80px 컨테이너 내 `text-4xl`(36px) — 여유 ✓ |
+| profile-hero-card gradient overlay | PASS | radial gradient left purple + right red — spec 일치 ✓ |
+
+### 수정 내역
+
+없음 — 정적 분석 결과 모든 Phase 6D 변경이 정상 동작. CSS/마크업 fix 불필요.
+
+### NEEDS_BROWSER (시각 확인 필요)
+
+| 항목 | 이유 |
+|---|---|
+| purple/red gradient 강도 | `rgba(139,63,227,0.22)` + `rgba(225,6,0,0.14)` — subtle 강도 시각 확인 필요 |
+| grid cage texture 가시성 | `rgba(255,255,255,0.025)` — 실제 렌더에서 보이는지 확인 |
+| avatar glow box-shadow | `rgba(225,6,0,0.25)` 24px — 실제 발광 느낌 확인 |
+| belt dot scale(1.30) + purple glow | 인접 dot과 실제 간격 시각 확인 |
+| progress fill purple→brown gradient | `rgba(139,63,227,0.90) → rgba(181,128,58,0.80)` 색감 확인 |
 
 ---
 
