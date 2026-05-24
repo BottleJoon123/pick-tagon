@@ -474,9 +474,9 @@
     }
 
     function getBeltInfo(pts) {
-        if(pts > 10000) return { name: "Black", color: "#d20a0a", bg: "bg-ufcRed", text: "text-white" };
-        if(pts > 5000)  return { name: "Brown", color: "#92400e", bg: "bg-yellow-800", text: "text-white" };
-        if(pts > 2000)  return { name: "Purple", color: "#7c3aed", bg: "bg-purple-700", text: "text-white" };
-        if(pts > 1000)  return { name: "Blue", color: "#2563eb", bg: "bg-blue-600", text: "text-white" };
-        return { name: "White", color: "#ffffff", bg: "bg-white", text: "text-black" };
+        if(pts > 10000) return { name: "Black", color: "#ffffff", bg: "bg-ufcRed", text: "text-white" };
+        if(pts > 5000)  return { name: "Brown", color: "#B5803A", bg: "bg-yellow-800", text: "text-white" };
+        if(pts > 2000)  return { name: "Purple", color: "#8B3FE3", bg: "bg-purple-700", text: "text-white" };
+        if(pts > 1000)  return { name: "Blue", color: "#1F6FEB", bg: "bg-blue-600", text: "text-white" };
+        return { name: "White", color: "#ECECEE", bg: "bg-white", text: "text-black" };
     }

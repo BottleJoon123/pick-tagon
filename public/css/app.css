@@ -345,3 +345,21 @@ textarea, select {
     background: var(--pt-bg-2);
     border-color: var(--pt-line-1);
 }
+
+/* ── Rankings / Leaderboard — Phase 4B token upgrade ── */
+#my-rank-card { background: var(--pt-bg-2); }
+#leaderboard-player-panel {
+    background: var(--pt-bg-2);
+    border-color: var(--pt-line-1);
+}
+/* Faction cards — exclude .faction-ranking-mine to keep ufcRed/50 accent border */
+#faction-ranking-board .glass-card:not(.faction-ranking-mine) {
+    background: var(--pt-bg-2);
+    border-color: var(--pt-line-1);
+}
+/* Current-user row gradient highlight */
+.lb-row-me {
+    background: linear-gradient(90deg, rgba(225,6,0,0.10), transparent);
+    border-left: 3px solid var(--pt-red-500);
+    padding-left: 21px;
+}

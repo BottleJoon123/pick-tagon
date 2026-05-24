@@ -371,6 +371,37 @@ const stats1 = f1.stats || [75, 75, 75, 75, 75];
 
 ---
 
+## Phase 4B — Rankings / Leaderboard 디자인 1차 적용
+
+**목표:** Rankings 화면 leaderboard/faction 영역을 design token 기반으로 정리. Profile에서 만든 belt/card 시각 언어와 맞춤.
+
+### 변경 내용
+
+| 영역 | 변경 내용 |
+|---|---|
+| 섹션 헤더 | `border-l-8 lg:border-l-[12px] border-ufcRed pl-4 lg:pl-8` → `.sx-head` |
+| 테이블 헤더 배경 | `bg-black/30 border-white/5` → `bg-white/[0.02] border-white/[0.06]` |
+| 현재 유저 행 | `bg-red-950/20` 클래스 → `.lb-row-me` CSS class (gradient + left border) |
+| `#leaderboard-player-panel` | `background: var(--pt-bg-2); border-color: var(--pt-line-1)` |
+| `#my-rank-card` | `background: var(--pt-bg-2)` (ufcRed/30 border + box-shadow inline 유지) |
+| `#faction-ranking-board .glass-card` | `pt-bg-2 + pt-line-1` (`.faction-ranking-mine` 제외) |
+| `getBeltInfo` 벨트 dot 색상 | 설계 토큰 기준으로 정정: Black `#d20a0a→#ffffff`, Brown `#92400e→#B5803A`, Purple `#7c3aed→#8B3FE3`, Blue `#2563eb→#1F6FEB`, White `#ffffff→#ECECEE` |
+
+### 신규 CSS 클래스 (app.css)
+
+- `.lb-row-me` — 현재 유저 행 gradient highlight + 3px red left border
+
+### 완료 기준
+
+- [x] 섹션 헤더 `.sx-head` 적용
+- [x] leaderboard table 표면 `pt-bg-2 + pt-line-1`
+- [x] 현재 유저 행 `lb-row-me` 그라데이션 적용
+- [x] `getBeltInfo` 벨트 색상 design token 기준 정렬
+- [x] `npm run build` 통과
+- [ ] 브라우저 QA (mobile 375px 유저 행 left-border, faction 카드 표면)
+
+---
+
 ## Phase 4 — Home / Profile / Leaderboard 적용
 
 **목표:** 메인 진입 화면 3종 핸드오프 반영
