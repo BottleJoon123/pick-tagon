@@ -778,6 +778,75 @@ Phase 5A에서 학습한 패턴 적용:
 | Phase 6D: Profile design upgrade | **완료** | `Style: Upgrade profile design` |
 | Phase 6D-QA: Profile visible upgrade QA | **완료** | `Fix: Polish profile visible QA findings` |
 | Phase 6E: Leaderboard/Rankings upgrade | **완료** | `Style: Upgrade leaderboard rankings design` |
+| Phase 6E-QA: Leaderboard/Rankings QA | **완료** | `Fix: Polish leaderboard rankings QA findings` |
+
+---
+
+## Phase 6E-QA — Leaderboard/Rankings Upgrade QA (2026-05-24)
+
+**분석 방법:** 정적 코드 분석 (CSS specificity, JS 코드 경로, flex/grid 수치 분석)
+
+### 코드 경로 검증
+
+| 검증 항목 | 결과 | 근거 |
+|---|---|---|
+| `setRankTab('player'/'faction')` 로직 | PASS | `className.replace()` 대상 클래스 문자열 무변경 — 탭 전환 정상 ✓ |
+| `renderLeaderboardList` 랭킹/정렬 로직 | PASS | 포인트 계산/정렬 무변경 — template class 추가만 ✓ |
+| `renderFactionRanking` faction 정렬/통계 | PASS | 정렬/계산 로직 무변경 — bar div class 추가만 ✓ |
+| `getBeltInfo` 영향 | PASS | Phase 6E 변경 없음 ✓ |
+| `.lb-row-me` current user highlight | PASS | Phase 4B `background: linear-gradient(...)` + `border-left: 3px solid` 유지 ✓ |
+| `.lb-row-me:hover !important` | PASS | Phase 4B `!important` — Tailwind hover bg override 차단 유지 ✓ |
+
+### CSS Specificity 분석
+
+| 규칙 | 특이성 | 경쟁 규칙 | 결과 |
+|---|---|---|---|
+| `#my-rank-card` background (Phase 6E) | (1,0,0) | Phase 4B (1,0,0) 동일 — 후반부 위치로 우선 | PASS ✓ |
+| `#my-rank-card` border-color (Phase 6E) | (1,0,0) | Tailwind `border-ufcRed/30` (0,1,0) | PASS ✓ |
+| `#my-rank-card` box-shadow `!important` | — | inline style 완전 override | PASS ✓ |
+| `#leaderboard-player-panel > div:first-child` | (1,0,1) | Tailwind `bg-white/[0.02]` (0,1,0) | PASS ✓ |
+| `#leaderboard-player-panel .lb-row-top1` border-left-color | (1,1,0) | Tailwind `border-white/[0.06]` border-color shorthand (0,1,0) | PASS ✓ |
+| `#faction-ranking-board .faction-ranking-mine` background | (1,1,0) | `.glass-card` (0,1,0) | PASS ✓ |
+| `#faction-ranking-board .glass-card:hover` | (1,2,0) | `.glass-card:hover` (0,2,0) | PASS ✓ |
+| `#faction-ranking-board .faction-ranking-mine:hover` | (1,2,0) | `#faction-ranking-board .glass-card:hover` (1,2,0) — 후반부 위치로 border-color 우선 | PASS ✓ |
+| `#faction-ranking-board .lb-faction-bar` height/bg | (1,1,0) | Tailwind `h-1.5` / `bg-white/5` (0,1,0) | PASS ✓ |
+| `#faction-ranking-board .lb-faction-bar > div` height/bg | (1,1,1) | Tailwind `h-1.5` / `bg-ufcRed` (0,1,0) | PASS ✓ |
+
+### 수정 사항 (P3 fix)
+
+| 우선순위 | 항목 | 원인 | 조치 |
+|---|---|---|---|
+| **P3** | `.faction-ranking-mine` 호버 시 ring shadow 소실 | `#faction-ranking-board .glass-card:hover` (1,2,0)가 비호버 shadow (1,1,0) override | `.faction-ranking-mine:hover`에 `box-shadow` 명시 추가 — 동일 (1,2,0)에서 후반부 위치로 우선 |
+
+### Mobile 375px 레이아웃 분석
+
+| 항목 | 수치 | 결과 |
+|---|---|---|
+| My Rank Card flex-wrap | content 287px (p-6=24px 양쪽), 왼쪽(~180px) + 오른쪽(~200px) = 396px > 287px → wrap | PASS (flex-wrap 의도적 줄바꿈, Phase 6E 이전과 동일) ✓ |
+| Leaderboard grid accuracy col | `col-span-2 hidden lg:block` — 모바일 숨김, 셀 내 inline ACC(`lg:hidden`) 유지 | PASS ✓ |
+| Leaderboard points col-span-3 | 3/12 = 24px × 3 = 72px — "1,234P" text-sm Oswald ≈ 60px | PASS ✓ |
+| Faction card name+score 1행 | flex-1 영역 ~187px, name 3–5자(~80px) + score(~80px) < 187px | PASS ✓ |
+| Faction member panel W/L+acc+pts (shrink-0) | ~90px, 나머지 nickname min-w-0 truncate | PASS ✓ |
+
+### 상태 상호작용 확인
+
+| 시나리오 | 결과 | 근거 |
+|---|---|---|
+| lb-row-me + lb-row-top1 동시 적용 (유저 1위) | PASS | bg는 lb-row-me red gradient 유지, border-color는 (1,1,0) gold로 override ✓ |
+| lb-row-me:hover — red gradient 유지 | PASS | `!important` 여전히 유효, Phase 6E hover 규칙 없음 ✓ |
+| faction mine card 비호버 ring | PASS | `#faction-ranking-board .faction-ranking-mine` (1,1,0) 적용 ✓ |
+| faction mine card 호버 ring 보존 | **FIXED** | P3 fix 적용 — `.faction-ranking-mine:hover` box-shadow 명시로 ring 유지 ✓ |
+| 일반 faction card 호버 white lift | PASS | `#faction-ranking-board .glass-card:hover` (1,2,0) — 전역 red glow (0,2,0) override ✓ |
+
+### NEEDS_BROWSER (시각 확인 필요)
+
+| 항목 | 이유 |
+|---|---|
+| My rank card gradient 좌측 강도 | `rgba(225,6,0,0.10)` 55% fade — 너무 약하거나 강한지 확인 |
+| Top 3 gold/silver/bronze border 색감 | `#D4AF37` / `rgba(192,192,210,0.75)` / `#B5803A` — 실제 렌더 확인 |
+| Faction mine card ring 1px | `rgba(225,6,0,0.22)` — 실제 가시성 확인 |
+| Faction bar 8px height | 카드 레이아웃 내 어색하지 않은지 확인 |
+| Mobile My Rank Card flex-wrap | 오른쪽 블록 wrapping 시 시각 확인 |
 
 ---
 
