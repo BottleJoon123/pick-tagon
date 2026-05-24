@@ -784,8 +784,10 @@ Phase 5A에서 학습한 패턴 적용:
 | Phase 6C-2: Event/Pick card detail polish | **완료** | `Style: Polish event pick card details` |
 | Phase 6C-2-QA: Event/Pick detail polish QA | **완료** | `Fix: Polish event pick detail QA findings` |
 | **Phase 6 Closeout** | **완료** | `Docs: Close out visible design round` |
+| Phase 7A: Tailwind CDN migration plan | **완료** | `Docs: Plan Tailwind CDN migration` |
 
-> Phase 6 마감 문서 → [`docs/PHASE6_VISIBLE_DESIGN_CLOSEOUT.md`](PHASE6_VISIBLE_DESIGN_CLOSEOUT.md)
+> Phase 6 마감 문서 → [`docs/PHASE6_VISIBLE_DESIGN_CLOSEOUT.md`](PHASE6_VISIBLE_DESIGN_CLOSEOUT.md)  
+> Phase 7A 전환 계획 → [`docs/TAILWIND_CDN_MIGRATION_PLAN.md`](TAILWIND_CDN_MIGRATION_PLAN.md)
 
 ---
 
