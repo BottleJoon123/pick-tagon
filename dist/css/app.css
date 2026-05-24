@@ -437,7 +437,10 @@ textarea, select {
 /* active/hover must be 1,2,0+ to beat #admin .admin-tab fallback */
 #admin .admin-tab:hover:not(.active-tab) { background: var(--pt-bg-3); }
 #admin .admin-tab.active-tab { border-color: rgba(225,6,0,0.35); }
-/* glass-card surfaces — also overrides bg-zinc-900/60 on admin-panel-ufc */
-#admin .glass-card { background: var(--pt-bg-2); border-color: var(--pt-line-1); }
+/* glass-card surfaces — targeted to safe panels only.
+   Skipping #admin-panel-dashboard (accent stat cards via JS Tailwind bg classes)
+   and #admin-panel-season (intentional yellow/red accent borders). */
+#admin-panel-ufc > .glass-card,
+#admin-panel-settings > .glass-card { background: var(--pt-bg-2); border-color: var(--pt-line-1); }
 /* admin-gate modal surface (outside #admin section) */
 #admin-gate-modal .glass-card { background: var(--pt-bg-2); border-color: var(--pt-line-1); }

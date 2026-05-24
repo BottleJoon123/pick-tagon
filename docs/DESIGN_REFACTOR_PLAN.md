@@ -682,7 +682,7 @@ Phase 5A에서 학습한 패턴 적용:
 
 - [x] Admin 섹션 헤더 `.sx-head` 통일
 - [x] Tab bar + `.admin-tab` token border 적용
-- [x] `#admin .glass-card` surface token 적용
+- [x] `#admin .glass-card` surface token 적용 (범위 수정 → QA 참고)
 - [x] `#admin-panel-ufc` bg-zinc-900 override
 - [x] Admin gate modal surface
 - [x] `npm run build` 통과
@@ -692,10 +692,39 @@ Phase 5A에서 학습한 패턴 적용:
 > **Phase 5B-1 완료** (`refactor/admin-design-polish`, 2026-05-24)  
 > Notes: tab bar `border-white/10` = `rgba(255,255,255,0.10)` = `--pt-line-2` 와 동일값이므로 별도 override 생략. Settings `hr` divider = 다음 QA에서 확인.
 
+---
+
+### Phase 5B-QA 결과 (2026-05-24)
+
+**발견된 이슈 — `#admin .glass-card` 범위 과다**
+
+| 패널 | glass-card 내 상태 | 영향 |
+|---|---|---|
+| `admin-panel-dashboard` | JS 생성 stat cards: `border-amber-500/20 bg-amber-500/5` 등 accent | `background` 덮임 → 의미색 손실 |
+| `admin-panel-season` | `border-yellow-500/20` (Current Season), `border-ufcRed/20` (Danger Zone) Tailwind border classes | `border-color` 덮임 → accent border 손실 |
+
+**수정 방향**  
+`#admin .glass-card` → 안전한 패널만 명시적 타겟으로 교체:
+```css
+#admin-panel-ufc > .glass-card,
+#admin-panel-settings > .glass-card { background: var(--pt-bg-2); border-color: var(--pt-line-1); }
+```
+
+**CSS 우선순위 최종 확인 (admin-tab)**
+
+| 상태 | 속성 | 적용 소스 | 값 |
+|---|---|---|---|
+| base | border-color | `#admin .admin-tab` (1,1,0) | `var(--pt-line-1)` |
+| active-tab | border-color | `#admin .admin-tab.active-tab` (1,2,0) | `rgba(225,6,0,0.35)` |
+| active-tab | background | inline `.admin-tab.active-tab` (0,2,0) | `rgba(232,0,13,0.12)` (보존) |
+| active-tab | color | inline `.admin-tab.active-tab` (0,2,0) | `var(--red)` (보존) |
+| hover(non-active) | background | `#admin .admin-tab:hover:not(.active-tab)` (1,3,0) | `var(--pt-bg-3)` |
+| hover(non-active) | color | inline `.admin-tab:hover:not(.active-tab)` (0,3,0) | `#fff` (보존) |
+
 **브라우저 확인 필요 (코드 범위 밖):**
-- [ ] 대시보드 stat card JS inline style과 충돌 여부
 - [ ] 탭 전환 시 active-tab 시각 확인
 - [ ] Season danger zone 강조색 보존 확인
+- [ ] Dashboard stat card 의미색 확인
 - [ ] Mobile 375px admin tab overflow
 
 ---
