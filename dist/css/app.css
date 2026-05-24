@@ -264,3 +264,84 @@ textarea, select {
    uses var(--red) which now resolves via theme-bridge to --pt-red-500) */
 .live-bar-left  { background: var(--pt-corner-red); }
 .live-bar-right { background: var(--pt-corner-blue); }
+
+/* ── Profile hero card (Phase 4A) ── */
+.profile-hero-card {
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    position: relative;
+    overflow: hidden;
+}
+.profile-hero-card::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(55% 120% at 0% 60%, rgba(225,6,0,0.07), transparent 55%);
+    pointer-events: none;
+}
+.profile-hero-card > * { position: relative; }
+
+/* ── Belt progression tracker (Phase 4A) ── */
+.pt-belt-tracker {
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+}
+.pt-belt-line {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    padding-top: 28px;
+}
+.pt-belt-line::before {
+    content: '';
+    position: absolute; top: 40px; left: 10%; right: 10%;
+    height: 3px; background: var(--pt-bg-4); border-radius: 2px;
+}
+.pt-belt-line .progress-fill {
+    position: absolute; top: 40px; left: 10%;
+    height: 3px; border-radius: 2px;
+    transition: width 0.7s ease;
+    z-index: 1;
+}
+.pt-belt-stop {
+    position: relative; z-index: 2;
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center; padding-bottom: 4px;
+}
+.pt-belt-dot {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 3px solid var(--pt-bg-2);
+    box-shadow: 0 0 0 1px var(--pt-line-2);
+    transition: all 0.35s;
+    margin-bottom: 6px;
+}
+.pt-belt-stop.done .pt-belt-dot { box-shadow: 0 0 0 1px var(--pt-line-1); }
+.pt-belt-stop.current .pt-belt-dot {
+    box-shadow: 0 0 0 1px var(--pt-red-500), 0 0 0 5px rgba(225,6,0,0.18);
+    transform: scale(1.25);
+}
+.pt-belt-stop.next .pt-belt-dot { opacity: 0.4; }
+.pt-belt-nm {
+    font-family: 'Oswald', sans-serif;
+    font-size: 9px; font-weight: 700; font-style: italic;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--pt-ink-4);
+}
+.pt-belt-stop.done .pt-belt-nm  { color: var(--pt-ink-2); }
+.pt-belt-stop.current .pt-belt-nm { color: var(--pt-ink-0); }
+.pt-belt-pts { font-size: 8px; color: var(--pt-ink-4); font-family: 'Inter', monospace; }
+.pt-belt-stop.current .pt-belt-pts { color: var(--pt-warn); font-weight: 700; }
+@media(min-width:1024px) {
+    .pt-belt-dot { width: 24px; height: 24px; }
+    .pt-belt-nm  { font-size: 10px; }
+    .pt-belt-pts { font-size: 9px; }
+}
+
+/* ── Profile section glass-card surface upgrade (Phase 4A) ── */
+#profile .glass-card {
+    background: var(--pt-bg-2);
+    border-color: var(--pt-line-1);
+}
+/* Keep analyst report red accent border */
+#profile #profile-report-card {
+    border-color: var(--pt-line-red);
+}

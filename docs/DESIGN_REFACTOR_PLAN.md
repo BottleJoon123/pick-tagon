@@ -320,6 +320,40 @@ const stats1 = f1.stats || [75, 75, 75, 75, 75];
 
 ---
 
+## Phase 4A — Profile 디자인 1차 적용
+
+**목표:** Profile 화면 hero/belt/stats 영역의 시각 구조 개선. 기능/DB/API/JS 로직 변경 없음.
+
+### 변경 내용
+
+| 영역 | 변경 내용 |
+|---|---|
+| 섹션 헤더 | `border-l-4 border-ufcRed` → `.sx-head` (8px/12px token border) |
+| 프로필 아이덴티티 카드 | `glass-card border-white/5` → `.profile-hero-card` (pt-bg-2 surface + subtle red radial gradient) |
+| Belt Progression Tracker | 신규 HTML 블록 + `refreshUI()` 내 JS 렌더 (5 belt stops + line fill + progress bar) |
+| 4 핵심 지표 카드 border | `border-white/5` → `border-white/10` (pt-line-1 근사값) |
+| Profile 섹션 glass-card | `#profile .glass-card` → `pt-bg-2 + pt-line-1` override (app.css) |
+| Analyst Report 카드 | `#profile #profile-report-card` → `pt-line-red` border 유지 |
+
+### 신규 CSS 클래스 (app.css)
+
+- `.profile-hero-card` — profile identity 카드 표면
+- `.pt-belt-tracker` — belt tracker 컨테이너
+- `.pt-belt-line` + `::before` — track + dot grid
+- `.pt-belt-stop` (`.done`, `.current`, `.next`) — belt 상태별 스타일
+- `.pt-belt-dot`, `.pt-belt-nm`, `.pt-belt-pts`
+
+### QA 필요 항목 (브라우저 확인)
+
+- [ ] Belt tracker 5 dots 가로 정렬 — mobile 375px에서 pt-belt-nm 텍스트 잘림 여부
+- [ ] Progress fill line이 current dot까지 정확히 도달하는지
+- [ ] profile-hero-card radial gradient가 아바타 영역을 가리지 않는지
+- [ ] `#profile .glass-card` override가 community 섹션 glass-card에 영향 없는지 (CSS ID selector scope 확인)
+- [ ] logout 버튼, 닉네임 변경 버튼 동작 유지 확인
+- [ ] prof-pts / prof-tot / prof-acc 값이 state 반영 후 정상 표시
+
+---
+
 ## Phase 4 — Home / Profile / Leaderboard 적용
 
 **목표:** 메인 진입 화면 3종 핸드오프 반영
@@ -406,7 +440,8 @@ const stats1 = f1.stats || [75, 75, 75, 75, 75];
 | Phase 3D-2: SELECT 추가 + ID 우선 매핑 구현 | **완료** | `Fix: Use fighter ID for matchup lookup with name fallback` |
 | Phase 3D-3: 운영 DB 컬럼 존재 검증 | **완료** | `Docs: Verify matchup fighter ID column readiness` |
 | Phase 3E: red token hardcode cleanup | **완료** | `Refactor: Align red styling with design tokens` |
-| Phase 4: Home/Profile/Leaderboard | 대기 | — |
+| Phase 4A: Profile 디자인 1차 적용 | **완료** | `Style: Apply profile design system polish` |
+| Phase 4B: Home / Leaderboard | 대기 | — |
 | Phase 5: Community/News/Admin | 대기 | — |
 
 ---

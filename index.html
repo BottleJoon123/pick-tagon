@@ -1082,13 +1082,13 @@ theme: { extend: {
     <section id="profile" class="section-animate max-w-5xl mx-auto px-4 lg:px-6 pt-6 pb-16 lg:pb-20">
 
         <!-- 헤더 타이틀 -->
-        <div class="border-l-4 border-ufcRed pl-3 mb-5">
+        <div class="sx-head mb-5">
             <h3 class="oswald-sharp text-2xl lg:text-3xl font-black italic tracking-tight uppercase text-white leading-none">Dashboard</h3>
             <p class="text-gray-600 text-[10px] mt-0.5 oswald-sharp italic uppercase tracking-widest">내 픽 통계 및 커뮤니티 랭크</p>
         </div>
 
         <!-- 프로필 아이덴티티 카드 -->
-        <div class="glass-card rounded-2xl p-5 lg:p-7 border border-white/5 mb-5 flex items-center gap-4 flex-wrap">
+        <div class="profile-hero-card rounded-2xl p-5 lg:p-7 mb-5 flex items-center gap-4 flex-wrap">
             <!-- 아바타 -->
             <div class="w-14 h-14 lg:w-16 lg:h-16 rounded-xl bg-gradient-to-br from-ufcRed/20 to-black border border-ufcRed/20 flex items-center justify-center flex-shrink-0">
                 <span class="oswald-sharp text-2xl font-black italic text-ufcRed select-none">⚡</span>
@@ -1114,17 +1114,35 @@ theme: { extend: {
             </div>
         </div>
 
+        <!-- 벨트 승급 트래커 -->
+        <div id="belt-tracker-panel" class="pt-belt-tracker rounded-2xl p-5 lg:p-6 mb-5">
+            <div class="flex items-center justify-between mb-5">
+                <h4 class="oswald-sharp text-xs lg:text-sm font-black italic uppercase text-white tracking-widest">Belt Progression</h4>
+                <span id="bt-next-label" class="oswald-sharp text-[9px] text-gray-500 italic uppercase tracking-widest"></span>
+            </div>
+            <div id="bt-stops" class="pt-belt-line">
+                <div class="progress-fill" id="bt-line-fill"></div>
+            </div>
+            <div class="flex items-center gap-3 mt-4 pt-3 border-t border-white/[0.06]">
+                <span id="bt-prog-label" class="oswald-sharp text-[9px] text-gray-500 italic uppercase tracking-widest shrink-0"></span>
+                <div class="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                    <div id="bt-prog-fill" class="h-full rounded-full transition-all duration-700" style="width:0%;background:var(--pt-red-500)"></div>
+                </div>
+                <span id="bt-prog-text" class="oswald-sharp text-[10px] font-black italic text-white shrink-0"></span>
+            </div>
+        </div>
+
         <!-- 4 핵심 지표 카드 -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-            <div class="glass-card p-5 lg:p-7 flex flex-col justify-between h-28 lg:h-36 rounded-2xl border border-white/5">
+            <div class="glass-card p-5 lg:p-7 flex flex-col justify-between h-28 lg:h-36 rounded-2xl border border-white/10">
                 <span class="oswald-sharp text-[9px] tracking-[.2em] italic font-black uppercase text-gray-500">Balance</span>
                 <h4 id="prof-pts" class="oswald-sharp text-2xl lg:text-3xl text-yellow-400 font-black italic tracking-tighter leading-none">1,000 P</h4>
             </div>
-            <div class="glass-card p-5 lg:p-7 flex flex-col justify-between h-28 lg:h-36 rounded-2xl border border-white/5">
+            <div class="glass-card p-5 lg:p-7 flex flex-col justify-between h-28 lg:h-36 rounded-2xl border border-white/10">
                 <span class="oswald-sharp text-[9px] tracking-[.2em] italic font-black uppercase text-gray-500">Forecasts</span>
                 <h4 id="prof-tot" class="oswald-sharp text-2xl lg:text-3xl font-black italic tracking-tighter text-white leading-none">0 회</h4>
             </div>
-            <div class="glass-card p-5 lg:p-7 flex flex-col justify-between h-28 lg:h-36 rounded-2xl border border-white/5">
+            <div class="glass-card p-5 lg:p-7 flex flex-col justify-between h-28 lg:h-36 rounded-2xl border border-white/10">
                 <span class="oswald-sharp text-[9px] tracking-[.2em] italic font-black uppercase text-gray-500">Accuracy</span>
                 <h4 id="prof-acc" class="oswald-sharp text-2xl lg:text-3xl font-black italic tracking-tighter text-ufcRed leading-none">0 %</h4>
             </div>
@@ -2768,6 +2786,64 @@ theme: { extend: {
                 bName.innerText="Black Belt";
             }
         }
+
+        // Belt progression tracker
+        (function() {
+            var _bStops = [
+                { nm: '화이트', pts: 0,     color: '#ECECEE' },
+                { nm: '블루',   pts: 1000,  color: '#1F6FEB' },
+                { nm: '퍼플',   pts: 2000,  color: '#8B3FE3' },
+                { nm: '브라운', pts: 5000,  color: '#B5803A' },
+                { nm: '블랙',   pts: 10000, color: '#2A2A2A', border: '1px solid #71757F' },
+            ];
+            var pts = state.points;
+            var ci = 0;
+            for (var _i = _bStops.length - 1; _i >= 0; _i--) {
+                if (pts >= _bStops[_i].pts) { ci = _i; break; }
+            }
+            var stopsEl = document.getElementById('bt-stops');
+            if (!stopsEl) return;
+            var html = '<div class="progress-fill" id="bt-line-fill"></div>';
+            _bStops.forEach(function(s, i) {
+                var cls = i < ci ? 'done' : (i === ci ? 'current' : 'next');
+                var bStyle = s.border ? 'border:' + s.border + ';' : '';
+                html += '<div class="pt-belt-stop ' + cls + '">' +
+                    '<div class="pt-belt-dot" style="background:' + s.color + ';' + bStyle + '"></div>' +
+                    '<div class="pt-belt-nm">' + s.nm + '</div>' +
+                    '<div class="pt-belt-pts">' + (s.pts > 0 ? s.pts.toLocaleString() + 'P' : 'START') + '</div>' +
+                    '</div>';
+            });
+            stopsEl.innerHTML = html;
+            // Line fill: each stop spans 20% of an 80% track (left:10% to right:10%)
+            var baseW = [0, 20, 40, 60, 80];
+            var partialW = (ci < 4) ? ((pts - _bStops[ci].pts) / (_bStops[ci + 1].pts - _bStops[ci].pts)) * 20 : 0;
+            var lineW = Math.min(80, baseW[ci] + partialW);
+            var fillEl = document.getElementById('bt-line-fill');
+            if (fillEl) {
+                fillEl.style.width = lineW + '%';
+                fillEl.style.background = 'linear-gradient(90deg,#ECECEE,' + _bStops[ci].color + ')';
+            }
+            // Progress bar
+            var nextLabel = document.getElementById('bt-next-label');
+            var progLabel = document.getElementById('bt-prog-label');
+            var progFill  = document.getElementById('bt-prog-fill');
+            var progText  = document.getElementById('bt-prog-text');
+            if (ci < 4) {
+                var toPts = _bStops[ci + 1].pts;
+                var fromPts = _bStops[ci].pts;
+                var pct = Math.round((pts - fromPts) / (toPts - fromPts) * 100);
+                if (nextLabel) nextLabel.textContent = '다음까지 ' + (toPts - pts).toLocaleString() + ' P';
+                if (progLabel) progLabel.textContent = _bStops[ci].nm + ' → ' + _bStops[ci + 1].nm;
+                if (progFill)  progFill.style.width = pct + '%';
+                if (progText)  progText.textContent = pts.toLocaleString() + ' / ' + toPts.toLocaleString() + ' P';
+            } else {
+                if (nextLabel) nextLabel.textContent = 'MAX RANK';
+                if (progLabel) progLabel.textContent = '최고 등급';
+                if (progFill)  progFill.style.width = '100%';
+                if (progText)  progText.textContent = pts.toLocaleString() + ' P';
+            }
+        })();
+
 
         const hList = document.getElementById('history-card-list');
         if(hList) {
