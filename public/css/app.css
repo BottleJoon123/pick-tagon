@@ -361,5 +361,7 @@ textarea, select {
 .lb-row-me {
     background: linear-gradient(90deg, rgba(225,6,0,0.10), transparent);
     border-left: 3px solid var(--pt-red-500);
-    padding-left: 21px;
+}
+.lb-row-me:hover {
+    background: linear-gradient(90deg, rgba(225,6,0,0.15), transparent) !important;
 }

@@ -391,14 +391,37 @@ const stats1 = f1.stats || [75, 75, 75, 75, 75];
 
 - `.lb-row-me` — 현재 유저 행 gradient highlight + 3px red left border
 
+### Phase 4B-QA 코드 검토 결과
+
+**발견 및 수정:**
+
+| 항목 | 내용 | 처리 |
+|---|---|---|
+| `.lb-row-me { padding-left: 21px }` | Tailwind CDN JIT가 static CSS 이후 주입 → `px-6`(24px)이 override, 무효 | `padding-left: 21px` 제거 |
+| `hover:bg-white/[0.03]` Tailwind class | 호버 시 유저 행의 red gradient가 흰색으로 대체됨 | `.lb-row-me:hover { background: linear-gradient(…rgba(225,6,0,0.15)…) !important }` 추가 |
+
+**코드 QA 확인:**
+
+- ✅ `setRankTab` className.replace 로직 — Phase 4B 변경 없음, 정상
+- ✅ `renderFactionRanking` — `faction-ranking-mine` `:not()` 로 ufcRed/50 accent 보존 확인
+- ✅ `#leaderboard-player-panel` ID 선택자 (specificity 1,0,0) — `.glass-card:hover` (0,2,0)보다 높아 hover glow override 없음
+- ✅ `.lb-row-me` + `border-l-4 border-l-red-600` (rank ≤ 3 동시) — Tailwind 4px red 우선, gradient bg 유지
+- ✅ `getBeltInfo` 반환값: `bg`/`text` 클래스 변경 없음, `color` 필드만 token 정렬
+- ✅ `season.js:303` `belt` 미사용 — 기존 dead code, Phase 4B 회귀 없음
+
+**브라우저 확인 필요 (코드 범위 밖):**
+
+- [ ] mobile 375px — 유저 행 border-left + px-6 레이아웃 확인
+- [ ] faction 카드 "내 집단" hover 상태 accent 유지
+- [ ] White belt 점(#ECECEE) / Black belt 점(#ffffff) 시각 구분 확인
+
 ### 완료 기준
 
 - [x] 섹션 헤더 `.sx-head` 적용
 - [x] leaderboard table 표면 `pt-bg-2 + pt-line-1`
-- [x] 현재 유저 행 `lb-row-me` 그라데이션 적용
+- [x] 현재 유저 행 `lb-row-me` 그라데이션 적용 + hover 유지
 - [x] `getBeltInfo` 벨트 색상 design token 기준 정렬
 - [x] `npm run build` 통과
-- [ ] 브라우저 QA (mobile 375px 유저 행 left-border, faction 카드 표면)
 
 ---
 
