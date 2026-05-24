@@ -779,6 +779,70 @@ Phase 5A에서 학습한 패턴 적용:
 | Phase 6D-QA: Profile visible upgrade QA | **완료** | `Fix: Polish profile visible QA findings` |
 | Phase 6E: Leaderboard/Rankings upgrade | **완료** | `Style: Upgrade leaderboard rankings design` |
 | Phase 6E-QA: Leaderboard/Rankings QA | **완료** | `Fix: Polish leaderboard rankings QA findings` |
+| Phase 6F: Community/News upgrade | **완료** | `Style: Upgrade community news design` |
+
+---
+
+## Phase 6F — Community / News 디자인 업그레이드 (2026-05-24)
+
+**브랜치:** `main`  
+**기준 커밋:** `5aad312`
+
+### 변경 사항
+
+#### `public/css/app.css` — Phase 6F CSS block 추가
+
+| 규칙 | 적용 효과 |
+|---|---|
+| `#community .post-list-container` | `background: var(--pt-bg-2)` — 컨테이너 표면 명확화 |
+| `#community .post-list-head` | `color: var(--pt-ink-3)` — 헤더 레이블 token 색상 |
+| `#community .post-row-title/author/stats/date` | 하드코딩 회색(`#e8e8e8`, `#888`, `#777`) → `var(--pt-ink-0/3)` |
+| `#community .post-act-btn` | border `#2a2a2a` → `var(--pt-line-2)`, color `#888` → `var(--pt-ink-3)` |
+| `#community .post-act-btn:hover` | red glow bg `rgba(225,6,0,0.06)` + stronger border/color |
+| `#community .post-act-btn.liked` | 동일 glow 상태 명확화 |
+| `#community .comm-filter-btn.active` | Phase 5A border-only → `background rgba(0.15)` + `box-shadow` glow 추가 |
+| `#post-detail-modal #pd-cat-bar` | `h-1` 4px → 6px (ID×2 specificity) |
+| `#post-detail-modal .glass-card > div:last-child` | footer `background: var(--pt-bg-1)` + `border-top-color: var(--pt-line-2)` |
+| `#post-detail-modal .post-comment-block` | `background: var(--pt-bg-1)` + `border-left-color: var(--pt-red-500)` |
+| `#post-detail-modal .post-comment-nick/txt` | `var(--pt-ink-2/1)` 색상 업그레이드 |
+| `#news-detail-modal #nd-cat-bar` | `h-1` 4px → 6px |
+| `#mma-news #news-search-input` | `bg-black/40` → `var(--pt-bg-2)`, `border-white/10` → `var(--pt-line-2)` |
+| `#mma-news #news-search-input:focus` | `border-color: rgba(225,6,0,0.50)` 강화 |
+| `#news-grid .glass-card:hover` | Phase 5A `box-shadow: none` 제거 → `0 0 20px rgba(225,6,0,0.08)` + `border-color rgba(225,6,0,0.35)` |
+| `#news-grid .nc-cat-bar` | `h-1` 4px → 6px (ID context beats Tailwind) |
+
+#### `index.html` — JS 템플릿 변경
+
+| 위치 | 변경 내용 |
+|---|---|
+| `renderNewsGrid` category bar div | `h-1 {bar}` → `nc-cat-bar h-1 {bar}` — CSS 높이 타겟팅용 클래스 추가 |
+
+### 변경하지 않은 항목
+- `renderPosts`, `openPostDetail`, `likePost`, `sendDetailComment` 로직 무변경
+- `renderNewsGrid`, `openNewsDetail`, `setNewsCat` 로직 무변경
+- `publishPost`, `setCommunityFilter` 로직 무변경
+- `post-detail-modal` / `news-detail-modal` open/close / body overflow 로직 무변경
+- 모든 JS 바인딩 ID 유지
+
+### 완료 기준
+
+- [x] Community 텍스트 위계 `pt-ink` 토큰 정렬
+- [x] Filter btn active glow 강화
+- [x] Post-detail modal cat-bar 6px + footer 어두운 표면
+- [x] Post 댓글 블록 token surface
+- [x] News-detail modal cat-bar 6px
+- [x] News search input token surface
+- [x] News card hover glow 복원
+- [x] News card category bar 6px
+- [x] `npm run build` 통과 (376.42 kB / 79.34 kB gzip)
+
+**브라우저 확인 필요 (코드 범위 밖):**
+- [ ] Community post-list `pt-ink-0/3` 가독성 실제 확인
+- [ ] Filter btn active glow 강도 확인
+- [ ] Post-detail modal footer `bg-1` 색감 확인
+- [ ] News card hover glow 강도 확인
+- [ ] News category bar 6px 두께 시각 확인
+- [ ] Mobile 375px: post-detail modal 댓글+입력란 overflow 확인
 
 ---
 

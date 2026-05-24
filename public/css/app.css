@@ -685,3 +685,67 @@ textarea, select {
     height: 100%;
     background: linear-gradient(90deg, var(--pt-red-500), rgba(225,6,0,0.55));
 }
+
+/* ── Community / News — Phase 6F upgrade ── */
+
+/* Community post list container: elevated surface */
+#community .post-list-container { background: var(--pt-bg-2); }
+#community .post-list-head { color: var(--pt-ink-3); }
+
+/* Post row text: token ink (overrides inline-style hard-coded grays) */
+#community .post-row-title { color: var(--pt-ink-0); }
+#community .post-row-author { color: var(--pt-ink-3); }
+#community .post-row-stats { color: var(--pt-ink-3); }
+#community .post-row-date { color: var(--pt-ink-3); }
+
+/* Post act button: token border + glow states */
+#community .post-act-btn { border-color: var(--pt-line-2); color: var(--pt-ink-3); }
+#community .post-act-btn:hover {
+    border-color: rgba(225,6,0,0.50);
+    color: var(--pt-red-500);
+    background: rgba(225,6,0,0.06);
+}
+#community .post-act-btn.liked {
+    border-color: rgba(225,6,0,0.45);
+    color: var(--pt-red-500);
+    background: rgba(225,6,0,0.06);
+}
+
+/* Filter btn active: stronger glow (overrides Phase 5A border-only) */
+#community .comm-filter-btn.active {
+    background: rgba(225,6,0,0.15);
+    color: var(--pt-ink-0);
+    border-color: rgba(225,6,0,0.45);
+    box-shadow: 0 0 8px rgba(225,6,0,0.10);
+}
+
+/* Post-detail modal: thicker cat-bar top strip + darker footer */
+#post-detail-modal #pd-cat-bar { height: 6px; }
+#post-detail-modal .glass-card > div:last-child {
+    background: var(--pt-bg-1);
+    border-top-color: var(--pt-line-2);
+}
+
+/* Post comment block in detail modal: token surface */
+#post-detail-modal .post-comment-block {
+    background: var(--pt-bg-1);
+    border-left-color: var(--pt-red-500);
+}
+#post-detail-modal .post-comment-nick { color: var(--pt-ink-2); }
+#post-detail-modal .post-comment-txt { color: var(--pt-ink-1); }
+
+/* News-detail modal: thicker cat-bar */
+#news-detail-modal #nd-cat-bar { height: 6px; }
+
+/* News search input: token surface */
+#mma-news #news-search-input { background: var(--pt-bg-2); border-color: var(--pt-line-2); }
+#mma-news #news-search-input:focus { border-color: rgba(225,6,0,0.50); }
+
+/* News cards: hover glow (overrides Phase 5A box-shadow:none) + stronger border */
+#news-grid .glass-card:hover {
+    box-shadow: 0 0 20px rgba(225,6,0,0.08);
+    border-color: rgba(225,6,0,0.35);
+}
+
+/* News card category bar: 6px (ID context beats Tailwind h-1) */
+#news-grid .nc-cat-bar { height: 6px; }
