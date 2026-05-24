@@ -361,7 +361,6 @@ textarea, select {
 }
 #home-news-grid .glass-card:hover {
     background: var(--pt-bg-3);
-    border-color: var(--pt-line-2);
     box-shadow: none;
 }
 

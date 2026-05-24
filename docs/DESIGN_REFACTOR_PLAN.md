@@ -467,6 +467,34 @@ const stats1 = f1.stats || [75, 75, 75, 75, 75];
 
 ---
 
+## Phase 4C-QA — Home 디자인 QA
+
+**목표:** Phase 4C 변경이 desktop/mobile에서 깨지지 않는지 검증.
+
+### QA 결과
+
+| 항목 | 결과 |
+|---|---|
+| `navigateTo('matchups')` CTA 버튼 | ✅ 변경 없음 |
+| `hero-red-name/blue-name/img` 데이터 바인딩 | ✅ 변경 없음 |
+| countdown `cd-d/h/m/s` DOM 바인딩 | ✅ 변경 없음 |
+| countdown unit 375px overflow | ✅ Phase 4C 변경 없음 (기존 pre-existing) |
+| `.sx-head` Home 뉴스 헤더 일관성 | ✅ Profile/Rankings/Matchups와 동일 패턴 |
+| `hover:scale-[1.02]` + grid layout | ✅ transform이 layout flow에 영향 없음 |
+
+### 발견된 이슈 및 수정
+
+**이슈:** `#home-news-grid .glass-card:hover { border-color: var(--pt-line-2) }` (specificity 1,2,0) 가 `news.js renderHomeNewsFromRSS`의 `hover:border-ufcRed/30` Tailwind 클래스 (0,2,0)를 override.
+
+**수정:** `app.css` hover rule에서 `border-color: var(--pt-line-2)` 제거. `box-shadow: none`은 유지하여 glow 억제. 결과: RSS 카드는 `hover:border-ufcRed/30`, DB 카드는 generic `.glass-card:hover` red border — 두 경로 모두 red hover 표시.
+
+### 완료 기준
+
+- [x] `#home-news-grid .glass-card:hover` border-color override 제거
+- [x] `npm run build` 통과
+
+---
+
 ## Phase 4 — Home / Profile / Leaderboard 적용
 
 **목표:** 메인 진입 화면 3종 핸드오프 반영
