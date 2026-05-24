@@ -749,3 +749,26 @@ textarea, select {
 
 /* News card category bar: 6px (ID context beats Tailwind h-1) */
 #news-grid .nc-cat-bar { height: 6px; }
+
+/* ── Event Fight Cards — Phase 6C-2 polish ── */
+
+/* Fighter image brightness: top fade reduced inline (0.40), this lifts overall image */
+#fight-cards-container .fc-hero-img-l,
+#fight-cards-container .fc-hero-img-r {
+    filter: brightness(1.18) contrast(1.04);
+}
+
+/* UFC 일정 panel — dark scrollbar */
+#event-sidebar-content::-webkit-scrollbar,
+#mobile-sidebar-panel::-webkit-scrollbar   { width: 4px; }
+#event-sidebar-content::-webkit-scrollbar-track,
+#mobile-sidebar-panel::-webkit-scrollbar-track { background: var(--pt-bg-1); }
+#event-sidebar-content::-webkit-scrollbar-thumb,
+#mobile-sidebar-panel::-webkit-scrollbar-thumb {
+    background: var(--pt-line-2);
+    border-radius: 2px;
+}
+#event-sidebar-content::-webkit-scrollbar-thumb:hover,
+#mobile-sidebar-panel::-webkit-scrollbar-thumb:hover {
+    background: rgba(225,6,0,0.45);
+}

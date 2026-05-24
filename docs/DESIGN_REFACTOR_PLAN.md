@@ -781,6 +781,77 @@ Phase 5A에서 학습한 패턴 적용:
 | Phase 6E-QA: Leaderboard/Rankings QA | **완료** | `Fix: Polish leaderboard rankings QA findings` |
 | Phase 6F: Community/News upgrade | **완료** | `Style: Upgrade community news design` |
 | Phase 6F-QA: Community/News visible upgrade QA | **완료** | `Fix: Polish community news visible QA findings` |
+| Phase 6C-2: Event/Pick card detail polish | **완료** | `Style: Polish event pick card details` |
+
+---
+
+## Phase 6C-2 — Event/Pick Card Detail Polish (2026-05-25)
+
+**브랜치:** `main`  
+**기준 커밋:** `5e4dbb1`
+
+### 변경 사항
+
+#### `public/js/fights-render.js`
+
+| 위치 | 이전 | 이후 |
+|---|---|---|
+| `renderHeroCard` F1 bg div | `class="absolute inset-y-0 left-0 w-1/2"` | `class="fc-hero-img-l absolute inset-y-0 ..."` |
+| `renderHeroCard` F2 bg div | `class="absolute inset-y-0 right-0 w-1/2"` | `class="fc-hero-img-r absolute inset-y-0 ..."` |
+| `renderHeroCard` top fade | `rgba(8,8,8,0.75)` | `rgba(8,8,8,0.40)` — 얼굴 영역 가시성 개선 |
+| F1 CTA `<p>` | 조건부 익명 요소 | `id="cta-l-${fight.id}"` — 상태별 텍스트 타겟 |
+| F2 CTA `<p>` | 조건부 익명 요소 | `id="cta-r-${fight.id}"` — 상태별 텍스트 타겟 |
+| `updateAllFightCards` pending 블록 | CTA 텍스트 변경 없음 | 픽한 side → `"CHANGE PICK ›"` |
+| `updateAllFightCards` settled 블록 | CTA 텍스트 변경 없음 | 양쪽 CTA → `""` (비움) |
+
+#### `public/css/app.css` — Phase 6C-2 block 추가
+
+| 규칙 | 적용 효과 |
+|---|---|
+| `.fc-hero-img-l, .fc-hero-img-r` | `filter: brightness(1.18) contrast(1.04)` — fighter 이미지 선명도 향상 |
+| `#event-sidebar-content::-webkit-scrollbar` | `width: 4px` — 다크 슬림 스크롤바 |
+| `#event-sidebar-content::-webkit-scrollbar-track` | `background: var(--pt-bg-1)` — 어두운 트랙 |
+| `#event-sidebar-content::-webkit-scrollbar-thumb` | `var(--pt-line-2)` + `border-radius: 2px` |
+| `#event-sidebar-content::-webkit-scrollbar-thumb:hover` | `rgba(225,6,0,0.45)` — hover 시 subtle red |
+| `#mobile-sidebar-panel::-webkit-scrollbar*` | 동일 규칙, 모바일 드로어 적용 |
+
+### 변경하지 않은 항목
+- `openPickSlip` / `selectPickFighter` / `confirmBetSlip` 로직 무변경
+- `state.pendings` / `state.settled` 데이터 구조 무변경
+- pick submit / scoring / settlement 로직 무변경
+- strip row (`renderStripRow`) — CTA 없음, 변경 없음
+
+### Specificity 검증
+
+| 규칙 | Specificity | 경합 | 결과 |
+|---|---|---|---|
+| `#fight-cards-container .fc-hero-img-l` filter | (1,1,0) | 신규 클래스 — 충돌 없음 | PASS ✓ |
+| `#event-sidebar-content::-webkit-scrollbar*` | (1,0,1) | 신규 — 충돌 없음 | PASS ✓ |
+
+### CTA 상태별 동작
+
+| 상태 | L side CTA | R side CTA |
+|---|---|---|
+| no pick | "TAP TO PICK ›" (odds 없을 때) / "ODDS x.x · +xxxP" | 동일 |
+| pending — left 픽 | `"CHANGE PICK ›"` | 변경 없음 |
+| pending — right 픽 | 변경 없음 | `"CHANGE PICK ›"` |
+| settled | `""` (비움) | `""` (비움) |
+
+### 완료 기준
+
+- [x] CTA 텍스트 상태별 분기 (`cta-l/r-{id}` ID 추가)
+- [x] Fighter image brightness 향상 (`fc-hero-img-l/r` + `filter`)
+- [x] Top fade 완화 (`0.75 → 0.40`)
+- [x] UFC 일정 패널 스크롤바 다크 테마 (`#event-sidebar-content`, `#mobile-sidebar-panel`)
+- [x] `npm run build` 통과 (376.42 kB / 79.34 kB gzip)
+- [x] docs 업데이트
+- [x] 커밋: `Style: Polish event pick card details`
+
+**브라우저 확인 필요 (코드 범위 밖):**
+- [ ] "CHANGE PICK ›" 텍스트 — 픽 등록 후 hero card에서 실제 표시 확인
+- [ ] Fighter image brightness — 다크 분위기 유지 여부 확인
+- [ ] Top fade 0.40 — 얼굴 가시성 개선 확인
+- [ ] UFC 일정 패널 스크롤바 — 실제 hover 시 red 확인
 
 ---
 

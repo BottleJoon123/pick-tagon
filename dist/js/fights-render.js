@@ -122,13 +122,13 @@ function renderHeroCard(fight, idx) {
         <!-- Hero Face-off Area -->
         <div class="relative overflow-hidden" style="min-height:${isMain ? '320px' : '280px'}; background:#080808;">
             <!-- F1 Background -->
-            <div class="absolute inset-y-0 left-0 w-1/2"
+            <div class="fc-hero-img-l absolute inset-y-0 left-0 w-1/2"
                 style="${f1BgStyle} -webkit-mask-image:linear-gradient(to right,rgba(0,0,0,0.95) 30%,transparent 100%); mask-image:linear-gradient(to right,rgba(0,0,0,0.95) 30%,transparent 100%);"></div>
             <!-- F2 Background -->
-            <div class="absolute inset-y-0 right-0 w-1/2"
+            <div class="fc-hero-img-r absolute inset-y-0 right-0 w-1/2"
                 style="${f2BgStyle} -webkit-mask-image:linear-gradient(to left,rgba(0,0,0,0.95) 30%,transparent 100%); mask-image:linear-gradient(to left,rgba(0,0,0,0.95) 30%,transparent 100%);"></div>
             <!-- Top Fade (blends image top edge into card background) -->
-            <div class="absolute inset-x-0 top-0 h-1/5 pointer-events-none" style="background:linear-gradient(to bottom,rgba(8,8,8,0.75) 0%,transparent 100%);"></div>
+            <div class="absolute inset-x-0 top-0 h-1/5 pointer-events-none" style="background:linear-gradient(to bottom,rgba(8,8,8,0.40) 0%,transparent 100%);"></div>
             <!-- Bottom Fade -->
             <div class="absolute inset-x-0 bottom-0 h-2/3 pointer-events-none" style="background:linear-gradient(to top,#0a0a0a 0%,transparent 100%);"></div>
             <!-- VS Center -->
@@ -147,14 +147,14 @@ function renderHeroCard(fight, idx) {
                 <div class="flex gap-1 mb-1.5">${renderDotForm(fight.f1.recent)}</div>
                 <h4 data-no-pick="1" onclick="openFighterProfile(${JSON.stringify(fight.f1).replace(/\"/g, '&quot;')})"
                     class="oswald-sharp ${isMain ? 'text-xl lg:text-3xl' : 'text-lg lg:text-2xl'} font-black italic uppercase tracking-tighter leading-tight text-white cursor-pointer hover:text-ufcRed transition mb-1">${fight.f1.name}</h4>
-                ${fight.f1.odds ? `<p class="oswald-sharp text-xs text-ufcRed italic font-bold tracking-widest mb-3">ODDS ${fight.f1.odds} &nbsp;·&nbsp; +${Math.round(fight.f1.odds * 100)}P</p>` : '<p class="oswald-sharp text-[9px] text-ufcRed italic font-bold tracking-widest mb-3">TAP TO PICK ›</p>'}
+                <p id="cta-l-${fight.id}" class="oswald-sharp ${fight.f1.odds ? 'text-xs' : 'text-[9px]'} text-ufcRed italic font-bold tracking-widest mb-3">${fight.f1.odds ? `ODDS ${fight.f1.odds} &nbsp;·&nbsp; +${Math.round(fight.f1.odds * 100)}P` : 'TAP TO PICK ›'}</p>
             </div>
             <!-- F2 Info (bottom-right) -->
             <div class="absolute bottom-0 right-0 w-[48%] p-4 lg:p-6 z-20 text-right">
                 <div class="flex gap-1 mb-1.5 justify-end">${renderDotForm(fight.f2.recent)}</div>
                 <h4 data-no-pick="1" onclick="openFighterProfile(${JSON.stringify(fight.f2).replace(/\"/g, '&quot;')})"
                     class="oswald-sharp ${isMain ? 'text-xl lg:text-3xl' : 'text-lg lg:text-2xl'} font-black italic uppercase tracking-tighter leading-tight text-white cursor-pointer hover:text-ufcBlue transition mb-1">${fight.f2.name}</h4>
-                ${fight.f2.odds ? `<p class="oswald-sharp text-xs text-ufcBlue italic font-bold tracking-widest mb-3">ODDS ${fight.f2.odds} &nbsp;·&nbsp; +${Math.round(fight.f2.odds * 100)}P</p>` : '<p class="oswald-sharp text-[9px] text-ufcBlue italic font-bold tracking-widest mb-3">TAP TO PICK ›</p>'}
+                <p id="cta-r-${fight.id}" class="oswald-sharp ${fight.f2.odds ? 'text-xs' : 'text-[9px]'} text-ufcBlue italic font-bold tracking-widest mb-3">${fight.f2.odds ? `ODDS ${fight.f2.odds} &nbsp;·&nbsp; +${Math.round(fight.f2.odds * 100)}P` : 'TAP TO PICK ›'}</p>
             </div>
         </div>
 
@@ -453,6 +453,10 @@ function updateAllFightCards() {
                 myPickEl.style.background = '';
                 myPickEl.innerHTML = `<span class="block max-w-full oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest truncate ${isLeft ? 'text-ufcRed' : 'text-blue-400'}">★ MY PICK · ${escapeHtml(pending.pick)}</span>`;
             }
+            const ctaL = document.getElementById(`cta-l-${fight.id}`);
+            const ctaR = document.getElementById(`cta-r-${fight.id}`);
+            if (ctaL && pending.side === 'left') ctaL.innerHTML = 'CHANGE PICK ›';
+            if (ctaR && pending.side === 'right') ctaR.innerHTML = 'CHANGE PICK ›';
             return;
         }
 
@@ -460,6 +464,10 @@ function updateAllFightCards() {
             if (btn1) { btn1.disabled = true; btn1.classList.add('opacity-40', 'cursor-not-allowed'); }
             if (btn2) { btn2.disabled = true; btn2.classList.add('opacity-40', 'cursor-not-allowed'); }
             if (cardEl) cardEl.classList.add('fc-card-settled');
+            const ctaL = document.getElementById(`cta-l-${fight.id}`);
+            const ctaR = document.getElementById(`cta-r-${fight.id}`);
+            if (ctaL) ctaL.innerHTML = '';
+            if (ctaR) ctaR.innerHTML = '';
             settledDiv.classList.remove('hidden');
             if (settled.result === 'WIN') {
                 const bonusTags = [];
