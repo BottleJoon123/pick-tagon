@@ -346,6 +346,25 @@ textarea, select {
     border-color: var(--pt-line-1);
 }
 
+/* ── Home — Phase 4C token upgrade ── */
+/* Face-off card: inline bg is preserved; only border token-aligned */
+#hero-faceoff-card { border-color: var(--pt-line-1); }
+/* Ticker: border-color from border-y token */
+#home-ticker {
+    border-top-color: var(--pt-line-1);
+    border-bottom-color: var(--pt-line-1);
+}
+/* News cards surface — overrides glass-card defaults and generic :hover glow */
+#home-news-grid .glass-card {
+    background: var(--pt-bg-2);
+    border-color: var(--pt-line-1);
+}
+#home-news-grid .glass-card:hover {
+    background: var(--pt-bg-3);
+    border-color: var(--pt-line-2);
+    box-shadow: none;
+}
+
 /* ── Rankings / Leaderboard — Phase 4B token upgrade ── */
 #my-rank-card { background: var(--pt-bg-2); }
 #leaderboard-player-panel {

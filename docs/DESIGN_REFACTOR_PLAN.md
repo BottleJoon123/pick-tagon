@@ -425,6 +425,48 @@ const stats1 = f1.stats || [75, 75, 75, 75, 75];
 
 ---
 
+## Phase 4C — Home 화면 디자인 1차 적용
+
+**목표:** Home 화면 countdown/news 영역을 design token 기반으로 정리. 기능/JS 로직 변경 없음.
+
+### 변경 내용
+
+| 영역 | 변경 내용 |
+|---|---|
+| `.countdown-unit` bg/border | `rgba(255,255,255,0.04)` / `rgba(255,255,255,0.08)` → `var(--pt-bg-2)` / `var(--pt-line-1)` (index.html inline style) |
+| 뉴스 섹션 헤더 | `w-1 h-6 dot + flex wrap` → `.sx-head` 통일 |
+| `#hero-faceoff-card` border | Tailwind `border-white/10` → `var(--pt-line-1)` (app.css CSS override) |
+| `#home-ticker` border | `border-white/10` → `var(--pt-line-1)` (app.css CSS override) |
+| `#home-news-grid .glass-card` | `pt-bg-2 + pt-line-1` surface; hover → `pt-bg-3 + pt-line-2` (app.css) |
+| `home.js` news badge | `rgba(210,10,10,0.9)` → `rgba(225,6,0,0.9)` (Phase 3E miss 수정) |
+
+### 변경하지 않은 항목 (이유)
+
+| 항목 | 이유 |
+|---|---|
+| `#home` 배경 이미지 / overlay gradient | 헤어로 비주얼 핵심, 변경 시 대규모 재작성 필요 |
+| Hero face-off card 배경 | inline `style` 속성 (CSS override 불가 without `!important`) |
+| `.stat-counter` 색상 | 이미 `var(--red)` → `var(--pt-red-500)` bridge 적용 |
+| Hero text animation 클래스 | 기능 의존 (heroReveal, fadeUp) |
+| Fight/countdown 데이터 바인딩 | JS 로직 변경 금지 |
+| `renderNewsCards` 카드 구조 | JS markup 대규모 변경 금지 (CSS override로 대체) |
+
+### 완료 기준
+
+- [x] `.countdown-unit` token surface 적용
+- [x] 뉴스 섹션 헤더 `.sx-head` 통일
+- [x] `#home-news-grid .glass-card` `pt-bg-2` surface
+- [x] `home.js` news badge red 수정
+- [x] `npm run build` 통과
+
+**브라우저 확인 필요 (코드 범위 밖):**
+
+- [ ] countdown unit mobile 375px 잘림 없음 (min-width: 64px, padding: 12px 16px 확인)
+- [ ] news 카드 hover scale + border 교체 시각 확인
+- [ ] 뉴스 섹션 헤더 sx-head 8px 좌측 보더 시각
+
+---
+
 ## Phase 4 — Home / Profile / Leaderboard 적용
 
 **목표:** 메인 진입 화면 3종 핸드오프 반영
