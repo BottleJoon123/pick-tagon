@@ -780,6 +780,74 @@ Phase 5A에서 학습한 패턴 적용:
 | Phase 6E: Leaderboard/Rankings upgrade | **완료** | `Style: Upgrade leaderboard rankings design` |
 | Phase 6E-QA: Leaderboard/Rankings QA | **완료** | `Fix: Polish leaderboard rankings QA findings` |
 | Phase 6F: Community/News upgrade | **완료** | `Style: Upgrade community news design` |
+| Phase 6F-QA: Community/News visible upgrade QA | **완료** | `Fix: Polish community news visible QA findings` |
+
+---
+
+## Phase 6F-QA — Community/News Upgrade QA (2026-05-25)
+
+**분석 방법:** 정적 코드 분석 (CSS specificity, JS 코드 경로, flex 수치 분석)
+
+### 코드 경로 검증
+
+| 검증 항목 | 결과 | 근거 |
+|---|---|---|
+| `setCommunityFilter` — `.active` 클래스 토글 | PASS | `classList.add/remove('active')` → `#community .comm-filter-btn.active` CSS 정상 적용 ✓ |
+| `openPostDetail` — `bar.style.background` 인라인 | PASS | inline background override, Phase 6F는 height만 변경 (`pd-cat-bar`) ✓ |
+| `closePostDetail` — `document.body.style.overflow` | PASS | overflow 리셋만, Phase 6F 무관 ✓ |
+| `likePost` / `_syncDetailLikeBtn` — `#pd-like-btn` 타겟 | PASS | `#post-detail-modal` 내부 — `#community .post-act-btn` 규칙 불적용 ✓ |
+| `sendDetailComment` — 댓글 렌더 | PASS | `_renderDetailComments`가 `.post-comment-block` 렌더 → Phase 6F `#post-detail-modal .post-comment-block` 적용 ✓ |
+| `requestBattle` 버튼 | PASS | inline-styled → Phase 6F 충돌 없음 ✓ |
+| `fetchMMANews` / `renderNewsGrid` / `setNewsCat` | PASS | Phase 6F JS 변경 없음, `nc-cat-bar` 클래스 추가만 ✓ |
+| `openNewsDetail` — `nd-cat-bar.style.background` | PASS | inline background, Phase 6F는 `nd-cat-bar` height만 변경 ✓ |
+
+### CSS Specificity 검증
+
+| 규칙 | Specificity | 경합 대상 | 결과 |
+|---|---|---|---|
+| `#community .post-list-container` bg | (1,1,0) | base `.glass-card` (0,1,0) | PASS ✓ |
+| `#community .post-list-head` color | (1,1,0) | Tailwind text- (0,1,0) | PASS ✓ |
+| `#community .post-row-title` color | (1,1,0) | Tailwind text- (0,1,0) | PASS ✓ |
+| `#community .post-act-btn` border/color | (1,1,0) | Phase 5A `#community .post-act-btn` (1,1,0) — 파일 후반부 위치로 우선 | PASS ✓ |
+| `#community .post-act-btn:hover` | (1,2,0) | Phase 5A (1,2,0) — Phase 6F 후반부 위치로 우선 | PASS ✓ |
+| `#community .post-act-btn.liked` | (1,2,0) | 신규 규칙 — 충돌 없음 | PASS ✓ |
+| `#community .comm-filter-btn.active` | (1,2,0) | Phase 5A `#community .comm-filter-btn.active` (1,2,0) — Phase 6F 후반부 위치로 우선 | PASS ✓ |
+| `#post-detail-modal #pd-cat-bar` height | (2,0,0) | Tailwind `h-1` (0,1,0) | PASS ✓ |
+| `#post-detail-modal .glass-card > div:last-child` bg/border | (1,1,2) | Phase 5A `.glass-card` (0,1,0) | PASS ✓ |
+| `#post-detail-modal .post-comment-block` bg/border | (1,1,0) | base (0,1,0) | PASS ✓ |
+| `#post-detail-modal .post-comment-nick` color | (1,1,0) | Tailwind text- (0,1,0) | PASS ✓ |
+| `#post-detail-modal .post-comment-txt` color | (1,1,0) | Tailwind text- (0,1,0) | PASS ✓ |
+| `#news-detail-modal #nd-cat-bar` height | (2,0,0) | Tailwind `h-1` (0,1,0) | PASS ✓ |
+| `#mma-news #news-search-input` bg/border | (2,0,0) | Tailwind bg-black/40 (0,1,0) | PASS ✓ |
+| `#mma-news #news-search-input:focus` border | (2,1,0) | Tailwind focus:border- (0,2,0) | PASS ✓ |
+| `#news-grid .glass-card:hover` box-shadow/border | (1,2,0) | Phase 5A (1,2,0) `box-shadow: none` — Phase 6F 후반부 위치로 override | PASS ✓ |
+| `#news-grid .nc-cat-bar` height | (1,1,0) | Tailwind `h-1` (0,1,0) | PASS ✓ |
+| `var(--pt-ink-0)` in filter active color | `#FFFFFF` | `#fff`와 동일 — 예기치 않은 색상 변화 없음 | PASS ✓ |
+| `pd-like-btn` modal scope 격리 | `#post-detail-modal` 내부 — `#community .post-act-btn` 미적용 | modal like 버튼 독립 | PASS ✓ |
+
+### Mobile 레이아웃 검증 (375px)
+
+| 검증 항목 | 결과 | 근거 |
+|---|---|---|
+| Post-detail modal footer | PASS | `flex-shrink-0` + `flex` row — `#pd-like-btn` + `#pd-stats` 단일 행 유지 ✓ |
+| 댓글 입력란 overflow | PASS | `flex-1` input + `flex-shrink-0` SEND 버튼 — overflow 없음 ✓ |
+| News card `nc-cat-bar` 6px | PASS | height 2px 증가, 카드 레이아웃 영향 없음 ✓ |
+| News search input | PASS | `w-full` 유지 — bg/border 변경만, overflow 없음 ✓ |
+| Community post-row 텍스트 | PASS | 색상 변경만, DOM 구조/크기 변경 없음 ✓ |
+
+### 수정 사항
+
+없음 — 정적 분석 결과 모든 Phase 6F 변경이 정상 동작. CSS/마크업 fix 불필요.
+
+### 완료 기준
+
+- [x] Community 코드 경로 8개 검증 완료
+- [x] CSS specificity 19개 규칙 검증 완료
+- [x] Mobile 375px 레이아웃 5개 검증 완료
+- [x] 코드 수정 불필요 확인
+- [x] `npm run build` 통과
+- [x] docs 업데이트
+- [x] 커밋: `Fix: Polish community news visible QA findings`
 
 ---
 
