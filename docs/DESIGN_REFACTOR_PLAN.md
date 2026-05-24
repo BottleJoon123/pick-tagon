@@ -202,23 +202,91 @@ Phase 3부터 `var(--pt-red-500)` (`#E10600`)으로 점진 교체.
 - [x] `npm run build` 통과
 - [ ] `api/supabase.js:383` `stats: []` 수정 (레이더 차트 빈값) — Phase 3B로 이월
 
-### Phase 3B 잔여 작업
+### Phase 3B 완료 기준
 
-1. **Event 화면** — 파이트 카드 목록 레이아웃 추가 교체  
-   - 섹션 헤더: `.sx-head` 클래스 실제 마크업 적용  
-   - 추가 코너 컬러 반영 (필요시)
+- [x] `#matchups` 섹션 헤더 `.sx-head` 적용 (3B-1)
+- [x] `stats: []` 하드코딩 제거 — `fighterDB` 이름 매칭으로 대체 (3B-2)
+- [x] `_parseStats` 헬퍼 추가 (JSONB 배열 / JSON 문자열 / 미존재 3가지 경로 처리)
+- [x] `record`, `nameEn`, `recent` 도 fighterDB에서 함께 매핑
 
-2. **Pick 화면** — 배팅/픽 UI 추가 업데이트  
-   - `api/supabase.js:383` `stats: []` 하드코딩 수정 (레이더 차트 빈값 버그)  
-   - 픽 카드 레이아웃 핸드오프 기준 재정렬
+---
 
-### 영향 파일
+## Phase 3C — QA & 리스크 리뷰
 
-| 파일 | 변경 유형 | 위험도 |
+**목표:** Phase 3A/3B 변경이 코드·빌드 기준으로 안전한지 검증하고 잔여 리스크를 문서화한다.
+
+### 코드 경로 검증 결과
+
+| 검증 항목 | 결과 |
+|---|---|
+| `stats: []` 하드코딩 잔존 여부 (`rg "stats: \[\]"`) | **없음** — 완전 제거 |
+| `_parseStats` / `_f1db` dist 반영 | `dist/js/api/supabase.js` 정상 반영 |
+| `npm run build` | **통과** (370.51 kB, 297 ms) |
+| DB write 경로(`supabase.update/upsert`) 변경 | **없음** |
+| `openBetSlip` / `confirmBetSlip` / `updateAllFightCards` 변경 | **없음** |
+| `analyzeStyleMatchup` 호출 경로 (`h2h.js:75`) | 변경 없음 — `stats1 = f1.stats \|\| [75,75,75,75,75]` 유지 |
+
+### 이름 매칭 리스크 분석
+
+**현재 동작:**
+- `fetchUpcomingMatchups` → `fighterDB.find(d.name === m.red_fighter_name)` 정확히 일치 시 stats 전달
+- 불일치 시 `stats: []`, `record: ''`, `recent: []` fallback (기존과 동일)
+
+**잔여 리스크:**
+
+| 리스크 | 영향 | 심각도 |
 |---|---|---|
-| `index.html` (Event 섹션) | CSS 클래스 + 마크업 수정 | 중간 |
-| `index.html` (Pick 섹션) | CSS 클래스 + 마크업 수정 | 중간 |
-| `public/js/api/supabase.js:383` | `stats: []` 수정 | 낮음 |
+| `matchups.red_fighter_name`이 `fighters.name`과 대소문자·공백 차이 | stats 빈값 → 레이더 차트 blank | 중간 |
+| `[]` 는 JS truthy → `h2h.js:62` `f.stats \|\| [75,75,75,75,75]` 가 `[]`를 그냥 통과시킴 | H2H 레이더 차트 빈값 표시 (크래시 없음) | 낮음 |
+| `analyzeStyleMatchup([])` → `undefined` 비교 → "올라운더" 반환 | 분석 텍스트 부정확 (크래시 없음) | 낮음 |
+| `fighterDB`가 비어있는 cold start (admin 탭 미방문) | 매핑 불가 → fallback | 낮음 |
+
+**`[]` truthy 문제 상세:**
+```js
+// h2h.js:62 — [] 는 truthy이므로 || 가 작동 안 함
+const stats1 = f1.stats || [75, 75, 75, 75, 75];
+// f1.stats = [] → stats1 = [] (의도와 다름)
+// 수정 권장: f1.stats?.length ? f1.stats : [75, 75, 75, 75, 75]
+```
+
+### 권장 후속 개선 (Phase 3D)
+
+| 우선순위 | 개선안 | 근거 |
+|---|---|---|
+| 1 | `matchups` 테이블에 `red_fighter_id` / `blue_fighter_id` FK 추가 후 ID 기반 매핑으로 전환 | 이름 불일치 리스크 근본 해결 |
+| 2 | `h2h.js:62-63` fallback 수정: `f.stats?.length ? f.stats : [75,75,75,75,75]` | `[]` truthy 문제 해결 |
+| 3 | `index.html` tailwind.config `ufcRed: '#e8000d'` → `'#E10600'` | CSS `var(--red)` 마이그레이션과 일치 |
+| 4 | `fighterDB`가 비어있을 때 `fetchUpcomingMatchups` 내에서 fighters 테이블 서브쿼리 추가 | cold start 신뢰성 향상 |
+
+### Visual QA 체크리스트
+
+브라우저에서 직접 확인 필요 (코드 검증 범위 밖):
+
+**Event 화면 (desktop)**
+- [ ] `#matchups` 섹션 헤더 좌측 8px 레드 보더 + `--pt-red-500` 컬러
+- [ ] 파이트 카드 배경 `var(--pt-bg-2)` (`#14161B`) — 이전보다 약간 더 진한 다크
+- [ ] 카드 hover 시 `var(--pt-line-red)` 보더 + 글로우 적용
+- [ ] 커뮤니티 픽 바 레드 컬러 (`--pt-red-500 #E10600`, 이전 `#e8000d`와 시각 동일)
+
+**Event 화면 (mobile 375px / 430px)**
+- [ ] 섹션 헤더 텍스트·버튼이 flex-wrap으로 줄바꿈 처리 — overflow 없음
+- [ ] `glass-card` 위젯(Active Picks, Pick Closes) 모바일에서 잘림 없음
+
+**Bet Slip (Pick 선택 후)**
+- [ ] 패널 배경 `var(--pt-bg-2)` (`#14161B`) — 이전 `#111`보다 약간 밝음
+- [ ] KO/TKO 선택 시 `var(--pt-red-500)` 보더·배경
+- [ ] 판정(UD) 선택 시 `var(--pt-corner-blue)` 보더
+- [ ] 라운드 선택 시 `var(--pt-warn)` 보더·텍스트
+- [ ] 미선택 버튼 보더 `var(--pt-line-2)` 색상
+
+**Pick 상태 배너**
+- [ ] Pending 상태: 레드/블루 `rgba(210,10,10,0.07)` 인라인 bg (JS 제어, CSS 무관)
+- [ ] Settled WIN: 레드 bg + `text-ufcRed` (JS 제어)
+- [ ] Settled LOSE: `text-gray-400` (JS 제어)
+
+**레이더 차트**
+- [ ] fighterDB에 이름이 일치하는 fighter가 있으면 실제 stats 표시
+- [ ] 불일치 시 차트 blank (크래시 없음)
 
 ---
 
@@ -280,13 +348,16 @@ Phase 3부터 `var(--pt-red-500)` (`#E10600`)으로 점진 교체.
 
 ## 리스크 & 전제조건
 
-| 항목 | 설명 |
-|---|---|
-| **폰트 로딩** | Barlow / Bebas Neue Google Fonts 의존 — 오프라인/느린 네트워크 시 폴백 필요 |
-| **색상 미세 차이** | `#e8000d` vs `#E10600` — 시각적으로 동일하나 hex 다름. Phase 1 이후 일괄 교체 |
-| **Pretendard** | `screen-shell.css`가 `'Pretendard'` body font 사용 → tokens.css는 `'Barlow'`. 실제 앱에선 Pretendard 유지 or Barlow로 통일 결정 필요 |
-| **JS 클래스 참조** | `public/js/*.js` 파일들이 DOM 클래스명을 직접 참조하는 경우 마크업 변경 시 동반 수정 필요 |
-| **index.html 6,447줄** | 단일 파일이라 회귀 테스트 범위 넓음 — Phase별 작은 단위 커밋 필수 |
+| 항목 | 설명 | Phase 3C 이후 상태 |
+|---|---|---|
+| **폰트 로딩** | Barlow / Bebas Neue Google Fonts 의존 — 오프라인/느린 네트워크 시 폴백 필요 | 미해결 |
+| **색상 미세 차이** | `#e8000d` vs `#E10600` — Phase 3A에서 `--red: var(--pt-red-500)` 마이그레이션 완료 | **해결** |
+| **Tailwind `ufcRed`** | `tailwind.config` 내 `ufcRed: '#e8000d'` 는 CSS 변수와 무관하게 하드코딩 — Phase 3D에서 `'#E10600'`으로 업데이트 필요 | 미해결 |
+| **Pretendard** | `screen-shell.css`가 `'Pretendard'` 사용 → tokens.css는 `'Barlow'`. 실제 앱에선 Pretendard 유지 결정 | 미해결 |
+| **JS 클래스 참조** | `public/js/*.js` 파일들이 DOM 클래스명을 직접 참조하는 경우 마크업 변경 시 동반 수정 필요 | 미해결 |
+| **index.html 규모** | 단일 파일이라 회귀 테스트 범위 넓음 — Phase별 작은 단위 커밋 필수 | 미해결 |
+| **stats 이름 매칭** | `matchups.red_fighter_name` ↔ `fighters.name` 정확 일치 요구 — Phase 3D에서 ID 기반 매핑으로 전환 예정 | **Phase 3D 예정** |
+| **`[]` truthy 문제** | `h2h.js` `stats \|\| [75,75,75,75,75]` 가 빈 배열 통과 — `stats?.length ? stats : [...]` 로 수정 필요 | **Phase 3D 예정** |
 
 ---
 
@@ -299,6 +370,8 @@ Phase 3부터 `var(--pt-red-500)` (`#E10600`)으로 점진 교체.
 | Phase 3A: Event/Pick 1차 토큰 적용 | **완료** | `Style: Apply event pick design system polish` |
 | Phase 3B-1: 섹션 헤더 .sx-head 적용 | **완료** | `Style: Polish matchups section header` |
 | Phase 3B-2: fighter stats UI 매핑 fix | **완료** | `Fix: Map persisted fighter stats into UI models` |
+| Phase 3C: QA & 리스크 리뷰 | **완료** | `Docs: Record event pick QA and stats mapping risks` |
+| Phase 3D: ID 매핑 + h2h fallback fix | 대기 | — |
 | Phase 4: Home/Profile/Leaderboard | 대기 | — |
 | Phase 5: Community/News/Admin | 대기 | — |
 
