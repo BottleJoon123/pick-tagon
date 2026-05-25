@@ -75,6 +75,23 @@ body {
 @keyframes sectionFade { from { opacity:0.8; } to { opacity:1; } }
 
 /* ── Nav ── */
+nav ul,
+nav li {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+button.nav-link,
+button.bottom-nav-item {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 0;
+    background: transparent;
+    margin: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+}
 .nav-link {
     position: relative;
     color: var(--pt-ink-2);
