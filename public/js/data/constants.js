@@ -170,7 +170,7 @@ const UFC_RANKINGS_SEED = {
             { rank:2,  name:'존 존스',          nation:'🇺🇸', record:'27-1',  height:'193cm', reach:'215cm', division:'헤비급',     odds:1.30, stats:[88,85,92,95,80], trend:'→' },
             { rank:3,  name:'알렉스 페레이라',   nation:'🇧🇷', record:'11-2',  height:'193cm', reach:'203cm', division:'라이트헤비급', odds:1.55, stats:[95,70,85,78,88], trend:'↑' },
             { rank:4,  name:'드라이커스 두 플레시',nation:'🇿🇦',record:'22-4',  height:'183cm', reach:'188cm', division:'미들급',     odds:1.65, stats:[78,85,88,82,80], trend:'↑' },
-            { rank:5,  name:'이칸 토픽',         nation:'🇰🇿', record:'23-1',  height:'185cm', reach:'193cm', division:'페더급',     odds:1.80, stats:[90,72,85,88,92], trend:'↑' },
+            { rank:5,  name:'일리야 토푸리아',     nation:'🇬🇪', record:'16-0',  height:'183cm', reach:'182cm', division:'라이트급',   odds:1.80, stats:[90,72,85,88,92], trend:'↑' },
             { rank:6,  name:'장웨일리',          nation:'🇨🇳', record:'25-3',  height:'163cm', reach:'165cm', division:'여자 스트로급', odds:1.35, stats:[92,72,90,88,95], trend:'→' },
             { rank:7,  name:'메랍 드발리쉬빌리', nation:'🇬🇪', record:'19-4',  height:'175cm', reach:'178cm', division:'밴텀급',     odds:1.90, stats:[75,92,95,80,78], trend:'↑' },
             { rank:8,  name:'아레나 로드리게스', nation:'🇧🇷', record:'16-3',  height:'165cm', reach:'168cm', division:'여자 플라이급', odds:2.00, stats:[85,70,88,82,90], trend:'↑' },
@@ -179,7 +179,7 @@ const UFC_RANKINGS_SEED = {
         ]
     },
     lw: {
-        champion: { name:'이슬람 마카체프', nation:'🇷🇺', record:'26-1', height:'178cm', reach:'179cm', stats:[80,98,95,90,85] },
+        champion: { name:'일리야 토푸리아', name_en:'Ilia Topuria', nation:'🇬🇪', record:'16-0', height:'183cm', reach:'182cm', stats:[90,72,85,88,92] },
         fighters: [
             { rank:1,  name:'더스틴 포이리에',   nation:'🇺🇸', record:'30-8',  height:'175cm', reach:'183cm', trend:'→', stats:[95,70,90,80,92] },
             { rank:2,  name:'아르만 차를라비',    nation:'🇰🇿', record:'15-1',  height:'173cm', reach:'175cm', trend:'↑', stats:[85,82,88,80,88] },
@@ -234,7 +234,7 @@ const UFC_RANKINGS_SEED = {
         ]
     },
     fw: {
-        champion: { name:'이칸 토픽', nation:'🇰🇿', record:'23-1', height:'185cm', reach:'193cm', stats:[90,72,85,88,92] },
+        champion: { name:'알렉산더 볼카노프스키', name_en:'Alexander Volkanovski', nation:'🇦🇺', record:'26-4', height:'168cm', reach:'182cm', stats:[85,78,90,85,92] },
         fighters: [
             { rank:1,  name:'알렉산더 볼카노프스키',nation:'🇦🇺',record:'26-4', height:'168cm', reach:'182cm', trend:'↓', stats:[85,78,90,85,92] },
             { rank:2,  name:'디에고 로페스',     nation:'🇲🇽', record:'24-6',  height:'175cm', reach:'182cm', trend:'↑', stats:[88,72,85,80,90] },

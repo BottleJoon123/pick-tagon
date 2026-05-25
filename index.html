@@ -3412,14 +3412,16 @@ async function publishPost() {
                 var champMatch = line.match(/^#####\s+\[([^\]]+)\]/);
                 if (champMatch) { pendingChamp = champMatch[1]; continue; }
 
-                // 챔피언 확정 (###### Champion / ###### ... )
-                if (line.startsWith('######') && pendingChamp) {
-                    allRows.push({
-                        division: currentDiv, rank_position: 'C',
-                        fighter_name: pendingChamp, fighter_name_ko: pendingChamp,
-                        trend: '→', stats: [75,75,75,75,75],
-                        updated_at: new Date().toISOString()
-                    });
+                // 챔피언 확정 — "champion" 텍스트가 있을 때만 C 기록; 다른 ###### 헤딩은 pendingChamp 초기화만
+                if (line.startsWith('######')) {
+                    if (pendingChamp && /champion/i.test(line)) {
+                        allRows.push({
+                            division: currentDiv, rank_position: 'C',
+                            fighter_name: pendingChamp, fighter_name_ko: pendingChamp,
+                            trend: '→', stats: [75,75,75,75,75],
+                            updated_at: new Date().toISOString()
+                        });
+                    }
                     pendingChamp = null;
                     continue;
                 }
