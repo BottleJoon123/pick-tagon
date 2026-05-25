@@ -794,6 +794,7 @@ Phase 5A에서 학습한 패턴 적용:
 | Phase 8B: 로컬 설정 문서화 / 배포 확인 | **완료** | `Docs: Add Supabase local env setup guide` |
 | Phase 9A: index.html monolith split 계획 | **완료** | `Docs: Plan index monolith split` |
 | Phase 9B: index.html inline CSS 분리 | **완료** | `Refactor: Move remaining low-risk inline CSS` |
+| Phase 9D-1: event countdown 함수 분리 | **완료** | `Refactor: Extract event countdown helper` |
 | Phase 9C: inline UFC ranking data extraction | **완료** | `Refactor: Extract UFC ranking seed constants` |
 | Phase 9C-2: inline shared UI constants extraction | **완료** | `Refactor: Extract shared inline UI constants` |
 | Phase 9C-3: inline label/category map extraction | **완료** | `Refactor: Extract inline label category maps` |

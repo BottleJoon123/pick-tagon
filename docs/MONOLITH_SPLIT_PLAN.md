@@ -423,6 +423,48 @@ Auth, Octagon/Battle — 독립 계획 문서 작성 후 진행
 
 ---
 
+## Phase 9D-1 — Event Countdown 추출 결과 (2026-05-25)
+
+### 이동 대상
+
+| 항목 | 원본 위치 | 이동 대상 |
+|---|---|---|
+| `var _countdownInterval` | index.html 인라인 script line 3052 | `public/js/event-countdown.js` |
+| `function startEventCountdown(eventDateStr)` | index.html 인라인 script line 3053–3090 | `public/js/event-countdown.js` |
+
+### 변경 내역
+
+| 항목 | Before | After |
+|---|---|---|
+| `index.html` 줄 수 | 5,688줄 | 5,649줄 (-39줄) |
+| 신규 파일 | — | `public/js/event-countdown.js` (43줄) |
+| script 태그 추가 위치 | — | `utils.js` 다음, `supabase.js` 이전 |
+
+### 호출 지점
+
+| 파일 | 라인 | 형태 |
+|---|---|---|
+| `public/js/api/supabase.js` | 349 | `typeof startEventCountdown === 'function'` 가드로 호출 |
+
+### 검증 결과
+
+| 항목 | 결과 |
+|---|---|
+| `node --check event-countdown.js` | syntax OK |
+| `npm run build` | PASS |
+| `dist/js/event-countdown.js` 존재 | ✓ |
+| `index.html` 내 `_countdownInterval` 참조 | 0개 ✓ |
+| `index.html` 내 `startEventCountdown` 정의 | 0개 ✓ |
+
+### Phase 9D-1 완료 기준
+
+- [x] `startEventCountdown` + `_countdownInterval` 이동 완료
+- [x] 함수 로직 변경 없음 (1:1 복사)
+- [x] `npm run build` 통과
+- [x] inline onclick / Auth / Supabase / Octagon 로직 변경 없음
+
+---
+
 ## Phase 9C implementation result (2026-05-25)
 
 ### Changed
