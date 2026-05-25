@@ -513,6 +513,54 @@ Auth, Octagon/Battle — 독립 계획 문서 작성 후 진행
 
 ---
 
+## Phase 9D-3 — Modal Close Helpers 통합 결과 (2026-05-25)
+
+### 이동 대상
+
+| 함수 | 원본 위치 | 이동 대상 |
+|---|---|---|
+| `closeBetSlip()` | index.html line 2519–2522 | `public/js/modal-helpers.js` |
+| `closeMobileSidebar()` | index.html line 2346–2357 | `public/js/modal-helpers.js` |
+| `closeFactionSelectModal()` | index.html line 5564–5568 | `public/js/modal-helpers.js` |
+| `closeNewsDetail()` | `public/js/news-modal.js` (Phase 9D-2) | `public/js/modal-helpers.js` (통합) |
+
+### 변경 내역
+
+| 항목 | Before | After |
+|---|---|---|
+| `index.html` 줄 수 | 5,645줄 | 5,621줄 (-24줄) |
+| 파일 변경 | `public/js/news-modal.js` | 삭제 → `public/js/modal-helpers.js`로 통합 |
+| script 태그 | `/js/news-modal.js` | `/js/modal-helpers.js` |
+
+### 호출 지점 요약
+
+| 함수 | 호출 위치 |
+|---|---|
+| `closeBetSlip` | onclick ×2, `confirmBetSlip()` 내부 |
+| `closeMobileSidebar` | onclick ×2 |
+| `closeFactionSelectModal` | onclick ×2, `syncUserToDB()` 내부, `selectFaction()` 내부, `supabase.js:185` (typeof 가드) |
+| `closeNewsDetail` | onclick ×2 |
+
+### 검증 결과
+
+| 항목 | 결과 |
+|---|---|
+| `node --check modal-helpers.js` | syntax OK |
+| `npm run build` | PASS |
+| `dist/js/modal-helpers.js` — 4개 함수 포함 | ✓ |
+| `dist/js/news-modal.js` | 삭제됨 ✓ |
+| inline script 내 3개 함수 정의 | 0개 ✓ |
+
+### Phase 9D-3 완료 기준
+
+- [x] `closeBetSlip`, `closeMobileSidebar`, `closeFactionSelectModal` 이동 완료
+- [x] `news-modal.js` → `modal-helpers.js` 통합
+- [x] 함수 로직 변경 없음
+- [x] `npm run build` 통과
+- [x] inline onclick 변경 없음
+
+---
+
 ## Phase 9C implementation result (2026-05-25)
 
 ### Changed

@@ -2106,7 +2106,7 @@
 <script src="/js/utils.js"></script>
 <script src="/js/event-countdown.js"></script>
 <script src="/js/api/supabase.js?v=7"></script>
-<script src="/js/news-modal.js"></script>
+<script src="/js/modal-helpers.js"></script>
 <script src="/js/news.js"></script>
 <script src="/js/youtube.js"></script>
 <script src="/js/community.js?v=6"></script>
@@ -2343,19 +2343,6 @@
         });
     }
 
-    function closeMobileSidebar() {
-        const drawer = document.getElementById('mobile-sidebar-drawer');
-        const backdrop = document.getElementById('mobile-sidebar-backdrop');
-        const panel = document.getElementById('mobile-sidebar-panel');
-        if (!drawer) return;
-        backdrop.classList.remove('opacity-100');
-        backdrop.classList.add('opacity-0');
-        backdrop.classList.add('pointer-events-none');
-        panel.classList.remove('translate-x-0');
-        panel.classList.add('translate-x-full');
-        setTimeout(function() { drawer.classList.add('pointer-events-none'); }, 300);
-    }
-
     function refreshUI() {
         document.getElementById('nav-points').innerText = state.points.toLocaleString() + ' P';
         document.getElementById('nav-points-mobile').innerText = state.points.toLocaleString() + ' P';
@@ -2514,11 +2501,6 @@
         requestAnimationFrame(function() {
             document.getElementById('bet-slip-panel').classList.add('bs-open');
         });
-    }
-
-    function closeBetSlip() {
-        document.getElementById('bet-slip-panel').classList.remove('bs-open');
-        document.getElementById('bet-slip-backdrop').classList.remove('bs-open');
     }
 
     function selectMethod(method) {
@@ -5559,12 +5541,6 @@ async function addCommentToDB(postDbId, userNick, text) {
         if (!modal) return;
         _renderFactionCards();
         modal.classList.remove('hidden');
-    }
-
-    function closeFactionSelectModal() {
-        var modal = document.getElementById('faction-select-modal');
-        if (modal) modal.classList.add('hidden');
-        sessionStorage.setItem('factionModalDismissed', '1');
     }
 
     // 집단 카드 그리드 렌더링

@@ -796,6 +796,7 @@ Phase 5A에서 학습한 패턴 적용:
 | Phase 9B: index.html inline CSS 분리 | **완료** | `Refactor: Move remaining low-risk inline CSS` |
 | Phase 9D-1: event countdown 함수 분리 | **완료** | `Refactor: Extract event countdown helper` |
 | Phase 9D-2: closeNewsDetail 분리 | **완료** | `Refactor: Extract low-risk UI helper` |
+| Phase 9D-3: modal close helpers 통합 | **완료** | `Refactor: Extract modal close helpers` |
 | Phase 9C: inline UFC ranking data extraction | **완료** | `Refactor: Extract UFC ranking seed constants` |
 | Phase 9C-2: inline shared UI constants extraction | **완료** | `Refactor: Extract shared inline UI constants` |
 | Phase 9C-3: inline label/category map extraction | **완료** | `Refactor: Extract inline label category maps` |
