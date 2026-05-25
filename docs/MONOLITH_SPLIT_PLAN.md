@@ -704,3 +704,56 @@ These values are static label, class, color, and keyword maps. They now live in 
 - [x] 모든 close DOM 조작 정상 동작
 - [x] console errors 없음
 - [x] P0/P1 버그 없음
+
+---
+
+## Phase 9D-5 — Pure Formatting Helper Extraction 결과 (2026-05-25)
+
+### 이동 대상
+
+| 함수 | 원본 위치 | 이동 대상 |
+|---|---|---|
+| `matchesCategory(newsItem)` | index.html `renderNewsGrid` 내부 (inner function, line 3720) | `public/js/format-helpers.js` |
+| `isMMARelated(newsItem)` | index.html `renderNewsGrid` 내부 (inner function, line 3727) | `public/js/format-helpers.js` |
+
+### 순수성 분석
+
+| 기준 | 결과 |
+|---|---|
+| DOM `document.` 의존 | 없음 ✓ |
+| Supabase / Auth / state 의존 | 없음 ✓ |
+| octagon 의존 | 없음 ✓ |
+| 외부 의존 | `NEWS_CATEGORY_KEYWORDS`, `MMA_NEWS_KEYWORDS` (이미 `constants.js`에 있음) |
+
+### 변경 내역
+
+| 항목 | Before | After |
+|---|---|---|
+| `index.html` 줄 수 | 5,621줄 | 5,610줄 (-11줄) |
+| 신규 파일 | — | `public/js/format-helpers.js` (16줄) |
+| script 태그 추가 위치 | — | `modal-helpers.js` 이후, `news.js` 이전 |
+
+### 호출 지점
+
+| 위치 | 형태 |
+|---|---|
+| `index.html` `renderNewsGrid()` 내부 | `isMMARelated(n)` |
+| `index.html` `renderNewsGrid()` 내부 | `matchesCategory(n)` |
+
+### 검증 결과
+
+| 항목 | 결과 |
+|---|---|
+| `node --check format-helpers.js` | syntax OK |
+| `npm run build` | PASS (338.85 kB, 1.31s) |
+| `dist/js/format-helpers.js` 존재 | ✓ |
+| index.html 내 함수 정의 제거 | ✓ (0개) |
+| index.html 내 함수 호출 유지 | ✓ (2개) |
+
+### Phase 9D-5 완료 기준
+
+- [x] `matchesCategory`, `isMMARelated` 이동 완료 (inner → 전역 top-level)
+- [x] 함수 로직 변경 없음 (1:1 이동)
+- [x] `npm run build` 통과
+- [x] inline onclick 변경 없음
+- [x] Auth/Supabase/Pick/Admin/Octagon 로직 변경 없음

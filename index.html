@@ -2107,6 +2107,7 @@
 <script src="/js/event-countdown.js"></script>
 <script src="/js/api/supabase.js?v=7"></script>
 <script src="/js/modal-helpers.js"></script>
+<script src="/js/format-helpers.js"></script>
 <script src="/js/news.js"></script>
 <script src="/js/youtube.js"></script>
 <script src="/js/community.js?v=6"></script>
@@ -3716,18 +3717,6 @@ async function publishPost() {
         // youtube 카테고리 뉴스는 일반 탭에서 제외
         var newsItems = cachedNews.filter(function(n) { return n.category !== 'youtube'; });
 
-        // 카테고리 키워드 검증 — DB 분류 오류 보정
-        function matchesCategory(newsItem) {
-            var kws = NEWS_CATEGORY_KEYWORDS[newsItem.category];
-            if (!kws) return true;
-            var haystack = (newsItem.title + ' ' + (newsItem.summary || '')).toLowerCase();
-            return kws.some(function(kw) { return haystack.indexOf(kw) >= 0; });
-        }
-
-        function isMMARelated(newsItem) {
-            var hay = (newsItem.title + ' ' + (newsItem.source || '')).toLowerCase();
-            return MMA_NEWS_KEYWORDS.some(function(kw) { return hay.indexOf(kw) >= 0; });
-        }
         // 30일 이내 뉴스만 표시
         var cutoff = new Date();
         cutoff.setDate(cutoff.getDate() - 30);
