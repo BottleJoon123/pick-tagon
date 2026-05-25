@@ -294,11 +294,37 @@ cp .env.example .env.local
 
 ---
 
-## 8. 진행 현황
+## 8. Phase 8B 완료 (2026-05-25)
+
+### 8-1. GitHub Actions 배포 확인
+
+- Secrets 3개 등록 후 push → GitHub Actions `Deploy to GitHub Pages` 실행
+- 결과: `completed / success` (31초 소요)
+- 빌드 시 `VITE_*` 변수가 secrets에서 주입 → `%VITE_..%` 리터럴 없이 정상 치환
+
+### 8-2. Phase 8B 추가 작업
+
+- `README.md` 신규 생성 — 로컬 환경 설정 가이드 포함
+- `docs/ENV_CONFIG_MIGRATION_PLAN.md` Phase 8B 결과 추가
+
+### 8-3. 로컬 개발 주의사항
+
+| 항목 | 내용 |
+|---|---|
+| 사용할 키 | `anon` (public) key만 사용 |
+| 절대 사용 금지 | `service_role` key — 서버 전용, 브라우저 노출 불가 |
+| `.env.local` | gitignored — 절대 커밋하지 말 것 |
+| ADMIN_EMAILS | client-side UI gate만 — 실제 권한은 DB `is_admin` 컬럼 + RPC |
+| 브라우저 console | `[PICKTAGON] Supabase config missing` 없으면 정상 |
+
+---
+
+## 9. 진행 현황
 
 | 단계 | 상태 |
 |---|---|
 | Phase 8A-1: 조사 및 계획 문서화 | **완료** |
 | Phase 8A-2: env bridge 구현 | **완료** |
 | Phase 8A-3: env bridge QA | **완료** |
-| GitHub Secrets 등록 | **사용자 직접 필요** |
+| GitHub Secrets 등록 | **완료** (사용자 직접) |
+| Phase 8B: 로컬 설정 문서화 / 배포 확인 | **완료** |
