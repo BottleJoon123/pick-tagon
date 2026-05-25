@@ -366,6 +366,43 @@ async function fetchUpcomingMatchups() {
             return;
         }
 
+        // ── Fighter lookup map (id → row, name → row) ──────────────────────────
+        // fighterDB may be empty on fresh browsers (no admin session).
+        // Fetch missing fighters directly so stats always render.
+        var _localFighters = {};
+        (typeof fighterDB !== 'undefined' ? fighterDB : []).forEach(function(f) {
+            if (f.id)   _localFighters[f.id] = f;
+            if (f.name) _localFighters['n:' + f.name] = f;
+        });
+        var _missingIds = [];
+        mRes.data.forEach(function(m) {
+            if (m.red_fighter_id  && !_localFighters[m.red_fighter_id])  _missingIds.push(m.red_fighter_id);
+            if (m.blue_fighter_id && !_localFighters[m.blue_fighter_id]) _missingIds.push(m.blue_fighter_id);
+        });
+        if (_missingIds.length > 0) {
+            try {
+                var fRes = await sb.from('fighters')
+                    .select('id,name,record,height,reach,division,stats,recent,slpm,str_acc,sapm,str_def,td_avg,td_acc,td_def,sub_avg,ko_rate,sub_rate,dec_rate,name_en')
+                    .in('id', _missingIds);
+                if (fRes.data) {
+                    fRes.data.forEach(function(f) {
+                        _localFighters[f.id] = f;
+                        if (f.name) _localFighters['n:' + f.name] = f;
+                        if (typeof fighterDB !== 'undefined' && !fighterDB.find(function(x) { return x.id === f.id; })) {
+                            fighterDB.push(f);
+                        }
+                    });
+                }
+            } catch(e) { console.warn('[fetchUpcomingMatchups] fighter fetch:', e); }
+        }
+
+        // stat field extractor: handles both camelCase (localStorage) and snake_case (Supabase direct)
+        function _fs(db, cam, sn) {
+            if (!db) return 0;
+            var v = (db[cam] != null) ? db[cam] : (sn && db[sn] != null ? db[sn] : 0);
+            return v || 0;
+        }
+
         // 메인카드 순서별 태그 부여 (sort_order 기준)
         var mainCardRank = 0;
         _dbMatchups = mRes.data.map(function(m) {
@@ -378,24 +415,12 @@ async function fetchUpcomingMatchups() {
             } else {
                 tag = 'PRELIMS';
             }
-            var _f1db = null;
-            if (typeof fighterDB !== 'undefined' && fighterDB.length) {
-                _f1db = m.red_fighter_id
-                    ? fighterDB.find(function(d) { return d.id === m.red_fighter_id; })
-                    : null;
-                if (!_f1db) {
-                    _f1db = fighterDB.find(function(d) { return d.name === m.red_fighter_name; });
-                }
-            }
-            var _f2db = null;
-            if (typeof fighterDB !== 'undefined' && fighterDB.length) {
-                _f2db = m.blue_fighter_id
-                    ? fighterDB.find(function(d) { return d.id === m.blue_fighter_id; })
-                    : null;
-                if (!_f2db) {
-                    _f2db = fighterDB.find(function(d) { return d.name === m.blue_fighter_name; });
-                }
-            }
+            var _f1db = m.red_fighter_id
+                ? (_localFighters[m.red_fighter_id] || _localFighters['n:' + m.red_fighter_name])
+                : _localFighters['n:' + m.red_fighter_name];
+            var _f2db = m.blue_fighter_id
+                ? (_localFighters[m.blue_fighter_id] || _localFighters['n:' + m.blue_fighter_name])
+                : _localFighters['n:' + m.blue_fighter_name];
             return {
                 id: m.id,
                 section: isMainCard ? 'main' : 'prelim',
@@ -414,22 +439,48 @@ async function fetchUpcomingMatchups() {
                 _resultMethod: m.result_method || null,
                 _resultRound: m.result_round || null,
                 f1: {
-                    name: m.red_fighter_name || '?',
-                    nameEn: (_f1db && _f1db.name_en) || '',
-                    record: (_f1db && _f1db.record) || '',
-                    odds: null,
-                    recent: (_f1db && Array.isArray(_f1db.recent)) ? _f1db.recent : [],
-                    stats: _parseStats(_f1db && _f1db.stats),
-                    imgUrl: m.red_image_url || ''
+                    name:    m.red_fighter_name || '?',
+                    nameEn:  (_f1db && _f1db.name_en) || '',
+                    record:  (_f1db && _f1db.record)  || '',
+                    height:  (_f1db && _f1db.height)  || '',
+                    reach:   (_f1db && _f1db.reach)   || '',
+                    odds:    null,
+                    recent:  (_f1db && Array.isArray(_f1db.recent)) ? _f1db.recent : [],
+                    stats:   _parseStats(_f1db && _f1db.stats),
+                    imgUrl:  m.red_image_url || '',
+                    slpm:    _fs(_f1db, 'slpm',    null),
+                    strAcc:  _fs(_f1db, 'strAcc',  'str_acc'),
+                    sapm:    _fs(_f1db, 'sapm',    null),
+                    strDef:  _fs(_f1db, 'strDef',  'str_def'),
+                    tdAvg:   _fs(_f1db, 'tdAvg',   'td_avg'),
+                    tdAcc:   _fs(_f1db, 'tdAcc',   'td_acc'),
+                    tdDef:   _fs(_f1db, 'tdDef',   'td_def'),
+                    subAvg:  _fs(_f1db, 'subAvg',  'sub_avg'),
+                    koRate:  _fs(_f1db, 'koRate',  'ko_rate'),
+                    subRate: _fs(_f1db, 'subRate', 'sub_rate'),
+                    decRate: _fs(_f1db, 'decRate', 'dec_rate'),
                 },
                 f2: {
-                    name: m.blue_fighter_name || '?',
-                    nameEn: (_f2db && _f2db.name_en) || '',
-                    record: (_f2db && _f2db.record) || '',
-                    odds: null,
-                    recent: (_f2db && Array.isArray(_f2db.recent)) ? _f2db.recent : [],
-                    stats: _parseStats(_f2db && _f2db.stats),
-                    imgUrl: m.blue_image_url || ''
+                    name:    m.blue_fighter_name || '?',
+                    nameEn:  (_f2db && _f2db.name_en) || '',
+                    record:  (_f2db && _f2db.record)  || '',
+                    height:  (_f2db && _f2db.height)  || '',
+                    reach:   (_f2db && _f2db.reach)   || '',
+                    odds:    null,
+                    recent:  (_f2db && Array.isArray(_f2db.recent)) ? _f2db.recent : [],
+                    stats:   _parseStats(_f2db && _f2db.stats),
+                    imgUrl:  m.blue_image_url || '',
+                    slpm:    _fs(_f2db, 'slpm',    null),
+                    strAcc:  _fs(_f2db, 'strAcc',  'str_acc'),
+                    sapm:    _fs(_f2db, 'sapm',    null),
+                    strDef:  _fs(_f2db, 'strDef',  'str_def'),
+                    tdAvg:   _fs(_f2db, 'tdAvg',   'td_avg'),
+                    tdAcc:   _fs(_f2db, 'tdAcc',   'td_acc'),
+                    tdDef:   _fs(_f2db, 'tdDef',   'td_def'),
+                    subAvg:  _fs(_f2db, 'subAvg',  'sub_avg'),
+                    koRate:  _fs(_f2db, 'koRate',  'ko_rate'),
+                    subRate: _fs(_f2db, 'subRate', 'sub_rate'),
+                    decRate: _fs(_f2db, 'decRate', 'dec_rate'),
                 },
             };
         });
