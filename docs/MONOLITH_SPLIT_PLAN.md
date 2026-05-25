@@ -856,3 +856,57 @@ function _checkSwearWords(text) {
 - [x] 렌더 출력 동일 (로직 변경 없음)
 - [x] script 태그 순서 정확 (constants.js → state.js → utils.js → format-helpers.js → news-render-helpers.js → news.js)
 - [x] build 통과
+
+---
+
+## Phase 9D-8 — News Render Helper Smoke QA 결과 (2026-05-25)
+
+**목적:** Phase 9D-7에서 분리한 `buildNewsCardHtml` / `buildYoutubeShortcutHtml`의 렌더 회귀 없음 확인.
+
+**방법:** Playwright headless + mock 데이터 주입 (Supabase Edge Function이 개발환경에서 404이므로 `cachedNews`에 직접 주입 후 `renderNewsGrid()` 호출)
+
+### 정적 검증
+
+| 항목 | 결과 |
+|---|---|
+| `node --check public/js/news-render-helpers.js` | ✅ syntax OK |
+| `npm run build` | ✅ clean |
+| `rg "buildNewsCardHtml\|buildYoutubeShortcutHtml"` in index.html | `.map(buildNewsCardHtml)`, `.map(buildYoutubeShortcutHtml)` 각 1회 확인 |
+| `rg "openNewsDetail\|closeNewsDetail"` | modal-helpers.js + inline script + news-render-helpers.js 정확히 분산 확인 |
+| script 태그 순서 | format-helpers.js → news-render-helpers.js → news.js 순서 정확 |
+
+### 브라우저 검증 (Playwright, localhost:5199)
+
+| 검증 항목 | 결과 | 비고 |
+|---|---|---|
+| `window.buildNewsCardHtml` 전역 노출 | ✅ | `typeof` = `function` |
+| `window.buildYoutubeShortcutHtml` 전역 노출 | ✅ | `typeof` = `function` |
+| mock 데이터(3건) 주입 후 카드 렌더 | ✅ | 3개 렌더됨 |
+| 뉴스 카드 `nc-cat-bar` 클래스 | ✅ | 카드 1-3 모두 확인 |
+| 뉴스 카드 `img` 태그 | ✅ | 카드 1-3 모두 확인 |
+| 뉴스 카드 `badge` span | ✅ | 카드 1-3 모두 확인 |
+| `onclick="openNewsDetail(N)"` 생성 | ✅ | 카드 1: `openNewsDetail(0)`, 카드 3: `openNewsDetail(2)` |
+| `onclick="window.open(...,'_blank')"` 생성 | ✅ | 카드 2 (외부 URL) |
+| `openNewsDetail` 클릭 → 모달 열림 | ✅ | |
+| `closeNewsDetail` → 모달 닫힘 | ✅ | |
+| YouTube shortcut 버튼 4개 렌더 | ✅ | `goToYoutubeCard(0-3)` onclick 확인 |
+| 카테고리 탭 필터 (UFC) | ✅ | 탭 7개, 필터 후 카드 1개 |
+| 검색 필터 ("Jones") | ✅ | 카드 1개 (존스 관련만 통과) |
+| 빈 상태 메시지 | ✅ | "해당하는 뉴스가 없습니다" |
+| 모바일 375px 카드 렌더 | ✅ | 6개 (2건 mock + 4 YouTube) |
+
+### 발견 사항
+
+- **P2 (기존 이슈, 변경 무관):** 개발환경에서 Supabase Edge Function 404 콘솔 에러 1건. `.env.local` 미설정 시 발생하는 pre-existing 이슈. 배포 환경에서는 정상.
+- QA 스크립트 내에서 YouTube `<button>` 요소가 `.glass-card` 클래스를 공유하여 뉴스 카드와 동일 선택자에 포함됨. 이는 정상 동작이며 버그 아님.
+
+### Phase 9D-8 완료 기준
+
+- [x] `window.buildNewsCardHtml` / `window.buildYoutubeShortcutHtml` 전역 노출 확인
+- [x] 뉴스 카드 HTML 구조 (nc-cat-bar, img, badge, onclick) 유지 확인
+- [x] openNewsDetail 모달 열림/닫힘 정상
+- [x] YouTube shortcut 4개 렌더 정상
+- [x] 카테고리 탭 + 검색 필터 정상
+- [x] 빈 상태 메시지 정상
+- [x] 모바일 375px 렌더 정상
+- [x] P0/P1 없음
