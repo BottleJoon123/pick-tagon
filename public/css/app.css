@@ -7,6 +7,24 @@
 
 /* ── Base reset ── */
 * { box-sizing: border-box; }
+ul,
+ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+button {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 0;
+    background: transparent;
+    margin: 0;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+}
+button:disabled { cursor: default; }
 
 body {
     background: #0c0c0c;
@@ -75,23 +93,6 @@ body {
 @keyframes sectionFade { from { opacity:0.8; } to { opacity:1; } }
 
 /* ── Nav ── */
-nav ul,
-nav li {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-}
-header button,
-nav button {
-    appearance: none;
-    -webkit-appearance: none;
-    border: 0;
-    background: transparent;
-    margin: 0;
-    font: inherit;
-    color: inherit;
-    cursor: pointer;
-}
 .nav-link {
     position: relative;
     color: var(--pt-ink-2);
