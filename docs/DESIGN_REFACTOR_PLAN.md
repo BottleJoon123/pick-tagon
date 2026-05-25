@@ -793,6 +793,7 @@ Phase 5A에서 학습한 패턴 적용:
 | Phase 8A-3: Supabase env bridge QA | **완료** | `Docs: Add Supabase env bridge QA` |
 | Phase 8B: 로컬 설정 문서화 / 배포 확인 | **완료** | `Docs: Add Supabase local env setup guide` |
 | Phase 9A: index.html monolith split 계획 | **완료** | `Docs: Plan index monolith split` |
+| Phase 9B: index.html inline CSS 분리 | **완료** | `Refactor: Move remaining low-risk inline CSS` |
 
 > Phase 6 마감 문서 → [`docs/PHASE6_VISIBLE_DESIGN_CLOSEOUT.md`](PHASE6_VISIBLE_DESIGN_CLOSEOUT.md)  
 > Phase 7A/7B/7B-QA/7C 전환 계획 및 결과 → [`docs/TAILWIND_CDN_MIGRATION_PLAN.md`](TAILWIND_CDN_MIGRATION_PLAN.md)  

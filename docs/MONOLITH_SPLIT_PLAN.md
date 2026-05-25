@@ -369,4 +369,54 @@ Auth, Octagon/Battle — 독립 계획 문서 작성 후 진행
 - [x] 위험도 분류표 작성
 - [x] 분리 전략 원칙 정의
 - [x] 제안 작업 순서 (Phase 9B–9F) 정의
-- [ ] 코드 이동 없음 (Phase 9B+ 예정)
+- [x] 코드 이동 없음 (분석 전용)
+
+---
+
+## Phase 9B — CSS 분리 결과 (2026-05-25)
+
+### 변경 내역
+
+| 항목 | Before | After |
+|---|---|---|
+| `index.html` 줄 수 | 6,304줄 | 5,891줄 (-413줄) |
+| `index.html` 인라인 `<style>` 블록 수 | 2개 (402줄 + 11줄) | **0개** |
+| `public/css/app.css` 줄 수 | 780줄 | 1,186줄 (+406줄) |
+| `dist/index.html` 크기 | 376.50 kB | 358.71 kB (-17.79 kB) |
+
+### 이동된 CSS 그룹
+
+| CSS 그룹 | 줄 수 |
+|---|---|
+| Home hero `#home` — `position: relative` 병합 | 1줄 (기존 블록에 통합) |
+| Hero text animations (`.hero-line`, `@keyframes heroReveal`, `fadeUp`) | 10줄 |
+| Countdown (`.countdown-unit`, `.countdown-num`, `.countdown-label`) | 22줄 |
+| Stat counter (`.stat-counter`) | 6줄 |
+| Admin tabs (`.admin-tab`, `.active-tab`) | 3줄 |
+| Octagon Fighter Animations (`@keyframes fighter-*`, `.anim-*`) | 56줄 |
+| Faction System (`.faction-card`, `@keyframes faction-pop`) | 22줄 |
+| Community Dense Hybrid UI (matchup + post list + filter bar) | 213줄 |
+| Global Bet Slip Bottom Sheet (`#bet-slip-*`, `.bs-*`) | 28줄 |
+| Home Ticker (`.animate-ticker`, `@keyframes ticker-scroll`) | 9줄 |
+
+### 잔여 인라인 CSS
+
+**없음** — 모든 인라인 `<style>` 블록 제거 완료.
+
+### 검증 결과
+
+| 항목 | 결과 |
+|---|---|
+| `npm run build` | PASS |
+| 빌드 경고 | `%VITE_*%` 3개 (env 미설정, 예상된 것) |
+| `dist/css/app.css`에 이동 클래스 포함 여부 | 14개 선택자 모두 FOUND ✓ |
+| `index.html` `<style>` 잔여 | 0개 ✓ |
+| ticker HTML (`animate-ticker`, `home-ticker`) 보존 | ✓ |
+
+### Phase 9B 완료 기준
+
+- [x] 모든 인라인 `<style>` 제거 (0줄 남음)
+- [x] 이동된 CSS가 `public/css/app.css` Phase 9B 블록에 위치
+- [x] `npm run build` 통과
+- [x] JS 로직/HTML 구조 변경 없음
+- [x] inline onclick 변경 없음
