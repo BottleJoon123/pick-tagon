@@ -807,3 +807,52 @@ function _checkSwearWords(text) {
 - [x] inline script 전체 함수 전수 조사 완료
 - [x] 후보 조사표 문서화
 - [x] 코드 변경 없음 (이동 가능 후보 없음)
+
+---
+
+## Phase 9D-7 — News Render Helper Extraction 결과 (2026-05-25)
+
+**목적:** `renderNewsGrid()` 내 익명 `.map()` 콜백 2개를 named function으로 추출하여 `public/js/news-render-helpers.js`로 분리.
+
+### 추출 함수
+
+| 함수 | 원래 위치 | 이동 위치 | 코드 라인 수 |
+|---|---|---|---|
+| `buildNewsCardHtml(n, i)` | `renderNewsGrid()` 내 `filtered.map(function(n,i){...})` | `public/js/news-render-helpers.js` | 27줄 |
+| `buildYoutubeShortcutHtml(c, i)` | `renderNewsGrid()` 내 `YOUTUBE_CARDS.slice(0,4).map(function(c,i){...})` | `public/js/news-render-helpers.js` | 5줄 |
+
+### 의존성 분석
+
+| 의존 대상 | 선언 파일 | 전역 노출 방식 | 안전 여부 |
+|---|---|---|---|
+| `NEWS_CATEGORY_BAR_CLASS` | `constants.js` | `var` → window | ✅ |
+| `NEWS_CATEGORY_BADGE_CLASS` | `constants.js` | `var` → window | ✅ |
+| `NEWS_CATEGORY_LABEL` | `constants.js` | `var` → window | ✅ |
+| `YOUTUBE_CARDS` | `constants.js` | `var` → window | ✅ |
+| `cachedNews` | `state.js:33` | `var` → window | ✅ |
+| `escapeHtml` | `utils.js` | `var`/global function | ✅ |
+| `getNewsCategoryImg` | `home.js` | global function (typeof guard 적용) | ✅ |
+
+### 변경 사항
+
+**신규 파일:** `public/js/news-render-helpers.js`
+
+**index.html 변경:**
+- `filtered.map(function(n, i){...}).join('')` → `filtered.map(buildNewsCardHtml).join('')` (27줄 → 1줄)
+- `YOUTUBE_CARDS.slice(0,4).map(function(c,i){...}).join('')` → `YOUTUBE_CARDS.slice(0,4).map(buildYoutubeShortcutHtml).join('')` (5줄 → 1줄)
+- `<script src="/js/news-render-helpers.js">` 태그 추가 (format-helpers.js 직후, news.js 이전)
+
+**index.html 줄 수:** 5,610 → **5,581** (29줄 감소)
+
+### 검증
+
+- `node --check public/js/news-render-helpers.js` → syntax OK
+- `npm run build` → ✅ clean (env warning만, 오류 없음)
+
+### Phase 9D-7 완료 기준
+
+- [x] `buildNewsCardHtml(n, i)` 추출 완료
+- [x] `buildYoutubeShortcutHtml(c, i)` 추출 완료
+- [x] 렌더 출력 동일 (로직 변경 없음)
+- [x] script 태그 순서 정확 (constants.js → state.js → utils.js → format-helpers.js → news-render-helpers.js → news.js)
+- [x] build 통과
