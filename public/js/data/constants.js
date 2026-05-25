@@ -20,6 +20,102 @@ const FIGHT_METHOD_TEXT_CLASS = {
     'NC': 'text-gray-500',
 };
 
+const UFC_DIVISION_SHORT_LABELS = {
+    p4p: 'P4P',
+    flw: '플라이급',
+    bw: '밴텀급',
+    fw: '페더급',
+    lw: '라이트급',
+    ww: '웰터급',
+    mw: '미들급',
+    lhw: '라이트헤비급',
+    hw: '헤비급',
+    'w-sw': '여자 스트로우',
+    'w-flw': '여자 플라이',
+    'w-bw': '여자 밴텀',
+};
+
+const UFC_DIVISION_FULL_LABELS = {
+    flw: '플라이급',
+    bw: '밴텀급',
+    fw: '페더급',
+    lw: '라이트급',
+    ww: '웰터급',
+    mw: '미들급',
+    lhw: '라이트헤비급',
+    hw: '헤비급',
+    'w-sw': '여자 스트로우',
+    'w-flw': '여자 플라이급',
+    'w-bw': '여자 밴텀급',
+};
+
+const UFC_DIVISION_NAME_MAP = {
+    "Men's Pound-for-Pound Top Rank": 'p4p',
+    'Flyweight': 'flw',
+    'Bantamweight': 'bw',
+    'Featherweight': 'fw',
+    'Lightweight': 'lw',
+    'Welterweight': 'ww',
+    'Middleweight': 'mw',
+    'Light Heavyweight': 'lhw',
+    'Heavyweight': 'hw',
+    "Women's Pound-for-Pound Top Rank": 'w-p4p',
+    "Women's Strawweight": 'w-sw',
+    "Women's Flyweight": 'w-flw',
+    "Women's Bantamweight": 'w-bw',
+};
+
+const UFC_TREND_TEXT_CLASS = {
+    '↑': 'text-green-400',
+    '↓': 'text-red-400',
+    '→': 'text-gray-500',
+};
+
+const NEWS_CATEGORY_KEYWORDS = {
+    ufc: ['ufc', 'mma', '격투기', '옥타곤', '얼티밋', '파이팅 챔피언십'],
+    fighter: ['선수', '파이터', '챔피언', '랭커', '도전자'],
+    result: ['결과', '승리', '패배', 'ko', '서브미션', '판정', '타이틀'],
+    ranking: ['랭킹', '순위', '랭크'],
+    event: ['이벤트', '대회', '카드', '경기 예정'],
+};
+
+const MMA_NEWS_KEYWORDS = [
+    'ufc', 'mma', '격투기', '파이터', '옥타곤', '무에타이', '주짓수', '이종격투기',
+    '챔피언십', '타이틀전', '파이트', '프로하츠카', '울버그', '최두호', '정다운', '코리안',
+];
+
+const NEWS_CATEGORY_BAR_CLASS = {
+    ufc: 'bg-ufcRed',
+    fighter: 'bg-blue-600',
+    event: 'bg-purple-600',
+    result: 'bg-green-600',
+    ranking: 'bg-yellow-500',
+};
+
+const NEWS_CATEGORY_BAR_COLOR = {
+    ufc: '#E10600',
+    fighter: '#2563eb',
+    event: '#9333ea',
+    result: '#16a34a',
+    ranking: '#eab308',
+};
+
+const NEWS_CATEGORY_BADGE_CLASS = {
+    ufc: 'bg-ufcRed/15 text-ufcRed',
+    fighter: 'bg-blue-600/15 text-blue-400',
+    event: 'bg-purple-600/15 text-purple-400',
+    result: 'bg-green-600/15 text-green-400',
+    ranking: 'bg-yellow-500/15 text-yellow-400',
+};
+
+const NEWS_CATEGORY_LABEL = {
+    ufc: 'UFC',
+    fighter: '선수',
+    event: '이벤트',
+    result: '결과',
+    ranking: '랭킹',
+};
+
 const UNSPLASH_DEFAULTS = {
     'NEWS':     'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80',
     'RANKING':  'https://images.unsplash.com/photo-1590556409324-aa1d726e5c3c?auto=format&fit=crop&q=80',

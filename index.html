@@ -3313,8 +3313,6 @@ async function publishPost() {
             groups[r.division].push(r);
         });
 
-        var DIV_LABELS = { p4p:'P4P',flw:'플라이급',bw:'밴텀급',fw:'페더급',lw:'라이트급',ww:'웰터급',mw:'미들급',lhw:'라이트헤비급',hw:'헤비급','w-sw':'여자 스트로우','w-flw':'여자 플라이','w-bw':'여자 밴텀' };
-
         panel.innerHTML = Object.keys(groups).map(function(div) {
             var rows = groups[div].sort(function(a,b) {
                 if (a.rank_position === 'C') return -1;
@@ -3322,7 +3320,7 @@ async function publishPost() {
                 return parseInt(a.rank_position) - parseInt(b.rank_position);
             });
             return '<div class="glass-card rounded-xl p-4">' +
-                '<p class="oswald-sharp text-xs font-black italic uppercase tracking-widest text-ufcRed mb-2">' + (DIV_LABELS[div] || div) + '</p>' +
+                '<p class="oswald-sharp text-xs font-black italic uppercase tracking-widest text-ufcRed mb-2">' + (UFC_DIVISION_SHORT_LABELS[div] || div) + '</p>' +
                 rows.map(function(r) {
                     var isChamp = r.rank_position === 'C';
                     return '<div class="flex items-center gap-2 py-1 border-b border-white/5 group">' +
@@ -3426,23 +3424,6 @@ async function publishPost() {
         if (btn) { btn.textContent = '갱신 중...'; btn.disabled = true; }
         showToast('🔄 UFC.com에서 최신 랭킹을 가져오는 중...');
 
-        // UFC.com 디비전명 → 내부 key 매핑
-        var DIV_NAME_MAP = {
-            "Men's Pound-for-Pound Top Rank": 'p4p',
-            'Flyweight': 'flw',
-            'Bantamweight': 'bw',
-            'Featherweight': 'fw',
-            'Lightweight': 'lw',
-            'Welterweight': 'ww',
-            'Middleweight': 'mw',
-            'Light Heavyweight': 'lhw',
-            'Heavyweight': 'hw',
-            "Women's Pound-for-Pound Top Rank": 'w-p4p',
-            "Women's Strawweight": 'w-sw',
-            "Women's Flyweight": 'w-flw',
-            "Women's Bantamweight": 'w-bw'
-        };
-
         try {
             // Jina.ai로 UFC.com/rankings HTML을 마크다운으로 변환 (CORS 우회)
             var resp = await fetch('https://r.jina.ai/https://www.ufc.com/rankings');
@@ -3462,7 +3443,7 @@ async function publishPost() {
                 var divMatch = line.match(/^####\s+(.+)$/);
                 if (divMatch) {
                     var divName = divMatch[1].trim();
-                    currentDiv = DIV_NAME_MAP[divName] || null;
+                    currentDiv = UFC_DIVISION_NAME_MAP[divName] || null;
                     pendingChamp = null;
                     if (currentDiv) rankCounter[currentDiv] = 0;
                     continue;
@@ -3603,8 +3584,6 @@ async function publishPost() {
         const divInfo = UFC_DIVISIONS.find(d => d.id === currentDivision);
         if (!divData) return;
 
-        const TREND_STYLE = { '↑':'text-green-400', '↓':'text-red-400', '→':'text-gray-500' };
-
         // Filter by search
         let fighters = divData.fighters || [];
         if (query) {
@@ -3682,7 +3661,7 @@ async function publishPost() {
                     <p class="oswald-sharp text-[9px] lg:text-[10px] text-gray-600 italic">리치 ${f.reach}</p>
                 </div>
                 <div class="col-span-1 text-center">
-                    <span class="oswald-sharp font-black text-base ${TREND_STYLE[f.trend]||'text-gray-500'}">${f.trend||'→'}</span>
+                    <span class="oswald-sharp font-black text-base ${UFC_TREND_TEXT_CLASS[f.trend]||'text-gray-500'}">${f.trend||'→'}</span>
                 </div>
             </div>`).join('')}
         </div>`;
@@ -3701,10 +3680,9 @@ async function publishPost() {
         // fighters 테이블 데이터가 있으면 openFighterProfile로 위임 (영어 이름 우선)
         const dbRow = _lookupRankFighter(fighter.name_en || fighter.name);
         if (dbRow) {
-            const DIVISION_LABEL = { flw:'플라이급', bw:'밴텀급', fw:'페더급', lw:'라이트급', ww:'웰터급', mw:'미들급', lhw:'라이트헤비급', hw:'헤비급', 'w-sw':'여자 스트로우', 'w-flw':'여자 플라이급', 'w-bw':'여자 밴텀급' };
             const rv = fighter.isChampion ? 0 : (fighter.rank ?? null);
             const rankLabel = rv === 0 ? 'CHAMPION' : (rv != null ? `#${rv}` : 'UNRANKED');
-            const divLabel = DIVISION_LABEL[dbRow.division] || fighter.division || '';
+            const divLabel = UFC_DIVISION_FULL_LABELS[dbRow.division] || fighter.division || '';
             const heightStr = dbRow.height_cm ? Math.round(dbRow.height_cm) + ' cm' : (dbRow.height || fighter.height || '—');
             const reachStr  = dbRow.reach_cm  ? Math.round(dbRow.reach_cm)  + ' cm' : (dbRow.reach  || fighter.reach  || '—');
             const weightStr = dbRow.weight_kg ? Math.round(dbRow.weight_kg) + ' kg' : '—';
@@ -3795,26 +3773,16 @@ async function publishPost() {
         var newsItems = cachedNews.filter(function(n) { return n.category !== 'youtube'; });
 
         // 카테고리 키워드 검증 — DB 분류 오류 보정
-        var CAT_KEYWORDS = {
-            'ufc': ['ufc', 'mma', '격투기', '옥타곤', '얼티밋', '파이팅 챔피언십'],
-            'fighter': ['선수', '파이터', '챔피언', '랭커', '도전자'],
-            'result': ['결과', '승리', '패배', 'ko', '서브미션', '판정', '타이틀'],
-            'ranking': ['랭킹', '순위', '랭크'],
-            'event': ['이벤트', '대회', '카드', '경기 예정']
-        };
         function matchesCategory(newsItem) {
-            var kws = CAT_KEYWORDS[newsItem.category];
+            var kws = NEWS_CATEGORY_KEYWORDS[newsItem.category];
             if (!kws) return true;
             var haystack = (newsItem.title + ' ' + (newsItem.summary || '')).toLowerCase();
             return kws.some(function(kw) { return haystack.indexOf(kw) >= 0; });
         }
 
-        // MMA 관련 키워드 (전체 탭에서도 적용)
-        var MMA_KEYWORDS = ['ufc', 'mma', '격투기', '파이터', '옥타곤', '무에타이', '주짓수', '이종격투기',
-            '챔피언십', '타이틀전', '파이트', '프로하츠카', '울버그', '최두호', '정다운', '코리안'];
         function isMMARelated(newsItem) {
             var hay = (newsItem.title + ' ' + (newsItem.source || '')).toLowerCase();
-            return MMA_KEYWORDS.some(function(kw) { return hay.indexOf(kw) >= 0; });
+            return MMA_NEWS_KEYWORDS.some(function(kw) { return hay.indexOf(kw) >= 0; });
         }
         // 30일 이내 뉴스만 표시
         var cutoff = new Date();
@@ -3835,16 +3803,12 @@ async function publishPost() {
             return matchCat && matchQ;
         });
 
-        var CAT_BAR = { ufc:'bg-ufcRed', fighter:'bg-blue-600', event:'bg-purple-600', result:'bg-green-600', ranking:'bg-yellow-500' };
-        var CAT_BADGE = { ufc:'bg-ufcRed/15 text-ufcRed', fighter:'bg-blue-600/15 text-blue-400', event:'bg-purple-600/15 text-purple-400', result:'bg-green-600/15 text-green-400', ranking:'bg-yellow-500/15 text-yellow-400' };
-        var CAT_LBL = { ufc:'UFC', fighter:'선수', event:'이벤트', result:'결과', ranking:'랭킹' };
-
         var newsHtml = filtered.length === 0
             ? '<div class="col-span-2 py-16 text-center oswald-sharp text-xs text-gray-600 italic uppercase tracking-widest">해당하는 뉴스가 없습니다</div>'
             : filtered.map(function(n, i) {
-                var bar = CAT_BAR[n.category] || 'bg-white/10';
-                var badge = CAT_BADGE[n.category] || 'bg-white/10 text-white';
-                var lbl = CAT_LBL[n.category] || '?댁뒪';
+                var bar = NEWS_CATEGORY_BAR_CLASS[n.category] || 'bg-white/10';
+                var badge = NEWS_CATEGORY_BADGE_CLASS[n.category] || 'bg-white/10 text-white';
+                var lbl = NEWS_CATEGORY_LABEL[n.category] || '뉴스';
                 var realIdx = cachedNews.indexOf(n);
                 var cardClick = (n.url && n.url.startsWith('http'))
                     ? 'onclick="window.open(\'' + n.url + '\',\'_blank\')"'
@@ -3889,9 +3853,6 @@ async function publishPost() {
     async function openNewsDetail(idx) {
         var n = cachedNews[idx];
         if (!n) return;
-        var CAT_BAR_HEX = { ufc:'#E10600', fighter:'#2563eb', event:'#9333ea', result:'#16a34a', ranking:'#eab308' };
-        var CAT_BADGE = { ufc:'bg-ufcRed/15 text-ufcRed', fighter:'bg-blue-600/15 text-blue-400', event:'bg-purple-600/15 text-purple-400', result:'bg-green-600/15 text-green-400', ranking:'bg-yellow-500/15 text-yellow-400' };
-        var CAT_LBL = { ufc:'UFC', fighter:'선수', event:'이벤트', result:'결과', ranking:'랭킹' };
         var modal = document.getElementById('news-detail-modal');
         var ndContent = document.getElementById('nd-content');
         var ndLoading = document.getElementById('nd-content-loading');
@@ -3900,10 +3861,10 @@ async function publishPost() {
         document.getElementById('nd-title').textContent = n.title || '';
         document.getElementById('nd-date').textContent = n.date || '';
         document.getElementById('nd-source-label').textContent = n.source ? '출처: ' + n.source : '';
-        document.getElementById('nd-cat-bar').style.background = CAT_BAR_HEX[n.category] || '#fff';
+        document.getElementById('nd-cat-bar').style.background = NEWS_CATEGORY_BAR_COLOR[n.category] || '#fff';
         var badge = document.getElementById('nd-badge');
-        badge.textContent = CAT_LBL[n.category] || '뉴스';
-        badge.className = 'oswald-sharp text-[9px] px-2 py-1 rounded-lg font-black italic uppercase border border-white/10 ' + (CAT_BADGE[n.category] || 'bg-white/10 text-white');
+        badge.textContent = NEWS_CATEGORY_LABEL[n.category] || '뉴스';
+        badge.className = 'oswald-sharp text-[9px] px-2 py-1 rounded-lg font-black italic uppercase border border-white/10 ' + (NEWS_CATEGORY_BADGE_CLASS[n.category] || 'bg-white/10 text-white');
         var link = document.getElementById('nd-source-link');
         if (n.url && n.url.startsWith('http')) {
             link.href = n.url;

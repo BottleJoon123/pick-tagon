@@ -476,3 +476,38 @@ These values now live in `public/js/data/constants.js`, which loads before `admi
 - [x] Admin fighter stat sliders continue to use shared `STAT_LABELS`
 - [x] `npm run build` PASS
 - [x] Expected local env placeholder warnings only (`%VITE_*%`)
+
+---
+
+## Phase 9C-3 implementation result (2026-05-25)
+
+### Changed
+
+| Item | Before | After |
+|---|---:|---:|
+| `index.html` lines | 5,727 | 5,688 |
+| `public/js/data/constants.js` lines | 200 | 296 |
+
+### Extracted constants
+
+- `UFC_DIVISION_SHORT_LABELS`
+- `UFC_DIVISION_FULL_LABELS`
+- `UFC_DIVISION_NAME_MAP`
+- `UFC_TREND_TEXT_CLASS`
+- `NEWS_CATEGORY_KEYWORDS`
+- `MMA_NEWS_KEYWORDS`
+- `NEWS_CATEGORY_BAR_CLASS`
+- `NEWS_CATEGORY_BAR_COLOR`
+- `NEWS_CATEGORY_BADGE_CLASS`
+- `NEWS_CATEGORY_LABEL`
+
+These values are static label, class, color, and keyword maps. They now live in `public/js/data/constants.js`, while existing UFC ranking and news functions continue to own filtering, rendering, and event behavior.
+
+### Verification
+
+- [x] `public/js/data/constants.js` syntax check PASS
+- [x] UFC ranking division labels and trend classes reference shared constants
+- [x] UFC.com division name mapping references shared constants
+- [x] News category keyword, badge, bar, and label maps reference shared constants
+- [x] `npm run build` PASS
+- [x] Expected local env placeholder warnings only (`%VITE_*%`)

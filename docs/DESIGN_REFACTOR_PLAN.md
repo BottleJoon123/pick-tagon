@@ -796,6 +796,7 @@ Phase 5A에서 학습한 패턴 적용:
 | Phase 9B: index.html inline CSS 분리 | **완료** | `Refactor: Move remaining low-risk inline CSS` |
 | Phase 9C: inline UFC ranking data extraction | **완료** | `Refactor: Extract UFC ranking seed constants` |
 | Phase 9C-2: inline shared UI constants extraction | **완료** | `Refactor: Extract shared inline UI constants` |
+| Phase 9C-3: inline label/category map extraction | **완료** | `Refactor: Extract inline label category maps` |
 
 > Phase 6 마감 문서 → [`docs/PHASE6_VISIBLE_DESIGN_CLOSEOUT.md`](PHASE6_VISIBLE_DESIGN_CLOSEOUT.md)  
 > Phase 7A/7B/7B-QA/7C 전환 계획 및 결과 → [`docs/TAILWIND_CDN_MIGRATION_PLAN.md`](TAILWIND_CDN_MIGRATION_PLAN.md)  
