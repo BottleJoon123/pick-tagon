@@ -425,3 +425,69 @@ CDN 방식은 index.html의 `<script>` 한 줄이므로 롤백이 매우 쉽다.
 - [`docs/PHASE6_VISIBLE_DESIGN_CLOSEOUT.md`](PHASE6_VISIBLE_DESIGN_CLOSEOUT.md) — Phase 6 현황 및 기술부채
 - [`docs/DESIGN_REFACTOR_PLAN.md`](DESIGN_REFACTOR_PLAN.md) — 전체 진행 현황
 - [`docs/QA_RUN_2026-05-24_BROWSER_DESIGN.md`](QA_RUN_2026-05-24_BROWSER_DESIGN.md) — 브라우저 QA 기준
+
+---
+
+## 12. Phase 7B 실행 결과 (2026-05-25)
+
+**커밋:** `Refactor: Replace Tailwind CDN with build pipeline`  
+**기준 커밋:** `4938e0d` (Phase 7A doc)
+
+### 실행 요약
+
+| 단계 | 결과 |
+|---|---|
+| `npm install -D tailwindcss@3.4.19 postcss autoprefixer` | 설치 완료 |
+| `npm install -D tailwind-scrollbar-hide@4.0.0` | 설치 완료 (주의사항 아래 참고) |
+| `tailwind.config.js` 생성 | 완료 |
+| `postcss.config.cjs` 생성 | 완료 |
+| `src/tailwind.css` 생성 | 완료 |
+| `index.html` CDN `<script>` 제거 + `<link>` 추가 | 완료 |
+| `.gitignore`에 `dist/` 추가 | 완료 |
+| `git rm -r --cached dist/` | 완료 (22개 파일 untrack) |
+| `npm run build` | **통과** — `dist/assets/index-*.css` 50.16 kB / 8.77 kB gzip |
+
+### 계획 대비 실제 변경 사항
+
+**`tailwind-scrollbar-hide` v4 ESM 호환성 이슈:**  
+`tailwind-scrollbar-hide@4.0.0`은 ESM-only (`export default`) — CJS `require()` 방식의 `tailwind.config.js`에서 직접 `require` 불가.  
+→ 해결: 플러그인 로직을 `tailwind.config.js`에 직접 인라인 (20줄, `tailwindcss/plugin` 사용).
+
+**`preflight` 비활성화:**  
+Phase 7A 계획에서 "충돌 시 고려"였던 `corePlugins.preflight: false`를  
+Phase 7B 실행 시 선제적으로 적용. 기존 `app.css`의 base reset과 충돌 방지.
+
+**`index.html` link href 형식:**  
+계획서의 `/src/tailwind.css` (절대 경로) 대신 `./src/tailwind.css` (상대 경로) 사용.  
+Vite dev server에서 상대 경로가 프로젝트 루트 기준으로 처리됨 — 동작 동일.
+
+### 빌드 결과 검증
+
+| 항목 | 계획 예측 | 실제 결과 |
+|---|---|---|
+| CSS 번들 크기 | ~20-40KB gzip 예상 | 50.16 kB raw / **8.77 kB gzip** ✓ |
+| `text-ufcRed` | 컴파일 포함 예상 | 26 hits in compiled CSS ✓ |
+| `scrollbar-hide` | 플러그인 필요 | 2 hits in compiled CSS ✓ |
+| `text-[10px]`, `[9px]`, `[8px]` | arbitrary value 포함 | compiled CSS에 포함 ✓ |
+| `border-ufcRed\/50`, `bg-ufcRed\/10` | opacity modifier | compiled CSS에 포함 ✓ |
+| `clamp()`, `hidden`, `flex`, `grid` | 기본 유틸리티 | compiled CSS에 포함 ✓ |
+| cascade 위치 (dist) | head 말미 예상 | `dist/index.html` line 420 (</head> 전) ✓ |
+
+### 완료 기준
+
+- [x] Tailwind CDN `<script>` 제거 (`index.html`)
+- [x] inline `tailwind.config` 스크립트 제거 (`index.html`)
+- [x] `tailwind.config.js` 생성 (scrollbar-hide 인라인 포함)
+- [x] `postcss.config.cjs` 생성
+- [x] `src/tailwind.css` 생성
+- [x] `npm run build` 통과 — 50.16 kB / 8.77 kB gzip
+- [x] `dist/` git 추적 제외 (`.gitignore` + `git rm --cached`)
+- [x] docs 업데이트
+- [x] 커밋: `Refactor: Replace Tailwind CDN with build pipeline`
+
+### 후속 확인 필요 (브라우저 QA)
+
+- [ ] 전체 UI 시각 회귀 없음 확인 (ufcRed 컬러, arbitrary sizes, responsive breakpoints)
+- [ ] `scrollbar-hide` 동작 확인 (`#division-tabs`)
+- [ ] Preflight 비활성화 — 기존 reset과 충돌 없음 확인
+- [ ] Specificity 순서 변화 → app.css 규칙 정상 우선 확인

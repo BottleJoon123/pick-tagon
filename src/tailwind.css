@@ -1,0 +1,6 @@
+/* Pick-tagon Tailwind entry — processed by Vite/PostCSS at build time.
+   preflight disabled (tailwind.config.js corePlugins.preflight:false)
+   Load order in index.html: tokens → theme-bridge → HERE → app.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
