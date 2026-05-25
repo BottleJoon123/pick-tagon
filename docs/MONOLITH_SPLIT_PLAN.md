@@ -447,3 +447,32 @@ Both constants now live in `public/js/data/constants.js`, which already loads be
 - [x] `UFC_DIVISIONS` references remain valid for `index.html` and `public/js/h2h.js`
 - [x] `npm run build` PASS
 - [x] Expected local env placeholder warnings only (`%VITE_*%`)
+
+---
+
+## Phase 9C-2 implementation result (2026-05-25)
+
+### Changed
+
+| Item | Before | After |
+|---|---:|---:|
+| `index.html` lines | 5,742 | 5,727 |
+| `public/js/data/constants.js` lines | 180 | 200 |
+
+### Extracted constants
+
+- `STAT_LABELS`
+- `STAT_COLORS`
+- `BET_METHOD_CONFIG`
+- `FIGHT_METHOD_TEXT_CLASS`
+
+These values now live in `public/js/data/constants.js`, which loads before `admin.js`, `h2h.js`, and the main inline script. The affected functions now reference shared constants without changing event flow or DOM structure.
+
+### Verification
+
+- [x] `public/js/data/constants.js` syntax check PASS
+- [x] Bet slip method selection still references the same method keys
+- [x] Fighter profile radar/stat labels still reference `STAT_LABELS` / `STAT_COLORS`
+- [x] Admin fighter stat sliders continue to use shared `STAT_LABELS`
+- [x] `npm run build` PASS
+- [x] Expected local env placeholder warnings only (`%VITE_*%`)

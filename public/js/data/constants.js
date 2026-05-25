@@ -1,5 +1,25 @@
 ﻿const BET_COST = 100;
 
+const STAT_LABELS = ['Striking', 'Grappling', 'Stamina', 'Defense', 'Speed'];
+const STAT_COLORS = ['#E10600', '#3b82f6', '#22c55e', '#f59e0b', '#a855f7'];
+
+const BET_METHOD_CONFIG = {
+    'KO/TKO': { key:'ko', sel:'bs-sel-ko',  bonus: 0.3, label:'🥊 KO/TKO 예측 · +30% 보너스' },
+    'SUB':    { key:'sub', sel:'bs-sel-sub', bonus: 0.5, label:'🤼 서브미션 예측 · +50% 보너스' },
+    'UD':     { key:'ud',  sel:'bs-sel-ud',  bonus: 0,   label:'📋 판정 예측 · 기본 배당' },
+    'ANY':    { key:'any', sel:'bs-sel-any', bonus: 0,   label:'🎲 방식 무관' },
+};
+
+const FIGHT_METHOD_TEXT_CLASS = {
+    'KO/TKO': 'text-ufcRed',
+    'SUB': 'text-purple-400',
+    'UD': 'text-blue-400',
+    'SD': 'text-yellow-400',
+    'MD': 'text-orange-400',
+    'DQ': 'text-gray-400',
+    'NC': 'text-gray-500',
+};
+
 const UNSPLASH_DEFAULTS = {
     'NEWS':     'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80',
     'RANKING':  'https://images.unsplash.com/photo-1590556409324-aa1d726e5c3c?auto=format&fit=crop&q=80',

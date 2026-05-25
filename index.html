@@ -2520,13 +2520,7 @@
     }
 
     function selectMethod(method) {
-        var METHOD_MAP = {
-            'KO/TKO': { key:'ko', sel:'bs-sel-ko',  bonus: 0.3, label:'🥊 KO/TKO 예측 · +30% 보너스' },
-            'SUB':    { key:'sub', sel:'bs-sel-sub', bonus: 0.5, label:'🤼 서브미션 예측 · +50% 보너스' },
-            'UD':     { key:'ud',  sel:'bs-sel-ud',  bonus: 0,   label:'📋 판정 예측 · 기본 배당' },
-            'ANY':    { key:'any', sel:'bs-sel-any', bonus: 0,   label:'🎲 방식 무관' },
-        };
-        var m = METHOD_MAP[method];
+        var m = BET_METHOD_CONFIG[method];
         if (!m) return;
 
         // 이전 선택 제거
@@ -3099,9 +3093,6 @@ async function publishPost() {
     ============================== */
     let fpRadarChart = null;
 
-    const STAT_LABELS = ['Striking', 'Grappling', 'Stamina', 'Defense', 'Speed'];
-    const STAT_COLORS = ['#E10600', '#3b82f6', '#22c55e', '#f59e0b', '#a855f7'];
-
     async function openFighterProfile(fighter) {
         // If passed as string (from onclick attr), parse it
         if (typeof fighter === 'string') fighter = JSON.parse(fighter);
@@ -3249,12 +3240,6 @@ async function publishPost() {
         const el = document.getElementById('fp-history');
         const nameLower = name.toLowerCase();
 
-        const METHOD_COLOR = {
-            'KO/TKO': 'text-ufcRed', 'SUB': 'text-purple-400',
-            'UD': 'text-blue-400', 'SD': 'text-yellow-400',
-            'MD': 'text-orange-400', 'DQ': 'text-gray-400', 'NC': 'text-gray-500'
-        };
-
         const results = [];
         (archiveDB || []).forEach(ev => {
             (ev.fights || []).forEach(f => {
@@ -3275,7 +3260,7 @@ async function publishPost() {
         results.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
         el.innerHTML = results.map(r => {
-            const methodCls = METHOD_COLOR[r.method] || 'text-gray-400';
+            const methodCls = FIGHT_METHOD_TEXT_CLASS[r.method] || 'text-gray-400';
             const resultLabel = r.won ? 'WIN' : 'LOSS';
             const resultCls = r.won ? 'text-green-400 bg-green-400/10 border-green-400/20' : 'text-red-400 bg-red-400/10 border-red-400/20';
             return `
