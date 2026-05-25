@@ -1941,6 +1941,9 @@
             <input id="auth-password" type="password" placeholder="비밀번호 (6자 이상)"
                 class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500 text-sm"
                 onkeydown="if(event.key==='Enter') submitAuth()">
+            <input id="auth-password-confirm" type="password" placeholder="비밀번호 확인"
+                class="hidden w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500 text-sm"
+                onkeydown="if(event.key==='Enter') submitAuth()">
             <input id="auth-nickname" type="text" placeholder="닉네임 (회원가입 시)"
                 class="hidden w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500 text-sm">
         </div>
@@ -1948,7 +1951,12 @@
         <p id="auth-error" class="text-red-400 text-xs mb-4 hidden"></p>
 
         <button onclick="submitAuth()" id="auth-submit-btn"
-            class="w-full btn-red py-4 text-base mb-4">로그인</button>
+            class="w-full btn-red py-4 text-base mb-3">로그인</button>
+
+        <button type="button" onclick="handlePasswordReset()" id="auth-reset-link"
+            class="text-gray-500 text-xs hover:text-gray-300 transition mb-4 w-full">
+            비밀번호를 잊으셨나요?
+        </button>
 
         <button onclick="skipAuth()" class="text-gray-600 text-xs hover:text-gray-400 transition">
             로그인 없이 계속 (기능 제한)
@@ -3877,31 +3885,46 @@ async function publishPost() {
         var loginBtn = document.getElementById('auth-tab-login');
         var signupBtn = document.getElementById('auth-tab-signup');
         var nicknameInput = document.getElementById('auth-nickname');
+        var confirmInput = document.getElementById('auth-password-confirm');
+        var resetLink = document.getElementById('auth-reset-link');
         var submitBtn = document.getElementById('auth-submit-btn');
         if (tab === 'login') {
             loginBtn.className = loginBtn.className.replace('text-gray-500', 'bg-ufcRed text-white');
             signupBtn.className = signupBtn.className.replace('bg-ufcRed text-white', 'text-gray-500');
             nicknameInput.classList.add('hidden');
+            if (confirmInput) confirmInput.classList.add('hidden');
+            if (resetLink) resetLink.classList.remove('hidden');
             submitBtn.textContent = '로그인';
         } else {
             signupBtn.className = signupBtn.className.replace('text-gray-500', 'bg-ufcRed text-white');
             loginBtn.className = loginBtn.className.replace('bg-ufcRed text-white', 'text-gray-500');
             nicknameInput.classList.remove('hidden');
+            if (confirmInput) confirmInput.classList.remove('hidden');
+            if (resetLink) resetLink.classList.add('hidden');
             submitBtn.textContent = '회원가입';
         }
-        document.getElementById('auth-error').classList.add('hidden');
+        var errEl = document.getElementById('auth-error');
+        errEl.classList.add('hidden');
+        errEl.style.color = '';
     }
 
     function submitAuth() {
-        if (!sb) { showToast('⚠ 서버 연결 중입니다'); return; }
         var email = document.getElementById('auth-email').value.trim();
         var password = document.getElementById('auth-password').value;
         var nickname = document.getElementById('auth-nickname').value.trim();
         var errEl = document.getElementById('auth-error');
+        errEl.style.color = '';
         errEl.classList.add('hidden');
 
         if (!email || !password) { errEl.textContent = '이메일과 비밀번호를 입력하세요'; errEl.classList.remove('hidden'); return; }
-        if (authTab === 'signup' && !nickname) { errEl.textContent = '닉네임을 입력하세요'; errEl.classList.remove('hidden'); return; }
+        if (authTab === 'signup') {
+            if (!nickname) { errEl.textContent = '닉네임을 입력하세요'; errEl.classList.remove('hidden'); return; }
+            var confirmPw = document.getElementById('auth-password-confirm').value;
+            if (password !== confirmPw) { errEl.textContent = '비밀번호가 일치하지 않습니다'; errEl.classList.remove('hidden'); return; }
+            if (password.length < 6) { errEl.textContent = '비밀번호는 6자 이상이어야 합니다'; errEl.classList.remove('hidden'); return; }
+        }
+
+        if (!sb) { showToast('⚠ 서버 연결 중입니다'); return; }
 
         var submitBtn = document.getElementById('auth-submit-btn');
         submitBtn.textContent = '처리 중...';
@@ -3933,10 +3956,17 @@ async function publishPost() {
                     errEl.textContent = res.error.message;
                     errEl.classList.remove('hidden');
                 } else if (res.data && res.data.user) {
-                    // 유저 프로필 생성
-                    createUserProfile(res.data.user.id, nickname);
-                    showToast('🎉 환영해요! 이메일을 확인해주세요');
-                    document.getElementById('auth-modal').classList.add('hidden');
+                    if (!res.data.session) {
+                        // 이메일 인증 필요 — 모달 닫지 않고 안내 표시
+                        errEl.style.color = '#4ade80';
+                        errEl.textContent = '📧 가입 완료! 이메일 받은 편지함에서 인증 링크를 클릭하세요';
+                        errEl.classList.remove('hidden');
+                    } else {
+                        // 즉시 세션 (이메일 인증 불필요 설정)
+                        createUserProfile(res.data.user.id, nickname);
+                        showToast('🎉 환영해요!');
+                        document.getElementById('auth-modal').classList.add('hidden');
+                    }
                 }
             }).catch(function() {
                 submitBtn.disabled = false;
@@ -3945,6 +3975,35 @@ async function publishPost() {
                 errEl.classList.remove('hidden');
             });
         }
+    }
+
+    function handlePasswordReset() {
+        var email = document.getElementById('auth-email').value.trim();
+        var errEl = document.getElementById('auth-error');
+        errEl.style.color = '';
+        errEl.classList.add('hidden');
+        if (!email) {
+            errEl.textContent = '이메일을 먼저 입력하세요';
+            errEl.classList.remove('hidden');
+            document.getElementById('auth-email').focus();
+            return;
+        }
+        if (!sb) { showToast('⚠ 서버 연결 중입니다'); return; }
+        var redirectTo = window.location.origin + window.location.pathname;
+        sb.auth.resetPasswordForEmail(email, { redirectTo: redirectTo })
+        .then(function(res) {
+            if (res.error) {
+                errEl.textContent = '재설정 메일 발송 실패: ' + res.error.message;
+                errEl.classList.remove('hidden');
+            } else {
+                errEl.style.color = '#4ade80';
+                errEl.textContent = '📧 비밀번호 재설정 메일을 발송했습니다. 이메일을 확인하세요';
+                errEl.classList.remove('hidden');
+            }
+        }).catch(function() {
+            errEl.textContent = '네트워크 오류가 발생했습니다. 다시 시도해주세요';
+            errEl.classList.remove('hidden');
+        });
     }
 
     async function runSupabaseMutation(operation, failureMessage) {
