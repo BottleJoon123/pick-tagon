@@ -1,4 +1,4 @@
-/* ==============================
+﻿/* ==============================
    SEASON SYSTEM
    (extracted from index.html – global functions, no import/export)
    의존성: state.js (seasonData, mockRankings, state, sb, currentUser)
@@ -180,13 +180,13 @@ function renderHallOfFame() {
                 <span class="oswald-sharp text-[9px] text-gray-600 italic uppercase tracking-widest hidden lg:block">Season ${hof.length - si}</span>
             </div>
             <!-- Top 3 -->
-            <div class="divide-y divide-white/[0.04]">
+            <div class="divide-y divide-white/4">
                 ${(season.top3 || []).map((p, i) => {
                     const rankNum   = Number(p.rank) || (i + 1);
                     const beltStyle = BELT_STYLES[p.belt] || 'text-white';
-                    const bgGlow    = rankNum === 1 ? 'bg-yellow-500/[0.03]' : '';
+                    const bgGlow    = rankNum === 1 ? 'bg-yellow-500/3' : '';
                     return `
-                    <div class="flex items-center justify-between px-6 lg:px-10 py-4 lg:py-5 ${bgGlow} hover:bg-white/[0.02] transition">
+                    <div class="flex items-center justify-between px-6 lg:px-10 py-4 lg:py-5 ${bgGlow} hover:bg-white/2 transition">
                         <div class="flex items-center gap-4">
                             <span class="text-lg lg:text-2xl w-8 text-center flex-shrink-0">${MEDAL[rankNum - 1] || `#${rankNum}`}</span>
                             <div>
@@ -303,7 +303,7 @@ function renderAdminSeasonTop3(rankings) {
         const belt = getBeltInfo(u.points);
         const acc = u.total === 0 ? '0%' : Math.round(u.success / u.total * 100) + '%';
         return `
-        <div class="flex items-center justify-between py-3 px-4 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+        <div class="flex items-center justify-between py-3 px-4 rounded-xl bg-white/2 border border-white/4">
             <div class="flex items-center gap-3">
                 <span class="text-base w-7">${MEDAL[i]}</span>
                 <div>
@@ -352,7 +352,7 @@ function confirmSeasonReset() {
     // 실제 Top3는 admin_end_season RPC가 서버 users 테이블 기준으로 확정 계산
     // 클라이언트 mockRankings와 다를 수 있으므로 가짜 프리뷰를 표시하지 않음
     preview.innerHTML = `
-        <div class="py-3 px-4 rounded-xl bg-white/[0.03] border border-yellow-500/10 text-center">
+        <div class="py-3 px-4 rounded-xl bg-white/3 border border-yellow-500/10 text-center">
             <p class="oswald-sharp text-[10px] text-yellow-500/60 italic uppercase tracking-widest">최종 Top 3는 서버의 현재 users 랭킹 기준으로 저장됩니다.</p>
         </div>`;
 

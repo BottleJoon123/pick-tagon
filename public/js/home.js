@@ -1,4 +1,4 @@
-/* ==============================
+﻿/* ==============================
    HOME PAGE CONTROLLER
    의존성: state.js (state, archiveDB), admin.js (getActiveFights), supabase.js (sb)
 ============================== */
@@ -213,7 +213,7 @@ function renderNewsCards(newsItems) {
             var safeTitle = String(title).replace(/</g,'&lt;');
             var safeSource = String(source).replace(/</g,'&lt;');
             return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="block group">' +
-                '<div class="glass-card rounded-2xl overflow-hidden border border-white/[0.06] hover:border-white/20 transition-all duration-300 hover:scale-[1.02]">' +
+                '<div class="glass-card rounded-2xl overflow-hidden border border-white/6 hover:border-white/20 transition-all duration-300 hover:scale-[1.02]">' +
                 '<div class="relative overflow-hidden" style="height:170px">' +
                 '<img src="' + imgSrc + '" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.src=\'' + _NEWS_FALLBACK_IMG + '\'">' +
                 '<div class="absolute inset-0 pointer-events-none" style="background:linear-gradient(to top,rgba(0,0,0,0.55) 0%,transparent 55%)"></div>' +

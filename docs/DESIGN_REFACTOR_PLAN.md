@@ -786,9 +786,10 @@ Phase 5A에서 학습한 패턴 적용:
 | **Phase 6 Closeout** | **완료** | `Docs: Close out visible design round` |
 | Phase 7A: Tailwind CDN migration plan | **완료** | `Docs: Plan Tailwind CDN migration` |
 | Phase 7B: Tailwind CDN → npm 전환 실행 | **완료** | `Refactor: Replace Tailwind CDN with build pipeline` |
+| Phase 7B-QA: Tailwind build regression QA | **완료** | `Fix: Polish Tailwind build migration QA findings` |
 
 > Phase 6 마감 문서 → [`docs/PHASE6_VISIBLE_DESIGN_CLOSEOUT.md`](PHASE6_VISIBLE_DESIGN_CLOSEOUT.md)  
-> Phase 7A/7B 전환 계획 및 결과 → [`docs/TAILWIND_CDN_MIGRATION_PLAN.md`](TAILWIND_CDN_MIGRATION_PLAN.md)
+> Phase 7A/7B/7B-QA 전환 계획 및 결과 → [`docs/TAILWIND_CDN_MIGRATION_PLAN.md`](TAILWIND_CDN_MIGRATION_PLAN.md)
 
 ---
 

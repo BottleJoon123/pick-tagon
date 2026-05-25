@@ -1,4 +1,4 @@
-/* ==============================
+﻿/* ==============================
    PROFILE STATS
    (extracted from index.html – global functions, no import/export)
    의존성: state.js (state), community.js (getBeltInfo, getRollingScore), utils.js (escapeHtml)
@@ -210,7 +210,7 @@ function renderProfileReport() {
             { label: 'NET WIN 포인트', value: totalEarned.toLocaleString() + 'P',   sub: `잔액 ${state.points.toLocaleString()}P`, color: 'text-yellow-400' },
             { label: '업셋 픽 성공',   value: upsetWins + '회',                     sub: upsetSub,  color: 'text-orange-400' },
         ].map(item => `
-            <div class="bg-black/30 rounded-2xl p-4 border border-white/[0.08]">
+            <div class="bg-black/30 rounded-2xl p-4 border border-white/8">
                 <p class="oswald-sharp text-[10px] text-gray-400 uppercase tracking-widest italic mb-2">${item.label}</p>
                 <p class="oswald-sharp text-xl lg:text-2xl font-black italic leading-none ${item.color}">${item.value}</p>
                 <p class="oswald-sharp text-[10px] text-gray-500 italic mt-2 truncate">${item.sub}</p>
@@ -265,7 +265,7 @@ function renderDivisionStats() {
                         <span class="oswald-sharp text-xs font-black italic ${accColor}">${accText}</span>
                     </div>
                 </div>
-                <div class="h-2 rounded-full bg-white/[0.08] overflow-hidden">
+                <div class="h-2 rounded-full bg-white/8 overflow-hidden">
                     <div class="h-full rounded-full transition-all duration-700 ${barColor}" style="width:${barW}%"></div>
                 </div>
             </div>`;
@@ -310,7 +310,7 @@ function renderDivisionStats() {
                     <span class="oswald-sharp text-xs font-black italic ${acc >= 70 ? 'text-ufcRed' : acc >= 50 ? 'text-white' : 'text-gray-500'}">${acc}%</span>
                 </div>
             </div>
-            <div class="h-2 rounded-full bg-white/[0.08] overflow-hidden">
+            <div class="h-2 rounded-full bg-white/8 overflow-hidden">
                 <div class="h-full rounded-full transition-all duration-700 ${acc >= 70 ? 'bg-ufcRed' : acc >= 50 ? 'bg-blue-500' : 'bg-white/20'}"
                     style="width:${acc}%"></div>
             </div>
@@ -380,7 +380,7 @@ function renderMethodStats() {
                     <span class="oswald-sharp text-xs font-black italic text-gray-300 uppercase min-w-0 truncate max-w-[55%]">${cfg.icon} ${m.method}</span>
                     <span class="oswald-sharp text-xs font-black italic shrink-0 ${pctColor}">${pctText}</span>
                 </div>
-                <div class="h-2 rounded-full bg-white/[0.08] overflow-hidden">
+                <div class="h-2 rounded-full bg-white/8 overflow-hidden">
                     <div class="h-full rounded-full ${cfg.color} transition-all duration-700" style="width:${pct}%"></div>
                 </div>
                 <p class="oswald-sharp text-[10px] text-gray-500 italic mt-1">${wins}승 / ${total}정산</p>
@@ -416,7 +416,7 @@ function renderMethodStats() {
                     ${total === 0 ? '—' : pct + '%'}
                 </span>
             </div>
-            <div class="h-2 rounded-full bg-white/[0.08] overflow-hidden">
+            <div class="h-2 rounded-full bg-white/8 overflow-hidden">
                 <div class="h-full rounded-full ${m.color} transition-all duration-700" style="width:${pct}%"></div>
             </div>
             <p class="oswald-sharp text-[10px] text-gray-500 italic mt-1">${total === 0 ? '데이터 없음' : `${wins}승 / ${total}경기`}</p>

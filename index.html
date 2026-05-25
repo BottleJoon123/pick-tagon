@@ -813,7 +813,7 @@
 
             <!-- Desktop Sidebar — sticky UFC Schedule -->
             <aside class="hidden lg:block w-[268px] flex-shrink-0 sticky top-24 self-start">
-                <div class="glass-card rounded-2xl overflow-hidden border border-white/[0.07]">
+                <div class="glass-card rounded-2xl overflow-hidden border border-white/7">
                     <div class="flex items-center justify-between px-4 py-3 border-b border-white/10" style="background:rgba(0,0,0,0.4)">
                         <span class="oswald-sharp text-[10px] font-black italic uppercase tracking-[0.2em] text-gray-300">UFC 일정</span>
                         <span class="oswald-sharp text-[8px] italic text-gray-600 uppercase tracking-widest">History &amp; Schedule</span>
@@ -927,7 +927,7 @@
 
         <!-- Leaderboard Table (개인) -->
         <div id="leaderboard-player-panel" class="glass-card rounded-[2rem] overflow-hidden">
-            <div class="grid grid-cols-12 px-6 lg:px-10 py-4 lg:py-5 border-b border-white/[0.06] bg-white/[0.02]">
+            <div class="grid grid-cols-12 px-6 lg:px-10 py-4 lg:py-5 border-b border-white/6 bg-white/2">
                 <span class="col-span-1 oswald-sharp text-[8px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest text-center">#</span>
                 <span class="col-span-5 oswald-sharp text-[8px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest pl-2">Fighter</span>
                 <span class="col-span-3 oswald-sharp text-[8px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest text-center">Points</span>
@@ -1129,9 +1129,9 @@
             <div id="bt-stops" class="pt-belt-line">
                 <div class="progress-fill" id="bt-line-fill"></div>
             </div>
-            <div class="flex items-center gap-3 mt-4 pt-3 border-t border-white/[0.06]">
+            <div class="flex items-center gap-3 mt-4 pt-3 border-t border-white/6">
                 <span id="bt-prog-label" class="oswald-sharp text-[9px] text-gray-500 italic uppercase tracking-widest shrink-0"></span>
-                <div class="flex-1 h-2 rounded-full bg-white/[0.08] overflow-hidden">
+                <div class="flex-1 h-2 rounded-full bg-white/8 overflow-hidden">
                     <div id="bt-prog-fill" class="h-full rounded-full transition-all duration-700" style="width:0%;background:linear-gradient(90deg,rgba(139,63,227,0.90),rgba(181,128,58,0.80))"></div>
                 </div>
                 <span id="bt-prog-text" class="oswald-sharp text-[10px] font-black italic text-white shrink-0"></span>
@@ -2187,7 +2187,7 @@
             <!-- 본문 -->
             <div id="nd-content" class="text-gray-300 text-sm lg:text-[15px] leading-relaxed mb-8 whitespace-pre-wrap hidden"></div>
             <!-- 출처 링크 -->
-            <div class="border-t border-white/08 pt-5 flex items-center justify-between gap-4">
+            <div class="border-t border-white/8 pt-5 flex items-center justify-between gap-4">
                 <span id="nd-source-label" class="oswald-sharp text-[10px] text-gray-600 italic uppercase tracking-widest"></span>
                 <a id="nd-source-link" href="#" target="_blank" rel="noopener"
                    class="oswald-sharp bg-ufcRed/10 hover:bg-ufcRed text-ufcRed hover:text-white border border-ufcRed/30 hover:border-ufcRed font-black italic text-[11px] uppercase tracking-widest px-5 py-2.5 rounded-xl transition-all duration-300">
@@ -2665,7 +2665,7 @@
         // 현재(진행 중) 이벤트
         if (currentEvent) {
             const dateLabel = currentEvent.event_date ? new Date(currentEvent.event_date).toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric'}) : '';
-            html += `<div class="px-4 py-3 border-b border-white/[0.06]" style="background:rgba(225,6,0,0.07)">
+            html += `<div class="px-4 py-3 border-b border-white/6" style="background:rgba(225,6,0,0.07)">
                 <div class="flex items-center gap-2 mb-1">
                     <span class="w-1.5 h-1.5 rounded-full bg-ufcRed flex-shrink-0" style="box-shadow:0 0 6px rgba(225,6,0,0.8)"></span>
                     <span class="oswald-sharp text-[8px] font-black italic uppercase tracking-widest text-ufcRed">진행 중 / 예정</span>
@@ -2677,7 +2677,7 @@
             // DB 이벤트 없으면 localStorage fallback
             const n = (typeof eventInfo !== 'undefined' && eventInfo.name) ? eventInfo.name : 'UFC 이벤트';
             const d = (typeof eventInfo !== 'undefined' && eventInfo.date) ? eventInfo.date : '';
-            html += `<div class="px-4 py-3 border-b border-white/[0.06]" style="background:rgba(225,6,0,0.07)">
+            html += `<div class="px-4 py-3 border-b border-white/6" style="background:rgba(225,6,0,0.07)">
                 <div class="flex items-center gap-2 mb-1">
                     <span class="w-1.5 h-1.5 rounded-full bg-ufcRed flex-shrink-0" style="box-shadow:0 0 6px rgba(225,6,0,0.8)"></span>
                     <span class="oswald-sharp text-[8px] font-black italic uppercase tracking-widest text-ufcRed">진행 중</span>
@@ -2693,7 +2693,7 @@
             html += `<div class="px-4 pt-3 pb-1"><span class="oswald-sharp text-[8px] text-blue-400 uppercase tracking-widest italic">예정된 이벤트</span></div>`;
             futureEvents.forEach(function(ev) {
                 const dateLabel = ev.event_date ? new Date(ev.event_date).toLocaleDateString('ko-KR', {month:'short',day:'numeric'}) : '날짜 미정';
-                html += `<div class="px-4 py-2 border-b border-white/[0.04] hover:bg-white/[0.03] transition">
+                html += `<div class="px-4 py-2 border-b border-white/4 hover:bg-white/3 transition">
                     <p class="oswald-sharp text-xs font-black italic uppercase text-gray-300 leading-tight">${escapeHtml(ev.title)}</p>
                     <p class="oswald-sharp text-[9px] text-blue-500/70 italic mt-0.5">${dateLabel}</p>
                 </div>`;
@@ -2707,7 +2707,7 @@
             past.forEach(function(ev) {
                 const mainFight = (ev.fights && ev.fights[0]) ? `${ev.fights[0].f1} vs ${ev.fights[0].f2}` : '';
                 const winner = (ev.fights && ev.fights[0] && ev.fights[0].winner) ? ev.fights[0].winner : '';
-                html += `<div class="px-4 py-2.5 border-b border-white/[0.04] hover:bg-white/[0.03] transition cursor-pointer" onclick="navigateTo('archive')">
+                html += `<div class="px-4 py-2.5 border-b border-white/4 hover:bg-white/3 transition cursor-pointer" onclick="navigateTo('archive')">
                     <p class="oswald-sharp text-xs font-black italic uppercase text-gray-400 leading-tight">${ev.name}</p>
                     <p class="oswald-sharp text-[9px] text-gray-600 italic mt-0.5">${ev.date || ''}</p>
                     ${mainFight ? `<p class="oswald-sharp text-[8px] text-gray-700 italic mt-1 truncate">메인: ${mainFight}</p>` : ''}
@@ -3297,7 +3297,7 @@ async function publishPost() {
             const name = u.nickname || '익명';
 
             return `
-            <div class="grid grid-cols-12 px-6 lg:px-10 py-4 lg:py-5 border-b border-white/5 items-center hover:bg-white/[0.02] transition ${userStyle}">
+            <div class="grid grid-cols-12 px-6 lg:px-10 py-4 lg:py-5 border-b border-white/5 items-center hover:bg-white/2 transition ${userStyle}">
                 <div class="col-span-1 text-center">
                     ${rank <= 3
                         ? `<span class="text-base">${medals[rank-1]}</span>`
@@ -3425,7 +3425,7 @@ async function publishPost() {
             const belt = getBeltInfo(u.points);
             const isUser = u.isUser;
             return `
-            <div class="grid grid-cols-12 px-6 lg:px-10 py-5 lg:py-7 border-b border-white/[0.06] items-center transition-all hover:bg-white/[0.03] ${rank<=3?`border-l-4 lb-row-top${rank}`:''} ${isUser?'lb-row-me':''}">
+            <div class="grid grid-cols-12 px-6 lg:px-10 py-5 lg:py-7 border-b border-white/6 items-center transition-all hover:bg-white/3 ${rank<=3?`border-l-4 lb-row-top${rank}`:''} ${isUser?'lb-row-me':''}">
                 <div class="col-span-1 text-center">
                     ${rank <= 3 ? `<span class="text-lg lg:text-2xl">${medals[rank-1]}</span>` : `<span class="oswald-sharp text-gray-500 font-black italic text-sm lg:text-xl">${rank}</span>`}
                 </div>
@@ -3683,7 +3683,7 @@ async function publishPost() {
             const resultLabel = r.won ? 'WIN' : 'LOSS';
             const resultCls = r.won ? 'text-green-400 bg-green-400/10 border-green-400/20' : 'text-red-400 bg-red-400/10 border-red-400/20';
             return `
-            <div class="flex items-center justify-between py-3 px-4 rounded-xl bg-white/[0.02] hover:bg-white/[0.04] transition border border-white/[0.03] gap-3">
+            <div class="flex items-center justify-between py-3 px-4 rounded-xl bg-white/2 hover:bg-white/4 transition border border-white/3 gap-3">
                 <div class="flex items-center gap-3 min-w-0">
                     <span class="oswald-sharp text-[9px] border ${resultCls} px-2 py-1 rounded-lg font-black italic flex-shrink-0">${resultLabel}</span>
                     <div class="min-w-0">
@@ -4225,7 +4225,7 @@ async function publishPost() {
             ${fighters.length === 0
                 ? `<div class="px-10 py-12 text-center oswald-sharp text-xs text-gray-600 italic uppercase tracking-widest">검색 결과 없음</div>`
                 : fighters.map(f => `
-            <div class="grid grid-cols-12 px-5 lg:px-10 py-4 lg:py-5 border-b border-white/5 items-center hover:bg-white/[0.03] transition cursor-pointer group"
+            <div class="grid grid-cols-12 px-5 lg:px-10 py-4 lg:py-5 border-b border-white/5 items-center hover:bg-white/3 transition cursor-pointer group"
                 onclick='openUFCFighterProfile(${JSON.stringify({...f, division: divInfo?.label}).replace(/'/g,"&#39;")})'>
                 <div class="col-span-1 text-center">
                     <span class="oswald-sharp font-black italic text-base lg:text-xl ${f.rank<=3?'text-ufcRed':'text-gray-500'}">${f.rank}</span>

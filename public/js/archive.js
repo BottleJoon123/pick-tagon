@@ -1,4 +1,4 @@
-/* ==============================
+﻿/* ==============================
    ARCHIVE SYSTEM — Supabase 연동
    (localStorage → DB 전환)
    의존성: supabase.js (sb), utils.js (showToast, escapeHtml)
@@ -207,7 +207,7 @@ function renderArchive() {
             <div id="archive-detail-${ev.id}" class="hidden">
                 <div class="divide-y divide-white/5">
                     ${(ev.fights || []).map((f, i) => `
-                    <div class="px-6 lg:px-10 py-4 flex items-center justify-between gap-4 hover:bg-white/[0.02] transition">
+                    <div class="px-6 lg:px-10 py-4 flex items-center justify-between gap-4 hover:bg-white/2 transition">
                         <div class="flex items-center gap-3 min-w-0">
                             <span class="oswald-sharp text-[7px] lg:text-[9px] text-gray-600 italic uppercase tracking-widest flex-shrink-0 w-5 lg:w-8 text-center">${i + 1}</span>
                             <div class="flex items-center gap-2">

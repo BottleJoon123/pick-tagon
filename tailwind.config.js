@@ -23,6 +23,16 @@ module.exports = {
         inter:  ['Inter', 'sans-serif'],
         oswald: ['Oswald', 'sans-serif'],
       },
+      // Non-standard opacity values used as color modifiers (e.g. border-white/6)
+      // Default Tailwind scale only includes multiples of 5; add fine-grained steps
+      opacity: {
+        '2':  '0.02',
+        '3':  '0.03',
+        '4':  '0.04',
+        '6':  '0.06',
+        '7':  '0.07',
+        '8':  '0.08',
+      },
     },
   },
   plugins: [

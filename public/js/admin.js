@@ -1,4 +1,4 @@
-/* ==============================
+﻿/* ==============================
    ADMIN SYSTEM
    (extracted from index.html – global functions, no import/export)
    의존성: state.js (adminUnlocked, adminGateMode, editingFighterId,
@@ -232,7 +232,7 @@ function renderAdminDashboard() {
             : auditRows.map(function(log) {
                 var dt = log.created_at ? log.created_at.slice(0, 16).replace('T', ' ') : '—';
                 return [
-                    '<div class="flex items-center justify-between py-2.5 border-b border-white/[0.04] last:border-0">',
+                    '<div class="flex items-center justify-between py-2.5 border-b border-white/4 last:border-0">',
                     '  <div class="flex items-center gap-3 min-w-0">',
                     '    <span class="oswald-sharp text-[9px] font-black italic text-ufcRed/80 uppercase tracking-widest flex-shrink-0">' + (log.action || '—') + '</span>',
                     '    <span class="oswald-sharp text-[9px] text-gray-600 italic uppercase hidden lg:block">' + (log.entity_table || '—') + '</span>',

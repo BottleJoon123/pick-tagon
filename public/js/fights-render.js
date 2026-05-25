@@ -1,4 +1,4 @@
-/* ==============================
+﻿/* ==============================
    FIGHT CARD RENDERING
    (extracted from index.html – global functions, no import/export)
    의존성: state.js (state, adminUnlocked, customFights), constants.js (BET_COST, FIGHTS),
@@ -212,7 +212,7 @@ function renderStripRow(fight) {
         ? 'border-ufcRed/20 shadow-[0_0_20px_rgba(210,10,10,0.1)]'
         : fight.leftBias < 0.35
         ? 'border-ufcBlue/20 shadow-[0_0_20px_rgba(59,130,246,0.1)]'
-        : 'border-white/[0.06]';
+        : 'border-white/6';
     const f1Last = fight.f1.name.split(' ').pop();
     const f2Last = fight.f2.name.split(' ').pop();
     const divShort = fight.division.replace(' CHAMPIONSHIP', '').replace("WOMEN'S", 'W').trim();

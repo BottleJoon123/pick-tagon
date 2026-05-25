@@ -491,3 +491,99 @@ Vite dev server에서 상대 경로가 프로젝트 루트 기준으로 처리�
 - [ ] `scrollbar-hide` 동작 확인 (`#division-tabs`)
 - [ ] Preflight 비활성화 — 기존 reset과 충돌 없음 확인
 - [ ] Specificity 순서 변화 → app.css 규칙 정상 우선 확인
+
+---
+
+## 13. Phase 7B-QA 결과 (2026-05-25)
+
+**커밋:** `Fix: Polish Tailwind build migration QA findings`  
+**기준 커밋:** `65e064f` (Phase 7B)
+
+### 정적 분석 검증 결과
+
+#### CDN 제거 확인
+- `cdn.tailwindcss.com` 참조: **없음** ✓
+- `tailwind.config =` 인라인 스크립트: **없음** ✓
+- `./src/tailwind.css` link: **존재** (index.html line 10) ✓
+
+#### Build config 확인
+- `tailwind.config.js` content: `./index.html`, `./public/js/**/*.js` ✓
+- `preflight: false` ✓
+- `ufcRed: '#E10600'` ✓
+- `scrollbar-hide` plugin 인라인 ✓
+
+#### 컴파일 클래스 검증
+
+| 카테고리 | 클래스 예시 | 결과 |
+|---|---|---|
+| Custom colors | `text-ufcRed` (26건), `border-ufcRed`, `bg-ufcRed` | ✓ |
+| Custom color opacity | `bg-ufcRed/10`, `border-ufcRed/30`, `text-ufcRed/60` | ✓ |
+| Arbitrary text sizes | `text-[10px]`, `text-[9px]`, `text-[8px]`, `text-[7px]` | ✓ |
+| Arbitrary rounded | `rounded-[2rem]`, `rounded-[3rem]`, `rounded-[4rem]` | ✓ |
+| Arbitrary z-index | `z-[250]`, `z-[650]`, `z-[800]` (12개 값) | ✓ |
+| Arbitrary tracking | `tracking-[0.25em]`, `tracking-[0.3em]` 등 8개 | ✓ |
+| Arbitrary sizes | `max-w-[1440px]`, `max-h-[92vh]`, `lg:w-[280px]` | ✓ |
+| Clamp / vw | `text-[clamp(...)]`, `text-[12vw]` | ✓ |
+| Shadow arbitrary | `shadow-[...]` | ✓ |
+| Scrollbar-hide | `.scrollbar-hide` + `::webkit-scrollbar` | ✓ |
+| Grid / col-span | `grid-cols-1/2/3/4/5/12`, `col-span-1~6` | ✓ |
+| Layout | `hidden`, `flex`, `grid` | ✓ |
+| Responsive (lg:) | `lg:block`, `lg:hidden`, `lg:flex`, `lg:border-l-[12px]` | ✓ |
+| Responsive breakpoints | `sm:` (640px), `md:` (768px), `lg:` (1024px), `xl:` (1280px) | ✓ |
+| White opacity | `border-white/5~40`, `bg-white/2~8`, `divide-white/4~5` | ✓ (fix 후) |
+| Hover responsive | `hover:bg-white/3`, `hover:bg-white/4` | ✓ (fix 후) |
+| Preflight | `box-sizing: border-box` global reset | **없음** ✓ |
+
+### 발견된 이슈 및 수정
+
+#### P1 — 소수점 opacity modifier 컴파일 누락
+
+**원인:** Tailwind v3 에서 `/N` opacity modifier는 `theme.opacity` 스케일 값만 컴파일됨 (기본값: 0, 5, 10, 15, ..., 100). 소수점 브래킷 notation `border-white/[0.06]`은 CDN 런타임 스캐너에서는 동작하지만, 빌드 타임 스캐너에서는 인식 실패.
+
+**영향:** `border-white/[0.06]`, `bg-white/[0.02]`, `hover:bg-white/[0.03]` 등 17개 클래스가 컴파일 CSS에서 누락 → 관련 요소의 미묘한 border/background tint 사라짐.
+
+**수정 1 — 소수점 → 정수 형식 교체** (7개 파일):
+- `[0.06]` → `6`, `[0.07]` → `7`, `[0.08]` → `8` 등
+- `index.html`, `profile.js`, `season.js`, `home.js`, `fights-render.js`, `archive.js`, `admin.js`
+
+**수정 2 — `tailwind.config.js` opacity scale 확장**:
+```javascript
+opacity: {
+  '2': '0.02', '3': '0.03', '4': '0.04',
+  '6': '0.06', '7': '0.07', '8': '0.08',
+},
+```
+기본 스케일에 없는 값(2, 3, 4, 6, 7, 8)을 `theme.extend.opacity`에 추가.
+
+#### P1 — `border-white/08` leading-zero 패턴
+
+**원인:** index.html line 2190에 `border-white/08` (leading zero) — 원래부터 있던 코드. CDN 런타임은 허용했으나 빌드에서 누락.
+
+**수정:** `border-white/08` → `border-white/8` (index.html line 2190).
+
+### 빌드 최종 결과
+
+| 항목 | 값 |
+|---|---|
+| 빌드 성공 | ✓ |
+| CSS 파일 | `dist/assets/index-VBAm_2fP.css` |
+| CSS 크기 | 50.11 kB raw / **8.75 kB gzip** |
+| 빌드 시간 | 1.07s |
+
+### 완료 기준
+
+- [x] CDN 제거 확인
+- [x] 주요 클래스 컴파일 전체 검증 (arbitrary, responsive, custom colors, opacity modifiers)
+- [x] P1 fix: 소수점 opacity → 정수 형식 (7개 파일)
+- [x] P1 fix: leading-zero `border-white/08` → `border-white/8`
+- [x] P1 fix: `tailwind.config.js` opacity scale 확장
+- [x] `npm run build` 통과 — 50.11 kB / 8.75 kB gzip
+- [x] docs 업데이트
+- [x] 커밋: `Fix: Polish Tailwind build migration QA findings`
+
+### NEEDS_BROWSER (브라우저 QA 필요)
+
+- [ ] 전체 화면 시각 회귀 없음 확인 (ufcRed 컬러, arbitrary sizes, 반응형)
+- [ ] `scrollbar-hide` 동작 확인 (`#division-tabs`)
+- [ ] 미묘한 border/bg tint 정상 (2-8% 불투명도 요소들)
+- [ ] mobile 375px / 430px 레이아웃 overflow 없음
