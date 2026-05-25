@@ -19,9 +19,10 @@ function openPickSlipFromCard(fightId) {
 // ── Dot Form Helper ──────────────────────────────────────────────
 function renderDotForm(recent) {
     if (!recent || !recent.length) return '';
-    return recent.slice(0, 5).map(r =>
-        `<div class="w-2 h-2 rounded-full flex-shrink-0 ${r.r === 'W' ? 'bg-green-500' : 'bg-red-500'}"></div>`
-    ).join('');
+    return recent.slice(0, 5).map(r => {
+        const result = (typeof r === 'string') ? r : (r.r || '?');
+        return `<div class="w-2 h-2 rounded-full flex-shrink-0 ${result === 'W' ? 'bg-green-500' : 'bg-red-500'}"></div>`;
+    }).join('');
 }
 
 // ── Section Header ────────────────────────────────────────────────
@@ -323,7 +324,11 @@ function renderFightCards() {
 /* ── 분석 탭 헬퍼 함수 ── */
 function renderStatBarsHTML(fight) {
     const f1 = fight.f1, f2 = fight.f2;
-    if (!f1.slpm && !f1.strAcc) return '<p class="text-center text-gray-600 text-sm italic oswald-sharp">스탯 데이터 없음</p>';
+    if (!f1.slpm && !f1.strAcc) return `
+        <div class="py-6 text-center">
+            <p class="oswald-sharp text-[10px] uppercase tracking-widest text-gray-500 italic mb-3">타격 스탯 비교</p>
+            <p class="text-gray-600 text-xs italic leading-relaxed">공식 스탯이 연결된 선수부터<br>자동으로 표시됩니다.</p>
+        </div>`;
     const bar = (label, v1, v2, fmt) => {
         const mx = Math.max(v1, v2, 0.01);
         const p1 = Math.round(v1 / mx * 100), p2 = Math.round(v2 / mx * 100);
@@ -351,7 +356,14 @@ function renderStatBarsHTML(fight) {
 
 function renderInsightHTML(fight) {
     const f1 = fight.f1, f2 = fight.f2;
-    if (!f1.koRate && !f1.subRate) return '<p class="text-center text-gray-600 text-sm italic oswald-sharp">데이터 없음</p>';
+    const f1HasData = f1.koRate || f1.subRate || f1.decRate;
+    const f2HasData = f2.koRate || f2.subRate || f2.decRate;
+    if (!f1HasData && !f2HasData) return `
+        <div class="py-6 text-center">
+            <p class="oswald-sharp text-[10px] uppercase tracking-widest text-gray-500 italic mb-3">승리 방법 인사이트</p>
+            <p class="text-gray-600 text-xs italic leading-relaxed">공식 스탯이 연결된 선수부터<br>승리 패턴이 자동으로 표시됩니다.</p>
+            <p class="text-gray-700 text-[10px] italic mt-2">KO/TKO · 서브미션 · 판정 비율 기반</p>
+        </div>`;
     const ring = (pct, label, borderCls, textCls) =>
         `<div class="text-center">
             <div class="w-14 h-14 rounded-full border-2 ${borderCls} bg-white/5 flex flex-col items-center justify-center mx-auto mb-1">
@@ -369,23 +381,38 @@ function renderInsightHTML(fight) {
             </div>
             <div class="oswald-sharp text-[10px] text-gray-600 italic">승리 방법 비율</div>
         </div>`;
-    return `<div class="grid grid-cols-2 gap-6">${card(f1, 'text-ufcRed')}${card(f2, 'text-ufcBlue')}</div>`;
+    return `<div class="mb-4 pb-3 border-b border-white/8 text-center">
+        <span class="oswald-sharp text-[9px] uppercase tracking-widest text-gray-500 italic">스탯 기반 · 승리 패턴 분석</span>
+    </div>
+    <div class="grid grid-cols-2 gap-6">${card(f1, 'text-ufcRed')}${card(f2, 'text-ufcBlue')}</div>`;
 }
 
 function renderRecentHTML(fight) {
     const f1 = fight.f1, f2 = fight.f2;
-    if (!f1.recent && !f2.recent) return '<p class="text-center text-gray-600 text-sm italic oswald-sharp">전적 데이터 없음</p>';
+    const f1HasRecent = f1.recent && f1.recent.length > 0;
+    const f2HasRecent = f2.recent && f2.recent.length > 0;
+    if (!f1HasRecent && !f2HasRecent) return `
+        <div class="py-6 text-center">
+            <p class="oswald-sharp text-[10px] uppercase tracking-widest text-gray-500 italic mb-3">최근 전적</p>
+            <p class="text-gray-600 text-xs italic leading-relaxed">최근전적 데이터 준비 중입니다.</p>
+            <p class="text-gray-700 text-[10px] italic mt-2">정식 출시 후 순차적으로 보강될 예정입니다.</p>
+        </div>`;
     const col = (f, nameCls) =>
         `<div>
             <div class="oswald-sharp text-xs font-black italic uppercase mb-3 pb-2 border-b border-white/10 ${nameCls}">${f.name}</div>
-            ${(f.recent || []).map(r => `
-            <div class="flex items-center gap-3 py-2 border-b border-white/5 last:border-0">
-                <div class="w-6 h-6 rounded flex items-center justify-center text-[10px] font-black oswald-sharp ${r.r === 'W' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">${r.r}</div>
-                <div class="flex-1 min-w-0">
-                    <div class="oswald-sharp text-xs font-bold text-white truncate">${r.opp}</div>
-                    <div class="oswald-sharp text-[10px] text-gray-600 italic truncate">${r.method} · ${r.event}</div>
-                </div>
-            </div>`).join('')}
+            ${(f.recent || []).map(r => {
+                const result = (typeof r === 'string') ? r : (r.r || '?');
+                const isWin = result === 'W';
+                const opp = (typeof r === 'object' && r.opp) ? r.opp : '';
+                const detail = (typeof r === 'object') ? [r.method, r.event].filter(Boolean).join(' · ') : '';
+                return `<div class="flex items-center gap-3 py-2 border-b border-white/5 last:border-0">
+                    <div class="w-6 h-6 rounded flex items-center justify-center text-[10px] font-black oswald-sharp ${isWin ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">${result}</div>
+                    ${opp ? `<div class="flex-1 min-w-0">
+                        <div class="oswald-sharp text-xs font-bold text-white truncate">${opp}</div>
+                        ${detail ? `<div class="oswald-sharp text-[10px] text-gray-600 italic truncate">${detail}</div>` : ''}
+                    </div>` : ''}
+                </div>`;
+            }).join('')}
         </div>`;
     return `<div class="grid grid-cols-2 gap-4">${col(f1, 'text-ufcRed')}${col(f2, 'text-ufcBlue')}</div>`;
 }
