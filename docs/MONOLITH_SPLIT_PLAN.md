@@ -910,3 +910,60 @@ function _checkSwearWords(text) {
 - [x] 빈 상태 메시지 정상
 - [x] 모바일 375px 렌더 정상
 - [x] P0/P1 없음
+
+---
+
+## Phase 9D-9 — Community Helper Candidate Scan 결과 (2026-05-25)
+
+**목적:** Community 관련 inline JS에서 low-risk helper 후보를 조사한다.  
+**배포 기준:** 2026-06-10 공개 배포 / 2026-06-07 기능 동결 — 안정성 우선  
+**결론: 코드 변경 없음** — 안전한 순수 helper 후보 없음
+
+### 조사 결과
+
+#### index.html 인라인 스크립트에 남아있는 Community 관련 함수
+
+| 함수 | 줄 | 분류 | 판정 |
+|---|---|---|---|
+| `postCom(i)` | 2763 | 댓글 form submit + `addCommentToDB` 호출 | ❌ DB 뮤테이션, 제외 |
+| `publishPost()` | 2782 | 게시글 form submit + `savePostToDB` 호출 | ❌ DB 뮤테이션, 제외 |
+| `savePostToDB(post)` | 4147 | Supabase `posts.insert` | ❌ DB 뮤테이션, 제외 |
+| `likePostInDB(dbId)` | 4160 | Supabase `post_likes.insert` | ❌ DB 뮤테이션, 제외 |
+| `addCommentToDB(...)` | 4175 | Supabase `post_comments.insert` | ❌ DB 뮤테이션, 제외 |
+
+인라인 스크립트에 남아있는 Community 관련 함수는 **전부 Supabase DB write 경로**다.  
+순수 포매팅/HTML 생성 helper가 없어 추출 후보가 존재하지 않는다.
+
+#### community.js에 이미 분리된 함수 (현상 유지)
+
+| 함수 | 위치 | 순수 여부 | 추가 분리 필요? |
+|---|---|---|---|
+| `_getPostCategory(title)` | community.js:20 | ✅ 순수 (CAT_PREFIXES 상수만 사용) | 불필요 (이미 분리됨) |
+| `_stripCatPrefix(title)` | community.js:28 | ✅ 순수 | 불필요 |
+| `getBeltInfo(pts)` | community.js:476 | ✅ 순수 (pts → object) | 불필요 |
+| `renderPosts(filtered)` | community.js:157 | ❌ 사용자 상태 의존 | 해당 없음 |
+| `renderMatchups(fights)` | community.js:66 | ❌ state, eventPickCounts 의존 | 해당 없음 |
+| `openPostDetail(origIdx)` | community.js:313 | ❌ DOM + 사용자 상태 | 제외 |
+| `likePost(i)` | community.js:297 | ❌ currentUser + likePostInDB | 제외 |
+
+#### `renderPosts` 익명 `.map()` 콜백 추출 타당성 검토
+
+`filtered.map(function(p) {...})` (community.js:175–233)를 `buildPostRowHtml(p)`로 추출하는 것은 **기술적으로 가능**하지만 채택하지 않는다.
+
+| 항목 | 내용 |
+|---|---|
+| 의존성 | `posts` (state.js), `likedPostIds` (state.js), `currentUser` (state.js), `currentFaction` (state.js), `getDisplayUsername` (utils.js), `getFactionBadge` (utils.js), `escapeHtml` (utils.js), `_stripCatPrefix` / `_getPostCategory` (community.js) — 모두 `var`/전역 ✅ |
+| 기술적 가능 여부 | 가능 (모든 의존성이 window-accessible) |
+| **미채택 이유** | 1) 원본이 `index.html` 인라인이 아닌 이미 분리된 `community.js` / 2) 사용자 로그인 상태(`currentUser`, `likedPostIds`, `currentFaction`)에 따라 출력이 달라지는 **사용자 상태 의존** 함수 — "pure helper" 기준 미충족 / 3) **2026-06-10 배포 기준** 불필요한 위험 |
+
+#### 코드 품질 관찰 (P3, 기능 영향 없음)
+
+- `catDisplay` 객체가 `renderPosts()`(L.187)와 `openPostDetail()`(L.329)에 동일하게 중복 정의됨. 배포 후 community.js 내 모듈 수준 상수로 DRY 개선 가능.
+
+### Phase 9D-9 완료 기준
+
+- [x] Community 관련 inline script 함수 전수 조사
+- [x] community.js 기존 분리 상태 확인
+- [x] `renderPosts` 익명 콜백 추출 타당성 분석
+- [x] 코드 변경 없음 (안전한 후보 없음 — 2026-06-10 배포 기준)
+- [x] 발견 사항 문서화

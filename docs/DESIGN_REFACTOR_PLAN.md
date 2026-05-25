@@ -802,6 +802,7 @@ Phase 5A에서 학습한 패턴 적용:
 | Phase 9D-6: pure helper 추가 추출 조사 | **완료** | `Refactor: Continue pure helper extraction` |
 | Phase 9D-7: news render helpers 분리 | **완료** | `Refactor: Extract news render helper` |
 | Phase 9D-8: news render helper smoke QA | **완료** | `Docs: Add news render helper smoke QA` |
+| Phase 9D-9: community helper candidate scan | **완료 (코드 변경 없음)** | `Refactor: Scan community helper extraction candidates` |
 | Phase 9C: inline UFC ranking data extraction | **완료** | `Refactor: Extract UFC ranking seed constants` |
 | Phase 9C-2: inline shared UI constants extraction | **완료** | `Refactor: Extract shared inline UI constants` |
 | Phase 9C-3: inline label/category map extraction | **완료** | `Refactor: Extract inline label category maps` |
