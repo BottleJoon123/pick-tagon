@@ -329,3 +329,11 @@ P0/P1 발생 시 롤백 결정 포함 시 **최대 1일**.
 | D (재설계) | ❌ 출시 후 | 별도 Phase |
 
 **최종 권고**: 출시 전에는 Option C만 진행. Option B는 Phase 8 (출시 후 첫 번째 UI 개선 사이클)에서 proper QA와 함께 진행.
+
+---
+
+## 8. Option C 적용 완료 (2026-05-26)
+
+커밋: `Style: Tighten matchup card spacing`  
+변경: `index.html:380` — `space-y-6 lg:space-y-8` → `space-y-4 lg:space-y-5`  
+QA: 8/8 PASS (desktop 1440px + mobile 375px, spacing class 확인, overflow 없음, 콘솔 에러 없음)
