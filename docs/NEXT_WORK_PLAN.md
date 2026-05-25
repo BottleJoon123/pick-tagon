@@ -1,6 +1,8 @@
 # Picktagon Next Work Plan
 
 > Release priority update (2026-05-25): Public release deadline is **2026-06-10**, with feature freeze on **2026-06-07 night**. Use `docs/RELEASE_DEADLINE_PLAN_2026-06-10.md` as the top-level planning constraint before choosing new refactor or feature work.
+>
+> **Release QA Plan:** [`docs/RELEASE_QA_PLAN_2026-06-10.md`](RELEASE_QA_PLAN_2026-06-10.md) — P0/P1 체크리스트, Release Gate 조건, 실행 순서.
 
 최초 작성: 2026-05-02 / 마지막 업데이트: 2026-05-18 (Community 상세 UX 설계)
 현재 기준 커밋: push 후 최신 SHA 확인
