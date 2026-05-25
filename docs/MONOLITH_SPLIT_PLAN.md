@@ -649,3 +649,58 @@ These values are static label, class, color, and keyword maps. They now live in 
 - [x] News category keyword, badge, bar, and label maps reference shared constants
 - [x] `npm run build` PASS
 - [x] Expected local env placeholder warnings only (`%VITE_*%`)
+
+---
+
+## Phase 9D-4 — Modal Close Helper Smoke QA 결과 (2026-05-25)
+
+**목적:** Phase 9D-3에서 추출한 4개 modal close helper가 전역 스코프에 노출되고, 실제 DOM 조작이 올바르게 동작하는지 Playwright smoke QA로 검증.
+
+### 테스트 대상
+
+| 함수 | 위치 | 호출 방식 |
+|---|---|---|
+| `closeBetSlip()` | `public/js/modal-helpers.js` | onclick ×2, `confirmBetSlip()` 내부 |
+| `closeMobileSidebar()` | `public/js/modal-helpers.js` | onclick ×2 |
+| `closeFactionSelectModal()` | `public/js/modal-helpers.js` | onclick ×2, `syncUserToDB()` 내부, `selectFaction()` 내부, `supabase.js:185` typeof 가드 |
+| `closeNewsDetail()` | `public/js/modal-helpers.js` | onclick ×2 |
+
+### QA 결과
+
+**전역 스코프 노출 (typeof 체크)**
+
+```json
+{
+  "closeBetSlip": "function",
+  "closeMobileSidebar": "function",
+  "closeFactionSelectModal": "function",
+  "closeNewsDetail": "function"
+}
+```
+
+**DOM 동작 검증**
+
+| 함수 | 검증 항목 | 결과 |
+|---|---|---|
+| `closeBetSlip()` | `#bet-slip-panel` `.bs-open` 제거 | ✅ PASS |
+| `closeBetSlip()` | `#bet-slip-backdrop` `.bs-open` 제거 | ✅ PASS |
+| `closeNewsDetail()` | `#news-detail-modal` `.hidden` 추가 | ✅ PASS |
+| `closeNewsDetail()` | `document.body.style.overflow` 초기화 | ✅ PASS |
+| `closeFactionSelectModal()` | `#faction-select-modal` `.hidden` 추가 | ✅ PASS |
+| `closeFactionSelectModal()` | `sessionStorage['factionModalDismissed'] === '1'` | ✅ PASS |
+| `closeMobileSidebar()` | drawer `pointer-events-none` 추가 (300ms setTimeout) | ✅ PASS |
+| `closeMobileSidebar()` | backdrop `opacity-0`, `pointer-events-none` | ✅ PASS |
+| `closeMobileSidebar()` | panel `translate-x-full` 추가, `translate-x-0` 제거 | ✅ PASS |
+
+**Console errors:** 없음
+
+### P0/P1 발견 사항
+
+없음. 모든 함수가 추출 전과 동일하게 동작함.
+
+### Phase 9D-4 완료 기준
+
+- [x] 4개 함수 모두 `typeof === "function"` (전역 노출 확인)
+- [x] 모든 close DOM 조작 정상 동작
+- [x] console errors 없음
+- [x] P0/P1 버그 없음
