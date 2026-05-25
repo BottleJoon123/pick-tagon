@@ -799,6 +799,7 @@ Phase 5A에서 학습한 패턴 적용:
 | Phase 9D-3: modal close helpers 통합 | **완료** | `Refactor: Extract modal close helpers` |
 | Phase 9D-4: modal close helper smoke QA | **완료** | `Docs: Add modal helper smoke QA` |
 | Phase 9D-5: pure formatting helpers 분리 | **완료** | `Refactor: Extract pure formatting helpers` |
+| Phase 9D-6: pure helper 추가 추출 조사 | **완료** | `Refactor: Continue pure helper extraction` |
 | Phase 9C: inline UFC ranking data extraction | **완료** | `Refactor: Extract UFC ranking seed constants` |
 | Phase 9C-2: inline shared UI constants extraction | **완료** | `Refactor: Extract shared inline UI constants` |
 | Phase 9C-3: inline label/category map extraction | **완료** | `Refactor: Extract inline label category maps` |

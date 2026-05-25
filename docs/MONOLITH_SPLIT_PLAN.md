@@ -757,3 +757,53 @@ These values are static label, class, color, and keyword maps. They now live in 
 - [x] `npm run build` 통과
 - [x] inline onclick 변경 없음
 - [x] Auth/Supabase/Pick/Admin/Octagon 로직 변경 없음
+
+---
+
+## Phase 9D-6 — Pure Helper 추가 추출 조사 결과 (2026-05-25)
+
+**목적:** inline script에 남은 pure helper 후보를 전수 조사하고, 추가 이동 가능 함수 식별.
+
+### 후보 조사표
+
+| 함수명 | 행 | 의존성 | 이동 가능 | 판정 |
+|---|---|---|---|---|
+| `_checkSwearWords(text)` | 4862 | `SWEAR_WORDS` (inline `var`, window 노출됨) | △ 기술적 가능 | **제외** — `submitOctagonTurn`/`onOctagonTyping` 전용, octagon 컨텍스트 |
+| `_lookupRankFighter(name)` | 3493 | `_rankFighterMap` (`let`, inline script) | ✗ 불가 | **제외** — `let` 스코프 변수 의존 (window 미노출) |
+| `_getRankImg(name)` | 3505 | `_rankImgMap` (`let`, inline script) | ✗ 불가 | **제외** — `let` 스코프 변수 의존 (window 미노출) |
+| `_messagesHtml()` | 5286 | `octagon.messages`, `octagon.starterNick` | ✗ 불가 | **제외** — octagon state 의존 |
+| `_showMatchupSettleToast(...)` | 2714 | `showToast()` DOM side effect | ✗ 불가 | **제외** — side effect (DOM 토스트) |
+| `closeResultModal()` | 2649 | `document.getElementById` | ✗ 불가 | **제외** — DOM 조작 |
+| `loadRealRankings()` | 4172 | `sb.rpc` | ✗ 불가 | **제외** — Supabase 의존 |
+| 나머지 전체 함수 | — | DOM / state / Supabase / Auth / octagon | ✗ 불가 | **제외** |
+
+### `_checkSwearWords` 상세 분석
+
+```javascript
+function _checkSwearWords(text) {
+    var lower = text.toLowerCase();
+    return SWEAR_WORDS.some(function(w) { return lower.includes(w); });
+}
+```
+
+- **기술적 순수성:** `SWEAR_WORDS`는 inline script에서 `var`로 선언됨 → `window.SWEAR_WORDS` 접근 가능
+- **사용 지점:** `submitOctagonTurn(text)` · `onOctagonTyping(text)` — octagon 전용 2개만
+- **판정 근거:** 사용자 요건 "Auth/Pick/Admin/Octagon core 함수 제외" 및 "애매한 함수는 이동하지 말 것"에 따라 제외
+
+### `_lookupRankFighter` / `_getRankImg` 상세 분석
+
+- `_rankFighterMap` / `_rankImgMap`은 `let` 키워드로 inline script 최상위에 선언됨
+- `let`은 classic script top-level에서 `window` 객체에 추가되지 않음 → 외부 파일에서 접근 불가
+- 설령 `_loadRankImgs()`가 Supabase 쿼리로 이 변수들을 채우므로, 추출 시 해당 Supabase 함수까지 함께 이동해야 하는 cascading risk 존재
+
+### 결론
+
+**추가 이동 함수 없음.** Phase 9D-5에서 `matchesCategory` / `isMMARelated`가 inline script 내 마지막 진정한 pure helper였음.
+
+남은 inline script 함수들은 모두 DOM / global state / Supabase / Auth / octagon 중 하나 이상에 의존한다. 다음 분리 단계로는 Phase 9E (Bet Slip, Admin Result 등 MEDIUM 위험 그룹) 또는 inline script를 현재 섹션 기준으로 SPA 라우팅 로직과 분리하는 별도 계획이 적합하다.
+
+### Phase 9D-6 완료 기준
+
+- [x] inline script 전체 함수 전수 조사 완료
+- [x] 후보 조사표 문서화
+- [x] 코드 변경 없음 (이동 가능 후보 없음)
