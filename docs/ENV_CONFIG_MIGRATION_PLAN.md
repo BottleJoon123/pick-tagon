@@ -155,108 +155,71 @@ RLS policies                  → 데이터 읽기/쓰기 권한 강제
 
 ---
 
-## 5. 구현 체크리스트 (Phase 8A-2 이후)
+## 5. 구현 결과 (Phase 8A-2 완료)
 
-> 이 섹션은 실제 구현 시 단계별로 체크한다.
+### 5-1. 변경된 파일
 
-### 5-1. 사전 준비 (GitHub 설정)
-- [ ] GitHub repo → Settings → Secrets → Actions 에서 등록:
-  - `VITE_SUPABASE_URL` = `https://rnnrimzrypayvnmznpin.supabase.co`
-  - `VITE_SUPABASE_ANON_KEY` = `eyJhbGci...` (현재 SUPABASE_KEY 값)
-  - `VITE_ADMIN_EMAIL` = `joonbyoung0607@gmail.com`
+| 파일 | 변경 내용 |
+|---|---|
+| `.env.example` | **신규** — placeholder 값, tracked |
+| `.gitignore` | `.env`, `.env.local`, `.env.*.local` 규칙 추가 |
+| `index.html` | `window.PICKTAGON_CONFIG` inline bridge 삽입 (config.js 로드 직전) |
+| `index.html:4570` | Edge Function URL을 `SUPABASE_URL + '/functions/v1/fetch-mma-news'`로 전환 |
+| `public/js/config.js` | `window.PICKTAGON_CONFIG` 소비 + IIFE로 하드코딩 제거, placeholder 감지 |
+| `js/config.js` (루트) | 레거시 주석으로 대체, 하드코딩 제거 |
+| `.github/workflows/deploy.yml` | Build step에 `env:` 블록 추가 (3개 secrets 매핑) |
 
-### 5-2. 파일 변경 (코드)
+### 5-2. 구현된 bridge 구조
 
-- [ ] `.env.local` 신규 생성 (gitignored):
-  ```
-  VITE_SUPABASE_URL=https://rnnrimzrypayvnmznpin.supabase.co
-  VITE_SUPABASE_ANON_KEY=eyJhbGci...
-  VITE_ADMIN_EMAIL=joonbyoung0607@gmail.com
-  ```
+```
+.env.local (gitignored)
+  └─ VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY / VITE_ADMIN_EMAILS
+       │
+       ▼ Vite HTML replacement (%VITE_..% → 실제 값)
+index.html inline <script>
+  window.PICKTAGON_CONFIG = { supabaseUrl, supabaseKey, adminEmails }
+       │
+       ▼ <script src="/js/config.js">
+public/js/config.js (IIFE)
+  var SUPABASE_URL / SUPABASE_KEY / ADMIN_EMAILS  ← 전역 vars
+       │
+       ▼
+public/js/api/supabase.js
+  supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+  ADMIN_EMAILS.indexOf(userEmail)
+```
 
-- [ ] `.env.example` 신규 생성 (tracked):
-  ```
-  VITE_SUPABASE_URL=https://your-project.supabase.co
-  VITE_SUPABASE_ANON_KEY=your-anon-key-here
-  VITE_ADMIN_EMAIL=admin@example.com
-  ```
+### 5-3. 검증 결과 (2026-05-25)
 
-- [ ] `.gitignore` 에 `.env*.local` 추가 (Vite 기본 규칙 명시):
-  ```
-  .env*.local
-  ```
+- `npm run build` ✓ 통과
+- 소스 하드코딩 잔존 없음 (`grep` PASS — 0건)
+- `dist/js/config.js` 하드코딩 없음 ✓
+- `dist/index.html` PICKTAGON_CONFIG bridge 포함 ✓
+- Vite 경고 (`%VITE_..% not defined`): `.env.local` 미존재 시 정상 — 빌드 통과에 영향 없음
 
-- [ ] `index.html` — `/js/config.js` 로드 직전에 inline bridge 삽입:
-  ```html
-  <script>
-    window.SUPABASE_URL  = '%VITE_SUPABASE_URL%';
-    window.SUPABASE_KEY  = '%VITE_SUPABASE_ANON_KEY%';
-    window.ADMIN_EMAILS  = ['%VITE_ADMIN_EMAIL%'];
-  </script>
-  <script src="/js/config.js"></script>
-  ```
+### 5-4. ⚠️ 배포 전 필수 작업 (사용자 직접)
 
-- [ ] `public/js/config.js` — window 전역 소비 + 하드코딩 제거:
-  ```js
-  // Values injected via index.html Vite env bridge (%VITE_..% substitution)
-  var SUPABASE_URL  = window.SUPABASE_URL  || '';
-  var SUPABASE_KEY  = window.SUPABASE_KEY  || '';
-  var ADMIN_EMAILS  = window.ADMIN_EMAILS  || [];
-  ```
+**GitHub repository secrets 등록 필요:**  
+Settings → Secrets and variables → Actions → New repository secret
 
-- [ ] `.github/workflows/deploy.yml` — Build step에 `env:` 추가:
-  ```yaml
-  - name: Build
-    run: npm run build
-    env:
-      VITE_SUPABASE_URL:      ${{ secrets.VITE_SUPABASE_URL }}
-      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-      VITE_ADMIN_EMAIL:       ${{ secrets.VITE_ADMIN_EMAIL }}
-  ```
+| Secret 이름 | 값 |
+|---|---|
+| `VITE_SUPABASE_URL` | Supabase 프로젝트 URL |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anon key (JWT) |
+| `VITE_ADMIN_EMAILS` | 관리자 이메일 (comma-separated) |
 
-### 5-3. 검증
+**로컬 개발 시:**  
+`.env.example`을 복사해 `.env.local` 생성 후 실제 값 입력.
 
-- [ ] `npm run dev` — 앱 정상 동작 확인 (Supabase 연결)
-- [ ] `npm run build` — 빌드 성공 확인
-- [ ] `dist/index.html` grep으로 `%VITE_` 리터럴이 없는지 확인:
-  ```bash
-  grep -c "%VITE_" dist/index.html  # → 0 이어야 함
-  ```
-- [ ] `dist/index.html` grep으로 실제 URL이 주입되었는지 확인:
-  ```bash
-  grep "rnnrimzrypayvnmznpin" dist/index.html  # → 찾아야 함
-  ```
-- [ ] `dist/js/config.js` 에 하드코딩 key가 없는지 확인:
-  ```bash
-  grep -c "eyJhbGci" dist/js/config.js  # → 0 이어야 함
-  ```
-
-### 5-4. 루트 `js/config.js` 정리 (선택, Phase 8A-2 이후)
-
-- [ ] 루트 `js/config.js`가 현재 서빙되지 않음을 재확인
-- [ ] 레거시 파일 삭제 또는 빈 주석 처리
+> secrets 미등록 상태로 push하면: CI 빌드 성공 but 앱이 Supabase 연결 실패.  
+> `[PICKTAGON] Supabase config missing` console.warn이 브라우저에서 출력됨.
 
 ---
 
-## 6. 파일 변경 요약 (Phase 8A-2 구현 시)
-
-| 파일 | 변경 | 비고 |
-|---|---|---|
-| `.env.local` | **신규** | gitignored, 로컬 개발용 |
-| `.env.example` | **신규** | tracked, placeholder만 |
-| `.gitignore` | 수정 | `.env*.local` 규칙 추가 |
-| `index.html` | 수정 | inline env bridge 삽입 (~3줄) |
-| `public/js/config.js` | 수정 | window 소비로 전환, 하드코딩 제거 |
-| `.github/workflows/deploy.yml` | 수정 | Build step에 env: 추가 |
-| `js/config.js` (루트) | 별도 정리 | 레거시, 이번 단계 범위 외 |
-
-**총 변경 범위:** 6개 파일, 실질 코드 변경은 `index.html` 3줄 + `config.js` 3줄 수준
-
----
-
-## 7. 진행 현황
+## 6. 진행 현황
 
 | 단계 | 상태 |
 |---|---|
 | Phase 8A-1: 조사 및 계획 문서화 | **완료** |
-| Phase 8A-2: 실제 env migration 구현 | 예정 |
+| Phase 8A-2: env bridge 구현 | **완료** |
+| GitHub Secrets 등록 | **사용자 직접 필요** |

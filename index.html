@@ -2502,6 +2502,15 @@
     <p class="text-gray-600 oswald-sharp tracking-[0.3em] lg:tracking-[0.5em] uppercase text-[8px] lg:text-[10px] uppercase italic font-bold uppercase italic font-bold">The Ultimate Fighter Prediction Data Center</p>
 </footer>
 
+<script>
+  // Vite HTML env replacement: %VITE_..% is substituted at build/dev time.
+  // If a variable is unset, the literal %VITE_..% string remains — config.js detects and warns.
+  window.PICKTAGON_CONFIG = {
+    supabaseUrl:  '%VITE_SUPABASE_URL%',
+    supabaseKey:  '%VITE_SUPABASE_ANON_KEY%',
+    adminEmails:  '%VITE_ADMIN_EMAILS%',
+  };
+</script>
 <script src="/js/config.js"></script>
 <script src="/js/data/fights.js"></script>
 <script src="/js/data/constants.js"></script>
@@ -4558,7 +4567,7 @@ async function publishPost() {
 
         // Edge Function 호출 (12h 쿨다운 내장 — 캐시 신선하면 즉시 반환)
         // 응답 후 DB에서 최신 뉴스 로드
-        var edgeUrl = 'https://rnnrimzrypayvnmznpin.supabase.co/functions/v1/fetch-mma-news';
+        var edgeUrl = SUPABASE_URL + '/functions/v1/fetch-mma-news';
         fetch(edgeUrl, { method: 'GET' })
             .then(function() { loadNewsFromDB(); })
             .catch(function() { loadNewsFromDB(); });

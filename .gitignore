@@ -2,6 +2,12 @@ node_modules/
 supabase/.temp/
 dist/
 
+# Env files (may contain project URLs or email lists — use .env.example as template)
+.env
+.env.local
+.env.*.local
+# .env.example is intentionally tracked
+
 # Claude CLI
 .claude/
 .claudeignore
