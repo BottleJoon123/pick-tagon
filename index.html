@@ -2106,6 +2106,7 @@
 <script src="/js/utils.js"></script>
 <script src="/js/event-countdown.js"></script>
 <script src="/js/api/supabase.js?v=7"></script>
+<script src="/js/news-modal.js"></script>
 <script src="/js/news.js"></script>
 <script src="/js/youtube.js"></script>
 <script src="/js/community.js?v=6"></script>
@@ -3883,11 +3884,6 @@ async function publishPost() {
                 ndLoading.classList.add('hidden');
             }
         }
-    }
-
-    function closeNewsDetail() {
-        document.getElementById('news-detail-modal').classList.add('hidden');
-        document.body.style.overflow = '';
     }
 
     // ── 뉴스: Edge Function + DB 방식 ──

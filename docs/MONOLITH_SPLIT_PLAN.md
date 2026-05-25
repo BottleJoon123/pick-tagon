@@ -465,6 +465,54 @@ Auth, Octagon/Battle — 독립 계획 문서 작성 후 진행
 
 ---
 
+## Phase 9D-2 — closeNewsDetail 추출 결과 (2026-05-25)
+
+### 이동 대상
+
+| 항목 | 원본 위치 | 이동 대상 |
+|---|---|---|
+| `function closeNewsDetail()` | index.html 인라인 script line 3888–3891 | `public/js/news-modal.js` |
+
+### 변경 내역
+
+| 항목 | Before | After |
+|---|---|---|
+| `index.html` 줄 수 | 5,649줄 | 5,645줄 (-4줄) |
+| 신규 파일 | — | `public/js/news-modal.js` (8줄) |
+| script 태그 추가 위치 | — | `news.js` 바로 앞 |
+
+### 호출 지점
+
+| 위치 | 형태 |
+|---|---|
+| `index.html:1752` | `onclick="if(event.target===this)closeNewsDetail()"` (modal backdrop) |
+| `index.html:1763` | `onclick="closeNewsDetail()"` (close button) |
+
+### 선택 이유
+
+- 4줄짜리 순수 DOM 함수 (`classList.add('hidden')` + `body.style.overflow = ''`)
+- 전역 상태 읽기/쓰기 없음
+- Supabase / Auth / Pick / Admin / Octagon 의존 없음
+
+### 검증 결과
+
+| 항목 | 결과 |
+|---|---|
+| `node --check news-modal.js` | syntax OK |
+| `npm run build` | PASS |
+| `dist/js/news-modal.js` 존재 | ✓ |
+| `index.html` 내 `closeNewsDetail` 정의 | 0개 ✓ |
+| onclick 참조 | 2개 유지 ✓ |
+
+### Phase 9D-2 완료 기준
+
+- [x] `closeNewsDetail` 이동 완료
+- [x] 함수 로직 변경 없음
+- [x] `npm run build` 통과
+- [x] inline onclick 변경 없음
+
+---
+
 ## Phase 9C implementation result (2026-05-25)
 
 ### Changed
