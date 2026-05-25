@@ -190,32 +190,65 @@ function renderNewsSkeleton(count) {
     </div>`;
 }
 
-var _NEWS_FALLBACK_IMG = 'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600';
+// Fallback pool — 5 confirmed Unsplash photos (all already used in app, Unsplash free license)
+var _NEWS_FALLBACK_POOL = [
+    'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600',
+    'https://images.unsplash.com/photo-1555072956-7758afb20e8f?auto=format&fit=crop&q=80&w=600',
+    'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&q=80&w=600',
+    'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&q=80&w=600',
+    'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=600',
+];
+var _NEWS_FALLBACK_IMG = _NEWS_FALLBACK_POOL[0]; // backward-compat alias
 
-var _NEWS_CATEGORY_IMGS = {
-    'ufc':     'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600',
-    'result':  'https://images.unsplash.com/photo-1555072956-7758afb20e8f?auto=format&fit=crop&q=80&w=600',
-    'fighter': 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&q=80&w=600',
-    'event':   'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&q=80&w=600',
-    'ranking': 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=600'
+// Per-category pools ordered by relevance; idx % pool.length gives stable diversity
+var _NEWS_CATEGORY_POOLS = {
+    'ufc':     [
+        'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600',
+        'https://images.unsplash.com/photo-1555072956-7758afb20e8f?auto=format&fit=crop&q=80&w=600',
+        'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&q=80&w=600',
+        'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&q=80&w=600',
+    ],
+    'result':  [
+        'https://images.unsplash.com/photo-1555072956-7758afb20e8f?auto=format&fit=crop&q=80&w=600',
+        'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600',
+        'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=600',
+    ],
+    'fighter': [
+        'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&q=80&w=600',
+        'https://images.unsplash.com/photo-1555072956-7758afb20e8f?auto=format&fit=crop&q=80&w=600',
+        'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600',
+    ],
+    'event':   [
+        'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&q=80&w=600',
+        'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=600',
+        'https://images.unsplash.com/photo-1555072956-7758afb20e8f?auto=format&fit=crop&q=80&w=600',
+    ],
+    'ranking': [
+        'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=600',
+        'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&q=80&w=600',
+        'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600',
+    ],
 };
 
-function getNewsCategoryImg(category) {
-    return _NEWS_CATEGORY_IMGS[category] || _NEWS_FALLBACK_IMG;
+function getNewsCategoryImg(category, idx) {
+    var pool = _NEWS_CATEGORY_POOLS[category] || _NEWS_FALLBACK_POOL;
+    var i = (typeof idx === 'number' && idx >= 0) ? idx : 0;
+    return pool[i % pool.length];
 }
 
 function renderNewsCards(newsItems) {
     if (!newsItems || !newsItems.length) return '<p class="col-span-3 text-center text-gray-600 oswald-sharp text-xs italic uppercase">등록된 뉴스가 없습니다</p>';
     return '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">' +
-        newsItems.map(function(item) {
+        newsItems.map(function(item, i) {
             var title = item.title || '', url = item.url || '#', source = item.source || '', date = item.date || '';
-            var imgSrc = item.thumbnail_url || getNewsCategoryImg(item.category);
+            var imgSrc = item.thumbnail_url || getNewsCategoryImg(item.category, i);
+            var fbUrl = _NEWS_FALLBACK_POOL[(i + 1) % _NEWS_FALLBACK_POOL.length];
             var safeTitle = String(title).replace(/</g,'&lt;');
             var safeSource = String(source).replace(/</g,'&lt;');
             return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="block group">' +
                 '<div class="glass-card rounded-2xl overflow-hidden border border-white/6 hover:border-white/20 transition-all duration-300 hover:scale-[1.02]">' +
                 '<div class="relative overflow-hidden" style="height:170px">' +
-                '<img src="' + imgSrc + '" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.src=\'' + _NEWS_FALLBACK_IMG + '\'">' +
+                '<img src="' + imgSrc + '" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.src=\'' + fbUrl + '\'">' +
                 '<div class="absolute inset-0 pointer-events-none" style="background:linear-gradient(to top,rgba(0,0,0,0.55) 0%,transparent 55%)"></div>' +
                 (safeSource ? '<div class="absolute top-3 left-3 barlow text-[10px] font-bold italic tracking-widest uppercase px-2 py-1 rounded" style="background:rgba(225,6,0,0.9);color:#fff">' + safeSource + '</div>' : '') +
                 '</div>' +

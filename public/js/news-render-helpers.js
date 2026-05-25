@@ -15,10 +15,15 @@ function buildNewsCardHtml(n, i) {
     var cardClick = (n.url && n.url.startsWith('http'))
         ? 'onclick="window.open(\'' + n.url + '\',\'_blank\')"'
         : 'onclick="openNewsDetail(' + realIdx + ')"';
-    var newsImg = n.image_url || (typeof getNewsCategoryImg === 'function' ? getNewsCategoryImg(n.category) : 'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600');
+    var newsImg = n.image_url || (typeof getNewsCategoryImg === 'function'
+        ? getNewsCategoryImg(n.category, i)
+        : (typeof _NEWS_FALLBACK_POOL !== 'undefined' ? _NEWS_FALLBACK_POOL[i % _NEWS_FALLBACK_POOL.length] : 'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600'));
+    var fbUrl = typeof _NEWS_FALLBACK_POOL !== 'undefined'
+        ? _NEWS_FALLBACK_POOL[(i + 1) % _NEWS_FALLBACK_POOL.length]
+        : 'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600';
     return '<div class="glass-card rounded-[1.5rem] overflow-hidden hover:border-ufcRed/30 transition-all duration-500 cursor-pointer" ' + cardClick + '>' +
         '<div class="relative overflow-hidden" style="height:150px">' +
-        '<img src="' + newsImg + '" class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" onerror="this.src=\'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600\'">' +
+        '<img src="' + newsImg + '" class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" onerror="this.src=\'' + fbUrl + '\'">' +
         '<div class="absolute inset-0 pointer-events-none" style="background:linear-gradient(to top,rgba(0,0,0,0.65) 0%,transparent 60%)"></div>' +
         '<div class="nc-cat-bar absolute top-0 left-0 right-0 h-1 ' + bar + '"></div>' +
         '<span class="absolute top-3 left-3 oswald-sharp text-[9px] px-2 py-1 rounded-lg font-black italic uppercase border border-white/10 ' + badge + '">' + lbl + (i < 2 ? ' 🔥' : '') + '</span>' +

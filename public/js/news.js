@@ -90,17 +90,20 @@
             'event':'이벤트', 'ranking':'랭킹'
         };
 
-        grid.innerHTML = newsItems.map(function(n) {
+        grid.innerHTML = newsItems.map(function(n, i) {
             var tagColor = TAG_COLORS[n.category] || 'bg-ufcRed';
             var tagLabel = TAG_LABELS[n.category] || 'UFC';
             var imgSrc = n.image_url ||
-                (typeof getNewsCategoryImg === 'function' ? getNewsCategoryImg(n.category) :
-                'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600');
+                (typeof getNewsCategoryImg === 'function' ? getNewsCategoryImg(n.category, i) :
+                (typeof _NEWS_FALLBACK_POOL !== 'undefined' ? _NEWS_FALLBACK_POOL[i % _NEWS_FALLBACK_POOL.length] : 'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600'));
+            var fbUrl = typeof _NEWS_FALLBACK_POOL !== 'undefined'
+                ? _NEWS_FALLBACK_POOL[(i + 1) % _NEWS_FALLBACK_POOL.length]
+                : 'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600';
             var clickAttr = n.url ? 'onclick="window.open(\'' + n.url + '\',\'_blank\')" style="cursor:pointer"' : '';
             return '<div class="glass-card rounded-[1.5rem] overflow-hidden group hover:border-ufcRed/30 transition-all duration-500" ' + clickAttr + '>' +
                 '<div class="h-36 lg:h-44 bg-gray-900 relative overflow-hidden">' +
                 '<img src="' + imgSrc + '" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" alt="news" ' +
-                'onerror="this.src=\'https://images.unsplash.com/photo-1552072092-7f9b8d63efcb?auto=format&fit=crop&q=80&w=600\'">' +
+                'onerror="this.src=\'' + fbUrl + '\'">' +
                 '<div class="absolute top-3 left-3 ' + tagColor + ' text-white text-[9px] px-2 py-1 font-bold barlow italic uppercase tracking-widest rounded-lg">' + tagLabel + '</div>' +
                 '</div>' +
                 '<div class="p-4 lg:p-6">' +
