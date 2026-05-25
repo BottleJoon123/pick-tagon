@@ -420,3 +420,30 @@ Auth, Octagon/Battle — 독립 계획 문서 작성 후 진행
 - [x] `npm run build` 통과
 - [x] JS 로직/HTML 구조 변경 없음
 - [x] inline onclick 변경 없음
+
+---
+
+## Phase 9C implementation result (2026-05-25)
+
+### Changed
+
+| Item | Before | After |
+|---|---:|---:|
+| `index.html` lines | 5,891 | 5,742 |
+| `public/js/data/constants.js` lines | 30 | 180 |
+| inline UFC ranking seed declarations | 2 | 0 |
+
+### Extracted constants
+
+- `UFC_DIVISIONS`
+- `UFC_RANKINGS_SEED`
+
+Both constants now live in `public/js/data/constants.js`, which already loads before `h2h.js` and the main inline script. Existing references continue to use the same global identifiers, so UFC rankings and H2H lookup paths do not need logic changes.
+
+### Verification
+
+- [x] No event flow changes
+- [x] No inline onclick changes
+- [x] `UFC_DIVISIONS` references remain valid for `index.html` and `public/js/h2h.js`
+- [x] `npm run build` PASS
+- [x] Expected local env placeholder warnings only (`%VITE_*%`)
