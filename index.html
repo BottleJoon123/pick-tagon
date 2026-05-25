@@ -2503,8 +2503,8 @@
 </footer>
 
 <script>
-  // Vite HTML env replacement: %VITE_..% is substituted at build/dev time.
-  // If a variable is unset, the literal %VITE_..% string remains — config.js detects and warns.
+  // Vite substitutes VITE_* env vars at build/dev time.
+  // Unset vars stay as raw placeholders; config.js detects them via leading-percent check.
   window.PICKTAGON_CONFIG = {
     supabaseUrl:  '%VITE_SUPABASE_URL%',
     supabaseKey:  '%VITE_SUPABASE_ANON_KEY%',

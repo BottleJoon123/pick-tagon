@@ -189,37 +189,116 @@ public/js/api/supabase.js
   ADMIN_EMAILS.indexOf(userEmail)
 ```
 
-### 5-3. 검증 결과 (2026-05-25)
+### 5-3. 검증 결과 (Phase 8A-2, 2026-05-25)
 
 - `npm run build` ✓ 통과
 - 소스 하드코딩 잔존 없음 (`grep` PASS — 0건)
 - `dist/js/config.js` 하드코딩 없음 ✓
 - `dist/index.html` PICKTAGON_CONFIG bridge 포함 ✓
-- Vite 경고 (`%VITE_..% not defined`): `.env.local` 미존재 시 정상 — 빌드 통과에 영향 없음
+- Vite 경고 (`VITE_* not defined`): `.env.local` 미존재 시 정상 — 빌드 통과에 영향 없음
 
-### 5-4. ⚠️ 배포 전 필수 작업 (사용자 직접)
+---
 
-**GitHub repository secrets 등록 필요:**  
-Settings → Secrets and variables → Actions → New repository secret
+## 6. Phase 8A-3 QA 결과 (2026-05-25)
+
+### 6-1. Static scan
+
+| 검사 항목 | 결과 |
+|---|---|
+| 소스 하드코딩 URL/key (`rnnrimzrypayvnmznpin`, `eyJhbGci`) | **0건** ✓ |
+| `.env.local` git tracked 여부 | **미추적** ✓ |
+| `.env.example` git tracked 여부 | **추적됨** ✓ |
+| `.gitignore` `.env`, `.env.local`, `.env.*.local` | **등록됨** ✓ |
+
+### 6-2. Build without env (no .env.local)
+
+- `npm run build` ✓ 통과 (exit 0)
+- Vite 경고 5개: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_ADMIN_EMAILS` not defined — **예상된 동작**
+- `dist/index.html`: `%VITE_..%` 리터럴 3개 남음 — config.js의 `ph.test()` 가 빈 값 처리
+- 앱 crash 없음 — `console.warn` 만 출력됨
+
+### 6-3. Build with temp env vars (non-real values)
+
+```bash
+VITE_SUPABASE_URL=https://test-project.supabase.co \
+VITE_SUPABASE_ANON_KEY=test-key-for-qa-only \
+VITE_ADMIN_EMAILS=test@example.com \
+npm run build
+```
+
+- `npm run build` ✓ 통과, **경고 0개**
+- `dist/index.html`: `%VITE_` 잔존 **0건** ✓
+- `window.PICKTAGON_CONFIG` 값 치환 확인:
+  ```js
+  window.PICKTAGON_CONFIG = {
+    supabaseUrl:  'https://test-project.supabase.co',
+    supabaseKey:  'test-key-for-qa-only',
+    adminEmails:  'test@example.com',
+  };
+  ```
+- Edge Function URL: `SUPABASE_URL + '/functions/v1/fetch-mma-news'` (하드코딩 없음) ✓
+
+> **버그 수정 포함:** 원래 inline script 코멘트에 `%VITE_..%` 패턴이 있어 Vite가 경고를 발생시키던 문제 → 코멘트 문구 변경으로 해결
+
+### 6-4. Runtime bridge logic smoke test (15/15 PASS)
+
+config.js bridge 로직을 Node.js에서 단독 실행:
+
+| 케이스 | 결과 |
+|---|---|
+| Case 1: 정상 env 주입 → `SUPABASE_URL`, `SUPABASE_KEY`, `ADMIN_EMAILS` 생성 | **6/6 PASS** |
+| Case 2: placeholder 미치환 (`%VITE_..%`) → 빈 string 반환 + `console.warn` | **5/5 PASS** |
+| Case 3: `window.PICKTAGON_CONFIG` 자체 누락 → no crash + `console.warn` | **4/4 PASS** |
+| **합계** | **15/15 PASS** |
+
+### 6-5. deploy.yml 구조 검증
+
+```yaml
+- name: Build
+  run: npm run build
+  env:
+    VITE_SUPABASE_URL:      ${{ secrets.VITE_SUPABASE_URL }}
+    VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+    VITE_ADMIN_EMAILS:      ${{ secrets.VITE_ADMIN_EMAILS }}
+```
+- Build step 위치 ✓
+- YAML 문법 ✓ (GitHub Actions 런타임에서 secrets 미등록 시 빈 string으로 처리됨)
+
+---
+
+## 7. ⚠️ 배포 전 필수 작업 (사용자 직접)
+
+### GitHub Repository Secrets 등록
+
+GitHub → Settings → Secrets and variables → Actions → New repository secret
 
 | Secret 이름 | 값 |
 |---|---|
 | `VITE_SUPABASE_URL` | Supabase 프로젝트 URL |
 | `VITE_SUPABASE_ANON_KEY` | Supabase anon key (JWT) |
-| `VITE_ADMIN_EMAILS` | 관리자 이메일 (comma-separated) |
+| `VITE_ADMIN_EMAILS` | 관리자 이메일, comma-separated (예: `a@b.com,c@d.com`) |
 
-**로컬 개발 시:**  
-`.env.example`을 복사해 `.env.local` 생성 후 실제 값 입력.
+### 로컬 개발 환경 설정
 
-> secrets 미등록 상태로 push하면: CI 빌드 성공 but 앱이 Supabase 연결 실패.  
-> `[PICKTAGON] Supabase config missing` console.warn이 브라우저에서 출력됨.
+```bash
+cp .env.example .env.local
+# .env.local 열어서 실제 값 입력
+```
+
+### 배포 후 확인
+
+- 브라우저 DevTools Console에서 `[PICKTAGON] Supabase config missing` 경고 없는지 확인
+- Supabase 로그인/데이터 로드 정상 작동 확인
+
+> secrets 미등록 상태로 push하면: CI 빌드는 성공하나 앱이 Supabase 연결 실패.
 
 ---
 
-## 6. 진행 현황
+## 8. 진행 현황
 
 | 단계 | 상태 |
 |---|---|
 | Phase 8A-1: 조사 및 계획 문서화 | **완료** |
 | Phase 8A-2: env bridge 구현 | **완료** |
+| Phase 8A-3: env bridge QA | **완료** |
 | GitHub Secrets 등록 | **사용자 직접 필요** |
