@@ -237,6 +237,12 @@ function loadPostsFromDB() {
         var navPtsMob = document.getElementById('nav-points-mobile');
         if (navPts) navPts.textContent = pts;
         if (navPtsMob) navPtsMob.textContent = pts;
+
+        // admin nav 표시/숨김 — adminUnlocked는 loadUserFromDB 콜백에서 확정됨
+        var navAdmin = document.getElementById('nav-admin');
+        var mobNavAdmin = document.getElementById('mob-nav-admin');
+        if (navAdmin) navAdmin.classList.toggle('hidden', !adminUnlocked);
+        if (mobNavAdmin) mobNavAdmin.classList.toggle('hidden', !adminUnlocked);
     }
 
     function loadUserFromDB(userId) {

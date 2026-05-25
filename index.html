@@ -148,7 +148,7 @@
                 <li><button onclick="navigateTo('community')" id="nav-community" class="nav-link py-2 transition">커뮤니티</button></li>
                 <li><button onclick="navigateTo('archive')" id="nav-archive" class="nav-link py-2 transition">아카이브</button></li>
                 <li><button onclick="navigateTo('profile')" id="nav-profile" class="nav-link py-2 transition">프로필</button></li>
-                <li><button onclick="openAdminGate()" id="nav-admin" class="nav-link py-2 transition text-gray-600 hover:text-red-500">⚙</button></li>
+                <li><button onclick="openAdminGate()" id="nav-admin" class="hidden nav-link py-2 transition text-gray-600 hover:text-red-500">⚙</button></li>
             </ul>
             <div class="nav-pts-pill flex items-center gap-1.5 px-3 py-1.5 rounded-full">
                 <span aria-hidden="true" class="text-[9px]" style="color:var(--pt-warn)">◆</span>
@@ -197,7 +197,11 @@
         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
         <span class="barlow text-[9px] font-bold italic uppercase">프로필</span>
     </button>
-    <button onclick="openAdminGate()" class="bottom-nav-item flex flex-col items-center gap-0.5 px-2 py-1 text-gray-700">
+    <button onclick="navigateTo('archive')" id="mob-nav-archive" class="bottom-nav-item flex flex-col items-center gap-0.5 px-2 py-1 text-gray-600">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v2c0 .72.41 1.35 1 1.68V18c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V9.68c.59-.33 1-.96 1-1.68V6c0-1.1-.9-2-2-2zm-1 14H5V10h14v8zm1-10H4V6h16v2zm-6 4h-4v2h4v-2z"/></svg>
+        <span class="barlow text-[9px] font-bold italic uppercase">아카이브</span>
+    </button>
+    <button onclick="openAdminGate()" id="mob-nav-admin" class="hidden bottom-nav-item flex flex-col items-center gap-0.5 px-2 py-1 text-gray-700">
         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32a.49.49 0 00-.6-.22l-2.39.96a7.03 7.03 0 00-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 00-.6.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.6.22l2.39-.96c.5.37 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6a3.6 3.6 0 110-7.2 3.6 3.6 0 010 7.2z"/></svg>
         <span class="barlow text-[9px] font-bold italic uppercase">Admin</span>
     </button>
