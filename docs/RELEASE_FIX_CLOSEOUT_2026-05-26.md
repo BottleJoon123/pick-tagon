@@ -118,6 +118,23 @@ Playwright QA 13/13 PASS.
 **수정 A** (`community.js`): `fetchUpcomingMatchups().then()`으로 완료 후 `_communityMatchupsFetching` 리셋 + `renderMatchups(_dbMatchups)` 재호출.  
 **수정 B** (`index.html`): `navigateTo('community')`에 `renderFeed()` 추가 — 데이터가 이미 있을 때도 탭 진입 시 보드 갱신. `loadMyBattles()` 유지.  
 빌드 성공 (1.67s), 검증 5/5 PASS.
+**커밋**: `b0a94f4` Fix: Preload matchups for community panel
+
+---
+
+### Fix 13 — 유저 랭킹 명칭 및 시즌 표시 정리
+**커밋**: (이번 커밋)  
+**변경 파일**: `index.html`, `public/js/season.js`, `public/js/profile.js`  
+**발견 A**: 유저 랭킹 탭 nav가 "랭킹"으로만 표시 → UFC 랭킹(UFC)과 구분 불명확.  
+**수정 A**: desktop nav `>랭킹<` → `>유저 랭킹<`, mobile nav `>랭킹<` → `>유저랭킹<`.  
+**발견 B**: rankings 섹션 서브타이틀이 "시즌 4" 하드코딩 → 실제 시즌(시즌 1)과 불일치.  
+**수정 B**: 서브타이틀을 `<span id="rankings-season-subtitle">` 동적 요소로 교체. `season.js` `loadCurrentSeasonFromDB()` + `renderHallOfFame()` 두 경로에서 `'· ' + seasonData.current.name` 업데이트.  
+**발견 C**: belt legend 기준이 포인트 범위만 표시 → 기준 안내 부재.  
+**수정 C**: belt legend 하단에 "픽 포인트 기반 · 예측 기록이 쌓일수록 등급이 올라갑니다" 안내 문구 추가.  
+**발견 D**: 프로필 empty state "아직 예측 기록이 없습니다" → pending/settled 구분 모호.  
+**수정 D**: "아직 정산된 예측 기록이 없습니다" + "경기 결과 확정 후 통계가 업데이트됩니다" 안내 추가.  
+**출시 후 backlog**: 벨트 아이콘 디자인 개선 (색 동그라미 → 실제 벨트 모양).  
+빌드 성공 (1.53s), 검증 10/10 PASS.
 
 ---
 

@@ -57,6 +57,8 @@ function loadCurrentSeasonFromDB() {
         saveSeason();
         var badge = document.getElementById('current-season-badge');
         if (badge) badge.textContent = row.name;
+        var sub = document.getElementById('rankings-season-subtitle');
+        if (sub) sub.textContent = '· ' + row.name;
     }).catch(function() {});
 }
 
@@ -149,6 +151,8 @@ function renderHallOfFame() {
     // Season badge on rankings page
     const badge = document.getElementById('current-season-badge');
     if (badge) badge.textContent = seasonData.current?.name || 'Season 1';
+    const sub = document.getElementById('rankings-season-subtitle');
+    if (sub) sub.textContent = seasonData.current?.name ? '· ' + seasonData.current.name : '';
     if (label) label.textContent = `총 ${hof.length}시즌 완료`;
 
     if (hof.length === 0) {

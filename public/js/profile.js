@@ -122,8 +122,8 @@ function renderProfileReport() {
         if (reportEl) {
             reportEl.innerHTML = `
             <div class="col-span-full flex flex-col items-center justify-center py-8 gap-4 text-center">
-                <p class="oswald-sharp text-xl font-black italic text-gray-500 uppercase">아직 예측 기록이 없습니다</p>
-                <p class="text-gray-600 text-sm italic">첫 픽을 등록하고 파이터 IQ를 쌓아보세요</p>
+                <p class="oswald-sharp text-xl font-black italic text-gray-500 uppercase">아직 정산된 예측 기록이 없습니다</p>
+                <p class="text-gray-600 text-sm italic">경기 결과 확정 후 통계가 업데이트됩니다 · 첫 픽을 시작해보세요</p>
                 <button onclick="navigateTo('matchups')"
                     class="oswald-sharp mt-2 px-6 py-3 rounded-xl font-black italic text-sm uppercase tracking-widest bg-ufcRed hover:bg-red-700 text-white transition-colors">
                     픽하러 가기
