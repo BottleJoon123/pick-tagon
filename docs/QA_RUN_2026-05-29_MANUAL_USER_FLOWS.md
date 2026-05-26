@@ -145,33 +145,63 @@
 
 ---
 
-## 7. Manual Flow E — Mobile 375px
+## 7. Manual Flow E — Mobile 375px (상세)
 
 > **전제:** Chrome DevTools → Device 375×812 에뮬레이션 또는 실제 모바일 디바이스.  
-> 로그인 상태에서 진행 권장.
+> 로그인 상태에서 진행 권장.  
+> **상세 체크리스트**: [`docs/MOBILE_CLICK_FLOW_QA_2026-06-10.md`](MOBILE_CLICK_FLOW_QA_2026-06-10.md) — 섹션 A~H 참조.
+
+**핵심 항목 요약 (이 문서 기준):**
 
 | ID | 체크 항목 | 예상 결과 | 실제 결과 | Pass/Fail/Skip |
 |---|---|---|---|---|
-| E-1 | bottom nav 표시 | 하단 네비게이션 바 표시 | | |
-| E-2 | bottom nav 탭 전환 | 각 섹션으로 이동 | | |
-| E-3 | 햄버거 메뉴 또는 sidebar 열기 | sidebar drawer 슬라이드 인 | | |
-| E-4 | sidebar 닫기 (닫기 버튼 또는 backdrop) | sidebar 닫힘 | | |
-| E-5 | Home hero 컨텐츠 | 파이터 이미지 + 텍스트 렌더 | | |
-| E-6 | Event pick card 스크롤 | 카드 목록 정상 스크롤 | | |
-| E-7 | fight card tap → pick slip open | pick slip 패널 열림 (모바일 뷰) | | |
-| E-8 | pick slip close (모바일) | 정상 닫힘 | | |
-| E-9 | 뉴스 카드 tap → detail modal 열림 | 모바일 전체화면 또는 modal 표시 | | |
-| E-10 | 뉴스 modal 닫기 (모바일) | 정상 닫힘 | | |
-| E-11 | Community post tap → modal 열림 | 정상 열림 | | |
-| E-12 | Community modal 닫기 (모바일) | 정상 닫힘 | | |
-| E-13 | Profile / Leaderboard 렌더 (모바일) | 포인트/랭킹 표시 | | |
-| E-14 | Rankings 탭 전환 (모바일) | 탭 클릭 시 정상 필터 | | |
+| E-1 | Bottom nav 8탭 전환 | Home/대진/UFC/랭킹/뉴스/커뮤/아카이브/프로필 모두 이동 | | |
+| E-2 | Admin 탭 비노출 (비어드민) | Admin 항목 없음 | | |
+| E-3 | Event sidebar FAB 탭 | UFC 일정 패널 열림 | | |
+| E-4 | Event sidebar 닫기 | 패널 닫힘 | | |
+| E-5 | fight card tap → pick slip open | pick slip 패널 열림 | | |
+| E-6 | pick slip 선수/method/round UI | UI 표시, 탭 반응 | | |
+| E-7 | pick slip close (X + backdrop) | 정상 닫힘 | | |
+| E-8 | Stats overlay (ℹ️) open/close | Tale of the Tape 표시/닫힘 | | |
+| E-9 | Analysis 패널 확장/축소 | 탭 전환 정상 | | |
+| E-10 | 뉴스 카드 이미지 다양화 | 카드마다 다른 이미지 | | |
+| E-11 | 뉴스 카드 tap → 외부 링크 또는 modal | 새 탭 또는 modal 열림 | | |
+| E-12 | 뉴스 modal 닫기 | 정상 닫힘 | | |
+| E-13 | Community post tap → modal 열림 | 정상 열림 | | |
+| E-14 | Community modal 닫기 | 정상 닫힘 | | |
+| E-15 | Profile — faction 미배정 시 "집단 선택" 버튼 | 버튼 표시 | | |
+| E-16 | Faction 선택 모달 open/close | 8개 faction 카드 표시, 닫기 동작 | | |
+| E-17 | 가로 overflow 없음 (Home/Event/News/Community) | 375px에서 가로 스크롤 없음 | | |
+| E-18 | Console error 없음 (비-Supabase) | 0건 | | |
 
 **Findings:**
 
 ---
 
-## 8. Finding 기록 템플릿
+## 8. Manual Flow F — Signup / Faction Default 확인
+
+> **전제:** 신규 이메일 준비 필요. 운영자 확인 후 실행.  
+> 목적: Dagestan 자동 배정 버그 최종 재현 여부 확인.  
+> 상세: [`docs/FACTION_DEFAULT_INVESTIGATION_2026-06-10.md`](FACTION_DEFAULT_INVESTIGATION_2026-06-10.md) — 조사 결과 버그 없음으로 결론.
+
+| ID | 체크 항목 | 예상 결과 | 실제 결과 | Pass/Fail/Skip |
+|---|---|---|---|---|
+| F-1 | 신규 이메일로 회원가입 | 가입 성공, 환영 메시지 | | |
+| F-2 | 가입 직후 faction 자동 배정 여부 | **다게스탄 자동 배정 없음** — 프로필에 "집단 선택" 버튼 | | |
+| F-3 | 집단 선택 모달 자동 오픈 (0.8초 후) | 모달 자동 표시 | | |
+| F-4 | 모달 첫 번째 카드 pre-selected 여부 | 선택된 카드 없음 (다게스탄 포함) | | |
+| F-5 | 모달 X 닫기 후 faction 미배정 확인 | 닫기 후 "집단 선택" 버튼 유지 | | |
+| F-6 | 비밀번호 확인 필드 불일치 | 에러 메시지 표시 | | |
+| F-7 | 이미 가입된 이메일 재시도 | "이미 사용 중" 안내 | | |
+
+> **F-2 판정**: 가입 직후 profile에 🐻 다게스탄 배지가 표시되면 FAIL.  
+> 조사 결과: DB DEFAULT null, trigger faction 미설정 → 정상이라면 PASS.
+
+**Findings (F):**
+
+---
+
+## 9. Finding 기록 템플릿
 
 발견 사항은 아래 형식으로 이 문서에 직접 추가하거나 별도 텍스트로 기록한다.
 
@@ -193,7 +223,7 @@
 
 ---
 
-## 9. Pass 기준
+## 10. Pass 기준
 
 이 QA 윈도우 종료 시 아래 조건이 모두 충족되어야 QA 윈도우 2를 PASS로 처리한다.
 
@@ -202,13 +232,17 @@
 | 1 | P0 Finding 0개 | |
 | 2 | P1 Finding 0개 (또는 수정 완료) | |
 | 3 | write action은 승인된 test-only 또는 Skip 처리 | |
-| 4 | 모바일 375px 핵심 클릭 플로우 (pick slip, news modal, community modal) 동작 확인 | |
-| 5 | 모든 Finding이 P0/P1/P2/P3로 트리아지 완료 | |
-| 6 | P2 이상 Finding은 backlog 또는 fix 계획 수립 | |
+| 4 | Bottom nav 8탭 전환 동작 확인 (E-1, E-2) | |
+| 5 | Pick slip open/close, Stats/Analysis 동작 확인 (E-5~E-9) | |
+| 6 | News/Community modal open/close 확인 (E-10~E-14) | |
+| 7 | Faction 미배정 유저 — 집단 선택 UI 확인 (E-15, E-16) | |
+| 8 | **Dagestan 자동 배정 없음 확인 (F-2: PASS)** | |
+| 9 | 가로 overflow 없음 확인 (E-17) | |
+| 10 | 모든 Finding이 P0/P1/P2/P3로 트리아지 완료 | |
 
 ---
 
-## 10. QA 종료 후 다음 액션
+## 11. QA 종료 후 다음 액션
 
 | 우선순위 | 액션 | 시점 |
 |---|---|---|
