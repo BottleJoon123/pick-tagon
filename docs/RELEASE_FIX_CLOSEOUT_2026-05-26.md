@@ -89,12 +89,23 @@ Playwright QA 13/13 PASS.
 ---
 
 ### Fix 10 — Mobile Analysis 탭 승리 방법 비율 겹침 수정
-**커밋**: (이번 커밋)  
+**커밋**: `b699bd6` Fix: Prevent mobile analysis stat overlap  
 **변경 파일**: `public/js/fights-render.js`  
 **발견**: 모바일 375px Analysis 탭에서 KO/TKO · 서브미션 · 판정 ring 3개가 중앙에서 겹침.  
 **원인**: `p-6` 패딩(24px×2) + `grid-cols-2 gap-6` → 컬럼당 151.5px. `w-14`(56px) ring × 3 + `gap-4`(16px) × 2 = **200px 필요 → 48.5px 초과**.  
 **수정**: `ring` 함수에서 `w-14 h-14` → `w-10 h-10 sm:w-14 sm:h-14`, `text-sm` → `text-xs sm:text-sm`. `card` 함수에서 `gap-4` → `gap-1.5 sm:gap-4`.  
 **결과**: 모바일 132px 필요 (19.5px 여백 확보) ✅ / desktop 640px+ 이상 원복 ✅. 빌드 성공 (1.81s).
+
+---
+
+### Fix 11 — UFC 랭킹 DB 우선 로드 + 카드 compact 정리
+**커밋**: (이번 커밋)  
+**변경 파일**: `index.html`  
+**발견 A**: 첫 진입 시 seed/localStorage 데이터가 표시됨. `loadUFCRankings()`가 `initSupabase()` 이전에 호출되어 `sb = null` → DB fetch 미실행.  
+**수정 A**: `window.onload`에서 `loadUFCRankings()` 호출 순서를 `initSupabase()` 이후로 이동. `sb` 동기 생성 직후 DB select 시작.  
+**발견 B**: 랭킹 행에서 trend `→` 가 12-col grid 초과로 모바일에서 다음 줄로 밀려 불필요한 높이 차지. height/reach `—` 도 빈 텍스트로 표시됨.  
+**수정 B**: trend 헤더·셀 완전 제거. 이름 col-span `lg:col-span-5` 유지(`col-span-6`으로 단일화). height/reach `'—'`·empty 시 해당 `<p>` 미렌더. champion 카드 동일 처리(`_champMeta` 헬퍼).  
+**참고**: DB resync(M-1) 은 여전히 Admin 리허설 필요 (06-02~04). `loadUFCRankings()`는 read-only select만 수행. 빌드 성공 (1.50s).
 
 ---
 

@@ -3544,6 +3544,13 @@ async function publishPost() {
         const divInfo = UFC_DIVISIONS.find(d => d.id === currentDivision);
         if (!divData) return;
 
+        const _champMeta = (c) => {
+            const parts = [c.record].filter(Boolean);
+            if (c.height && c.height !== '—') parts.push(c.height);
+            if (c.reach && c.reach !== '—') parts.push('리치 ' + c.reach);
+            return parts.join(' · ');
+        };
+
         // Filter by search
         let fighters = divData.fighters || [];
         if (query) {
@@ -3571,7 +3578,7 @@ async function publishPost() {
                             onclick='openUFCFighterProfile(${JSON.stringify({...divData.champion, isChampion:true, division: divInfo?.label}).replace(/'/g,"&#39;")})'>
                             ${divData.champion.nation} ${divData.champion.name}
                         </h4>
-                        <p class="oswald-sharp text-xs text-gray-500 italic uppercase mt-1">${divData.champion.record} · ${divData.champion.height} · 리치 ${divData.champion.reach}</p>
+                        <p class="oswald-sharp text-xs text-gray-500 italic uppercase mt-1">${_champMeta(divData.champion)}</p>
                     </div>
                 </div>
                 <button class="oswald-sharp bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/20 font-black px-6 py-3 rounded-xl italic uppercase text-xs tracking-widest transition"
@@ -3588,10 +3595,9 @@ async function publishPost() {
         <div class="glass-card rounded-[2rem] overflow-hidden">
             <div class="grid grid-cols-12 px-5 lg:px-10 py-4 border-b border-white/5 bg-black/30">
                 <span class="col-span-1 oswald-sharp text-[8px] text-gray-600 font-black italic uppercase tracking-widest text-center">#</span>
-                <span class="col-span-6 lg:col-span-5 oswald-sharp text-[8px] text-gray-600 font-black italic uppercase tracking-widest pl-2">선수</span>
+                <span class="col-span-6 oswald-sharp text-[8px] text-gray-600 font-black italic uppercase tracking-widest pl-2">선수</span>
                 <span class="col-span-3 oswald-sharp text-[8px] text-gray-600 font-black italic uppercase tracking-widest text-center hidden lg:block">전적</span>
                 <span class="col-span-5 lg:col-span-2 oswald-sharp text-[8px] text-gray-600 font-black italic uppercase tracking-widest text-center">신장/리치</span>
-                <span class="col-span-1 oswald-sharp text-[8px] text-gray-600 font-black italic uppercase tracking-widest text-center">추세</span>
             </div>
             ${fighters.length === 0
                 ? `<div class="px-10 py-12 text-center oswald-sharp text-xs text-gray-600 italic uppercase tracking-widest">검색 결과 없음</div>`
@@ -3601,7 +3607,7 @@ async function publishPost() {
                 <div class="col-span-1 text-center">
                     <span class="oswald-sharp font-black italic text-base lg:text-xl ${f.rank<=3?'text-ufcRed':'text-gray-500'}">${f.rank}</span>
                 </div>
-                <div class="col-span-6 lg:col-span-5 flex items-center gap-3 pl-2">
+                <div class="col-span-6 flex items-center gap-3 pl-2">
                     <div class="w-9 h-9 lg:w-11 lg:h-11 rounded-xl bg-white/5 border border-white/10 overflow-hidden flex items-center justify-center flex-shrink-0">
                         ${_getRankImg(f.name_en || f.name)
                             ? `<img src="${_getRankImg(f.name_en || f.name)}" class="w-full h-full object-cover object-top" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
@@ -3617,11 +3623,8 @@ async function publishPost() {
                     <span class="oswald-sharp font-black italic text-sm text-white">${f.record}</span>
                 </div>
                 <div class="col-span-5 lg:col-span-2 text-center">
-                    <p class="oswald-sharp text-[9px] lg:text-[10px] text-gray-500 italic">${f.height}</p>
-                    <p class="oswald-sharp text-[9px] lg:text-[10px] text-gray-600 italic">리치 ${f.reach}</p>
-                </div>
-                <div class="col-span-1 text-center">
-                    <span class="oswald-sharp font-black text-base ${UFC_TREND_TEXT_CLASS[f.trend]||'text-gray-500'}">${f.trend||'→'}</span>
+                    ${f.height && f.height !== '—' ? `<p class="oswald-sharp text-[9px] lg:text-[10px] text-gray-500 italic">${f.height}</p>` : ''}
+                    ${f.reach && f.reach !== '—' ? `<p class="oswald-sharp text-[9px] lg:text-[10px] text-gray-600 italic">리치 ${f.reach}</p>` : ''}
                 </div>
             </div>`).join('')}
         </div>`;
@@ -4287,7 +4290,6 @@ async function addCommentToDB(postDbId, userNick, text) {
         loadEventInfo();
         loadNews();
         loadSeason();
-        loadUFCRankings();
         applyEventInfo();
         updateNicknameDisplay();
         refreshUI();
@@ -4297,7 +4299,8 @@ async function addCommentToDB(postDbId, userNick, text) {
         var initPage = validPages.indexOf(hashPage) !== -1 ? hashPage : 'home';
         history.replaceState({ page: initPage }, '', '#' + initPage);
         _currentPage = initPage;
-        initSupabase();
+        initSupabase(); // sb 동기 생성 — 이후 loadUFCRankings가 sb를 사용할 수 있음
+        loadUFCRankings();
         navigateTo(initPage, true);
         fetchArchive();
         setTimeout(initHome, 400);
