@@ -366,15 +366,15 @@ function renderInsightHTML(fight) {
         </div>`;
     const ring = (pct, label, borderCls, textCls) =>
         `<div class="text-center">
-            <div class="w-14 h-14 rounded-full border-2 ${borderCls} bg-white/5 flex flex-col items-center justify-center mx-auto mb-1">
-                <span class="oswald-sharp text-sm font-black italic ${textCls}">${pct || 0}%</span>
+            <div class="w-10 h-10 sm:w-14 sm:h-14 rounded-full border-2 ${borderCls} bg-white/5 flex flex-col items-center justify-center mx-auto mb-1">
+                <span class="oswald-sharp text-xs sm:text-sm font-black italic ${textCls}">${pct || 0}%</span>
             </div>
             <span class="oswald-sharp text-[9px] text-gray-600 italic">${label}</span>
         </div>`;
     const card = (f, nameCls) =>
         `<div class="text-center">
             <div class="oswald-sharp text-xs font-black italic uppercase mb-4 ${nameCls}">${f.name}</div>
-            <div class="flex justify-center gap-4 mb-2">
+            <div class="flex justify-center gap-1.5 sm:gap-4 mb-2">
                 ${ring(f.koRate, 'KO/TKO', 'border-ufcRed', 'text-ufcRed')}
                 ${ring(f.subRate, '서브미션', 'border-green-500', 'text-green-400')}
                 ${ring(f.decRate, '판정', 'border-ufcBlue', 'text-ufcBlue')}

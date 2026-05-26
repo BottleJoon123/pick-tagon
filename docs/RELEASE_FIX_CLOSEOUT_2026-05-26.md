@@ -88,6 +88,16 @@ Playwright QA 13/13 PASS.
 
 ---
 
+### Fix 10 — Mobile Analysis 탭 승리 방법 비율 겹침 수정
+**커밋**: (이번 커밋)  
+**변경 파일**: `public/js/fights-render.js`  
+**발견**: 모바일 375px Analysis 탭에서 KO/TKO · 서브미션 · 판정 ring 3개가 중앙에서 겹침.  
+**원인**: `p-6` 패딩(24px×2) + `grid-cols-2 gap-6` → 컬럼당 151.5px. `w-14`(56px) ring × 3 + `gap-4`(16px) × 2 = **200px 필요 → 48.5px 초과**.  
+**수정**: `ring` 함수에서 `w-14 h-14` → `w-10 h-10 sm:w-14 sm:h-14`, `text-sm` → `text-xs sm:text-sm`. `card` 함수에서 `gap-4` → `gap-1.5 sm:gap-4`.  
+**결과**: 모바일 132px 필요 (19.5px 여백 확보) ✅ / desktop 640px+ 이상 원복 ✅. 빌드 성공 (1.81s).
+
+---
+
 ## 3. NEEDS_MANUAL — 출시 전 수동 확인 필요
 
 ### M-1. UFC 랭킹 DB 재동기화
