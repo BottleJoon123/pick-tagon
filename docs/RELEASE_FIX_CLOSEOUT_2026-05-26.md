@@ -148,7 +148,18 @@ Playwright QA 13/13 PASS.
 **수정 D** (`youtube.js` `loadYoutubeTab`): `activeYoutubeCardIdx >= 0` 경로에서 해당 카드 1개만 fetch. 완료 후 테마 6개 스위처 버튼 표시(`!_ytFromShortcut`). 숏컷 경유 시(`_ytFromShortcut`) 뒤로 버튼 단독 표시.  
 **결과**: YouTube 탭 첫 진입 시 요청 수 36개 → 6개(1 테마). 캐시(`ytVideoCache`) 활용으로 테마 전환 시 재요청 없음.  
 빌드 성공 (1.32s), 검증 7/7 PASS.
-**커밋**: `(이번 커밋)` Fix: Lazy load YouTube theme videos
+**커밋**: `04dec9c` Fix: Lazy load YouTube theme videos
+
+---
+
+### Fix 15 — Battle 관전 진입점 명확화
+**변경 파일**: `index.html`  
+**발견**: 커뮤니티 탭에서 배틀/옥타곤 기능 진입점을 찾기 어려움. "⚡ 내 배틀" 패널의 빈 상태가 사용 방법을 안내하지 않음. 관전(spectator) 기능은 인프라 존재(`octagon.role = 'spectator'` 정의, Presence 추적, 투표 함수)하지만 spectator role을 할당하는 경로가 없어 실질적으로 미완성.  
+**수정 A** (`index.html` community subtitle): `격투기 팬들의 뜨거운 설전과 분석` → `격투기 팬들의 뜨거운 설전과 분석 · 포스트 댓글 ⚡ 버튼으로 배틀 신청` — 배틀 신청 경로 힌트 추가.  
+**수정 B** (`index.html` `renderMyBattleList` 빈 상태): "진행 중인 배틀 없음" 단독 → 안내 문구 추가: "포스트를 열고 댓글에서 ⚡ 옥타곤 버튼으로 배틀을 신청할 수 있습니다".  
+**미수정 (Option B)**: 관전 진입점 추가 없음 — spectator role 할당 경로가 없어 broken feature 노출 방지. 관전 기능은 출시 후 backlog.  
+빌드 성공 (1.61s), 검증 5/5 PASS.
+**커밋**: `(이번 커밋)` Fix: Clarify battle watch entry point
 
 ---
 
@@ -183,6 +194,7 @@ Playwright QA 13/13 PASS.
 
 | 항목 | 내용 | 우선순위 |
 |---|---|---|
+| 배틀 관전(spectator) 진입점 | `octagon.role='spectator'` 할당 경로 + 진행 중인 배틀 목록 UI. 인프라 존재(Presence, 투표 함수), 진입 경로만 없음 | P2 |
 | Stat scoring v2 / 랭커 보정 | 예측 적중 시 스탯 반영 로직 개선 | P2 |
 | Recent fights 공식 데이터 | 최근전적 실제 DB 연결 (스크래핑 필요) | P2 |
 | 2026 archive event scrape | 과거 이벤트 결과 아카이브 보강 | P2 |
