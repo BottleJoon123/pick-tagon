@@ -46,7 +46,8 @@ var currentNewsCat = 'all';
 
 // 유튜브 영상 캐시 {query: [{id, title}]}
 var ytVideoCache = {};
-var activeYoutubeCardIdx = -1; // -1 = 전체, 0~N = 특정 카드만 표시
+var activeYoutubeCardIdx = 0;  // 0~N = 특정 카드; -1은 레거시 전체 로드 경로(미사용)
+var _ytFromShortcut = false;   // goToYoutubeCard() 경유 시 true → 뒤로 버튼 표시
 
 // 아카이브
 var archiveDB = [];

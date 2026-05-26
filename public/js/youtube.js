@@ -76,6 +76,7 @@
 
     function goToYoutubeCard(idx) {
         activeYoutubeCardIdx = idx;
+        _ytFromShortcut = true;
         currentNewsCat = 'youtube';
         renderNewsCatTabs();
         loadYoutubeTab();
@@ -126,12 +127,27 @@
                 '</div></div>';
         }).join('');
 
+        // 테마 스위처 (숏컷에서 온 경우가 아닐 때 → YouTube 탭 진입)
+        var themeSwitcher = '';
+        if (!_ytFromShortcut && activeYoutubeCardIdx >= 0) {
+            themeSwitcher = '<div class="flex gap-2 flex-wrap mb-5">' +
+                YOUTUBE_CARDS.map(function(c, i) {
+                    var isActive = i === activeYoutubeCardIdx;
+                    return '<button onclick="activeYoutubeCardIdx=' + i + ';loadYoutubeTab()" ' +
+                        'class="oswald-sharp flex-shrink-0 text-[9px] font-black italic uppercase tracking-widest px-3 py-1.5 rounded-xl border transition-all ' +
+                        (isActive ? 'bg-red-600/20 border-red-500/50 text-white' : 'border-white/10 text-gray-500 hover:text-white') + '">' +
+                        c.icon + ' ' + c.title + '</button>';
+                }).join('') +
+                '</div>';
+        }
+
+        // 뒤로 버튼 (숏컷에서 온 경우에만 표시)
         var backBtn = '';
-        if (activeYoutubeCardIdx >= 0) {
-            backBtn = '<div class="mb-5"><button onclick="activeYoutubeCardIdx=-1;loadYoutubeTab()" ' +
+        if (_ytFromShortcut) {
+            backBtn = '<div class="mb-5"><button onclick="_ytFromShortcut=false;activeYoutubeCardIdx=0;loadYoutubeTab()" ' +
                 'class="oswald-sharp text-xs text-gray-400 hover:text-white border border-white/10 hover:border-white/30 px-4 py-2 rounded-xl italic uppercase tracking-widest transition">← 전체 보기</button></div>';
         }
-        grid.innerHTML = backBtn + html;
+        grid.innerHTML = backBtn + themeSwitcher + html;
     }
 
     function renderNewsCatTabs() {
@@ -149,7 +165,8 @@
         currentNewsCat = catId;
         renderNewsCatTabs();
         if (catId === 'youtube') {
-            activeYoutubeCardIdx = -1; // 탭 직접 클릭 시 전체 표시
+            activeYoutubeCardIdx = 0; // 첫 번째 테마만 로드 (lazy)
+            _ytFromShortcut = false;
             loadYoutubeTab();
         } else {
             renderNewsGrid();

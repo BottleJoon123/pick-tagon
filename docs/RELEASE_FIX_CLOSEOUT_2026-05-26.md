@@ -135,6 +135,20 @@ Playwright QA 13/13 PASS.
 **수정 D**: "아직 정산된 예측 기록이 없습니다" + "경기 결과 확정 후 통계가 업데이트됩니다" 안내 추가.  
 **출시 후 backlog**: 벨트 아이콘 디자인 개선 (색 동그라미 → 실제 벨트 모양).  
 빌드 성공 (1.53s), 검증 10/10 PASS.
+**커밋**: `7c0b3fb` Fix: Clarify user ranking copy
+
+---
+
+### Fix 14 — YouTube 탭 테마별 Lazy Load
+**변경 파일**: `public/js/state.js`, `public/js/youtube.js`  
+**발견**: 뉴스 탭 → YouTube 클릭 시 YOUTUBE_CARDS 6개(각 6영상 = 36개 요청)를 `Promise.all`로 동시 fetch. 첫 로드 시 불필요한 36개 jina.ai 프록시 요청 발생.  
+**수정 A** (`state.js`): `activeYoutubeCardIdx` 기본값 `-1` → `0`. `_ytFromShortcut = false` 플래그 추가.  
+**수정 B** (`youtube.js` `setNewsCat`): `activeYoutubeCardIdx = 0`, `_ytFromShortcut = false` 초기화.  
+**수정 C** (`youtube.js` `goToYoutubeCard`): `_ytFromShortcut = true` 설정 (숏컷 경유 플래그).  
+**수정 D** (`youtube.js` `loadYoutubeTab`): `activeYoutubeCardIdx >= 0` 경로에서 해당 카드 1개만 fetch. 완료 후 테마 6개 스위처 버튼 표시(`!_ytFromShortcut`). 숏컷 경유 시(`_ytFromShortcut`) 뒤로 버튼 단독 표시.  
+**결과**: YouTube 탭 첫 진입 시 요청 수 36개 → 6개(1 테마). 캐시(`ytVideoCache`) 활용으로 테마 전환 시 재요청 없음.  
+빌드 성공 (1.32s), 검증 7/7 PASS.
+**커밋**: `(이번 커밋)` Fix: Lazy load YouTube theme videos
 
 ---
 
