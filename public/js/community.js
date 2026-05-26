@@ -252,7 +252,12 @@
             }
             if (!_communityMatchupsFetching && typeof fetchUpcomingMatchups === 'function') {
                 _communityMatchupsFetching = true;
-                fetchUpcomingMatchups();
+                fetchUpcomingMatchups().then(function() {
+                    _communityMatchupsFetching = false;
+                    if (typeof _dbMatchups !== 'undefined' && _dbMatchups && _dbMatchups.length > 0) {
+                        renderMatchups(_dbMatchups);
+                    }
+                });
             }
         }
 

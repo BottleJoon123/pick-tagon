@@ -2238,7 +2238,10 @@
         }
         if(id === 'rankings') setTimeout(function() { renderLeaderboard(); loadHallOfFameFromDB(); loadCurrentSeasonFromDB(); }, 100);
         if(id === 'archive') { if (archiveDB.length === 0) fetchArchive(); else renderArchive(); }
-        if(id === 'community') { if (currentUser) loadMyBattles(); }
+        if(id === 'community') {
+            if (typeof renderFeed === 'function') renderFeed();
+            if (currentUser) loadMyBattles();
+        }
         if(id === 'profile') { setTimeout(() => renderProfileStats(), 100); }
         if(id === 'admin') {
             // 대시보드를 기본 탭으로 표시 (내부에서 renderAdminDashboard 호출)

@@ -106,6 +106,18 @@ Playwright QA 13/13 PASS.
 **발견 B**: 랭킹 행에서 trend `→` 가 12-col grid 초과로 모바일에서 다음 줄로 밀려 불필요한 높이 차지. height/reach `—` 도 빈 텍스트로 표시됨.  
 **수정 B**: trend 헤더·셀 완전 제거. 이름 col-span `lg:col-span-5` 유지(`col-span-6`으로 단일화). height/reach `'—'`·empty 시 해당 `<p>` 미렌더. champion 카드 동일 처리(`_champMeta` 헬퍼).  
 **참고**: DB resync(M-1) 은 여전히 Admin 리허설 필요 (06-02~04). `loadUFCRankings()`는 read-only select만 수행. 빌드 성공 (1.50s).
+**커밋**: `f26f91b` Fix: Load UFC rankings from DB first
+
+---
+
+### Fix 12 — Community matchup 패널 preload (대진표 탭 방문 의존 제거)
+**커밋**: (이번 커밋)  
+**변경 파일**: `public/js/community.js`, `index.html`  
+**발견**: 앱 진입 후 대진표 탭을 먼저 방문한 경우에만 커뮤니티 상단 메인/코메인 패널이 정상 표시됨. 직접 커뮤니티 탭 진입 시 "로딩 중" 영구 표시.  
+**원인**: `renderFeed()`가 `fetchUpcomingMatchups()`를 trigger하지만 완료 콜백이 없어 `_dbMatchups` 세팅 후에도 `renderMatchups()` 미호출.  
+**수정 A** (`community.js`): `fetchUpcomingMatchups().then()`으로 완료 후 `_communityMatchupsFetching` 리셋 + `renderMatchups(_dbMatchups)` 재호출.  
+**수정 B** (`index.html`): `navigateTo('community')`에 `renderFeed()` 추가 — 데이터가 이미 있을 때도 탭 진입 시 보드 갱신. `loadMyBattles()` 유지.  
+빌드 성공 (1.67s), 검증 5/5 PASS.
 
 ---
 
