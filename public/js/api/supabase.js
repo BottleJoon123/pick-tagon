@@ -230,6 +230,8 @@ function loadPostsFromDB() {
         // 프로필 내 버튼
         var profileLogout = document.getElementById('logout-btn');
         if (profileLogout) profileLogout.classList.toggle('hidden', !isLoggedIn);
+        var profileResetPw = document.getElementById('profile-reset-pw-btn');
+        if (profileResetPw) profileResetPw.classList.toggle('hidden', !isLoggedIn);
 
         // 네비 포인트 업데이트
         var pts = state.points.toLocaleString() + ' P';

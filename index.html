@@ -705,6 +705,10 @@
                     class="oswald-sharp text-[10px] border border-white/15 text-gray-500 hover:text-white hover:border-white/35 px-3 py-1.5 rounded-lg italic uppercase tracking-widest transition">
                     닉네임 변경
                 </button>
+                <button onclick="profilePasswordReset()" id="profile-reset-pw-btn"
+                    class="oswald-sharp text-[10px] border border-white/15 text-gray-500 hover:text-white hover:border-white/35 px-3 py-1.5 rounded-lg italic uppercase tracking-widest transition hidden">
+                    비밀번호 재설정
+                </button>
                 <button onclick="logoutUser()" id="logout-btn"
                     class="oswald-sharp text-[10px] border border-red-900/35 text-red-700 hover:text-red-400 hover:border-red-500/40 px-3 py-1.5 rounded-lg italic uppercase tracking-widest transition hidden">
                     로그아웃
@@ -2027,7 +2031,7 @@
         <div class="text-center mb-8">
             <div class="text-5xl mb-4">🏟️</div>
             <h2 class="barlow text-4xl lg:text-5xl font-black italic text-white uppercase tracking-tight">당신의 집단을 선택하라</h2>
-            <p class="text-gray-500 text-sm mt-2 oswald-sharp italic uppercase tracking-widest">한 번 선택한 집단은 나중에 프로필에서 변경 가능합니다</p>
+            <p class="text-gray-500 text-sm mt-2 oswald-sharp italic uppercase tracking-widest">선택 전까지는 미소속 상태입니다 · 프로필에서 언제든 변경 가능</p>
         </div>
         <!-- 8 Faction Cards -->
         <div id="faction-cards-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6"></div>
@@ -3957,6 +3961,7 @@ async function publishPost() {
                 errEl.classList.remove('hidden');
             });
         } else {
+            if (nickname) localStorage.setItem('picktagon_nickname', nickname);
             sb.auth.signUp({ email: email, password: password })
             .then(function(res) {
                 submitBtn.disabled = false;
@@ -4012,6 +4017,18 @@ async function publishPost() {
         }).catch(function() {
             errEl.textContent = '네트워크 오류가 발생했습니다. 다시 시도해주세요';
             errEl.classList.remove('hidden');
+        });
+    }
+
+    function profilePasswordReset() {
+        if (!sb || !currentUser || !currentUser.email) { showToast('⚠ 로그인 후 이용 가능합니다'); return; }
+        var btn = document.getElementById('profile-reset-pw-btn');
+        if (btn) { btn.textContent = '발송 중...'; btn.disabled = true; }
+        sb.auth.resetPasswordForEmail(currentUser.email, { redirectTo: window.location.origin + window.location.pathname })
+        .then(function(res) {
+            if (btn) { btn.textContent = '비밀번호 재설정'; btn.disabled = false; }
+            if (res.error) { showToast('⚠ 재설정 메일 발송 실패: ' + res.error.message); }
+            else { showToast('📧 ' + currentUser.email + ' 로 재설정 메일을 발송했습니다'); }
         });
     }
 
