@@ -1817,6 +1817,19 @@
             <div id="pd-author" class="flex items-center gap-2 mb-6 pb-5 border-b border-white/10 text-[11px] text-gray-500 flex-wrap"></div>
             <!-- 본문 -->
             <p id="pd-content" class="text-gray-300 text-sm leading-relaxed mb-6 whitespace-pre-wrap"></p>
+            <!-- 수정 폼 (본인 글 전용, 기본 hidden) -->
+            <div id="pd-edit-form" class="hidden mb-6">
+                <input type="text" id="pd-edit-title"
+                    class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed mb-2"
+                    placeholder="제목">
+                <textarea id="pd-edit-content" rows="4"
+                    class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed resize-none"
+                    placeholder="내용"></textarea>
+                <div class="flex justify-end gap-2 mt-2">
+                    <button onclick="cancelOwnPostEdit()" class="oswald-sharp text-gray-500 hover:text-white transition italic uppercase text-xs px-4 py-2">취소</button>
+                    <button onclick="saveOwnPostEdit()" class="oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black px-5 py-2 rounded-xl italic uppercase text-xs tracking-widest transition">저장</button>
+                </div>
+            </div>
             <!-- 댓글 목록 -->
             <div id="pd-com-list" class="space-y-2 mb-5"></div>
             <!-- 댓글 입력 -->
@@ -1831,13 +1844,17 @@
                 </button>
             </div>
         </div>
-        <!-- 하단 고정 바: 좋아요 + 댓글 수 -->
+        <!-- 하단 고정 바: 좋아요 + 본인 수정/삭제 + 댓글 수 -->
         <div class="flex items-center justify-between px-6 py-3 border-t border-white/10 rounded-b-[2rem] flex-shrink-0">
             <button id="pd-like-btn" onclick="likePostFromDetail()"
                 class="post-act-btn oswald-sharp text-xs font-black italic uppercase tracking-wider">
                 🔥 추천
             </button>
-            <span id="pd-stats" class="oswald-sharp text-[10px] text-gray-600 italic uppercase tracking-widest"></span>
+            <div class="flex items-center gap-2">
+                <button id="pd-edit-btn" class="hidden oswald-sharp text-[10px] border border-white/10 text-gray-400 hover:text-white font-black px-4 py-2 rounded-xl italic uppercase tracking-wider transition" onclick="startOwnPostEdit()">✏ 수정</button>
+                <button id="pd-delete-btn" class="hidden oswald-sharp text-[10px] border border-red-900/40 text-red-400 hover:text-white hover:border-ufcRed font-black px-4 py-2 rounded-xl italic uppercase tracking-wider transition" onclick="deleteOwnPost()">✕ 삭제</button>
+                <span id="pd-stats" class="oswald-sharp text-[10px] text-gray-600 italic uppercase tracking-widest"></span>
+            </div>
         </div>
     </div>
 </div>
@@ -2832,6 +2849,7 @@ async function publishPost() {
     const newPost = {
         id: res.data.id,
         dbId: res.data.id,
+        userId: currentUser.id,
         author: getDisplayUsername(),
         title: titleFinal,
         content: c.slice(0, 2000),

@@ -81,6 +81,7 @@ function loadPostsFromDB() {
                 return {
                     id: r.id,
                     dbId: r.id,
+                    userId: r.user_id,
                     author: r.nickname || 'UNKNOWN',
                     title: r.title || '',
                     content: r.content || '',

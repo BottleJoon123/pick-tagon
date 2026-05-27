@@ -390,6 +390,15 @@
         if (_detailEscHandler) document.removeEventListener('keydown', _detailEscHandler);
         _detailEscHandler = function(e) { if (e.key === 'Escape') closePostDetail(); };
         document.addEventListener('keydown', _detailEscHandler);
+
+        // Own-post controls
+        var isOwn = !!(currentUser && p.userId && p.userId === currentUser.id);
+        var editBtn = document.getElementById('pd-edit-btn');
+        var delBtn  = document.getElementById('pd-delete-btn');
+        if (editBtn) { if (isOwn) editBtn.classList.remove('hidden'); else editBtn.classList.add('hidden'); }
+        if (delBtn)  { if (isOwn) delBtn.classList.remove('hidden');  else delBtn.classList.add('hidden'); }
+        var editForm = document.getElementById('pd-edit-form');
+        if (editForm) editForm.classList.add('hidden');
     }
 
     function closePostDetail() {
@@ -402,6 +411,8 @@
             document.removeEventListener('keydown', _detailEscHandler);
             _detailEscHandler = null;
         }
+        var editForm = document.getElementById('pd-edit-form');
+        if (editForm) editForm.classList.add('hidden');
     }
 
     function _renderDetailComments(comments) {
@@ -484,4 +495,79 @@
         if(pts > 2000)  return { name: "Purple", color: "#8B3FE3", bg: "bg-purple-700", text: "text-white" };
         if(pts > 1000)  return { name: "Blue", color: "#1F6FEB", bg: "bg-blue-600", text: "text-white" };
         return { name: "White", color: "#ECECEE", bg: "bg-white", text: "text-black" };
+    }
+
+    /* ── Own Post Edit / Delete ── */
+
+    function startOwnPostEdit() {
+        var p = posts[_detailPostIdx];
+        if (!p || !currentUser || p.userId !== currentUser.id) return;
+        var titleInput   = document.getElementById('pd-edit-title');
+        var contentInput = document.getElementById('pd-edit-content');
+        if (titleInput)   titleInput.value   = _stripCatPrefix(p.title || '');
+        if (contentInput) contentInput.value = p.content || '';
+        var editForm = document.getElementById('pd-edit-form');
+        if (editForm) editForm.classList.remove('hidden');
+        if (titleInput) titleInput.focus();
+    }
+
+    function cancelOwnPostEdit() {
+        var editForm = document.getElementById('pd-edit-form');
+        if (editForm) editForm.classList.add('hidden');
+    }
+
+    async function saveOwnPostEdit() {
+        var p = posts[_detailPostIdx];
+        if (!p || !currentUser || p.userId !== currentUser.id) return;
+        var titleInput   = document.getElementById('pd-edit-title');
+        var contentInput = document.getElementById('pd-edit-content');
+        var newTitle   = titleInput   ? titleInput.value.trim()   : '';
+        var newContent = contentInput ? contentInput.value.trim() : '';
+        if (!newTitle || !newContent) { showToast('⚠ 제목과 내용을 모두 입력하세요'); return; }
+
+        // Preserve category prefix from original title
+        var cat = _getPostCategory(p.title || '');
+        var catPrefixMap = { analysis: '[분석]', fighter: '[파이터]', live: '[라이브]', news: '[뉴스]', humor: '[유머]' };
+        var catPrefix  = (cat && catPrefixMap[cat]) ? catPrefixMap[cat] + ' ' : '';
+        var finalTitle = (catPrefix + newTitle).slice(0, 120);
+
+        if (!sb) { showToast('⚠ 연결 오류'); return; }
+        var res = await sb.from('posts')
+            .update({ title: finalTitle, content: newContent.slice(0, 2000) })
+            .eq('id', p.dbId)
+            .eq('user_id', currentUser.id);
+        if (res.error) { showToast('⚠ 수정 실패: ' + res.error.message); return; }
+
+        p.title   = finalTitle;
+        p.content = newContent.slice(0, 2000);
+        save();
+
+        var titleEl   = document.getElementById('pd-title');
+        var contentEl = document.getElementById('pd-content');
+        if (titleEl)   titleEl.textContent   = _stripCatPrefix(finalTitle);
+        if (contentEl) contentEl.textContent = p.content;
+
+        cancelOwnPostEdit();
+        renderFeed();
+        showToast('✅ 수정되었습니다');
+    }
+
+    async function deleteOwnPost() {
+        var p = posts[_detailPostIdx];
+        if (!p || !currentUser || p.userId !== currentUser.id) return;
+        if (!confirm('이 게시글을 삭제하시겠습니까?')) return;
+
+        if (!sb) { showToast('⚠ 연결 오류'); return; }
+        var res = await sb.from('posts')
+            .delete()
+            .eq('id', p.dbId)
+            .eq('user_id', currentUser.id);
+        if (res.error) { showToast('⚠ 삭제 실패: ' + res.error.message); return; }
+
+        var idx = posts.indexOf(p);
+        if (idx > -1) posts.splice(idx, 1);
+        save();
+        closePostDetail();
+        renderFeed();
+        showToast('🗑 게시글이 삭제되었습니다');
     }
