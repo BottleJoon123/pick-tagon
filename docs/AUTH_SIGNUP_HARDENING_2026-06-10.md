@@ -210,7 +210,7 @@ curl -X PATCH \
 | **Auth redirect URL 코드** | ✅ **완료** | `getAuthRedirectUrl()` 헬퍼 추가, signUp/reset 3곳 적용 (Release-Config-1D) |
 | **Site URL** | ✅ **완료** | `https://bottlejoon123.github.io/pick-tagon/` 로 수정 (Dashboard 수동) |
 | **Redirect 종단 검증** | ✅ **PASS** | 확인 링크 클릭 → `/pick-tagon/` 앱 정상 로드 (Release-Config-1E) |
-| 테스트 계정 삭제 | ⏳ 별도 승인 대기 | `c0dd786a-****`, `d82c6087-****` (삭제 권장) |
+| **테스트 계정 삭제** | ✅ **완료** | `c0dd786a-****`, `d82c6087-****` auth.users/public.users 제거 확인 (2026-05-27) |
 
 ---
 
