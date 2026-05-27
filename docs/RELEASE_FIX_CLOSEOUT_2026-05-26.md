@@ -214,7 +214,7 @@ Playwright QA 13/13 PASS.
 | G-3 Admin 비노출 (비어드민) | ✅ PASS | `bc5b31a` |
 | G-4 Pick Slip open/close | ✅ PASS | Playwright smoke 통과 |
 | G-5 뉴스 카드 이미지 다양화 | ✅ PASS | `c3f67e1`, QA 8/8 |
-| G-6 Admin settle 리허설 | ⏳ NEEDS_MANUAL | 06-02~04 예정 |
+| G-6 Admin settle 리허설 | ⚠️ 부분 통과 | read-only PASS (2026-05-27). settlement 이력 3건 확인. write rehearsal + 2026-06-15 이벤트 생성은 06-02~04 예정 |
 | G-7 Mobile 핵심 플로우 | ⏳ NEEDS_MANUAL — Manual scheduled | 05-29~06-01, 체크리스트: [`MOBILE_CLICK_FLOW_QA_2026-06-10.md`](MOBILE_CLICK_FLOW_QA_2026-06-10.md) |
 | G-8 UFC 랭킹 DB resync | 🚫 HOLD / NOT NEEDED | false positive 확인 — 실행 불필요 (2026-05-27) |
 | **P0 known issues** | ✅ 0건 | |
