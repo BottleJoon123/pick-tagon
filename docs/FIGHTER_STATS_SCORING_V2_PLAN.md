@@ -269,11 +269,11 @@ VITE_SUPABASE_ANON_KEY=<anon_key>
 python scripts/dry_run_fighter_stats_v2.py
 ```
 
-결과 검토 항목:
-- [ ] grappling floor 수가 목표 수준으로 감소했는가
-- [ ] champion/top3 평균 stats가 unranked보다 유의미하게 높은가
-- [ ] 의심 출력 목록에서 실제 blocking 이슈가 있는가
-- [ ] notable 10명의 v2 점수가 경기 실적과 합리적으로 일치하는가
+결과 검토 항목 (2026-05-27 실행 완료):
+- [x] grappling floor 수가 목표 수준으로 감소했는가 → 666(70.9%) → 460(48.9%) ✅
+- [x] champion/top3 평균 stats가 unranked보다 유의미하게 높은가 → 전 stat 역전 해소 ✅
+- [x] 의심 출력 목록에서 실제 blocking 이슈가 있는가 → 없음 (아래 섹션 10 참고) ✅
+- [x] notable 10명의 v2 점수가 경기 실적과 합리적으로 일치하는가 → 확인 완료 ✅
 
 ### Step 2 — 수동 승인
 
@@ -367,3 +367,102 @@ WHERE EXISTS (
 | `public/js/admin.js` lines 471~529 | v1 공식 JS 구현 (`computeStatsFromPerf`) |
 | `supabase/migrations/20260519_admin_recompute_fighter_stats.sql` | v1 RPC |
 | `reports/v2_dry_run_*.md` | 스크립트 실행 출력 (gitignore) |
+
+---
+
+## 10. Dry-Run 실행 결과 (2026-05-27)
+
+> 실행: `python scripts/dry_run_fighter_stats_v2.py`  
+> 생성 파일: `reports/v2_dry_run_20260527_1514.md` (gitignored — 커밋 없음)  
+> DB write: **없음** — fighters.stats[] 미변경 확인
+
+### 10-1. 분석 요약
+
+| 항목 | 값 |
+|---|---|
+| 총 파이터 | 940 |
+| 챔피언 (rank=0) | 11 |
+| 랭커 (rank=1~15) | 169 |
+| 언랭크 | 760 |
+
+### 10-2. Stat별 평균 delta (v2 − v1)
+
+| Stat | avg delta | 방향 |
+|---|---|---|
+| Striking | +1.0 | 소폭 상승 |
+| Grappling | **+5.2** | 유의미한 개선 |
+| Stamina | **-3.8** | 저표본 dampening 효과 (아래 참고) |
+| Defense | **+4.2** | 유의미한 개선 |
+| Speed | -0.9 | 거의 변화 없음 |
+
+### 10-3. Rank Tier별 평균 비교
+
+| Tier | n | Striking | Grappling | Stamina | Defense | Speed |
+|---|---|---|---|---|---|---|
+| **champion(0)** | 11 | 68→**78** | 52→**75** | 53→**66** | 61→**79** | 68→**78** |
+| top3(1-3) | 33 | 59→66 | 51→66 | 55→62 | 50→64 | 62→70 |
+| ranked(4-10) | 78 | 54→59 | 49→60 | 54→56 | 51→61 | 57→63 |
+| ranked(11-15) | 58 | 57→60 | 51→60 | 52→52 | 49→56 | 61→64 |
+| unranked | 760 | 54→54 | 49→53 | **56→50** | 49→52 | **61→59** |
+
+**v1 역전 현상 해소 확인:**
+- v1: unranked avg Stamina(55.8) > champion(53.4) → v2: 50 vs 66 ✅
+- v1: unranked avg Speed(61.1) > ranked(4-10)(56.9) → v2: 59 vs 63 ✅
+- champion은 전 stat에서 unranked를 유의미하게 초과
+
+### 10-4. Notable Fighter 실제 결과
+
+| 파이터 | Rank | W-L | v1 stats | v2 stats | avg Δ |
+|---|---|---|---|---|---|
+| Islam Makhachev | C | 28-1 | [48,65,70,71,45] | **[62,98,81,87,62]** | +18.2 |
+| Ilia Topuria | C | 17-0 | [57,58,45,77,61] | **[66,89,62,94,72]** | +17.0 |
+| Sean Strickland | C | 31-7 | [60,45,45,52,63] | **[69,62,62,72,73]** | +14.6 |
+| Carlos Ulberg | C | 15-1 | [82,45,45,49,89] | **[92,62,62,67,98]** | +14.2 |
+| Alexander Volkanovski | C | 28-4 | [80,45,54,48,78] | **[90,62,62,68,90]** | +13.4 |
+| Joshua Van | C | 17-2 | [93,45,45,54,92] | **[98,62,62,74,98]** | +13.0 |
+| Petr Yan | C | 20-5 | [68,45,54,65,64] | **[78,62,62,83,75]** | +12.8 |
+| Tom Aspinall | C | 15-3 | [98,72,45,61,98] | **[98,98,62,77,98]** | +11.8 |
+| Khamzat Chimaev | #1 | 15-0 | [57,84,45,53,59] | **[65,98,56,66,68]** | +11.0 |
+| Jon Jones | — | 28-1 | [66,45,62,77,64] | **[69,58,62,86,68]** | +5.8 |
+| JJ Okanovich *(0-0 low-sample)* | — | 0-0 | [86,45,91,50,98] | **[71,45,45,54,71]** | **-16.8** |
+
+*JJ Okanovich: confidence dampener(conf=0.55) 동작 확인 — 저표본 극단값이 50 방향으로 수렴.*
+
+### 10-5. Floor 집중 개선
+
+| Stat | v1 floor=45 | v2 floor≤47 | 개선 |
+|---|---|---|---|
+| Striking | 400 (42.6%) | 375 (39.9%) | -25 |
+| **Grappling** | **666 (70.9%)** | **460 (48.9%)** | **-206** ✅ |
+| Stamina | 451 (48.0%) | 514 (54.7%) | +63 ⚠ |
+| **Defense** | **606 (64.5%)** | **440 (46.8%)** | **-166** ✅ |
+| Speed | 259 (27.6%) | 267 (28.4%) | +8 |
+
+### 10-6. Findings
+
+**긍정적:**
+- Grappling floor 206명 탈출 — td_avg baseline p95 4.5→2.8 핵심 수정 효과 확인
+- Defense floor 166명 탈출 — str_def/td_def baseline 조정 효과 확인
+- champion/ranked tier 시각적 차별화 달성 — prestige 보너스 정상 동작
+- 저표본 unranked 인플레이션(Stamina=98/Speed=98) confidence dampener로 정상화
+
+**주의:**
+- **Stamina floor +63**: sapm p95 6.5→5.5 조정이 중간 범위 파이터(sapm≈4.0)의 역정규화 점수를 낮추는 역효과 발생. champion/ranked는 prestige floor(62/56/50)로 보호되므로 실질 영향 없음. unranked 파이터의 평균 Stamina가 56→50으로 하락하는 점은 출시 후 재검토 후보.
+- **Speed ceiling=98 다수 (47건 의심 출력 중 다수)**: Joshua Van, Tom Aspinall, Carlos Ulberg 등 실제 KO 파이터들 — 의도된 결과로 현재 우려 낮음.
+- **대형 감소 Top 30 전부 unranked**: confidence dampener가 극단값을 50으로 수렴시키는 동작 — 의도된 정상화.
+
+### 10-7. 권장 사항 (다음 단계)
+
+v2 공식은 **promising** — rank tier 차별화, notable 파이터 합리성, floor 개선 모두 목표 달성.
+
+**2026-06-10 전 운영 적용 금지.**
+
+출시 후 적용 시 다음 절차 권장:
+1. reviewer 지정 샘플(30~50명)로 second dry-run 검토
+2. top 50 biggest increase/decrease 수동 리뷰
+3. v2 공식 적용용 DB SQL/RPC 별도 작성 (migration — 별도 승인 필요)
+4. fighters.stats[] 전체 스냅샷 백업
+5. 명시적 승인 후 DB write 실행
+6. 적용 직후 랭킹/H2H 화면 visual QA
+
+**Stamina p95 재조정 후보 (선택적):** sapm p95를 5.5 대신 6.0으로 복귀 검토. unranked Stamina 분포가 지나치게 낮아지는 경우 완화 가능.
