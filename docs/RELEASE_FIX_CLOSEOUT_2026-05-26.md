@@ -166,11 +166,11 @@ Playwright QA 13/13 PASS.
 ## 3. NEEDS_MANUAL — 출시 전 수동 확인 필요
 
 ### M-1. UFC 랭킹 DB 재동기화
-**상태**: 승인 대기  
-**절차**: `docs/UFC_RANKINGS_RESYNC_REHEARSAL_2026-06-10.md` 참고  
-**내용**: Admin 화면에서 "🔄 UFC 랭킹 자동 갱신" 실행 → bw/flw/lhw/mw 챔피언 행 확인  
-**전제**: 파서 수정(Fix 4) 이후 재실행해야 챔피언 배지가 정확해짐  
-**시점**: 2026-06-02~06-04 Admin 리허설 윈도우 내
+**상태**: ~~승인 대기~~ → **HOLD / NOT NEEDED**  
+**사유**: Release-Gate-1B(2026-05-27) 결과, QA 문서의 WRONG 판정 전부가 false positive로 확인됨.  
+현재 DB champion rows는 프로젝트 2026 기준과 일치. Admin 자동 갱신 실행 불필요.  
+**재검토 조건**: 실제 UFC 공식 랭킹 불일치 발견 시에 한해 재검토.  
+**절차 문서**: `docs/UFC_RANKINGS_RESYNC_REHEARSAL_2026-06-10.md` (HOLD 상태로 보존)
 
 ### M-2. Admin Settlement 리허설
 **상태**: 계획 수립 완료, 미실행  
@@ -216,7 +216,7 @@ Playwright QA 13/13 PASS.
 | G-5 뉴스 카드 이미지 다양화 | ✅ PASS | `c3f67e1`, QA 8/8 |
 | G-6 Admin settle 리허설 | ⏳ NEEDS_MANUAL | 06-02~04 예정 |
 | G-7 Mobile 핵심 플로우 | ⏳ NEEDS_MANUAL — Manual scheduled | 05-29~06-01, 체크리스트: [`MOBILE_CLICK_FLOW_QA_2026-06-10.md`](MOBILE_CLICK_FLOW_QA_2026-06-10.md) |
-| G-8 UFC 랭킹 DB resync | ⏳ NEEDS_MANUAL | 06-02~04 예정 (승인 필요) |
+| G-8 UFC 랭킹 DB resync | 🚫 HOLD / NOT NEEDED | false positive 확인 — 실행 불필요 (2026-05-27) |
 | **P0 known issues** | ✅ 0건 | |
 | **P1 known issues** | ✅ 0건 (수정 후) | |
 
@@ -227,8 +227,8 @@ Playwright QA 13/13 PASS.
 | 일정 | 항목 | 담당 |
 |---|---|---|
 | 2026-05-29~06-01 | Manual User Flow QA 윈도우 2 | QA |
-| 2026-06-02~06-04 | Admin 리허설 (settle, UFC resync) | Admin |
-| 2026-06-04 | UFC rankings resync 승인 여부 최종 결정 | 결정자 |
+| 2026-06-02~06-04 | Admin 리허설 (settle) | Admin |
+| ~~2026-06-04~~ | ~~UFC rankings resync 승인 여부 최종 결정~~ | ~~HOLD — 불필요~~ |
 | **2026-06-07 night** | **기능 동결** | All |
 | 2026-06-07~09 | Final smoke QA (production) | QA |
 | **2026-06-10** | **공개 출시** | All |

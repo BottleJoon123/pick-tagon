@@ -6,6 +6,12 @@
 > Production URL: **https://bottlejoon123.github.io/pick-tagon/**  
 > 릴리즈 기준: [`docs/RELEASE_DEADLINE_PLAN_2026-06-10.md`](RELEASE_DEADLINE_PLAN_2026-06-10.md)
 
+> ⚠️ **상태 업데이트 (2026-05-27): HOLD — 실행 불필요**  
+> Release-Gate-1B 결과, Release-Gate-1A QA 문서(`QA_RUN_2026-05-27_UFC_RANKINGS_RECHECK.md`)의 WRONG 판정이  
+> outdated champion baseline을 사용한 false positive로 확인됨.  
+> 현재 DB champion rows는 프로젝트 2026 기준과 일치. Admin 자동 갱신 실행 금지/보류.  
+> 실제 공식 랭킹 불일치가 발견될 경우에만 이 문서 절차에 따라 재검토.
+
 ---
 
 ## 1. 배경
