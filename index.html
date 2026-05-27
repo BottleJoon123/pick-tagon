@@ -3892,6 +3892,14 @@ async function publishPost() {
     var authTab = 'login';
 
 
+    // ── AUTH REDIRECT URL ──
+    function getAuthRedirectUrl() {
+        if (window.location.hostname === 'bottlejoon123.github.io') {
+            return 'https://bottlejoon123.github.io/pick-tagon/';
+        }
+        return window.location.origin + window.location.pathname;
+    }
+
     // ── AUTH UI ──
     function setAuthTab(tab) {
         authTab = tab;
@@ -3962,7 +3970,7 @@ async function publishPost() {
             });
         } else {
             if (nickname) localStorage.setItem('picktagon_nickname', nickname);
-            sb.auth.signUp({ email: email, password: password })
+            sb.auth.signUp({ email: email, password: password, options: { emailRedirectTo: getAuthRedirectUrl() } })
             .then(function(res) {
                 submitBtn.disabled = false;
                 submitBtn.textContent = '회원가입';
@@ -4003,8 +4011,7 @@ async function publishPost() {
             return;
         }
         if (!sb) { showToast('⚠ 서버 연결 중입니다'); return; }
-        var redirectTo = window.location.origin + window.location.pathname;
-        sb.auth.resetPasswordForEmail(email, { redirectTo: redirectTo })
+        sb.auth.resetPasswordForEmail(email, { redirectTo: getAuthRedirectUrl() })
         .then(function(res) {
             if (res.error) {
                 errEl.textContent = '재설정 메일 발송 실패: ' + res.error.message;
@@ -4024,7 +4031,7 @@ async function publishPost() {
         if (!sb || !currentUser || !currentUser.email) { showToast('⚠ 로그인 후 이용 가능합니다'); return; }
         var btn = document.getElementById('profile-reset-pw-btn');
         if (btn) { btn.textContent = '발송 중...'; btn.disabled = true; }
-        sb.auth.resetPasswordForEmail(currentUser.email, { redirectTo: window.location.origin + window.location.pathname })
+        sb.auth.resetPasswordForEmail(currentUser.email, { redirectTo: getAuthRedirectUrl() })
         .then(function(res) {
             if (btn) { btn.textContent = '비밀번호 재설정'; btn.disabled = false; }
             if (res.error) { showToast('⚠ 재설정 메일 발송 실패: ' + res.error.message); }

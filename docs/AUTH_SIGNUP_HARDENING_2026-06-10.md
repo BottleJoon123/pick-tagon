@@ -1,8 +1,8 @@
 # Auth / Signup / Faction Hardening
 > 작성일: 2026-05-27  
-> 기준 커밋: `241f55c` Fix: Connect real matchup stats analysis data  
-> 조사 범위: index.html auth modal / public/js/api/supabase.js / public/js/utils.js / public/js/modal-helpers.js  
-> Supabase DB read-only 확인 포함
+> 기준 커밋: `bbf9979` Fix: Harden auth signup faction UX  
+> 조사 범위: index.html auth modal / public/js/api/supabase.js / public/js/utils.js / public/js/modal-helpers.js / Supabase auth.users read-only  
+> Release-Config-1 설정 조사 포함 (2026-05-27)
 
 ---
 
@@ -104,12 +104,143 @@ KINGBOTTLE    (2026-03-26) faction_id: 1 (다게스탄, 수동 선택 — 개발
 
 ---
 
-## 7. Release Gate 업데이트
+## 7. Release-Config-1 조사 결과 (2026-05-27)
+
+### Email Confirmation 현재 상태 — OFF 확정
+
+`auth.users` 타임스탬프 분석 (SQL read-only):
+
+| 유저 이메일 (마스킹) | created_at | email_confirmed_at | 간격 |
+|---|---|---|---|
+| abx***@google.com | 2026-05-27 11:50:27.271 | 2026-05-27 11:50:27.344 | 73ms |
+| ljb***@nate.com | 2026-05-25 13:48:25.712 | 2026-05-25 13:48:25.821 | 109ms |
+| kan***@naver.com | 2026-03-30 03:27:45.157 | 2026-03-30 03:27:45.197 | 40ms |
+
+→ 모든 유저 가입 직후 수십 ms 내 자동 확인 = **`mailer_autoconfirm = true` (이메일 확인 비활성화)**
+
+### MCP 권한 한계
+
+- `auth.config` SQL 테이블 없음 (Supabase 미노출)
+- Supabase MCP에 `get_auth_config` / `update_auth_config` 도구 없음
+- Auth 설정 변경은 **Dashboard 또는 Management API (PAT 필요)**만 가능
+
+### 적용 방법
+
+**Dashboard 경로 (권장)**:
+1. [Auth > Providers > Email](https://supabase.com/dashboard/project/rnnrimzrypayvnmznpin/auth/providers) → **"Confirm email" ON** → Save
+2. [Auth > URL Configuration](https://supabase.com/dashboard/project/rnnrimzrypayvnmznpin/auth/url-configuration) → Site URL: `https://bottlejoon123.github.io/pick-tagon/` → Redirect URLs에 `https://bottlejoon123.github.io/pick-tagon/**` 추가 → Save
+
+**Management API (PAT 보유 시)**:
+```bash
+curl -X PATCH \
+  -H "Authorization: Bearer <PAT>" \
+  -H "Content-Type: application/json" \
+  -d '{"mailer_autoconfirm": false}' \
+  "https://api.supabase.com/v1/projects/rnnrimzrypayvnmznpin/config/auth"
+```
+
+### 변경 후 검증 필요 항목
+
+| 항목 | 확인 방법 |
+|---|---|
+| 신규 가입 시 확인 메일 수신 | 실제 이메일 가입 테스트 (별도 승인 후) |
+| 확인 링크 클릭 → production URL 리다이렉트 | 확인 메일의 링크 URL 확인 |
+| 기존 로그인 유저 영향 없음 | 기존 confirmed 유저 로그인 정상 |
+
+---
+
+## 8. Release-Config-1C 검증 결과 — PASS (2026-05-27 13:03 UTC)
+
+### 테스트 계정 (마스킹)
+- 이메일: `pt-test-202605**@mailinator.com`
+- UID: `c0dd786a-****-****-****-3f723f634ea8`
+
+### signUp API 응답 (행동 기반)
+
+| 항목 | 값 | 판정 |
+|---|---|---|
+| HTTP status | 200 | — |
+| session | **null/absent** | ✅ PASS |
+| access_token | **false** | ✅ PASS |
+| email_confirmed_at | **null** | ✅ PASS |
+| confirmed_at | **null** | ✅ PASS |
+| confirmation_sent_at | `2026-05-27 13:03:36` | ✅ 메일 발송 확인 |
+
+### auth.users DB 확인 (read-only)
+
+| 컬럼 | 값 | 판정 |
+|---|---|---|
+| confirmed_at | **null** | ✅ PASS |
+| email_confirmed_at | **null** | ✅ PASS |
+| last_sign_in_at | **null** | ✅ 로그인 세션 없음 |
+| confirmation_sent_at | `2026-05-27 13:03:36` | ✅ 확인 |
+
+### auth.one_time_tokens 확인
+
+| token_type | relates_to (마스킹) | created_at |
+|---|---|---|
+| **confirmation_token** | `pt-test-202605**@mailinator.com` | `2026-05-27 13:03:39` |
+
+→ 확인 토큰 정상 생성됨. 이메일 클릭 전까지 계정 미확정 상태 유지.
+
+### 이전 가입 패턴 대비 비교
+
+| 시점 | email_confirmed_at 간격 | 상태 |
+|---|---|---|
+| 변경 전 (abx123, 2026-05-27 11:50) | 73ms — **자동** | ❌ auto-confirm ON |
+| 변경 후 (테스트, 2026-05-27 13:03) | **null** | ✅ confirmation required |
+
+**최종 판정: ✅ Email Confirmation ON 확인됨**
+
+### 잔여 항목
+- 이메일 확인 링크 클릭 → production URL 리다이렉트: Release-Config-1D에서 코드 수정으로 해결
+- 테스트 계정 삭제: 별도 승인 대기 (`c0dd786a-****`, access_token URL 노출로 삭제 권장)
+
+---
+
+## 9. Release Gate 업데이트
 
 | Gate | 상태 | 비고 |
 |---|---|---|
-| 프로필 비밀번호 재설정 entry | ✅ 추가됨 | profile-reset-pw-btn |
-| faction 미소속 상태 명확화 | ✅ 모달 부제목 개선 | 코드/DB 버그 없음 확인 |
-| 닉네임 이메일 인증 경로 보존 | ✅ Fix A 적용 | localStorage pre-save |
-| Email Confirmation | ⏳ Dashboard 수동 설정 필요 | P1 — 출시 전 권장 |
-| Allowed Redirect URLs | ⏳ Dashboard 확인 필요 | P1 |
+| 프로필 비밀번호 재설정 entry | ✅ 완료 | profile-reset-pw-btn (bbf9979) |
+| faction 미소속 상태 명확화 | ✅ 완료 | 코드/DB 버그 없음 확인 (bbf9979) |
+| 닉네임 이메일 인증 경로 보존 | ✅ 완료 | localStorage pre-save (bbf9979) |
+| **Email Confirmation** | ✅ **PASS** | 행동 기반 검증 완료 (2026-05-27 13:03 UTC) |
+| Site URL / Redirect URLs | ⏳ 링크 클릭 최종 확인 권장 | Dashboard 설정 + 코드 수정 완료 |
+| **Auth redirect URL 코드** | ✅ **완료** | `getAuthRedirectUrl()` 헬퍼 추가, signUp/reset 3곳 적용 (Release-Config-1D) |
+| 테스트 계정 삭제 | ⏳ 별도 승인 대기 | `c0dd786a-****` (access_token URL 노출, 삭제 권장) |
+
+---
+
+## 10. Release-Config-1D 변경 내용 (2026-05-27)
+
+### 문제
+이메일 확인 / 비밀번호 재설정 링크 클릭 시 `https://bottlejoon123.github.io/#access_token=...` 로 리다이렉트 → `/pick-tagon/` 경로 누락
+
+### 원인
+`handlePasswordReset()`과 `profilePasswordReset()`이 `window.location.origin + window.location.pathname`을 사용 — GitHub Pages root(`/`)로 이동됨.
+`signUp`에 `emailRedirectTo` 옵션 미지정.
+
+### 수정 (index.html)
+
+```js
+function getAuthRedirectUrl() {
+    if (window.location.hostname === 'bottlejoon123.github.io') {
+        return 'https://bottlejoon123.github.io/pick-tagon/';
+    }
+    return window.location.origin + window.location.pathname;
+}
+```
+
+적용 위치:
+- `sb.auth.signUp(... options: { emailRedirectTo: getAuthRedirectUrl() } ...)`
+- `sb.auth.resetPasswordForEmail(email, { redirectTo: getAuthRedirectUrl() })`
+- `sb.auth.resetPasswordForEmail(currentUser.email, { redirectTo: getAuthRedirectUrl() })`
+
+### Supabase Dashboard 설정 (확인 필요)
+
+| 항목 | 값 |
+|---|---|
+| Site URL | `https://bottlejoon123.github.io/pick-tagon/` |
+| Redirect URLs | `https://bottlejoon123.github.io/pick-tagon/` |
+| Redirect URLs (wildcard) | `https://bottlejoon123.github.io/pick-tagon/**` |
