@@ -4273,15 +4273,10 @@ async function publishPost() {
 
     function likePostInDB(dbId) {
         if (!sb || !dbId || !currentUser) return;
-        // post_likes에 INSERT (중복 시 무시)
-        sb.from('post_likes').insert({ post_id: dbId, user_id: currentUser.id }).then(function(r) {
-            if (r.error) return; // 중복 등 에러 시 무시
-            // posts.likes 카운트 동기화
-            sb.from('posts').select('likes').eq('id', dbId).single().then(function(res) {
-                if (res.data) {
-                    sb.from('posts').update({ likes: (res.data.likes || 0) + 1 }).eq('id', dbId).then(function() {});
-                }
-            });
+        // increment_post_likes RPC: post_likes INSERT + likes 증가 atomic 처리
+        // 중복 좋아요는 RPC 내부 ON CONFLICT DO NOTHING으로 무시됨
+        sb.rpc('increment_post_likes', { p_post_id: dbId }).then(function(r) {
+            if (r.error) console.warn('[likePostInDB]', r.error.message);
         });
     }
 
