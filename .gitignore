@@ -20,3 +20,6 @@ scripts/__pycache__/
 
 # Design handoff screenshots (binary)
 docs/design_handoff_picktagon/screenshots/
+
+# Script output / dry-run reports (local only — large files, not committed)
+reports/
