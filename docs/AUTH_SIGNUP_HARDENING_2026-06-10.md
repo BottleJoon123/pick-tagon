@@ -208,7 +208,9 @@ curl -X PATCH \
 | **Email Confirmation** | ✅ **PASS** | 행동 기반 검증 완료 (2026-05-27 13:03 UTC) |
 | Site URL / Redirect URLs | ⏳ 링크 클릭 최종 확인 권장 | Dashboard 설정 + 코드 수정 완료 |
 | **Auth redirect URL 코드** | ✅ **완료** | `getAuthRedirectUrl()` 헬퍼 추가, signUp/reset 3곳 적용 (Release-Config-1D) |
-| 테스트 계정 삭제 | ⏳ 별도 승인 대기 | `c0dd786a-****` (access_token URL 노출, 삭제 권장) |
+| **Site URL** | ✅ **완료** | `https://bottlejoon123.github.io/pick-tagon/` 로 수정 (Dashboard 수동) |
+| **Redirect 종단 검증** | ✅ **PASS** | 확인 링크 클릭 → `/pick-tagon/` 앱 정상 로드 (Release-Config-1E) |
+| 테스트 계정 삭제 | ⏳ 별도 승인 대기 | `c0dd786a-****`, `d82c6087-****` (삭제 권장) |
 
 ---
 
