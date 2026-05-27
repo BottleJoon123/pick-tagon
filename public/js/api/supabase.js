@@ -374,6 +374,16 @@ async function fetchUpcomingMatchups() {
             if (f.id)   _localFighters[f.id] = f;
             if (f.name) _localFighters['n:' + f.name] = f;
         });
+        // fighters 테이블에 record/recent 컬럼 없음 — wins/losses/draws로 record 재구성
+        var _fSelectCols = 'id,name,name_en,wins,losses,draws,height,reach,division,stats,slpm,str_acc,sapm,str_def,td_avg,td_acc,td_def,sub_avg,ko_rate,sub_rate,dec_rate';
+        function _cacheFighter(f) {
+            f.record = (f.wins || 0) + '-' + (f.losses || 0) + (f.draws > 0 ? '-' + f.draws : '');
+            _localFighters[f.id] = f;
+            if (f.name) _localFighters['n:' + f.name] = f;
+            if (typeof fighterDB !== 'undefined' && !fighterDB.find(function(x) { return x.id === f.id; })) {
+                fighterDB.push(f);
+            }
+        }
         var _missingIds = [];
         mRes.data.forEach(function(m) {
             if (m.red_fighter_id  && !_localFighters[m.red_fighter_id])  _missingIds.push(m.red_fighter_id);
@@ -381,19 +391,23 @@ async function fetchUpcomingMatchups() {
         });
         if (_missingIds.length > 0) {
             try {
-                var fRes = await sb.from('fighters')
-                    .select('id,name,record,height,reach,division,stats,recent,slpm,str_acc,sapm,str_def,td_avg,td_acc,td_def,sub_avg,ko_rate,sub_rate,dec_rate,name_en')
-                    .in('id', _missingIds);
-                if (fRes.data) {
-                    fRes.data.forEach(function(f) {
-                        _localFighters[f.id] = f;
-                        if (f.name) _localFighters['n:' + f.name] = f;
-                        if (typeof fighterDB !== 'undefined' && !fighterDB.find(function(x) { return x.id === f.id; })) {
-                            fighterDB.push(f);
-                        }
-                    });
-                }
-            } catch(e) { console.warn('[fetchUpcomingMatchups] fighter fetch:', e); }
+                var fRes = await sb.from('fighters').select(_fSelectCols).in('id', _missingIds);
+                if (fRes.data) fRes.data.forEach(_cacheFighter);
+                else if (fRes.error) console.warn('[fetchUpcomingMatchups] fighter fetch by id:', fRes.error.message);
+            } catch(e) { console.warn('[fetchUpcomingMatchups] fighter fetch by id:', e); }
+        }
+        // fighter_id가 null인 매치업 선수를 이름으로 추가 조회
+        var _missingNames = [];
+        mRes.data.forEach(function(m) {
+            if (!m.red_fighter_id  && m.red_fighter_name  && !_localFighters['n:' + m.red_fighter_name])  _missingNames.push(m.red_fighter_name);
+            if (!m.blue_fighter_id && m.blue_fighter_name && !_localFighters['n:' + m.blue_fighter_name]) _missingNames.push(m.blue_fighter_name);
+        });
+        if (_missingNames.length > 0) {
+            try {
+                var fnRes = await sb.from('fighters').select(_fSelectCols).in('name', _missingNames);
+                if (fnRes.data) fnRes.data.forEach(_cacheFighter);
+                else if (fnRes.error) console.warn('[fetchUpcomingMatchups] fighter fetch by name:', fnRes.error.message);
+            } catch(e) { console.warn('[fetchUpcomingMatchups] fighter fetch by name:', e); }
         }
 
         // stat field extractor: handles both camelCase (localStorage) and snake_case (Supabase direct)
