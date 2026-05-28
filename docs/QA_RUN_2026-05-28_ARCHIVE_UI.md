@@ -1,12 +1,39 @@
-# QA Run: Archive UI Polish (Release-Fix-14A)
+# QA Run: Archive UI Polish (Release-Fix-14A + 14B)
 > 실행일: 2026-05-28  
-> 대상: Archive 탭 UI 개선 + 하드코딩 fallback 이벤트 정리  
-> 방법: 코드 정적 분석 + DB read (Supabase MCP)  
+> 대상: Archive 탭 UI 개선 + 모바일 레이아웃 겹침 수정  
+> 방법: 코드 정적 분석 + npm run build  
 > 제약: DB write/delete 금지, archive_events/archive_fights 수정 금지
 
 ---
 
 ## Verdict: PASS (build) — 브라우저 smoke QA 필요
+
+---
+
+## Release-Fix-14B: 모바일 레이아웃 겹침 수정
+
+### 문제
+모바일 375px에서:
+1. 이벤트명이 넘쳐서 카드 밖으로 흘러나옴 (min-w-0 체인 끊김)
+2. 메인 이벤트 행에서 파이터 이미지가 flex-wrap으로 줄바꿈되어 쌓임
+3. Fight row에서 f1img + 이름 + f2img가 좌우에서 텍스트를 압박, names flex-wrap으로 3줄 스택
+
+### 수정 (`public/js/archive.js`)
+
+| 영역 | 수정 내용 |
+|---|---|
+| 이벤트 헤더 icon+text 컨테이너 | `min-w-0` 추가, text 래퍼 `min-w-0`, 이벤트명 `truncate`, 날짜 `truncate`, UPCOMING 배지 `flex-shrink-0` |
+| 메인 이벤트 행 | `flex-wrap` 제거 → `min-w-0 flex-1`, 파이터 이미지 `hidden lg:block`, 파이터명 `truncate min-w-0`, 태그 배지 `flex-shrink-0` |
+| Fight row 왼쪽 컨테이너 | `flex items-center gap-2 min-w-0 flex-1` |
+| Fight row f1 이미지 | `hidden lg:block` (모바일 숨김) |
+| Fight row f2 이미지 | 제거 (텍스트 뒤에 붙어 width 잠식, 정보 중복) |
+| Fight row 이름 행 | `flex-wrap` 제거, 각 이름 `flex-1 min-w-0 truncate`, "vs" `flex-shrink-0` |
+| Fight row 텍스트 블록 | `min-w-0 flex-1` |
+
+### 변경 없는 항목
+- 데스크탑: lg+ breakpoint에서 이미지 정상 표시 유지
+- DB/data 로직 변경 없음
+- admin archive flow 변경 없음
 
 ---
 

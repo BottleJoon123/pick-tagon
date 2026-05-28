@@ -165,16 +165,16 @@ function renderArchive() {
         <div class="glass-card rounded-[2rem] overflow-hidden hover:border-white/20 transition-all duration-500">
             <!-- Event Header -->
             <div class="flex flex-col lg:flex-row lg:items-center justify-between px-4 lg:px-6 py-3 lg:py-4 bg-black/30 border-b border-white/5 gap-3">
-                <div class="flex items-center gap-4">
+                <div class="flex items-center gap-3 min-w-0">
                     <div class="w-8 h-8 lg:w-10 lg:h-10 rounded-xl ${isUpcoming ? 'bg-green-500/10 border border-green-500/30' : 'bg-ufcRed/10 border border-ufcRed/30'} flex items-center justify-center flex-shrink-0">
                         <span class="oswald-sharp ${isUpcoming ? 'text-green-400' : 'text-ufcRed'} text-[8px] lg:text-[10px] font-black italic uppercase text-center leading-tight px-1">${isUpcoming ? 'NEXT' : (ev.name || '').replace('UFC ','').substring(0,4)}</span>
                     </div>
-                    <div>
-                        <div class="flex items-center gap-2">
-                            <p class="oswald-sharp font-black italic text-sm lg:text-xl text-white uppercase tracking-tighter">${escapeHtml(ev.name || '')}</p>
-                            ${isUpcoming ? '<span class="oswald-sharp text-[8px] bg-green-500/10 border border-green-500/30 text-green-400 px-2 py-0.5 rounded-lg font-black italic uppercase">UPCOMING</span>' : ''}
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <p class="oswald-sharp font-black italic text-sm lg:text-xl text-white uppercase tracking-tighter truncate">${escapeHtml(ev.name || '')}</p>
+                            ${isUpcoming ? '<span class="oswald-sharp text-[8px] bg-green-500/10 border border-green-500/30 text-green-400 px-2 py-0.5 rounded-lg font-black italic uppercase flex-shrink-0">UPCOMING</span>' : ''}
                         </div>
-                        <p class="oswald-sharp text-[10px] text-gray-500 italic uppercase tracking-widest">${dateStr} · ${escapeHtml(ev.venue || '—')}</p>
+                        <p class="oswald-sharp text-[10px] text-gray-500 italic uppercase tracking-widest truncate">${dateStr} · ${escapeHtml(ev.venue || '—')}</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
@@ -189,12 +189,12 @@ function renderArchive() {
 
             ${mainEvent ? `
             <!-- Main Event Highlight -->
-            <div class="px-4 lg:px-6 py-3 lg:py-4 border-b border-white/5 flex items-center justify-between gap-4">
-                <div class="flex items-center gap-3 flex-wrap">
-                    <span class="oswald-sharp text-[8px] bg-ufcRed/10 border border-ufcRed/20 text-ufcRed px-2 py-1 rounded-lg font-black italic uppercase">${escapeHtml(mainEvent.tag || '')}</span>
-                    ${mainEvent.f1_image_url ? `<img src="${escapeHtml(mainEvent.f1_image_url)}" class="w-8 h-8 rounded-full object-cover border border-white/10" onerror="this.style.display='none'">` : ''}
-                    <span class="oswald-sharp text-xs lg:text-base font-black italic text-white uppercase tracking-tighter">${escapeHtml(f1Display(mainEvent))} <span class="text-gray-600">vs</span> ${escapeHtml(f2Display(mainEvent))}</span>
-                    ${mainEvent.f2_image_url ? `<img src="${escapeHtml(mainEvent.f2_image_url)}" class="w-8 h-8 rounded-full object-cover border border-white/10" onerror="this.style.display='none'">` : ''}
+            <div class="px-4 lg:px-6 py-3 lg:py-4 border-b border-white/5 flex items-center justify-between gap-3 min-w-0">
+                <div class="flex items-center gap-2 min-w-0 flex-1">
+                    <span class="oswald-sharp text-[8px] bg-ufcRed/10 border border-ufcRed/20 text-ufcRed px-2 py-1 rounded-lg font-black italic uppercase flex-shrink-0">${escapeHtml(mainEvent.tag || '')}</span>
+                    ${mainEvent.f1_image_url ? `<img src="${escapeHtml(mainEvent.f1_image_url)}" class="hidden lg:block w-8 h-8 rounded-full object-cover border border-white/10 flex-shrink-0" onerror="this.style.display='none'">` : ''}
+                    <span class="oswald-sharp text-xs lg:text-base font-black italic text-white uppercase tracking-tighter truncate min-w-0">${escapeHtml(f1Display(mainEvent))} <span class="text-gray-600">vs</span> ${escapeHtml(f2Display(mainEvent))}</span>
+                    ${mainEvent.f2_image_url ? `<img src="${escapeHtml(mainEvent.f2_image_url)}" class="hidden lg:block w-8 h-8 rounded-full object-cover border border-white/10 flex-shrink-0" onerror="this.style.display='none'">` : ''}
                 </div>
                 ${!isUpcoming && mainEvent.winner ? `
                 <div class="flex items-center gap-2 flex-shrink-0">
@@ -207,20 +207,17 @@ function renderArchive() {
             <div id="archive-detail-${ev.id}" class="hidden">
                 <div class="divide-y divide-white/5">
                     ${(ev.fights || []).map((f, i) => `
-                    <div class="px-4 lg:px-6 py-2.5 flex items-center justify-between gap-4 hover:bg-white/2 transition">
-                        <div class="flex items-center gap-3 min-w-0">
-                            <span class="oswald-sharp text-[7px] lg:text-[9px] text-gray-600 italic uppercase tracking-widest flex-shrink-0 w-5 lg:w-8 text-center">${i + 1}</span>
-                            <div class="flex items-center gap-2">
-                                ${f.f1_image_url ? `<img src="${escapeHtml(f.f1_image_url)}" class="w-7 h-7 rounded-full object-cover border border-white/10 flex-shrink-0" onerror="this.style.display='none'">` : ''}
-                                <div class="min-w-0">
-                                    <div class="flex items-center gap-2 flex-wrap">
-                                        <span class="oswald-sharp text-xs lg:text-sm font-black italic text-white uppercase tracking-tighter truncate">${escapeHtml(f1Display(f))}</span>
-                                        <span class="text-gray-700 text-[10px]">vs</span>
-                                        <span class="oswald-sharp text-xs lg:text-sm font-black italic text-white uppercase tracking-tighter truncate">${escapeHtml(f2Display(f))}</span>
-                                    </div>
-                                    ${!isUpcoming ? `<p class="oswald-sharp text-[8px] lg:text-[10px] text-gray-600 italic uppercase tracking-widest mt-0.5">R${f.round || '?'} ${f.fight_time || ''}</p>` : ''}
+                    <div class="px-4 lg:px-6 py-2.5 flex items-center justify-between gap-3 hover:bg-white/2 transition">
+                        <div class="flex items-center gap-2 min-w-0 flex-1">
+                            <span class="oswald-sharp text-[7px] lg:text-[9px] text-gray-600 italic uppercase tracking-widest flex-shrink-0 w-4 lg:w-6 text-center">${i + 1}</span>
+                            ${f.f1_image_url ? `<img src="${escapeHtml(f.f1_image_url)}" class="hidden lg:block w-7 h-7 rounded-full object-cover border border-white/10 flex-shrink-0" onerror="this.style.display='none'">` : ''}
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center gap-1 min-w-0">
+                                    <span class="oswald-sharp text-xs lg:text-sm font-black italic text-white uppercase tracking-tighter truncate flex-1 min-w-0">${escapeHtml(f1Display(f))}</span>
+                                    <span class="text-gray-700 text-[10px] flex-shrink-0 px-0.5">vs</span>
+                                    <span class="oswald-sharp text-xs lg:text-sm font-black italic text-white uppercase tracking-tighter truncate flex-1 min-w-0">${escapeHtml(f2Display(f))}</span>
                                 </div>
-                                ${f.f2_image_url ? `<img src="${escapeHtml(f.f2_image_url)}" class="w-7 h-7 rounded-full object-cover border border-white/10 flex-shrink-0" onerror="this.style.display='none'">` : ''}
+                                ${!isUpcoming ? `<p class="oswald-sharp text-[8px] lg:text-[10px] text-gray-600 italic uppercase tracking-widest mt-0.5">R${f.round || '?'} ${f.fight_time || ''}</p>` : ''}
                             </div>
                         </div>
                         ${!isUpcoming && f.winner ? `
