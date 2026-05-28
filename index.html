@@ -2660,8 +2660,7 @@
         const upsetMsg = isUpset ? ' 🔥 업셋 픽!' : '';
         showToast(`${pick} 선택 · ${BET_COST}P 사용 · 기본 ${basePayout}P${upsetMsg}`);
 
-        // 커뮤니티 자동 공유
-        autoSharePick(pick, match, basePayout, isUpset, fightId);
+        // 커뮤니티 자동 공유 비활성화 — pick activity는 커뮤니티 피드에 노출하지 않음
 
         updateEventTotalPicks();
         save();

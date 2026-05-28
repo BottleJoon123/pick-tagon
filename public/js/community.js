@@ -261,8 +261,9 @@
             }
         }
 
-        // 2. Filter by category
+        // 2. Filter by category — isPickShare (자동 픽 활동글) 제외
         var filtered = posts.filter(function(p) {
+            if (p.isPickShare) return false;
             if (communityFilter === 'all') return true;
             return _getPostCategory(p.title) === communityFilter;
         });
