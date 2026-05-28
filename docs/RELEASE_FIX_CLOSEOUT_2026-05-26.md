@@ -189,13 +189,15 @@ Playwright QA 13/13 PASS.
 **내용**: 다게스탄 팩션이 신규 계정 생성 시 기본값으로 잘못 할당된다는 이슈. 현재 재현 여부 불명확. 2026-05-29 QA 윈도우 2에서 신규 계정 가입 시 확인.
 
 ### M-5. Auth Custom SMTP 설정 ⚠️ P1 RISK
-**상태**: NEEDS_MANUAL — 운영자 Dashboard 작업 필요  
-**위험도**: **P1** — 미설정 시 출시 후 다수 사용자 가입/비번 재설정 이메일 전면 차단 가능  
-**내용**: Supabase built-in email은 production용이 아님. rate limit 초과 시 프로젝트 단위로 모든 auth 이메일 차단됨. custom SMTP(Resend 권장) 설정 필요.  
-**절차 문서**: `docs/AUTH_SMTP_SETUP_PLAN_2026-06-10.md`  
+**상태**: NEEDS_MANUAL — 도메인 구매 + 운영자 Dashboard 작업 필요  
+**위험도**: **P1 CRITICAL** — 지금 built-in SMTP는 **팀 멤버 이메일로만** 발송 가능. 실제 사용자는 가입/비번 재설정 이메일을 받을 수 없음  
+**내용**: Supabase built-in email은 production용이 아님. custom SMTP(Resend 권장) + 커스텀 도메인 필요.  
+**블로커**: 커스텀 도메인 미보유 → 도메인 구매 필요 (~$10/년, Namecheap/Google Domains)  
+**절차 문서**: `docs/AUTH_SMTP_SETUP_PLAN_2026-06-10.md` (7B 섹션에 실행 결과 + 다음 단계 순서 추가됨)  
 **코드 완료 사항**: `_isRateLimitError()` 매핑, 60초 cooldown, PASSWORD_RECOVERY 3-tier fallback — 모두 완료  
-**남은 작업**: 운영자가 Supabase Dashboard → Authentication → SMTP Settings에서 직접 설정  
-**시점**: **출시 전 필수** (2026-06-10 이전)
+**Step 3 완료**: Site URL / Redirect URL 설정값 확인 → `https://bottlejoon123.github.io/pick-tagon/` (Dashboard 수동 입력 필요)  
+**남은 작업**: 도메인 구매 → Resend 도메인 인증 → Supabase SMTP 설정  
+**시점**: **2026-06-07 freeze 이전 필수**
 
 ---
 

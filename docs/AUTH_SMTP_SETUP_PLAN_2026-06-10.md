@@ -124,6 +124,49 @@ custom SMTP를 비활성화하면 built-in으로 돌아감. 단, built-in은 rat
 
 ---
 
+## 7B. Release-Config-2B 실행 결과 (2026-05-29)
+
+### 확인 사항
+- Supabase 프로젝트: `ACTIVE_HEALTHY` ✅
+- 코드 변경 (Recovery flow + cooldown): 커밋 완료 ✅
+- 공식 문서 확인: built-in SMTP는 **프로젝트 팀 멤버 이메일로만 발송** — production 불가 ✅ 확인
+
+### BLOCKER: 커스텀 도메인 없음
+- 현재 `bottlejoon123.github.io`는 GitHub Pages 공유 도메인 → Resend 발신 도메인 인증 불가
+- 결정: **도메인 구매 후 진행** (코드 freeze 2026-06-07 이전)
+
+### Step 3 (URL Config) — 수동 설정 필요
+Supabase Management API 설정은 Dashboard에서만 가능 (MCP 지원 없음).
+
+**지금 바로 설정할 값:**
+```
+Supabase Dashboard → Authentication → URL Configuration
+
+Site URL:
+  https://bottlejoon123.github.io/pick-tagon/
+
+Additional Redirect URLs (없으면 추가):
+  https://bottlejoon123.github.io/pick-tagon/
+  https://bottlejoon123.github.io/pick-tagon/**
+```
+
+앱의 `getAuthRedirectUrl()` 함수가 이 URL을 반환함 — 반드시 일치해야 메일 링크 클릭 후 Pick-tagon으로 도착.
+
+### 다음 단계 순서 (2026-06-07 freeze 이전)
+
+| 순서 | 작업 | 소요 시간 |
+|---|---|---|
+| 1 | 도메인 구매 (Namecheap/Google Domains) | 10분, ~$10 |
+| 2 | Resend 계정 생성 + 도메인 추가 | 10분 |
+| 3 | DNS 레코드 추가 (DKIM/SPF) | 5분, 전파 1~24시간 |
+| 4 | Resend 도메인 verified 확인 | — |
+| 5 | Resend API Key 발급 (Sending 권한만) | 5분 |
+| 6 | Supabase Dashboard → Auth → SMTP 설정 | 10분 |
+| 7 | Site URL / Redirect URL 설정 확인 | 5분 |
+| 8 | 테스트 이메일 발송 (Step 4) | 운영자 직접 |
+
+---
+
 ## 8. 출시 전 체크리스트 (운영자)
 
 - [ ] Resend 계정 생성 + 도메인 인증
