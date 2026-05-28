@@ -678,6 +678,7 @@ function saveFighter() {
                 showToast('⚠ DB 저장 실패: ' + res.error.message);
                 console.warn('파이터 DB 저장 실패:', res.error.message);
             } else {
+                _allFightersCache = [];
                 renderAdminFighterList();
             }
         });
@@ -920,7 +921,8 @@ function populateFighterSelects() {
         const sel = document.getElementById(id);
         sel.innerHTML = '<option value="">-- 등록된 파이터 선택 --</option>';
         fighterDB.forEach(f => {
-            sel.innerHTML += `<option value="${f.id}">${f.name} (${f.record})</option>`;
+            var rec = f.record || ((f.wins !== undefined) ? (f.wins + '-' + f.losses + (f.draws > 0 ? '-' + f.draws : '')) : '?-?');
+            sel.innerHTML += `<option value="${f.id}">${f.name} (${rec})</option>`;
         });
     });
 }
