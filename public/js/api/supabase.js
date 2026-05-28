@@ -294,6 +294,7 @@ function loadPostsFromDB() {
                 updateNicknameDisplay();
                 updateAuthUI();
                 if (typeof updateFactionBadgeUI === 'function') updateFactionBadgeUI();
+                reconcileHistoryFromDB();
                 showToast('✅ ' + (res.data.nickname || '유저') + ' 님 환영해요!');
                 // 집단 미선택 유저 → 세션당 1회만 모달 표시 (매 페이지 로드마다 방해 방지)
                 if (!res.data.faction_id && typeof openFactionSelectModal === 'function'
@@ -571,8 +572,89 @@ async function loadUserPicksFromDB() {
         Object.assign(state.pendings, newPendings);
         Object.assign(state.settled,  newSettled);
         save();
+        reconcileHistoryFromDB();
         if (typeof updateAllFightCards === 'function') updateAllFightCards();
     } catch(e) {
         console.warn('[loadUserPicksFromDB]', e);
+    }
+}
+
+// ── DB settled picks → state.history reconcile ────────────────────────────
+// 서버 정산 후 state.history의 PENDING 항목을 WIN/LOSE/CANCEL로 업데이트.
+// history 항목이 없으면 DB 기준으로 새로 생성 (cross-device/캐시 초기화 대응).
+// 로그인 시 + loadUserPicksFromDB 완료 후 호출. DB write 없음.
+async function reconcileHistoryFromDB() {
+    if (!sb || typeof currentUser === 'undefined' || !currentUser) return;
+    try {
+        var res = await sb.from('picks')
+            .select('fight_id, pick_name, payout, bet_cost, status, actual_winner, actual_method, settled_at')
+            .eq('user_id', currentUser.id)
+            .in('status', ['win', 'lose', 'cancelled'])
+            .order('settled_at', { ascending: false });
+
+        if (!res.data || !res.data.length) return;
+
+        var changed = false;
+        var newEntries = []; // { pick, dbRes } — history 항목 없는 settled picks
+
+        res.data.forEach(function(pick) {
+            var fid   = pick.fight_id;
+            var dbRes = pick.status === 'win'       ? 'WIN'
+                      : pick.status === 'cancelled'  ? 'CANCEL'
+                      : 'LOSE';
+
+            var entry = state.history.find(function(h) { return h.fightId === fid; });
+
+            if (entry) {
+                if (entry.res !== dbRes) {
+                    entry.res = dbRes;
+                    if (pick.status === 'win') entry.payout = pick.payout || 0;
+                    changed = true;
+                }
+            } else {
+                newEntries.push({ pick: pick, dbRes: dbRes });
+            }
+        });
+
+        // 새 항목 필요 시 matchup 이름 조회 (cross-device / 캐시 초기화 대응)
+        if (newEntries.length) {
+            var fidList = newEntries.map(function(x) { return x.pick.fight_id; });
+            var mRes = await sb.from('matchups')
+                .select('id, red_fighter_name, blue_fighter_name')
+                .in('id', fidList);
+            var muMap = {};
+            (mRes.data || []).forEach(function(m) { muMap[m.id] = m; });
+
+            newEntries.forEach(function(x) {
+                var p  = x.pick;
+                var mu = muMap[p.fight_id];
+                state.history.push({
+                    fightId: p.fight_id,
+                    match:   mu ? (mu.red_fighter_name + ' vs ' + mu.blue_fighter_name)
+                               : (p.actual_winner ? p.actual_winner + ' bout' : 'Past Bout'),
+                    pick:    p.pick_name || '',
+                    payout:  p.payout || 0,
+                    betCost: p.bet_cost || 100,
+                    res:     x.dbRes
+                });
+                changed = true;
+            });
+        }
+
+        if (!changed) return;
+
+        // PENDING 항목은 리스트 끝으로, settled 항목은 기존 순서 유지 (stable sort)
+        state.history.sort(function(a, b) {
+            if (a.res === 'PENDING' && b.res !== 'PENDING') return 1;
+            if (b.res === 'PENDING' && a.res !== 'PENDING') return -1;
+            return 0;
+        });
+
+        save();
+
+        if (typeof renderFormChart     === 'function') renderFormChart();
+        if (typeof renderProfileReport === 'function') renderProfileReport();
+    } catch(e) {
+        console.warn('[reconcileHistoryFromDB]', e);
     }
 }
