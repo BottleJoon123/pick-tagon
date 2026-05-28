@@ -466,7 +466,7 @@ function renderHistoryList() {
     const settled = state.history.filter(h => h.res !== 'PENDING');
 
     if (settled.length === 0) {
-        hList.innerHTML = `<div class="glass-card px-5 py-6 text-center text-gray-500 oswald-sharp uppercase italic tracking-widest text-xs rounded-2xl">No history found</div>`;
+        hList.innerHTML = `<div class="glass-card px-5 py-6 text-center text-gray-500 oswald-sharp uppercase italic tracking-widest text-xs rounded-2xl">정산된 예측 기록이 없습니다</div>`;
         return;
     }
 

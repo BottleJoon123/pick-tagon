@@ -159,7 +159,7 @@
         if (!container) return;
 
         if (!filtered || filtered.length === 0) {
-            container.innerHTML = `<div style="padding:36px 20px;text-align:center;font-family:'Oswald',sans-serif;font-size:10px;color:#2e2e2e;text-transform:uppercase;letter-spacing:.1em;font-style:italic;">표시할 게시글이 없습니다</div>`;
+            container.innerHTML = `<div style="padding:36px 20px;text-align:center;font-family:'Oswald',sans-serif;font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.1em;font-style:italic;">표시할 게시글이 없습니다</div>`;
             return;
         }
 
