@@ -7,6 +7,7 @@
 
 // ── Fight Card Cache (onclick safe-bridge) ───────────────────────
 var _fightCardCache = {};
+var _betSlipIsChange = false;
 
 function openPickSlipFromCard(fightId) {
     var fight = _fightCardCache[fightId];
@@ -580,16 +581,13 @@ function openPickSlip(fightId, match, f1Name, f1Odds, f2Name, f2Odds) {
         showToast('⚠ 베팅은 로그인 후 가능합니다');
         return;
     }
-    if (typeof state !== 'undefined' && state.points < cost) {
-        showToast('⚠️ 포인트 부족 (' + cost + 'P 필요)');
-        return;
-    }
-    if (typeof state !== 'undefined' && state.pendings && state.pendings[fightId]) {
-        showToast('⚠️ 이미 이 경기에 예측을 등록했습니다');
-        return;
-    }
     if (typeof state !== 'undefined' && state.settled && state.settled[fightId]) {
         showToast('⚠️ 이미 결과가 확정된 경기입니다');
+        return;
+    }
+    _betSlipIsChange = !!(typeof state !== 'undefined' && state.pendings && state.pendings[fightId]);
+    if (!_betSlipIsChange && typeof state !== 'undefined' && state.points < cost) {
+        showToast('⚠️ 포인트 부족 (' + cost + 'P 필요)');
         return;
     }
 
@@ -648,7 +646,7 @@ function selectPickFighter(side, fightId, match, name, odds) {
     if (statusMsgEl) statusMsgEl.textContent = '';
     if (confirmBtn) {
         const cost = typeof BET_COST !== 'undefined' ? BET_COST : 100;
-        confirmBtn.textContent = '✓ CONFIRM PICK — ' + cost + 'P';
+        confirmBtn.textContent = _betSlipIsChange ? '✓ CHANGE PICK' : ('✓ CONFIRM PICK — ' + cost + 'P');
         confirmBtn.disabled = false;
     }
 
@@ -661,5 +659,5 @@ function selectPickFighter(side, fightId, match, name, odds) {
         if (btn) btn.classList.remove('bs-sel');
     });
 
-    window.activeBetSlip = { fightId, side, match, pick: name, odds: safeOdds, method: null, methodBonus: 0, round: null };
+    window.activeBetSlip = { fightId, side, match, pick: name, odds: safeOdds, method: null, methodBonus: 0, round: null, isChange: _betSlipIsChange };
 }

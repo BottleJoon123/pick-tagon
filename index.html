@@ -2570,7 +2570,11 @@
         if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = '처리 중...'; }
 
         // method/round/methodBonus를 castVote에 직접 전달 — castVote 내부에서 DB 저장 및 pendings 반영
-        await castVote(bs.side, bs.match, bs.pick, bs.odds, bs.fightId, bs.method, bs.round, bs.methodBonus);
+        if (bs.isChange) {
+            await castChangePick(bs.side, bs.match, bs.pick, bs.odds, bs.fightId, bs.method, bs.round, bs.methodBonus);
+        } else {
+            await castVote(bs.side, bs.match, bs.pick, bs.odds, bs.fightId, bs.method, bs.round, bs.methodBonus);
+        }
 
         closeBetSlip();
         window.activeBetSlip = { fightId: null, side: null, match: null, pick: null, odds: null, method: null, methodBonus: 0, round: null };
@@ -2635,6 +2639,52 @@
         autoSharePick(pick, match, basePayout, isUpset, fightId);
 
         updateEventTotalPicks();
+        save();
+        refreshUI();
+    }
+
+    async function castChangePick(side, match, pick, odds, fightId, method, round, methodBonus) {
+        if (!state.pendings[fightId]) { showToast('⚠️ 변경할 픽이 없습니다.'); return; }
+        if (state.settled?.[fightId]) { showToast('⚠️ 이미 결과가 확정된 경기입니다.'); return; }
+
+        const basePayout = Math.round(BET_COST * odds);
+        const isUpset = odds >= 2.0;
+
+        if (sb && currentUser) {
+            const saved = await changePick(fightId, pick, method || null, round || null, odds, basePayout, isUpset, side);
+            if (!saved.ok) return;
+        }
+
+        // 기존 pending 항목 갱신 (새 row 생성 없음)
+        state.pendings[fightId] = {
+            side, match, pick, payout: basePayout, fightId,
+            betCost: BET_COST, odds, isUpset,
+            method: method || null,
+            methodBonus: methodBonus || 0,
+            predictedRound: round || null
+        };
+
+        // history 기존 PENDING 항목 갱신 (unshift 대신 update)
+        var histEntry = state.history.find(function(h) { return h.fightId === fightId && h.res === 'PENDING'; });
+        if (histEntry) {
+            histEntry.pick = pick;
+            histEntry.payout = basePayout;
+        }
+
+        // 커뮤니티 픽 카운터 보정 (old side 감소 → new side 증가)
+        const newFighterIdx = side === 'left' ? 0 : 1;
+        const oldFighterIdx = myEventPicks[fightId];
+        if (!eventPickCounts[fightId]) eventPickCounts[fightId] = { c0: 0, c1: 0 };
+        if (typeof oldFighterIdx === 'number' && oldFighterIdx !== newFighterIdx) {
+            if (oldFighterIdx === 0) eventPickCounts[fightId].c0 = Math.max(0, eventPickCounts[fightId].c0 - 1);
+            else eventPickCounts[fightId].c1 = Math.max(0, eventPickCounts[fightId].c1 - 1);
+            if (newFighterIdx === 0) eventPickCounts[fightId].c0++;
+            else eventPickCounts[fightId].c1++;
+        }
+        myEventPicks[fightId] = newFighterIdx;
+        updateLivePickBar(fightId);
+
+        showToast(`픽 변경 완료: ${pick} · 기본 ${basePayout}P`);
         save();
         refreshUI();
     }
@@ -4141,6 +4191,41 @@ async function publishPost() {
         } catch (e) {
             console.warn('[place_pick exception]', e);
             showToast('⚠ 예측 저장에 실패했습니다. 다시 시도해주세요.');
+            return { ok: false, error: e };
+        }
+    }
+
+    async function changePick(fightId, pick, method, round, odds, payout, isUpset, side) {
+        if (!sb || !currentUser) return { ok: false };
+        const fight = getActiveFights().find(function(f) { return f.id === fightId; });
+        const matchupId = (fight && fight._fromDB) ? fightId : null;
+        const predictedSide = side === 'left' ? 'red' : side === 'right' ? 'blue' : null;
+        const eventId = (fight && fight._eventId) ? fight._eventId : EVENT_ID;
+        try {
+            var res = await sb.rpc('change_pick', {
+                p_fight_id:        fightId,
+                p_matchup_id:      matchupId,
+                p_pick_name:       pick,
+                p_predicted_side:  predictedSide,
+                p_method:          method || null,
+                p_predicted_round: round || null,
+                p_odds:            odds,
+                p_base_payout:     payout,
+                p_is_upset:        isUpset,
+                p_event_id:        eventId
+            });
+            if (res.error) {
+                var msg = res.error.message || '';
+                if (msg.includes('pick_locked'))        showToast('🔒 픽 마감된 경기입니다.');
+                else if (msg.includes('no_pending_pick')) showToast('⚠️ 변경할 픽이 없습니다.');
+                else showToast('⚠ 픽 변경에 실패했습니다.');
+                console.warn('[change_pick error]', res.error);
+                return { ok: false, error: res.error };
+            }
+            return { ok: true };
+        } catch(e) {
+            console.warn('[change_pick exception]', e);
+            showToast('⚠ 픽 변경에 실패했습니다.');
             return { ok: false, error: e };
         }
     }
