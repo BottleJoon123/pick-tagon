@@ -1,8 +1,44 @@
-# QA Run: Pending Pick Change (Release-Fix-13B)
+# QA Run: Pending Pick Change (Release-Fix-13B/13C)
 > 실행일: 2026-05-28  
-> 대상: 마감 전 pending pick 변경 기능  
+> 대상: 마감 전 pending pick 변경 기능 + UX 개선  
 > 방법: 코드 정적 분석 + npm run build  
-> 제약: migration DB 적용 미완료 — 아래 §5 참조
+> migration 적용 완료 (2026-05-28)
+
+---
+
+## Verdict: PASS (build) — 브라우저 smoke QA 필요
+
+---
+
+## Release-Fix-13C UX 개선 내역
+
+### Finding: "CHANGE PICK" 표시 불명확
+- 픽한 선수 쪽 CTA가 "CHANGE PICK ›"으로 바뀌어, 이미 선택한 선수인지 변경 액션인지 혼동
+
+### Fix (fights-render.js `updateAllFightCards`):
+| 상태 | 픽한 선수 CTA | 상대 선수 CTA |
+|---|---|---|
+| 변경 전 | "CHANGE PICK ›" | 기존 배당 텍스트 |
+| 변경 후 | "★ MY PICK" (emerald #10b981) | "CHANGE PICK ›" |
+
+### Finding: Bet slip에서 신규/변경 구분 없음
+- 슬립 헤더, 버튼 텍스트가 항상 동일 → 변경 모드인지 알 수 없음
+- 포인트 추가 차감 여부 불명확
+
+### Fix (fights-render.js `openPickSlip`, `selectPickFighter`):
+| 항목 | 신규 픽 | 변경 픽 |
+|---|---|---|
+| 슬립 step label (선택 단계) | "LOCK YOUR PICK" | "CHANGE YOUR PICK" |
+| 파이터 버튼 텍스트 | "Name  +150P" | "Name" (payout 없음) |
+| 슬립 step label (확인 단계) | "PICK CONFIRMATION" | "CONFIRM CHANGE" |
+| confirm 버튼 | "✓ CONFIRM PICK — 100P" | "✓ CHANGE PICK" |
+| 안내 문구 | (없음) | "No additional points charged before lock" |
+
+### Finding: 변경 완료 toast 불명확
+- "픽 변경 완료: Name · 기본 150P" → 변경 성공 메시지인지 신규 픽인지 혼동
+
+### Fix (index.html `castChangePick`):
+- 변경 후: `"픽이 변경되었습니다 · {pick}"`
 
 ---
 

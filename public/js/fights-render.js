@@ -475,8 +475,8 @@ function updateAllFightCards() {
         if (_cached) {
             const ctaLr = document.getElementById(`cta-l-${fight.id}`);
             const ctaRr = document.getElementById(`cta-r-${fight.id}`);
-            if (ctaLr) ctaLr.innerHTML = _cached.f1.odds ? `ODDS ${_cached.f1.odds} &nbsp;·&nbsp; +${Math.round(_cached.f1.odds * 100)}P` : 'TAP TO PICK ›';
-            if (ctaRr) ctaRr.innerHTML = _cached.f2.odds ? `ODDS ${_cached.f2.odds} &nbsp;·&nbsp; +${Math.round(_cached.f2.odds * 100)}P` : 'TAP TO PICK ›';
+            if (ctaLr) { ctaLr.innerHTML = _cached.f1.odds ? `ODDS ${_cached.f1.odds} &nbsp;·&nbsp; +${Math.round(_cached.f1.odds * 100)}P` : 'TAP TO PICK ›'; ctaLr.style.color = ''; }
+            if (ctaRr) { ctaRr.innerHTML = _cached.f2.odds ? `ODDS ${_cached.f2.odds} &nbsp;·&nbsp; +${Math.round(_cached.f2.odds * 100)}P` : 'TAP TO PICK ›'; ctaRr.style.color = ''; }
         }
 
         if (pending) {
@@ -491,8 +491,14 @@ function updateAllFightCards() {
             }
             const ctaL = document.getElementById(`cta-l-${fight.id}`);
             const ctaR = document.getElementById(`cta-r-${fight.id}`);
-            if (ctaL && pending.side === 'left') ctaL.innerHTML = 'CHANGE PICK ›';
-            if (ctaR && pending.side === 'right') ctaR.innerHTML = 'CHANGE PICK ›';
+            if (ctaL) {
+                if (pending.side === 'left') { ctaL.innerHTML = '★ MY PICK'; ctaL.style.color = '#10b981'; }
+                else { ctaL.innerHTML = 'CHANGE PICK ›'; ctaL.style.color = ''; }
+            }
+            if (ctaR) {
+                if (pending.side === 'right') { ctaR.innerHTML = '★ MY PICK'; ctaR.style.color = '#10b981'; }
+                else { ctaR.innerHTML = 'CHANGE PICK ›'; ctaR.style.color = ''; }
+            }
             return;
         }
 
@@ -602,19 +608,19 @@ function openPickSlip(fightId, match, f1Name, f1Odds, f2Name, f2Odds) {
     const safeF1Odds = Number(f1Odds) > 0 ? Number(f1Odds) : 2.0;
     const safeF2Odds = Number(f2Odds) > 0 ? Number(f2Odds) : 2.0;
 
-    if (stepLabelEl) stepLabelEl.textContent = 'FIGHTER SELECT';
+    if (stepLabelEl) stepLabelEl.textContent = _betSlipIsChange ? 'CHANGE YOUR PICK' : 'LOCK YOUR PICK';
     if (matchTitleEl) matchTitleEl.textContent = match;
     if (pickStepEl) pickStepEl.classList.remove('hidden');
     if (confirmStepEl) confirmStepEl.classList.add('hidden');
 
     if (leftPickBtn) {
-        leftPickBtn.textContent = `${f1Name}  +${Math.round(100 * safeF1Odds)}P`;
+        leftPickBtn.textContent = _betSlipIsChange ? f1Name : `${f1Name}  +${Math.round(100 * safeF1Odds)}P`;
         leftPickBtn.onclick = function() {
             selectPickFighter('left', fightId, match, f1Name, safeF1Odds);
         };
     }
     if (rightPickBtn) {
-        rightPickBtn.textContent = `${f2Name}  +${Math.round(100 * safeF2Odds)}P`;
+        rightPickBtn.textContent = _betSlipIsChange ? f2Name : `${f2Name}  +${Math.round(100 * safeF2Odds)}P`;
         rightPickBtn.onclick = function() {
             selectPickFighter('right', fightId, match, f2Name, safeF2Odds);
         };
@@ -639,11 +645,11 @@ function selectPickFighter(side, fightId, match, name, odds) {
     if (pickStepEl) pickStepEl.classList.add('hidden');
     if (confirmStepEl) confirmStepEl.classList.remove('hidden');
     const stepLabelEl2 = document.getElementById('bs-step-label');
-    if (stepLabelEl2) stepLabelEl2.textContent = 'PICK CONFIRMATION';
+    if (stepLabelEl2) stepLabelEl2.textContent = _betSlipIsChange ? 'CONFIRM CHANGE' : 'PICK CONFIRMATION';
     if (matchTitleEl) matchTitleEl.textContent = match;
     if (pickNameEl) pickNameEl.textContent = name;
     if (payoutEl) payoutEl.textContent = '+' + Math.round(100 * safeOdds) + 'P';
-    if (statusMsgEl) statusMsgEl.textContent = '';
+    if (statusMsgEl) statusMsgEl.textContent = _betSlipIsChange ? 'No additional points charged before lock' : '';
     if (confirmBtn) {
         const cost = typeof BET_COST !== 'undefined' ? BET_COST : 100;
         confirmBtn.textContent = _betSlipIsChange ? '✓ CHANGE PICK' : ('✓ CONFIRM PICK — ' + cost + 'P');
