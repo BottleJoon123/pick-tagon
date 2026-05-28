@@ -3401,20 +3401,39 @@ async function publishPost() {
 
     function loadUFCRankings() {
         if (sb) {
-            sb.from('ufc_rankings').select('*').order('division').order('rank_position')
-            .then(function(res) {
-                if (res.data && res.data.length > 0) {
+            // fighters 테이블과 병렬 로드 — height_cm/reach_cm으로 정확한 신체 데이터 cross-reference
+            Promise.all([
+                sb.from('ufc_rankings').select('*').order('division').order('rank_position'),
+                sb.from('fighters').select('name, name_en, height_cm, reach_cm').limit(500)
+            ]).then(function(results) {
+                var rankRes = results[0];
+                var fighterRes = results[1];
+                // fighters 이름 소문자 lookup map
+                var fMap = {};
+                (fighterRes.data || []).forEach(function(f) {
+                    if (f.name)    fMap[f.name.toLowerCase().trim()]    = f;
+                    if (f.name_en) fMap[f.name_en.toLowerCase().trim()] = f;
+                });
+                if (rankRes.data && rankRes.data.length > 0) {
                     // flat rows → nested object (ufcRankingsDB format)
                     var built = {};
-                    res.data.forEach(function(row) {
+                    rankRes.data.forEach(function(row) {
                         if (!built[row.division]) built[row.division] = { champion: null, fighters: [] };
+                        // fighters.height_cm 우선 사용, 없으면 ufc_rankings.height fallback
+                        var fData = fMap[(row.fighter_name || '').toLowerCase().trim()];
+                        var height = (fData && fData.height_cm)
+                            ? Math.round(parseFloat(fData.height_cm)) + ' cm'
+                            : (row.height || '—');
+                        var reach  = (fData && fData.reach_cm)
+                            ? Math.round(parseFloat(fData.reach_cm)) + ' cm'
+                            : (row.reach || '—');
                         var fighter = {
                             name: row.fighter_name_ko || row.fighter_name,
                             name_en: row.fighter_name,
                             nation: row.nation || '',
                             record: row.record || '',
-                            height: row.height || '—',
-                            reach: row.reach || '—',
+                            height: height,
+                            reach: reach,
                             trend: row.trend || '→',
                             stats: row.stats || [75,75,75,75,75]
                         };
@@ -3675,7 +3694,7 @@ async function publishPost() {
                 <span class="col-span-1 oswald-sharp text-[8px] text-gray-600 font-black italic uppercase tracking-widest text-center">#</span>
                 <span class="col-span-6 oswald-sharp text-[8px] text-gray-600 font-black italic uppercase tracking-widest pl-2">선수</span>
                 <span class="col-span-3 oswald-sharp text-[8px] text-gray-600 font-black italic uppercase tracking-widest text-center hidden lg:block">전적</span>
-                <span class="col-span-5 lg:col-span-2 oswald-sharp text-[8px] text-gray-600 font-black italic uppercase tracking-widest text-center">신장/리치</span>
+                <span class="col-span-5 lg:col-span-2 oswald-sharp text-[8px] text-gray-600 font-black italic uppercase tracking-widest text-center">신장</span>
             </div>
             ${fighters.length === 0
                 ? `<div class="px-10 py-12 text-center oswald-sharp text-xs text-gray-600 italic uppercase tracking-widest">검색 결과 없음</div>`
@@ -3701,8 +3720,8 @@ async function publishPost() {
                     <span class="oswald-sharp font-black italic text-sm text-white">${f.record}</span>
                 </div>
                 <div class="col-span-5 lg:col-span-2 text-center">
-                    ${f.height && f.height !== '—' ? `<p class="oswald-sharp text-[9px] lg:text-[10px] text-gray-500 italic">${f.height}</p>` : ''}
-                    ${f.reach && f.reach !== '—' ? `<p class="oswald-sharp text-[9px] lg:text-[10px] text-gray-600 italic">리치 ${f.reach}</p>` : ''}
+                    ${f.height && f.height !== '—' ? `<p class="oswald-sharp text-[10px] lg:text-xs text-gray-400 italic">${f.height}</p>` : ''}
+                    ${f.reach && f.reach !== '—' ? `<p class="oswald-sharp text-[10px] lg:text-xs text-gray-500 italic">리치 ${f.reach}</p>` : ''}
                 </div>
             </div>`).join('')}
         </div>`;
