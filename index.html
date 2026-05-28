@@ -4111,6 +4111,7 @@ async function publishPost() {
     }
 
     function openPasswordUpdateModal() {
+        window.__picktagonRecoveryMode = false;
         var authModal = document.getElementById('auth-modal');
         if (authModal) authModal.classList.add('hidden');
         var el = document.getElementById('pw-update-modal');
@@ -4124,6 +4125,8 @@ async function publishPost() {
     }
 
     function closePasswordUpdateModal(doSignOut) {
+        window.__picktagonRecoveryMode = false;
+        window.__picktagonRecoveryModalOpened = false;
         var el = document.getElementById('pw-update-modal');
         if (el) el.classList.add('hidden');
         if (doSignOut && sb) {

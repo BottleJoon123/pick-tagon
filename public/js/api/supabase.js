@@ -164,20 +164,41 @@ function loadPostsFromDB() {
             });
     }
 
+    // URL hash에서 type=recovery + access_token 존재 여부로 recovery redirect 감지
+    function isPasswordRecoveryRedirect() {
+        var hash = window.location.hash || '';
+        return hash.indexOf('type=recovery') !== -1 && hash.indexOf('access_token') !== -1;
+    }
+
     function initSupabase() {
         try {
             sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            // createClient가 hash를 소비하기 전에 바로 감지
+            window.__picktagonRecoveryMode = isPasswordRecoveryRedirect();
+
             loadFactions(); // 집단 목록은 로그인 여부와 무관하게 즉시 로드
             // 로그인 상태 변경 감지
             sb.auth.onAuthStateChange(function(event, session) {
-                // 비밀번호 재설정 링크 진입: 새 비밀번호 설정 UI 표시
+                // 비밀번호 재설정 — event 방식 (guard로 중복 방지)
                 if (event === 'PASSWORD_RECOVERY') {
                     if (session && session.user) currentUser = session.user;
-                    if (typeof openPasswordUpdateModal === 'function') openPasswordUpdateModal();
+                    if (!window.__picktagonRecoveryModalOpened) {
+                        window.__picktagonRecoveryModalOpened = true;
+                        if (typeof openPasswordUpdateModal === 'function') openPasswordUpdateModal();
+                    }
                     return;
                 }
                 // TOKEN_REFRESHED, USER_UPDATED 등 불필요한 이벤트는 무시
                 if (event !== 'INITIAL_SESSION' && event !== 'SIGNED_IN' && event !== 'SIGNED_OUT') return;
+
+                // recovery hash 감지 fallback: INITIAL_SESSION/SIGNED_IN에도 modal 표시
+                if (window.__picktagonRecoveryMode && session && session.user
+                        && !window.__picktagonRecoveryModalOpened) {
+                    currentUser = session.user;
+                    window.__picktagonRecoveryModalOpened = true;
+                    if (typeof openPasswordUpdateModal === 'function') openPasswordUpdateModal();
+                    return;
+                }
 
                 if (session && session.user) {
                     currentUser = session.user;
@@ -196,9 +217,18 @@ function loadPostsFromDB() {
                     updateAuthUI();
                 }
             });
-            // 현재 세션 확인 (onAuthStateChange INITIAL_SESSION 이벤트가 이미 처리하므로
-            // 여기서는 비로그인 상태일 때 auth-modal 표시만 담당)
+            // 현재 세션 확인 — recovery hash fallback + 비로그인 auth-modal 표시
             sb.auth.getSession().then(function(res) {
+                // Fallback: recovery hash 있고 세션 존재하는데 이벤트 경로에서 modal이 안 열렸으면 표시
+                if (window.__picktagonRecoveryMode && res.data && res.data.session
+                        && !window.__picktagonRecoveryModalOpened) {
+                    window.__picktagonRecoveryModalOpened = true;
+                    currentUser = res.data.session.user;
+                    setTimeout(function() {
+                        if (typeof openPasswordUpdateModal === 'function') openPasswordUpdateModal();
+                    }, 200);
+                    return;
+                }
                 if (!res.data || !res.data.session) {
                     adminUnlocked = false;
                     // 로그인 안 된 상태 — 모달 표시
