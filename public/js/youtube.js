@@ -134,7 +134,7 @@
                 YOUTUBE_CARDS.map(function(c, i) {
                     var isActive = i === activeYoutubeCardIdx;
                     return '<button onclick="activeYoutubeCardIdx=' + i + ';loadYoutubeTab()" ' +
-                        'class="oswald-sharp flex-shrink-0 text-[9px] font-black italic uppercase tracking-widest px-3 py-1.5 rounded-xl border transition-all ' +
+                        'class="oswald-sharp flex-shrink-0 text-[11px] font-black italic uppercase tracking-widest px-3 py-2 rounded-xl border transition-all ' +
                         (isActive ? 'bg-red-600/20 border-red-500/50 text-white' : 'border-white/10 text-gray-500 hover:text-white') + '">' +
                         c.icon + ' ' + c.title + '</button>';
                 }).join('') +
@@ -155,7 +155,7 @@
         if (!tabs) return;
         tabs.innerHTML = NEWS_CATS.map(function(c) {
             var active = currentNewsCat === c.id;
-            return '<button onclick="setNewsCat(\'' + c.id + '\')" class="oswald-sharp flex-shrink-0 px-4 py-2 rounded-xl font-black italic text-[10px] uppercase tracking-widest transition-all border ' +
+            return '<button onclick="setNewsCat(\'' + c.id + '\')" class="oswald-sharp flex-shrink-0 px-4 py-2.5 rounded-xl font-black italic text-[11px] uppercase tracking-widest transition-all border ' +
                 (active ? 'bg-ufcRed/15 border-ufcRed/50 text-white' : 'border-white/10 text-gray-500 hover:text-white') + '">' +
                 c.icon + ' ' + c.label + '</button>';
         }).join('');

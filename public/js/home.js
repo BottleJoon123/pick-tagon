@@ -245,7 +245,7 @@ function renderNewsCards(newsItems) {
             var fbUrl = _NEWS_FALLBACK_POOL[(i + 1) % _NEWS_FALLBACK_POOL.length];
             var safeTitle = String(title).replace(/</g,'&lt;');
             var safeSource = String(source).replace(/</g,'&lt;');
-            return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="block group">' +
+            return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="block group no-underline text-inherit">' +
                 '<div class="glass-card rounded-2xl overflow-hidden border border-white/6 hover:border-white/20 transition-all duration-300 hover:scale-[1.02]">' +
                 '<div class="relative overflow-hidden" style="height:170px">' +
                 '<img src="' + imgSrc + '" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.src=\'' + fbUrl + '\'">' +
