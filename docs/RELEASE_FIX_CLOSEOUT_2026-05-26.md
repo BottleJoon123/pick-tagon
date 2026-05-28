@@ -188,6 +188,15 @@ Playwright QA 13/13 PASS.
 **상태**: 조건부 확인 필요  
 **내용**: 다게스탄 팩션이 신규 계정 생성 시 기본값으로 잘못 할당된다는 이슈. 현재 재현 여부 불명확. 2026-05-29 QA 윈도우 2에서 신규 계정 가입 시 확인.
 
+### M-5. Auth Custom SMTP 설정 ⚠️ P1 RISK
+**상태**: NEEDS_MANUAL — 운영자 Dashboard 작업 필요  
+**위험도**: **P1** — 미설정 시 출시 후 다수 사용자 가입/비번 재설정 이메일 전면 차단 가능  
+**내용**: Supabase built-in email은 production용이 아님. rate limit 초과 시 프로젝트 단위로 모든 auth 이메일 차단됨. custom SMTP(Resend 권장) 설정 필요.  
+**절차 문서**: `docs/AUTH_SMTP_SETUP_PLAN_2026-06-10.md`  
+**코드 완료 사항**: `_isRateLimitError()` 매핑, 60초 cooldown, PASSWORD_RECOVERY 3-tier fallback — 모두 완료  
+**남은 작업**: 운영자가 Supabase Dashboard → Authentication → SMTP Settings에서 직접 설정  
+**시점**: **출시 전 필수** (2026-06-10 이전)
+
 ---
 
 ## 4. 출시 후 Backlog (Phase 8+)
@@ -217,8 +226,9 @@ Playwright QA 13/13 PASS.
 | G-6 Admin settle 리허설 | ⚠️ 부분 통과 | read-only PASS (2026-05-27). settlement 이력 3건 확인. write rehearsal + 2026-06-15 이벤트 생성은 06-02~04 예정 |
 | G-7 Mobile 핵심 플로우 | ⏳ NEEDS_MANUAL — Manual scheduled | 05-29~06-01, 체크리스트: [`MOBILE_CLICK_FLOW_QA_2026-06-10.md`](MOBILE_CLICK_FLOW_QA_2026-06-10.md) |
 | G-8 UFC 랭킹 DB resync | 🚫 HOLD / NOT NEEDED | false positive 확인 — 실행 불필요 (2026-05-27) |
+| G-9 Auth Custom SMTP | ⚠️ NEEDS_MANUAL — P1 RISK | Resend 연동 필요, 절차: [`AUTH_SMTP_SETUP_PLAN_2026-06-10.md`](AUTH_SMTP_SETUP_PLAN_2026-06-10.md) |
 | **P0 known issues** | ✅ 0건 | |
-| **P1 known issues** | ✅ 0건 (수정 후) | |
+| **P1 known issues** | ⚠️ 1건 — G-9 SMTP 미설정 | 출시 전 해소 필요 |
 
 ---
 

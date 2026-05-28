@@ -3961,6 +3961,7 @@ async function publishPost() {
        SUPABASE 연동
     ============================== */
     var authTab = 'login';
+    var _pwResetCooldownUntil = 0; // ms; shared cooldown for handlePasswordReset / profilePasswordReset
 
 
     // ── AUTH REDIRECT URL ──
@@ -4070,6 +4071,12 @@ async function publishPost() {
         }
     }
 
+    function _isRateLimitError(msg) {
+        var m = (msg || '').toLowerCase();
+        return m.indexOf('rate limit') !== -1 || m.indexOf('rate_limit') !== -1
+            || m.indexOf('too many') !== -1 || m.indexOf('email rate') !== -1;
+    }
+
     function handlePasswordReset() {
         var email = document.getElementById('auth-email').value.trim();
         var errEl = document.getElementById('auth-error');
@@ -4081,18 +4088,33 @@ async function publishPost() {
             document.getElementById('auth-email').focus();
             return;
         }
+        // 60초 클라이언트 cooldown — rate limit 소진 방지
+        var now = Date.now();
+        if (_pwResetCooldownUntil > now) {
+            var secsLeft = Math.ceil((_pwResetCooldownUntil - now) / 1000);
+            errEl.textContent = '재설정 메일을 이미 보냈습니다. ' + secsLeft + '초 후에 다시 시도해주세요.';
+            errEl.classList.remove('hidden');
+            return;
+        }
         if (!sb) { showToast('⚠ 서버 연결 중입니다'); return; }
+        var resetBtn = document.getElementById('auth-reset-link');
+        if (resetBtn) { resetBtn.disabled = true; resetBtn.textContent = '발송 중...'; }
         sb.auth.resetPasswordForEmail(email, { redirectTo: getAuthRedirectUrl() })
         .then(function(res) {
+            if (resetBtn) { resetBtn.disabled = false; resetBtn.textContent = '비밀번호를 잊으셨나요?'; }
             if (res.error) {
-                errEl.textContent = '재설정 메일 발송 실패: ' + res.error.message;
+                errEl.textContent = _isRateLimitError(res.error.message)
+                    ? '메일 발송 한도에 도달했습니다. 잠시 후 다시 시도하거나 관리자에게 문의해주세요.'
+                    : '재설정 메일 발송 실패: ' + res.error.message;
                 errEl.classList.remove('hidden');
             } else {
+                _pwResetCooldownUntil = Date.now() + 60000;
                 errEl.style.color = '#4ade80';
                 errEl.textContent = '📧 비밀번호 재설정 메일을 발송했습니다. 이메일을 확인하세요';
                 errEl.classList.remove('hidden');
             }
         }).catch(function() {
+            if (resetBtn) { resetBtn.disabled = false; resetBtn.textContent = '비밀번호를 잊으셨나요?'; }
             errEl.textContent = '네트워크 오류가 발생했습니다. 다시 시도해주세요';
             errEl.classList.remove('hidden');
         });
@@ -4100,13 +4122,26 @@ async function publishPost() {
 
     function profilePasswordReset() {
         if (!sb || !currentUser || !currentUser.email) { showToast('⚠ 로그인 후 이용 가능합니다'); return; }
+        // 60초 클라이언트 cooldown — rate limit 소진 방지
+        var now = Date.now();
+        if (_pwResetCooldownUntil > now) {
+            var secsLeft = Math.ceil((_pwResetCooldownUntil - now) / 1000);
+            showToast('⚠ 재설정 메일을 이미 보냈습니다. ' + secsLeft + '초 후에 다시 시도해주세요.');
+            return;
+        }
         var btn = document.getElementById('profile-reset-pw-btn');
         if (btn) { btn.textContent = '발송 중...'; btn.disabled = true; }
         sb.auth.resetPasswordForEmail(currentUser.email, { redirectTo: getAuthRedirectUrl() })
         .then(function(res) {
             if (btn) { btn.textContent = '비밀번호 재설정'; btn.disabled = false; }
-            if (res.error) { showToast('⚠ 재설정 메일 발송 실패: ' + res.error.message); }
-            else { showToast('📧 ' + currentUser.email + ' 로 재설정 메일을 발송했습니다'); }
+            if (res.error) {
+                showToast(_isRateLimitError(res.error.message)
+                    ? '⚠ 메일 발송 한도에 도달했습니다. 잠시 후 다시 시도하거나 관리자에게 문의해주세요.'
+                    : '⚠ 재설정 메일 발송 실패: ' + res.error.message);
+            } else {
+                _pwResetCooldownUntil = Date.now() + 60000;
+                showToast('📧 ' + currentUser.email + ' 로 재설정 메일을 발송했습니다');
+            }
         });
     }
 
