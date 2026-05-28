@@ -139,6 +139,7 @@ function renderProfileReport() {
                     <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-widest italic mb-1">나의 예측가 유형</p>
                     <p class="oswald-sharp text-lg lg:text-xl font-black italic ${analyst.color}">${analyst.title}</p>
                     <p class="text-gray-400 text-xs mt-1 italic">${analyst.desc}</p>
+                    <p class="oswald-sharp text-[9px] text-gray-600 italic mt-1.5">첫 픽을 등록하면 유형이 결정됩니다</p>
                 </div>
             </div>`;
         }
@@ -165,6 +166,7 @@ function renderProfileReport() {
                     <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-widest italic mb-1">나의 예측가 유형</p>
                     <p class="oswald-sharp text-lg lg:text-xl font-black italic ${analyst.color}">${analyst.title}</p>
                     <p class="text-gray-400 text-xs mt-1 italic">${analyst.desc}</p>
+                    <p class="oswald-sharp text-[9px] text-gray-600 italic mt-1.5">픽 결과 확정 후 유형이 정식 산출됩니다</p>
                 </div>
             </div>`;
         }
@@ -222,12 +224,16 @@ function renderProfileReport() {
     // 애널리스트 타입
     const typeEl = document.getElementById('profile-analyst-type');
     if (typeEl) {
+        const typeBasis = settledCount < 5
+            ? `정산 ${settledCount}회 · 더 쌓이면 유형이 안정화됩니다`
+            : '적중률 · 업셋/피니시 패턴 기준';
         typeEl.innerHTML = `
         <div class="flex items-center gap-4">
             <div>
                 <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-widest italic mb-1">나의 예측가 유형</p>
                 <p class="oswald-sharp text-lg lg:text-xl font-black italic ${analyst.color}">${analyst.title}</p>
                 <p class="text-gray-400 text-xs mt-1 italic">${analyst.desc}</p>
+                <p class="oswald-sharp text-[9px] text-gray-600 italic mt-1.5">${typeBasis}</p>
             </div>
         </div>`;
     }
