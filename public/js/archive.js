@@ -202,19 +202,25 @@ function renderArchive() {
                         </div>` : ''}
                     </div>
                 </div>
-                <!-- Desktop: horizontal with images and winner on right -->
-                <div class="hidden lg:flex items-center justify-between gap-3">
-                    <div class="flex items-center gap-2 min-w-0 flex-1">
-                        <span class="oswald-sharp text-[8px] bg-ufcRed/10 border border-ufcRed/20 text-ufcRed px-2 py-1 rounded-lg font-black italic uppercase flex-shrink-0">${escapeHtml(mainEvent.tag || '')}</span>
-                        ${mainEvent.f1_image_url ? `<img src="${escapeHtml(mainEvent.f1_image_url)}" class="w-8 h-8 rounded-full object-cover border border-white/10 flex-shrink-0" onerror="this.style.display='none'">` : ''}
-                        <span class="oswald-sharp text-base font-black italic text-white uppercase tracking-tighter truncate min-w-0">${escapeHtml(f1Display(mainEvent))} <span class="text-gray-600">vs</span> ${escapeHtml(f2Display(mainEvent))}</span>
-                        ${mainEvent.f2_image_url ? `<img src="${escapeHtml(mainEvent.f2_image_url)}" class="w-8 h-8 rounded-full object-cover border border-white/10 flex-shrink-0" onerror="this.style.display='none'">` : ''}
+                <!-- Desktop: balanced face-off — [tag] [← f1name · f1img] [VS] [f2img · f2name →] [result] -->
+                <div class="hidden lg:flex items-center gap-4">
+                    <span class="oswald-sharp text-[8px] bg-ufcRed/10 border border-ufcRed/20 text-ufcRed px-2 py-1 rounded-lg font-black italic uppercase flex-shrink-0">${escapeHtml(mainEvent.tag || '')}</span>
+                    <div class="flex flex-row-reverse items-center gap-2 flex-1 min-w-0">
+                        ${mainEvent.f1_image_url ? `<img src="${escapeHtml(mainEvent.f1_image_url)}" class="w-9 h-9 rounded-full object-cover object-top border border-white/10 flex-shrink-0" onerror="this.style.display='none'">` : ''}
+                        <span class="oswald-sharp text-base font-black italic text-white uppercase tracking-tighter truncate flex-1 min-w-0 text-right">${escapeHtml(f1Display(mainEvent))}</span>
                     </div>
-                    ${!isUpcoming && mainEvent.winner ? `
-                    <div class="flex items-center gap-2 flex-shrink-0">
-                        <span class="oswald-sharp text-sm font-black italic text-ufcRed uppercase">W: ${escapeHtml(winnerDisplay(mainEvent))}</span>
-                        <span class="oswald-sharp text-[8px] border ${METHOD_COLOR[mainEvent.method] || 'text-gray-400 border-gray-400/40 bg-gray-400/10'} px-2 py-1 rounded-lg font-black italic uppercase">${escapeHtml(mainEvent.method || '')}</span>
-                    </div>` : ''}
+                    <span class="oswald-sharp text-xs font-black italic text-gray-600 uppercase flex-shrink-0 w-8 text-center">VS</span>
+                    <div class="flex items-center gap-2 flex-1 min-w-0">
+                        ${mainEvent.f2_image_url ? `<img src="${escapeHtml(mainEvent.f2_image_url)}" class="w-9 h-9 rounded-full object-cover object-top border border-white/10 flex-shrink-0" onerror="this.style.display='none'">` : ''}
+                        <span class="oswald-sharp text-base font-black italic text-white uppercase tracking-tighter truncate flex-1 min-w-0">${escapeHtml(f2Display(mainEvent))}</span>
+                    </div>
+                    <div class="w-44 flex-shrink-0 min-w-0">
+                        ${!isUpcoming && mainEvent.winner ? `
+                        <div class="flex items-center gap-1.5 min-w-0">
+                            <span class="oswald-sharp text-sm font-black italic text-ufcRed uppercase truncate">${escapeHtml(winnerDisplay(mainEvent))}</span>
+                            <span class="oswald-sharp text-[8px] border ${METHOD_COLOR[mainEvent.method] || 'text-gray-400 border-gray-400/40 bg-gray-400/10'} px-2 py-0.5 rounded-lg font-black italic uppercase flex-shrink-0">${escapeHtml(mainEvent.method || '')}</span>
+                        </div>` : ''}
+                    </div>
                 </div>
             </div>` : ''}
 
@@ -240,28 +246,27 @@ function renderArchive() {
                                 </div>` : (!isUpcoming && (f.round || f.fight_time) ? `<p class="oswald-sharp text-[7px] text-gray-600 italic uppercase mt-0.5">R${f.round || '?'} ${f.fight_time || ''}</p>` : '')}
                             </div>
                         </div>
-                        <!-- Desktop: single-row with f1 image and winner on right -->
-                        <div class="hidden lg:flex items-center justify-between gap-3">
-                            <div class="flex items-center gap-2 min-w-0 flex-1">
-                                <span class="oswald-sharp text-[9px] text-gray-600 italic uppercase flex-shrink-0 w-6 text-center">${i + 1}</span>
-                                ${f.f1_image_url ? `<img src="${escapeHtml(f.f1_image_url)}" class="w-7 h-7 rounded-full object-cover border border-white/10 flex-shrink-0" onerror="this.style.display='none'">` : ''}
-                                <div class="min-w-0 flex-1">
-                                    <div class="flex items-center gap-1 min-w-0">
-                                        <span class="oswald-sharp text-sm font-black italic text-white uppercase tracking-tighter truncate flex-1 min-w-0">${escapeHtml(f1Display(f))}</span>
-                                        <span class="text-gray-700 text-[10px] flex-shrink-0 px-0.5">vs</span>
-                                        <span class="oswald-sharp text-sm font-black italic text-white uppercase tracking-tighter truncate flex-1 min-w-0">${escapeHtml(f2Display(f))}</span>
-                                    </div>
-                                    ${!isUpcoming ? `<p class="oswald-sharp text-[10px] text-gray-600 italic uppercase tracking-widest mt-0.5">R${f.round || '?'} ${f.fight_time || ''}</p>` : ''}
-                                </div>
+                        <!-- Desktop: balanced face-off — [#] [← f1name · f1img] [VS] [f2img · f2name →] [result] -->
+                        <div class="hidden lg:flex items-center gap-2">
+                            <span class="oswald-sharp text-[9px] text-gray-600 italic uppercase flex-shrink-0 w-5 text-center">${i + 1}</span>
+                            <div class="flex flex-row-reverse items-center gap-1.5 flex-1 min-w-0">
+                                ${f.f1_image_url ? `<img src="${escapeHtml(f.f1_image_url)}" class="w-7 h-7 rounded-full object-cover object-top border border-white/10 flex-shrink-0" onerror="this.style.display='none'">` : ''}
+                                <span class="oswald-sharp text-sm font-black italic text-white uppercase tracking-tighter truncate flex-1 min-w-0 text-right">${escapeHtml(f1Display(f))}</span>
                             </div>
-                            ${!isUpcoming && f.winner ? `
-                            <div class="flex items-center gap-2 flex-shrink-0">
-                                <div class="text-right">
-                                    <p class="oswald-sharp text-xs font-black italic text-ufcRed uppercase">${escapeHtml(winnerDisplay(f))}</p>
-                                    <p class="oswald-sharp text-[9px] text-gray-600 italic uppercase tracking-widest">WINNER</p>
+                            <span class="oswald-sharp text-[9px] font-black italic text-gray-600 uppercase flex-shrink-0 w-7 text-center">VS</span>
+                            <div class="flex items-center gap-1.5 flex-1 min-w-0">
+                                ${f.f2_image_url ? `<img src="${escapeHtml(f.f2_image_url)}" class="w-7 h-7 rounded-full object-cover object-top border border-white/10 flex-shrink-0" onerror="this.style.display='none'">` : ''}
+                                <span class="oswald-sharp text-sm font-black italic text-white uppercase tracking-tighter truncate flex-1 min-w-0">${escapeHtml(f2Display(f))}</span>
+                            </div>
+                            <div class="w-40 flex-shrink-0 min-w-0">
+                                ${!isUpcoming && f.winner ? `
+                                <div class="flex items-center gap-1.5 min-w-0">
+                                    <span class="oswald-sharp text-xs font-black italic text-ufcRed uppercase truncate">${escapeHtml(winnerDisplay(f))}</span>
+                                    <span class="oswald-sharp text-[8px] border ${METHOD_COLOR[f.method] || 'text-gray-400 border-gray-400/40 bg-gray-400/10'} px-2 py-0.5 rounded-lg font-black italic uppercase flex-shrink-0">${escapeHtml(f.method || '')}</span>
                                 </div>
-                                <span class="oswald-sharp text-[8px] border ${METHOD_COLOR[f.method] || 'text-gray-400 border-gray-400/40 bg-gray-400/10'} px-2 py-1 rounded-lg font-black italic uppercase">${escapeHtml(f.method || '')}</span>
-                            </div>` : ''}
+                                ${f.round || f.fight_time ? `<p class="oswald-sharp text-[9px] text-gray-500 italic uppercase mt-0.5">R${f.round || '?'} ${f.fight_time || ''}</p>` : ''}` :
+                                !isUpcoming && (f.round || f.fight_time) ? `<p class="oswald-sharp text-[9px] text-gray-500 italic uppercase">R${f.round || '?'} ${f.fight_time || ''}</p>` : ''}
+                            </div>
                         </div>
                     </div>
                     `).join('')}
