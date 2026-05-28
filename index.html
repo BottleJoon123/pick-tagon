@@ -4111,7 +4111,6 @@ async function publishPost() {
     }
 
     function openPasswordUpdateModal() {
-        window.__picktagonRecoveryMode = false;
         var authModal = document.getElementById('auth-modal');
         if (authModal) authModal.classList.add('hidden');
         var el = document.getElementById('pw-update-modal');

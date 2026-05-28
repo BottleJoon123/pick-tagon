@@ -164,17 +164,27 @@ function loadPostsFromDB() {
             });
     }
 
-    // URL hash에서 type=recovery + access_token 존재 여부로 recovery redirect 감지
-    function isPasswordRecoveryRedirect() {
-        var hash = window.location.hash || '';
-        return hash.indexOf('type=recovery') !== -1 && hash.indexOf('access_token') !== -1;
+    // hash/search/href 전체에서 type=recovery 감지. url 인자: createClient 전 저장한 초기 URL
+    function isPasswordRecoveryRedirect(url) {
+        var s = url || (window.location.href || '');
+        // type=signup은 password recovery가 아님
+        if (s.indexOf('type=signup') !== -1) return false;
+        // type=recovery 없으면 false
+        if (s.indexOf('type=recovery') === -1) return false;
+        // 토큰 종류 중 하나라도 있으면 true (implicit: access_token, PKCE: code=)
+        return s.indexOf('access_token') !== -1
+            || s.indexOf('refresh_token') !== -1
+            || s.indexOf('code=') !== -1;
     }
 
     function initSupabase() {
         try {
+            // Supabase createClient가 URL hash를 소비하기 전에 초기 URL 저장 + recovery 판정
+            var _initialAuthUrl = window.location.href || '';
+            window.__picktagonInitialAuthUrl = _initialAuthUrl;
+            window.__picktagonRecoveryMode = isPasswordRecoveryRedirect(_initialAuthUrl);
+
             sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            // createClient가 hash를 소비하기 전에 바로 감지
-            window.__picktagonRecoveryMode = isPasswordRecoveryRedirect();
 
             loadFactions(); // 집단 목록은 로그인 여부와 무관하게 즉시 로드
             // 로그인 상태 변경 감지
