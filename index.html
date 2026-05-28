@@ -694,7 +694,7 @@
             <!-- 닉네임 + 팩션 + 벨트 -->
             <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 flex-wrap mb-1">
-                    <p id="profile-nickname-display" class="oswald-sharp text-lg lg:text-xl font-black italic text-white uppercase tracking-tight leading-none"></p>
+                    <p id="profile-nickname-display" class="oswald-sharp text-lg lg:text-xl font-black italic text-white tracking-tight leading-none"></p>
                     <div id="profile-faction-display" class="flex items-center gap-1"></div>
                 </div>
                 <p class="oswald-sharp text-[10px] text-gray-600 italic uppercase tracking-widest">픽태곤 커뮤니티 멤버</p>
@@ -1982,6 +1982,31 @@
 
         <button onclick="skipAuth()" class="text-gray-600 text-xs hover:text-gray-400 transition">
             로그인 없이 계속 (기능 제한)
+        </button>
+    </div>
+</div>
+
+<!-- ================================
+     PASSWORD UPDATE MODAL (recovery flow)
+================================ -->
+<div id="pw-update-modal" class="hidden fixed inset-0 z-[620] flex items-center justify-center p-4" style="background:rgba(0,0,0,0.97)">
+    <div class="glass-card rounded-[2rem] p-8 lg:p-12 w-full max-w-md border border-white/10 text-center">
+        <div class="text-5xl mb-5">🔐</div>
+        <h3 class="barlow text-2xl font-black italic text-white uppercase tracking-tight mb-1">새 비밀번호 설정</h3>
+        <p class="text-gray-500 text-sm mb-8">재설정 링크로 접근하셨습니다.<br>새로운 비밀번호를 입력하세요.</p>
+        <div class="space-y-3 mb-5">
+            <input id="pw-update-new" type="password" placeholder="새 비밀번호 (6자 이상)"
+                class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500 text-sm"
+                onkeydown="if(event.key==='Enter') submitPasswordUpdate()">
+            <input id="pw-update-confirm" type="password" placeholder="새 비밀번호 확인"
+                class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500 text-sm"
+                onkeydown="if(event.key==='Enter') submitPasswordUpdate()">
+        </div>
+        <p id="pw-update-error" class="text-red-400 text-xs mb-4 hidden"></p>
+        <button onclick="submitPasswordUpdate()" id="pw-update-submit-btn"
+            class="w-full btn-red py-4 text-base mb-3">비밀번호 변경</button>
+        <button onclick="closePasswordUpdateModal(true)" class="text-gray-600 text-xs hover:text-gray-400 transition">
+            취소 (로그아웃)
         </button>
     </div>
 </div>
@@ -4082,6 +4107,76 @@ async function publishPost() {
             if (btn) { btn.textContent = '비밀번호 재설정'; btn.disabled = false; }
             if (res.error) { showToast('⚠ 재설정 메일 발송 실패: ' + res.error.message); }
             else { showToast('📧 ' + currentUser.email + ' 로 재설정 메일을 발송했습니다'); }
+        });
+    }
+
+    function openPasswordUpdateModal() {
+        var authModal = document.getElementById('auth-modal');
+        if (authModal) authModal.classList.add('hidden');
+        var el = document.getElementById('pw-update-modal');
+        if (!el) return;
+        document.getElementById('pw-update-new').value = '';
+        document.getElementById('pw-update-confirm').value = '';
+        var errEl = document.getElementById('pw-update-error');
+        if (errEl) { errEl.classList.add('hidden'); errEl.textContent = ''; }
+        el.classList.remove('hidden');
+        setTimeout(function() { document.getElementById('pw-update-new').focus(); }, 100);
+    }
+
+    function closePasswordUpdateModal(doSignOut) {
+        var el = document.getElementById('pw-update-modal');
+        if (el) el.classList.add('hidden');
+        if (doSignOut && sb) {
+            sb.auth.signOut().then(function() {
+                history.replaceState({}, '', window.location.pathname);
+            });
+        }
+    }
+
+    function submitPasswordUpdate() {
+        var newPw = (document.getElementById('pw-update-new').value || '');
+        var confirmPw = (document.getElementById('pw-update-confirm').value || '');
+        var errEl = document.getElementById('pw-update-error');
+        errEl.classList.add('hidden');
+        errEl.style.color = '';
+
+        if (newPw.length < 6) {
+            errEl.textContent = '비밀번호는 6자 이상이어야 합니다';
+            errEl.classList.remove('hidden');
+            return;
+        }
+        if (newPw !== confirmPw) {
+            errEl.textContent = '비밀번호가 일치하지 않습니다';
+            errEl.classList.remove('hidden');
+            return;
+        }
+        if (!sb) { showToast('⚠ 서버 연결 중입니다'); return; }
+
+        var btn = document.getElementById('pw-update-submit-btn');
+        btn.textContent = '변경 중...';
+        btn.disabled = true;
+
+        sb.auth.updateUser({ password: newPw })
+        .then(function(res) {
+            btn.disabled = false;
+            btn.textContent = '비밀번호 변경';
+            if (res.error) {
+                errEl.textContent = '변경 실패: ' + res.error.message;
+                errEl.classList.remove('hidden');
+            } else {
+                history.replaceState({}, '', window.location.pathname);
+                closePasswordUpdateModal(false);
+                showToast('✅ 비밀번호가 변경되었습니다');
+                if (currentUser) {
+                    loadUserFromDB(currentUser.id);
+                    updateAuthUI();
+                }
+            }
+        }).catch(function() {
+            btn.disabled = false;
+            btn.textContent = '비밀번호 변경';
+            errEl.textContent = '네트워크 오류가 발생했습니다. 다시 시도해주세요';
+            errEl.classList.remove('hidden');
         });
     }
 

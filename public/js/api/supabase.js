@@ -170,6 +170,12 @@ function loadPostsFromDB() {
             loadFactions(); // 집단 목록은 로그인 여부와 무관하게 즉시 로드
             // 로그인 상태 변경 감지
             sb.auth.onAuthStateChange(function(event, session) {
+                // 비밀번호 재설정 링크 진입: 새 비밀번호 설정 UI 표시
+                if (event === 'PASSWORD_RECOVERY') {
+                    if (session && session.user) currentUser = session.user;
+                    if (typeof openPasswordUpdateModal === 'function') openPasswordUpdateModal();
+                    return;
+                }
                 // TOKEN_REFRESHED, USER_UPDATED 등 불필요한 이벤트는 무시
                 if (event !== 'INITIAL_SESSION' && event !== 'SIGNED_IN' && event !== 'SIGNED_OUT') return;
 
