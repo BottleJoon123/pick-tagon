@@ -164,14 +164,14 @@ function renderArchive() {
         return `
         <div class="glass-card rounded-[2rem] overflow-hidden hover:border-white/20 transition-all duration-500">
             <!-- Event Header -->
-            <div class="flex flex-col lg:flex-row lg:items-center justify-between px-6 lg:px-10 py-5 lg:py-7 bg-black/30 border-b border-white/5 gap-3">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between px-4 lg:px-6 py-3 lg:py-4 bg-black/30 border-b border-white/5 gap-3">
                 <div class="flex items-center gap-4">
-                    <div class="w-10 h-10 lg:w-14 lg:h-14 rounded-2xl ${isUpcoming ? 'bg-green-500/10 border border-green-500/30' : 'bg-ufcRed/10 border border-ufcRed/30'} flex items-center justify-center flex-shrink-0">
+                    <div class="w-8 h-8 lg:w-10 lg:h-10 rounded-xl ${isUpcoming ? 'bg-green-500/10 border border-green-500/30' : 'bg-ufcRed/10 border border-ufcRed/30'} flex items-center justify-center flex-shrink-0">
                         <span class="oswald-sharp ${isUpcoming ? 'text-green-400' : 'text-ufcRed'} text-[8px] lg:text-[10px] font-black italic uppercase text-center leading-tight px-1">${isUpcoming ? 'NEXT' : (ev.name || '').replace('UFC ','').substring(0,4)}</span>
                     </div>
                     <div>
                         <div class="flex items-center gap-2">
-                            <p class="oswald-sharp font-black italic text-lg lg:text-3xl text-white uppercase tracking-tighter">${escapeHtml(ev.name || '')}</p>
+                            <p class="oswald-sharp font-black italic text-sm lg:text-xl text-white uppercase tracking-tighter">${escapeHtml(ev.name || '')}</p>
                             ${isUpcoming ? '<span class="oswald-sharp text-[8px] bg-green-500/10 border border-green-500/30 text-green-400 px-2 py-0.5 rounded-lg font-black italic uppercase">UPCOMING</span>' : ''}
                         </div>
                         <p class="oswald-sharp text-[10px] text-gray-500 italic uppercase tracking-widest">${dateStr} · ${escapeHtml(ev.venue || '—')}</p>
@@ -181,7 +181,7 @@ function renderArchive() {
                     <span class="oswald-sharp text-[8px] lg:text-[10px] text-gray-600 italic uppercase tracking-widest">${(ev.fights || []).length}경기</span>
                     ${(ev.fights || []).length > 0 ? `
                     <button onclick="toggleArchiveDetail('${ev.id}')" id="archive-toggle-btn-${ev.id}"
-                        class="oswald-sharp text-[8px] lg:text-xs border border-white/10 text-gray-500 hover:text-white hover:border-white/30 px-3 lg:px-4 py-1 lg:py-2 rounded-xl italic uppercase tracking-widest transition flex items-center gap-1">
+                        class="oswald-sharp text-[8px] lg:text-[10px] border border-white/10 text-gray-500 hover:text-white hover:border-white/30 px-2 lg:px-3 py-1 rounded-xl italic uppercase tracking-widest transition flex items-center gap-1">
                         <span id="archive-toggle-label-${ev.id}">▼ ${isUpcoming ? '대진표 보기' : '결과 보기'}</span>
                     </button>` : ''}
                 </div>
@@ -189,11 +189,11 @@ function renderArchive() {
 
             ${mainEvent ? `
             <!-- Main Event Highlight -->
-            <div class="px-6 lg:px-10 py-5 lg:py-6 border-b border-white/5 flex items-center justify-between gap-4">
+            <div class="px-4 lg:px-6 py-3 lg:py-4 border-b border-white/5 flex items-center justify-between gap-4">
                 <div class="flex items-center gap-3 flex-wrap">
                     <span class="oswald-sharp text-[8px] bg-ufcRed/10 border border-ufcRed/20 text-ufcRed px-2 py-1 rounded-lg font-black italic uppercase">${escapeHtml(mainEvent.tag || '')}</span>
                     ${mainEvent.f1_image_url ? `<img src="${escapeHtml(mainEvent.f1_image_url)}" class="w-8 h-8 rounded-full object-cover border border-white/10" onerror="this.style.display='none'">` : ''}
-                    <span class="oswald-sharp text-sm lg:text-xl font-black italic text-white uppercase tracking-tighter">${escapeHtml(f1Display(mainEvent))} <span class="text-gray-600">vs</span> ${escapeHtml(f2Display(mainEvent))}</span>
+                    <span class="oswald-sharp text-xs lg:text-base font-black italic text-white uppercase tracking-tighter">${escapeHtml(f1Display(mainEvent))} <span class="text-gray-600">vs</span> ${escapeHtml(f2Display(mainEvent))}</span>
                     ${mainEvent.f2_image_url ? `<img src="${escapeHtml(mainEvent.f2_image_url)}" class="w-8 h-8 rounded-full object-cover border border-white/10" onerror="this.style.display='none'">` : ''}
                 </div>
                 ${!isUpcoming && mainEvent.winner ? `
@@ -207,16 +207,16 @@ function renderArchive() {
             <div id="archive-detail-${ev.id}" class="hidden">
                 <div class="divide-y divide-white/5">
                     ${(ev.fights || []).map((f, i) => `
-                    <div class="px-6 lg:px-10 py-4 flex items-center justify-between gap-4 hover:bg-white/2 transition">
+                    <div class="px-4 lg:px-6 py-2.5 flex items-center justify-between gap-4 hover:bg-white/2 transition">
                         <div class="flex items-center gap-3 min-w-0">
                             <span class="oswald-sharp text-[7px] lg:text-[9px] text-gray-600 italic uppercase tracking-widest flex-shrink-0 w-5 lg:w-8 text-center">${i + 1}</span>
                             <div class="flex items-center gap-2">
                                 ${f.f1_image_url ? `<img src="${escapeHtml(f.f1_image_url)}" class="w-7 h-7 rounded-full object-cover border border-white/10 flex-shrink-0" onerror="this.style.display='none'">` : ''}
                                 <div class="min-w-0">
                                     <div class="flex items-center gap-2 flex-wrap">
-                                        <span class="oswald-sharp text-xs lg:text-base font-black italic text-white uppercase tracking-tighter truncate">${escapeHtml(f1Display(f))}</span>
+                                        <span class="oswald-sharp text-xs lg:text-sm font-black italic text-white uppercase tracking-tighter truncate">${escapeHtml(f1Display(f))}</span>
                                         <span class="text-gray-700 text-[10px]">vs</span>
-                                        <span class="oswald-sharp text-xs lg:text-base font-black italic text-white uppercase tracking-tighter truncate">${escapeHtml(f2Display(f))}</span>
+                                        <span class="oswald-sharp text-xs lg:text-sm font-black italic text-white uppercase tracking-tighter truncate">${escapeHtml(f2Display(f))}</span>
                                     </div>
                                     ${!isUpcoming ? `<p class="oswald-sharp text-[8px] lg:text-[10px] text-gray-600 italic uppercase tracking-widest mt-0.5">R${f.round || '?'} ${f.fight_time || ''}</p>` : ''}
                                 </div>
