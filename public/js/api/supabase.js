@@ -652,6 +652,7 @@ async function reconcileHistoryFromDB() {
 
         save();
 
+        if (typeof renderHistoryList   === 'function') renderHistoryList();
         if (typeof renderFormChart     === 'function') renderFormChart();
         if (typeof renderProfileReport === 'function') renderProfileReport();
     } catch(e) {

@@ -788,7 +788,7 @@
                         <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[.3em] font-black italic">최근 폼 (최근 10경기)</p>
                         <p id="profile-streak-text" class="oswald-sharp text-xs font-black italic text-gray-500 uppercase"></p>
                     </div>
-                    <div id="profile-form-chart" class="flex items-end gap-1.5 h-20 mb-3"></div>
+                    <div id="profile-form-chart" class="flex items-end gap-2 h-28 mb-3 overflow-visible"></div>
                     <div class="flex gap-4">
                         <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded bg-ufcRed"></div><span class="oswald-sharp text-[9px] text-gray-500 italic uppercase">WIN</span></div>
                         <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded bg-white/10"></div><span class="oswald-sharp text-[9px] text-gray-500 italic uppercase">LOSE</span></div>
@@ -2474,29 +2474,7 @@
         })();
 
 
-        const hList = document.getElementById('history-card-list');
-        if(hList) {
-            if(state.history.length === 0) {
-                hList.innerHTML = `<div class="glass-card p-10 text-center text-gray-500 oswald-sharp uppercase italic tracking-widest text-sm rounded-2xl uppercase italic font-bold">No history found</div>`;
-            } else {
-                hList.innerHTML = state.history.map(h => `
-                    <div class="glass-card p-5 lg:p-8 rounded-2xl lg:rounded-3xl flex items-center justify-between border-white/5 uppercase italic font-bold">
-                        <div class="flex items-center space-x-4 lg:space-x-6 uppercase italic font-bold">
-                            <div class="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-white/5 flex items-center justify-center font-oswald text-lg lg:text-xl font-black italic text-ufcRed">
-                                ${h.res === 'WIN' ? 'W' : (h.res === 'LOSE' ? 'L' : '?')}
-                            </div>
-                            <div>
-                                <h5 class="oswald-sharp text-sm lg:text-xl font-black italic text-white tracking-tight uppercase">${h.match}</h5>
-                                <p class="text-gray-500 text-[10px] lg:text-xs italic uppercase">Pick: <span class="text-gray-300 font-bold uppercase italic font-bold">${h.pick}</span></p>
-                            </div>
-                        </div>
-                        <span class="px-4 lg:px-6 py-1 lg:py-2 rounded-full text-[8px] lg:text-[10px] font-black oswald-sharp italic uppercase border ${h.res === 'WIN' ? 'bg-ufcRed text-white border-ufcRed shadow-[0_0_10px_#d20a0a]' : (h.res === 'LOSE' ? 'bg-gray-800 text-gray-500 border-white/10' : 'bg-transparent text-gray-400 border-white/20 animate-pulse')}">
-                            ${h.res}
-                        </span>
-                    </div>
-                `).join('');
-            }
-        }
+        if (typeof renderHistoryList === 'function') renderHistoryList();
         renderFeed();
     }
 

@@ -6,6 +6,7 @@
 
 let _rpcStats = null;        // get_user_pick_stats RPC 캐시 (null = 미로드 또는 실패 → state fallback)
 let _rpcStatsLoading = false; // RPC 진행 중 플래그 — empty CTA 조기 표시 방지용
+var _histExpanded = false;   // 히스토리 전체 보기/접기 상태
 
 // weight_class 단축키 → 표시 레이블
 const WEIGHT_CLASS_LABEL = {
@@ -342,16 +343,21 @@ function renderFormChart() {
 
     const maxPayout = Math.max(...recent.map(h => h.payout || 100), 100);
     formEl.innerHTML = recent.map(h => {
-        const isWin = h.res === 'WIN';
-        const height = isWin ? Math.max(28, Math.round((h.payout || 100) / maxPayout * 96)) : 16;
+        const isWin    = h.res === 'WIN';
+        const isCancel = h.res === 'CANCEL';
+        const height   = isWin ? Math.max(22, Math.round((h.payout || 100) / maxPayout * 72)) : 12;
+        const label    = isWin ? 'W' : isCancel ? 'C' : 'L';
+        const barCls   = isWin ? 'bg-ufcRed hover:bg-red-400' : 'bg-white/10 hover:bg-white/20';
+        const lblCls   = isWin ? 'text-ufcRed' : 'text-gray-600';
+        const tip      = isWin ? '+' + (h.payout || 0) + 'P' : (isCancel ? 'CANCEL' : 'LOSE');
         return `
         <div class="flex flex-col items-center gap-1 flex-1 group relative">
-            <div class="absolute -top-7 left-1/2 -translate-x-1/2 bg-black/80 text-[9px] text-white px-2 py-1 rounded oswald-sharp italic opacity-0 group-hover:opacity-100 transition whitespace-nowrap z-10">
-                ${isWin ? '+' + (h.payout || 0) + 'P' : 'LOSE'}
+            <div class="absolute -top-6 left-1/2 -translate-x-1/2 bg-black/80 text-[9px] text-white px-2 py-0.5 rounded oswald-sharp italic opacity-0 group-hover:opacity-100 transition whitespace-nowrap z-10">
+                ${tip}
             </div>
-            <div class="w-full rounded-t-lg transition-all duration-700 ${isWin ? 'bg-ufcRed hover:bg-red-400' : 'bg-white/10 hover:bg-white/20'} cursor-default"
-                style="height:${height}px; min-height:6px;"></div>
-            <span class="oswald-sharp text-[8px] font-black italic ${isWin ? 'text-ufcRed' : 'text-gray-700'}">${isWin ? 'W' : 'L'}</span>
+            <div class="w-full rounded-t transition-all duration-700 ${barCls} cursor-default"
+                style="height:${height}px; min-height:4px;"></div>
+            <span class="oswald-sharp text-[9px] font-black italic ${lblCls}">${label}</span>
         </div>`;
     }).join('');
 }
@@ -444,4 +450,54 @@ function renderBonusSummary() {
             <p class="oswald-sharp text-[9px] text-gray-600 uppercase tracking-widest italic mt-1">${b.label}</p>
         </div>
     `).join('');
+}
+
+// ── History card list: compact, show 5 by default with expand toggle ─────
+function renderHistoryList() {
+    const hList = document.getElementById('history-card-list');
+    if (!hList) return;
+
+    const settled = state.history.filter(h => h.res !== 'PENDING');
+
+    if (settled.length === 0) {
+        hList.innerHTML = `<div class="glass-card px-5 py-6 text-center text-gray-500 oswald-sharp uppercase italic tracking-widest text-xs rounded-2xl">No history found</div>`;
+        return;
+    }
+
+    const PREVIEW = 5;
+    const items   = _histExpanded ? settled : settled.slice(0, PREVIEW);
+    const hasMore = settled.length > PREVIEW;
+
+    const esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return s; };
+
+    hList.innerHTML = items.map(function(h) {
+        const isWin    = h.res === 'WIN';
+        const isLose   = h.res === 'LOSE';
+        const letter   = isWin ? 'W' : (h.res === 'CANCEL' ? 'C' : 'L');
+        const ltrCls   = isWin ? 'text-ufcRed' : 'text-gray-500';
+        const pillCls  = isWin
+            ? 'bg-ufcRed text-white border-ufcRed shadow-[0_0_8px_#d20a0a]'
+            : isLose
+            ? 'bg-gray-800 text-gray-500 border-white/10'
+            : 'bg-transparent text-gray-400 border-white/20';
+        return `
+        <div class="glass-card px-4 py-3 rounded-xl flex items-center justify-between border-white/5">
+            <div class="flex items-center space-x-3 min-w-0">
+                <div class="shrink-0 w-8 h-8 rounded-full bg-white/5 flex items-center justify-center font-oswald text-sm font-black italic ${ltrCls}">${letter}</div>
+                <div class="min-w-0">
+                    <p class="oswald-sharp text-xs font-black italic text-white tracking-tight uppercase truncate">${esc(h.match)}</p>
+                    <p class="text-[9px] text-gray-500 italic uppercase">Pick: <span class="text-gray-300">${esc(h.pick)}</span></p>
+                </div>
+            </div>
+            <span class="shrink-0 ml-3 px-3 py-0.5 rounded-full text-[8px] font-black oswald-sharp italic uppercase border ${pillCls}">${h.res}</span>
+        </div>`;
+    }).join('') + (hasMore ? `
+        <button onclick="toggleHistoryExpand()" class="w-full py-2.5 text-center oswald-sharp text-[10px] text-gray-500 hover:text-white italic uppercase tracking-widest transition border border-white/5 rounded-xl hover:border-white/15">
+            ${_histExpanded ? '접기 ▲' : '전체 기록 보기 (' + settled.length + ') ▼'}
+        </button>` : '');
+}
+
+function toggleHistoryExpand() {
+    _histExpanded = !_histExpanded;
+    renderHistoryList();
 }
