@@ -49,6 +49,81 @@
 
 ---
 
+## 2B. Field Impact Analysis — 누락 시 UI 영향
+
+### Event-level 필드 (Admin UI: `saveNewEvent`)
+
+| 필드 | Admin UI 지원 | 누락 시 영향 | 필수? |
+|---|---|---|---|
+| `title` | ✅ | 이벤트 카드 공백, fetchUpcomingMatchups 실패 | **필수** |
+| `event_date` | ✅ | 카운트다운/날짜 라벨 "DATE TBA", picks_locked_at 기준 불명확 | **권장** |
+| `status` | ✅ (dropdown) | 기본 upcoming — 픽 즉시 오픈 상태. upcoming 아니면 카드 미노출 | **필수** |
+| `venue` | ❌ UI 미지원 (SQL 필요) | 이벤트 카드 venue 라벨 빈칸 — 크리티컬 아님 | 선택 |
+| `location` | ❌ UI 미지원 | 동일 | 선택 |
+| `picks_locked_at` | 별도 버튼 (`🔒 픽 마감`) | 미설정 = 픽 계속 열림. 경기 당일 수동 마감 필요 | 이벤트 직전 필수 |
+
+### Matchup-level 필드 (Admin UI: `saveMatchupFromModal`)
+
+| 필드 | Admin UI 지원 | 누락 시 영향 | 필수? |
+|---|---|---|---|
+| `red_fighter_name` / `blue_fighter_name` | ✅ (검색 + 직접 입력) | 저장 자체 불가 | **필수** |
+| `sort_order` | ✅ (숫자 입력) | default=99 → 카드 순서 꼬임. 메인이벤트가 최하단 표시 | **필수 수동 지정** |
+| `card_segment` | ✅ (main/prelim) | default=main. prelim은 선택 목록 아래 표시 | **필수** |
+| `is_main_event` | 자동 (`card_segment=main && sort_order=1`) | sort_order=1 + main이면 자동 true | 자동 |
+| `red_fighter_id` / `blue_fighter_id` | ✅ (파이터 검색 시 자동) | null = stats/analysis 탭 빈 상태. 픽 기능은 작동 | 권장 |
+| `red_image_url` / `blue_image_url` | 자동 (fighter.image_url) | null = 아바타 이니셜 표시. 기능 문제 없음 | 선택 |
+| `weight_class` | ✅ (dropdown) | null = "체급 미정" 라벨 빈 상태 | 권장 |
+| `left_bias` | ✅ (0.0~1.0 슬라이더) | 0.5 기본값 = 커뮤니티 픽바 50:50 시작 | 선택 |
+
+### fighters 테이블 의존성
+
+| 상황 | 영향 |
+|---|---|
+| fighter_id 매핑됨 (`fighters` 테이블 존재) | Stats/Analysis 탭 정상, 프로필 이미지 표시 |
+| fighter_id null (이름만 입력) | 픽 정상 작동, Stats/Analysis 탭 "데이터 없음" |
+| 파이터명 오타 (fighters 이름과 불일치) | fighter_id null과 동일 — 검색 미매핑 |
+
+---
+
+## 2C. Data Collection Template
+
+운영자가 이 표를 직접 채운 후 Section 5/6 절차대로 입력한다.
+
+### 이벤트 메타
+
+| 필드 | 값 (운영자 기입) |
+|---|---|
+| 공식 이벤트 타이틀 | `UFC ___ — ___` |
+| event_date (YYYY-MM-DD) | `2026-06-15` |
+| Admin UI status | `upcoming` |
+| Admin UI 저장 필드 범위 | title + event_date + status (venue/location은 UI 미지원) |
+
+### 매치업 데이터 (한 줄씩 채우기)
+
+| # | card | sort | RED (공식 영문명) | BLUE (공식 영문명) | weight_class | RED DB존재? | BLUE DB존재? |
+|---|---|---|---|---|---|---|---|
+| 1 | main | 1 | (메인이벤트 레드) | (메인이벤트 블루) | | ⬜ | ⬜ |
+| 2 | main | 2 | (코메인 레드) | (코메인 블루) | | ⬜ | ⬜ |
+| 3 | main | 3 | | | | ⬜ | ⬜ |
+| 4 | main | 4 | | | | ⬜ | ⬜ |
+| 5 | main | 5 | | | | ⬜ | ⬜ |
+| 6 | prelim | 1 | | | | ⬜ | ⬜ |
+| 7 | prelim | 2 | | | | ⬜ | ⬜ |
+| 8 | prelim | 3 | | | | ⬜ | ⬜ |
+| 9 | prelim | 4 | | | | ⬜ | ⬜ |
+| 10 | prelim | 5 | | | | ⬜ | ⬜ |
+
+> **weight_class 코드**: `hw` `lhw` `mw` `ww` `lw` `fw` `bw` `flw` `wmw` `wbw` `wfw` `wfe`  
+> **sort_order**: 같은 card_segment 안에서 1=최상단. main #1 = MAIN EVENT (자동 is_main_event=true)
+
+### DB에 없는 파이터 사전 등록 목록
+
+| 파이터 이름 (공식 영문) | 체급 | 사전 등록 완료? |
+|---|---|---|
+| (없으면 공란) | | ⬜ |
+
+---
+
 ## 3. 현재 DB 상태
 
 | 항목 | 현재 상태 | 비고 |
@@ -201,6 +276,41 @@ Admin 화면 → Event 탭 → 좌측 "+ 이벤트 추가" 버튼
 | C-9 | Stats / Analysis 렌더 | 경기 카드 → Analysis 탭 | fighter_id 매핑 시 스탯 표시 |
 | C-10 | console error 없음 | DevTools Console | 0건 |
 | C-11 | Admin Dashboard unresolved 지표 | Dashboard | 새 matchup 수 반영 |
+
+---
+
+## 7B. Day-Before Lock Checklist (이벤트 전날 — 2026-06-14)
+
+> 이 체크리스트는 이벤트 생성 후, 픽 마감 직전에 확인한다.
+
+### 데이터 최종 확인
+
+| # | 항목 | 확인 방법 | 상태 |
+|---|---|---|---|
+| L-1 | 모든 매치업 sort_order 1-N 순서 정확한지 | Admin → 이벤트 선택 → 워크스페이스 카드 순서 육안 확인 | ⬜ |
+| L-2 | 메인이벤트 (sort_order=1, card_segment=main) 카드가 최상단인지 | 대진표 탭 확인 | ⬜ |
+| L-3 | Community 탭 메인/코메인 패널 정상 표시 | Community 탭 진입 | ⬜ |
+| L-4 | 각 매치업 파이터 이름 오타 없음 | Admin 워크스페이스 전체 검토 | ⬜ |
+| L-5 | RED/BLUE 코너 공식 배정과 일치 | UFC 공식 사이트 재확인 | ⬜ |
+| L-6 | 모바일 375px Pick Slip 오픈/확인 정상 | 브라우저 DevTools mobile emulation | ⬜ |
+
+### 픽 마감 처리
+
+| # | 항목 | 시점 | 상태 |
+|---|---|---|---|
+| L-7 | `picks_locked_at` 미설정 상태 확인 (픽 아직 열림) | 마감 전 | ⬜ |
+| L-8 | 경기 시작 전 KST 기준 마감 시간 결정 | 사전 결정 | ⬜ |
+| L-9 | Admin → 이벤트 선택 → `🔒 픽 마감` 버튼 클릭 | 마감 시점 | ⬜ |
+| L-10 | 마감 후 픽 버튼 비활성화 확인 (대진표 탭) | 마감 직후 | ⬜ |
+| L-11 | Pick Slip 오픈 시도 → "마감된 경기" 토스트 표시 | 마감 직후 | ⬜ |
+
+### 이상 상태 대응
+
+| 상황 | 조치 |
+|---|---|
+| 경기 취소/변경 발생 | Admin → 해당 매치업 수정 또는 삭제. 이미 등록된 픽은 settlement 시 cancelled 처리됨 |
+| 마감 후 실수 발견 | `🔓 픽 재오픈` → 수정 → 재마감 |
+| 오입력 matchup 삭제 | 해당 matchup에 연결된 픽 없으면 Admin → 삭제. 픽 있으면 settlement로 처리 |
 
 ---
 
