@@ -2617,7 +2617,7 @@
 
         if (sb && currentUser) {
             // DB가 source of truth: RPC 성공 후에만 로컬 상태 갱신
-            const saved = await savePick(fightId, pick, method || null, round || null, odds, basePayout, isUpset, side);
+            const saved = await savePick(fightId, match, pick, method || null, round || null, odds, basePayout, isUpset, side);
             if (!saved.ok) return;
             // DB에서 반환된 new_points로 로컬 동기화 (race condition 방지)
             if (typeof saved.new_points === 'number') {
@@ -4308,7 +4308,7 @@ async function publishPost() {
         }, '⚠ 프로필 동기화에 실패했습니다.');
     }
 
-    async function savePick(fightId, pick, method, round, odds, payout, isUpset, side) {
+    async function savePick(fightId, match, pick, method, round, odds, payout, isUpset, side) {
         if (!sb || !currentUser) return { ok: true };
         const fight = getActiveFights().find(function(f) { return f.id === fightId; });
         const matchupId = (fight && fight._fromDB) ? fightId : null;
@@ -4318,6 +4318,7 @@ async function publishPost() {
             var res = await sb.rpc('place_pick', {
                 p_fight_id:        fightId,
                 p_matchup_id:      matchupId,
+                p_match_name:      match || null,
                 p_pick_name:       pick,
                 p_predicted_side:  predictedSide,
                 p_method:          method || null,
