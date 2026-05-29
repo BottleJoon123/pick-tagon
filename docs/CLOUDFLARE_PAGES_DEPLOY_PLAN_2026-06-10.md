@@ -92,10 +92,21 @@ window.PICKTAGON_CONFIG = {
 |---|---|
 | `VITE_SUPABASE_URL` | Supabase 프로젝트 URL |
 | `VITE_SUPABASE_ANON_KEY` | Supabase anon public key |
-| `VITE_ADMIN_EMAILS` | 쉼표 구분 admin 이메일 목록 |
+| `VITE_ADMIN_EMAILS` | 쉼표 구분 admin 이메일 목록 (미설정 시 코드 내 fallback 적용) |
 | `VITE_PUBLIC_SITE_URL` | `https://pick-tagon.com/` |
 
 > `VITE_BASE_PATH` 는 **설정하지 말 것** — 미설정 시 `'/'` 기본값 사용
+
+> **`VITE_ADMIN_EMAILS` fallback 동작:**  
+> 미설정 또는 placeholder(`%VITE_ADMIN_EMAILS%`)인 경우 `config.js` 내 `ADMIN_FALLBACK = ['joonbyoung@naver.com']`이 적용됨.  
+> 이 값은 Admin nav **UI 표시 여부** 결정에만 사용됨 — 실제 admin 권한은 DB `users.is_admin = true` 및 server-side RPC로 검증.  
+> Cloudflare env var 설정 권장이지만 미설정 시에도 안전하게 작동함.
+
+> **배포 후 확인법 (브라우저 콘솔):**  
+> ```js
+> window.PICKTAGON_CONFIG  // siteUrl, adminEmails 치환 여부 확인
+> ADMIN_EMAILS             // config.js 처리 결과 확인
+> ```
 
 ### 3.4 커스텀 도메인 연결
 
