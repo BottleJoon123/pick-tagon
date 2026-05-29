@@ -585,11 +585,11 @@
         <div class="flex items-center justify-between mb-4">
             <div class="sx-head">
                 <h3 class="oswald-sharp text-2xl lg:text-3xl font-black italic tracking-tight uppercase text-white leading-none">Community</h3>
-                <p class="text-gray-600 text-[10px] mt-0.5">격투기 팬들의 뜨거운 설전과 분석 · 포스트 댓글 ⚡ 버튼으로 배틀 신청</p>
+                <p class="text-gray-600 text-[10px] mt-0.5">격투기 팬들의 뜨거운 설전과 분석</p>
             </div>
             <div class="flex items-center gap-2">
-                <button onclick="toggleMyBattlePanel()"
-                    class="oswald-sharp border border-ufcRed/30 text-ufcRed hover:bg-ufcRed/10 font-black px-3 py-2 rounded-lg italic transition-all text-xs uppercase tracking-wider">
+                <button id="my-battle-btn" onclick="toggleMyBattlePanel()"
+                    class="hidden oswald-sharp border border-ufcRed/30 text-ufcRed hover:bg-ufcRed/10 font-black px-3 py-2 rounded-lg italic transition-all text-xs uppercase tracking-wider">
                     ⚡ 내 배틀
                 </button>
                 <button onclick="toggleWriter()"
@@ -2156,6 +2156,12 @@
     supabaseKey:  '%VITE_SUPABASE_ANON_KEY%',
     adminEmails:  '%VITE_ADMIN_EMAILS%',
   };
+  // Feature flags — set battle:true after beta to re-enable octagon/battle
+  window.PICKTAGON_FEATURES = window.PICKTAGON_FEATURES || {};
+  window.PICKTAGON_FEATURES.battle = false;
+  function isBattleFeatureEnabled() {
+    return !!(window.PICKTAGON_FEATURES && window.PICKTAGON_FEATURES.battle);
+  }
 </script>
 <script src="/js/config.js"></script>
 <script src="/js/data/fights.js"></script>
@@ -4615,6 +4621,7 @@ async function addCommentToDB(postDbId, userNick, text) {
     var myBattlesList = [];
 
     async function loadMyBattles() {
+        if (!isBattleFeatureEnabled()) return;
         if (!sb || !currentUser) return;
         var myNick = getDisplayUsername();
         var res = await sb.from('battles')
@@ -4719,6 +4726,7 @@ async function addCommentToDB(postDbId, userNick, text) {
     }
 
     function toggleMyBattlePanel() {
+        if (!isBattleFeatureEnabled()) return;
         var panel = document.getElementById('my-battle-panel');
         if (!panel) return;
         panel.classList.toggle('hidden');
@@ -4726,6 +4734,7 @@ async function addCommentToDB(postDbId, userNick, text) {
     }
 
     function acceptBattleFromList(battleId, starterNick) {
+        if (!isBattleFeatureEnabled()) { showToast('⚡ 배틀 기능은 준비 중입니다'); return; }
         octagon.pendingBattleId = battleId;
         octagon.pendingStarterNick = starterNick;
         document.getElementById('octagon-invite-modal').classList.add('hidden');
@@ -4741,11 +4750,13 @@ async function addCommentToDB(postDbId, userNick, text) {
     }
 
     function declineBattleFromList(battleId) {
+        if (!isBattleFeatureEnabled()) { showToast('⚡ 배틀 기능은 준비 중입니다'); return; }
         if (!sb) return;
         _declineBattleById(battleId);
     }
 
     function cancelBattleById(battleId) {
+        if (!isBattleFeatureEnabled()) { showToast('⚡ 배틀 기능은 준비 중입니다'); return; }
         if (!sb) return;
         sb.rpc('cancel_battle', { p_battle_id: battleId }).then(function(res) {
             if (res.error) { showToast('⚠️ 취소 실패: ' + (res.error.message || '')); return; }
@@ -4756,6 +4767,7 @@ async function addCommentToDB(postDbId, userNick, text) {
     }
 
     function rejoinBattle(battleId, starterNick, receiverNick) {
+        if (!isBattleFeatureEnabled()) { showToast('⚡ 배틀 기능은 준비 중입니다'); return; }
         var myNick = getDisplayUsername();
         octagon.battleId = battleId;
         octagon.role = myNick === starterNick ? 'starter' : 'receiver';
@@ -4775,6 +4787,7 @@ async function addCommentToDB(postDbId, userNick, text) {
     /* ── 배틀 신청 (댓글의 ⚡ 옥타곤 버튼) ── */
     function requestBattle(opponentNick, evt) {
         if (evt) evt.stopPropagation();
+        if (!isBattleFeatureEnabled()) { showToast('⚡ 배틀 기능은 준비 중입니다'); return; }
         if (!sb || !currentUser) { showToast('⚠️ 로그인이 필요합니다'); return; }
         var myNick = getDisplayUsername();
         if (opponentNick === myNick) { showToast('⚠️ 자신에게 신청할 수 없습니다'); return; }
@@ -4819,6 +4832,7 @@ async function addCommentToDB(postDbId, userNick, text) {
 
     /* ── 수신 대기 리스너 (로그인 시 상시 구독) ── */
     function initOctagonListener() {
+    if (!isBattleFeatureEnabled()) return;
     if (!sb || !currentUser) return;
     var myNick = getDisplayUsername();
     if (!myNick) return;
@@ -4871,6 +4885,7 @@ async function addCommentToDB(postDbId, userNick, text) {
 
     /* ── 수락 ── */
     function acceptBattle() {
+        if (!isBattleFeatureEnabled()) { showToast('⚡ 배틀 기능은 준비 중입니다'); return; }
         var battleId = octagon.pendingBattleId;
         var starterNick = octagon.pendingStarterNick;
         if (!battleId || !sb || !currentUser) return;
@@ -4913,6 +4928,7 @@ async function addCommentToDB(postDbId, userNick, text) {
     }
 
     function declineBattle() {
+        if (!isBattleFeatureEnabled()) { document.getElementById('octagon-invite-modal').classList.add('hidden'); return; }
         var battleId = octagon.pendingBattleId;
         document.getElementById('octagon-invite-modal').classList.add('hidden');
         octagon.pendingBattleId = null;
@@ -5138,6 +5154,7 @@ async function addCommentToDB(postDbId, userNick, text) {
 
     /* ──────────── 메시지 전송 / 턴 진행 ──────────── */
     function sendOctagonMessage() {
+        if (!isBattleFeatureEnabled()) return;
         var input = document.getElementById('octagon-input');
         if (!input || input.disabled) return;
         var text = input.value.trim();
@@ -5394,6 +5411,7 @@ async function addCommentToDB(postDbId, userNick, text) {
 
     /* ──────────── 관전자 투표 ──────────── */
     async function octagonVote(forWho) {
+        if (!isBattleFeatureEnabled()) { showToast('⚡ 배틀 기능은 준비 중입니다'); return; }
         if (octagon.role !== 'spectator') return;
         if (!currentUser) { showToast('⚠️ 로그인 후 투표 가능합니다'); return; }
         if (octagon.votedThisBattle) { showToast('이미 투표했습니다'); return; }
@@ -5674,6 +5692,7 @@ async function addCommentToDB(postDbId, userNick, text) {
 
     /* ──────────── 퇴장 / 취소 ──────────── */
     function cancelBattleRequest() {
+        if (!isBattleFeatureEnabled()) { exitOctagon(); return; }
         if (octagon.battleId && sb) {
             sb.rpc('cancel_battle', { p_battle_id: octagon.battleId }).then(function(){});
         }

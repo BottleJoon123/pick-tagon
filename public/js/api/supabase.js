@@ -215,7 +215,9 @@ function loadPostsFromDB() {
                     loadUserFromDB(session.user.id);
                     document.getElementById('auth-modal').classList.add('hidden');
                     updateAuthUI();
-                    setTimeout(initOctagonListener, 600);
+                    if (typeof isBattleFeatureEnabled === 'function' && isBattleFeatureEnabled()) {
+                        setTimeout(initOctagonListener, 600);
+                    }
                 } else {
                     // 로그아웃: 모든 오버레이 닫기 + 어드민 권한 초기화
                     currentUser = null;

@@ -368,7 +368,7 @@
                 ? getFactionBadge(factionSrc) + ' ' : '';
             var isSelf = p.author === getDisplayUsername();
             var safeAuthor = escapeHtml(p.author || '').replace(/'/g, "\\'");
-            var battleBtn = (!isSelf && currentUser)
+            var battleBtn = (!isSelf && currentUser && typeof isBattleFeatureEnabled === 'function' && isBattleFeatureEnabled())
                 ? `<button onclick="requestBattle('${safeAuthor}', event)"
                        style="font-family:'Oswald',sans-serif;font-size:8px;font-weight:900;font-style:italic;text-transform:uppercase;background:transparent;border:1px solid #222;color:#444;padding:2px 7px;border-radius:5px;cursor:pointer;letter-spacing:.05em;transition:color .12s,border-color .12s;"
                        onmouseover="this.style.color='#e8000d';this.style.borderColor='rgba(232,0,13,.4)'"
@@ -426,7 +426,7 @@
         listEl.innerHTML = comments.map(function(c) {
             var isSelf = c.user === getDisplayUsername();
             var safeUser = escapeHtml(c.user || '').replace(/'/g, "\\'");
-            var battleBtn = (!isSelf && currentUser)
+            var battleBtn = (!isSelf && currentUser && typeof isBattleFeatureEnabled === 'function' && isBattleFeatureEnabled())
                 ? `<button onclick="requestBattle('${safeUser}', event)"
                        style="font-family:'Oswald',sans-serif;font-size:8px;font-weight:900;font-style:italic;text-transform:uppercase;background:transparent;border:1px solid #222;color:#444;padding:2px 7px;border-radius:5px;cursor:pointer;letter-spacing:.05em;transition:color .12s,border-color .12s;"
                        onmouseover="this.style.color='#e8000d';this.style.borderColor='rgba(232,0,13,.4)'"

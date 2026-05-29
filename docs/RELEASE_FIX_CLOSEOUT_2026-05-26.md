@@ -205,6 +205,11 @@ Playwright QA 13/13 PASS.
 
 | 항목 | 내용 | 우선순위 |
 |---|---|---|
+| **Battle/Octagon 재오픈** | `PICKTAGON_FEATURES.battle = true`로 변경하면 즉시 활성화. 재오픈 전 아래 QA 항목 검증 필요 | P1 post-beta |
+| Battle: Admin feature toggle UI | admin.js에서 feature flag를 Dashboard 없이 토글할 수 있는 Admin 전용 UI | P1 post-beta |
+| Battle: 관전(spectator) 진입점 | `octagon.role='spectator'` 할당 경로 + 진행 중인 배틀 목록 UI. 인프라 존재(Presence, 투표 함수), 진입 경로만 없음 | P2 post-beta |
+| Battle: invite/cancel QA 전체 | 신청 → 수락 → 룸 입장 → 메시지 → 종료 전 flow QA | P2 post-beta |
+| Battle: community integration cleanup | 커뮤니티 피드에서 배틀 CTA 노출 시점/문구 정리 | P2 post-beta |
 | 배틀 관전(spectator) 진입점 | `octagon.role='spectator'` 할당 경로 + 진행 중인 배틀 목록 UI. 인프라 존재(Presence, 투표 함수), 진입 경로만 없음 | P2 |
 | Stat scoring v2 / 랭커 보정 | 예측 적중 시 스탯 반영 로직 개선 | P2 |
 | Recent fights 공식 데이터 | 최근전적 실제 DB 연결 (스크래핑 필요) | P2 |
@@ -229,6 +234,7 @@ Playwright QA 13/13 PASS.
 | G-7 Mobile 핵심 플로우 | ⏳ NEEDS_MANUAL — Manual scheduled | 05-29~06-01, 체크리스트: [`MOBILE_CLICK_FLOW_QA_2026-06-10.md`](MOBILE_CLICK_FLOW_QA_2026-06-10.md) |
 | G-8 UFC 랭킹 DB resync | 🚫 HOLD / NOT NEEDED | false positive 확인 — 실행 불필요 (2026-05-27) |
 | G-9 Auth Custom SMTP | ⚠️ NEEDS_MANUAL — P1 RISK | Resend 연동 필요, 절차: [`AUTH_SMTP_SETUP_PLAN_2026-06-10.md`](AUTH_SMTP_SETUP_PLAN_2026-06-10.md) |
+| G-10 Battle/Octagon 비노출 | ✅ PASS | `PICKTAGON_FEATURES.battle = false` 설정 완료. 코드/DB/RPC 보존. 재오픈: flag → true |
 | **P0 known issues** | ✅ 0건 | |
 | **P1 known issues** | ⚠️ 1건 — G-9 SMTP 미설정 | 출시 전 해소 필요 |
 
