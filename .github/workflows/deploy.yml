@@ -34,6 +34,7 @@ jobs:
           VITE_SUPABASE_URL:      ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_ADMIN_EMAILS:      ${{ secrets.VITE_ADMIN_EMAILS }}
+          VITE_BASE_PATH:         /pick-tagon/
 
       - uses: actions/upload-pages-artifact@v3
         with:

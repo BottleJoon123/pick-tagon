@@ -2155,6 +2155,7 @@
     supabaseUrl:  '%VITE_SUPABASE_URL%',
     supabaseKey:  '%VITE_SUPABASE_ANON_KEY%',
     adminEmails:  '%VITE_ADMIN_EMAILS%',
+    siteUrl:      '%VITE_PUBLIC_SITE_URL%',
   };
   // Feature flags — set battle:true after beta to re-enable octagon/battle
   window.PICKTAGON_FEATURES = window.PICKTAGON_FEATURES || {};
@@ -3990,9 +3991,19 @@ async function publishPost() {
 
     // ── AUTH REDIRECT URL ──
     function getAuthRedirectUrl() {
-        if (window.location.hostname === 'bottlejoon123.github.io') {
+        // 1. Explicit override via VITE_PUBLIC_SITE_URL env var
+        var cfg = window.PICKTAGON_CONFIG || {};
+        var ph = /^%VITE_/;
+        if (cfg.siteUrl && !ph.test(cfg.siteUrl)) return cfg.siteUrl;
+        // 2. Per-hostname canonical redirect
+        var host = window.location.hostname;
+        if (host === 'pick-tagon.com' || host === 'www.pick-tagon.com') {
+            return 'https://pick-tagon.com/';
+        }
+        if (host === 'bottlejoon123.github.io') {
             return 'https://bottlejoon123.github.io/pick-tagon/';
         }
+        // 3. localhost / Cloudflare preview deployments (*.pages.dev)
         return window.location.origin + window.location.pathname;
     }
 
