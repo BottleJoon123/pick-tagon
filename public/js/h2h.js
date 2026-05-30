@@ -287,9 +287,6 @@ function _doRenderH2H(content, f1, f2) {
     var totalAdv2 = stats2.reduce(function(s, v, i) { return s + (v > stats1[i] ? 1 : 0); }, 0);
     var overallAdv = totalAdv1 > totalAdv2 ? f1.name : (totalAdv2 > totalAdv1 ? f2.name : 'EVEN');
 
-    var h2hRecords = [];
-    try { h2hRecords = findH2HRecords(f1.name, f2.name); } catch(e) { console.warn('[H2H] h2hRecords:', e); }
-
     var styleAnalysis = { f1Style: '—', f1Icon: '⚔️', f2Style: '—', f2Icon: '⚔️', keyMatchup: '—', prediction: '—' };
     try { styleAnalysis = analyzeStyleMatchup(stats1, stats2, f1.name, f2.name); } catch(e) { console.warn('[H2H] styleAnalysis:', e); }
 
@@ -338,40 +335,8 @@ function _doRenderH2H(content, f1, f2) {
     var f1Last = (f1.name || '').split(' ').pop();
     var f2Last = (f2.name || '').split(' ').pop();
 
-    var h2hRecordsHtml;
-    if (!h2hRecords.length) {
-        h2hRecordsHtml = '<p class="oswald-sharp text-xs text-gray-700 italic uppercase text-center py-3">공식 맞대결 기록 없음</p>';
-    } else {
-        var rows = h2hRecords.map(function(r) {
-            var w1 = r.winner && r.winner.toLowerCase().includes(f1Last.toLowerCase());
-            return '<div class="py-2 border-b border-white/5 last:border-0">' +
-                '<p class="oswald-sharp text-[9px] text-gray-600 italic uppercase truncate mb-1">' + (r.event || '') + '</p>' +
-                '<div class="flex items-center justify-between">' +
-                    '<div class="flex items-center gap-2">' +
-                        '<span class="oswald-sharp text-xs font-black italic ' + (w1 ? 'text-ufcRed' : 'text-gray-400') + '">' + f1Last + '</span>' +
-                        '<span class="text-gray-700 text-[9px]">vs</span>' +
-                        '<span class="oswald-sharp text-xs font-black italic ' + (!w1 ? 'text-ufcBlue' : 'text-gray-400') + '">' + f2Last + '</span>' +
-                    '</div>' +
-                    '<span class="oswald-sharp text-[8px] border border-white/10 text-gray-500 px-2 py-0.5 rounded-lg font-black italic uppercase">' + (r.method || '') + ' R' + (r.round || '') + '</span>' +
-                '</div>' +
-            '</div>';
-        }).join('');
-        var w1count = h2hRecords.filter(function(r) { return r.winner && r.winner.toLowerCase().includes(f1Last.toLowerCase()); }).length;
-        h2hRecordsHtml = '<div class="space-y-3">' + rows +
-            '<div class="flex justify-around pt-3">' +
-                '<div class="text-center"><p class="oswald-sharp text-2xl font-black italic text-ufcRed">' + w1count + '</p><p class="oswald-sharp text-[9px] text-gray-600 italic uppercase">' + f1Last + ' 승</p></div>' +
-                '<div class="text-center self-center oswald-sharp text-gray-600 font-black italic">VS</div>' +
-                '<div class="text-center"><p class="oswald-sharp text-2xl font-black italic text-ufcBlue">' + (h2hRecords.length - w1count) + '</p><p class="oswald-sharp text-[9px] text-gray-600 italic uppercase">' + f2Last + ' 승</p></div>' +
-            '</div>' +
-        '</div>';
-    }
-
     content.innerHTML =
         '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">' + fighterCardsHtml + '</div>' +
-        '<div class="glass-card rounded-2xl p-5 lg:p-7 mb-6 border ' + (h2hRecords.length > 0 ? 'border-yellow-500/20 bg-yellow-500/[0.03]' : 'border-white/5') + '">' +
-            '<p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[0.3em] font-black italic mb-4">⚔️ 직접 맞대결</p>' +
-            h2hRecordsHtml +
-        '</div>' +
         '<div class="glass-card rounded-2xl p-5 lg:p-7 mb-6 border border-white/5">' +
             '<p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[0.3em] font-black italic mb-4">🔍 스탯 기반 관전 포인트</p>' +
             '<div class="grid grid-cols-3 gap-3 mb-4">' +
