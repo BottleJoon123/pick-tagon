@@ -34,6 +34,22 @@ function closeH2H() {
     if (h2hRadarChart) { h2hRadarChart.destroy(); h2hRadarChart = null; }
 }
 
+// Mobile-safe compare: re-syncs select options by name before rendering
+// so async fighterDB changes between openH2H() and button click don't break lookup
+function compareH2H() {
+    const all = getAllFightersForH2H();
+    ['h2h-f1-select', 'h2h-f2-select'].forEach(function(id) {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        const curName = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+        sel.innerHTML = '<option value="">-- 선택 --</option>';
+        all.forEach(function(f) {
+            sel.innerHTML += '<option value="' + f.id + '"' + (f.name === curName ? ' selected' : '') + '>' + f.name + '</option>';
+        });
+    });
+    renderH2H();
+}
+
 function getAllFightersForH2H() {
     const fromDB = fighterDB.map(f => ({ ...f }));
     const fromFights = [];

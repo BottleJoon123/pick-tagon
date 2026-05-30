@@ -138,12 +138,12 @@
             <svg width="24" height="24" viewBox="0 0 200 200" fill="none" aria-hidden="true" class="flex-shrink-0"><polygon points="60,10 140,10 190,60 190,140 140,190 60,190 10,140 10,60" fill="none" stroke="var(--pt-red-500)" stroke-width="14"/><path d="M70 102 L92 124 L138 78" stroke="#fff" stroke-width="22" fill="none" stroke-linejoin="miter"/><path d="M70 102 L92 124 L138 78" stroke="var(--pt-red-500)" stroke-width="10" fill="none" stroke-linejoin="miter"/></svg>
             <span class="barlow text-xl font-black italic" style="color:var(--pt-red-500);letter-spacing:-0.01em">PICK-TAGON</span>
         </h1>
-        <div class="flex items-center gap-8">
-            <ul class="flex items-center gap-6 barlow text-sm font-bold italic tracking-wide uppercase">
+        <div class="flex items-center gap-4 xl:gap-8 min-w-0">
+            <ul class="flex items-center gap-3 xl:gap-6 barlow text-xs xl:text-sm font-bold italic tracking-wide uppercase whitespace-nowrap">
                 <li><button onclick="navigateTo('home')" id="nav-home" class="nav-link py-2 transition active">홈</button></li>
                 <li><button onclick="navigateTo('matchups')" id="nav-matchups" class="nav-link py-2 transition">대진표</button></li>
                 <li><button onclick="navigateTo('ufc-rankings')" id="nav-ufc-rankings" class="nav-link py-2 transition">UFC랭킹</button></li>
-                <li><button onclick="navigateTo('rankings')" id="nav-rankings" class="nav-link py-2 transition">유저 랭킹</button></li>
+                <li><button onclick="navigateTo('rankings')" id="nav-rankings" class="nav-link py-2 transition">랭킹</button></li>
                 <li><button onclick="navigateTo('mma-news')" id="nav-mma-news" class="nav-link py-2 transition">뉴스</button></li>
                 <li><button onclick="navigateTo('community')" id="nav-community" class="nav-link py-2 transition">커뮤니티</button></li>
                 <li><button onclick="navigateTo('archive')" id="nav-archive" class="nav-link py-2 transition">아카이브</button></li>
@@ -1932,8 +1932,8 @@
                 </div>
             </div>
             <!-- Mobile fallback: explicit compare button -->
-            <button onclick="renderH2H()"
-                class="w-full oswald-sharp bg-white/5 hover:bg-white/10 border border-white/15 text-white font-black py-2.5 rounded-xl italic uppercase text-xs tracking-widest transition active:scale-95">
+            <button onclick="compareH2H()"
+                class="w-full oswald-sharp bg-ufcRed/10 hover:bg-ufcRed/20 border border-ufcRed/30 text-white font-black py-2.5 rounded-xl italic uppercase text-xs tracking-widest transition active:scale-95">
                 ⚔️ 비교 분석 시작
             </button>
         </div>
@@ -2303,7 +2303,12 @@
         if(id === 'ufc-rankings') { renderUFCRankingTabs(); renderUFCRankings(); _loadRankImgs(); }
         if(id === 'matchups') {
             if (typeof fetchUpcomingMatchups === 'function') fetchUpcomingMatchups();
-            renderFightCards();
+            // renderFightCards called inside fetchUpcomingMatchups when DB data arrives.
+            // Call here only if _dbMatchups is already loaded (tab revisit / cached) to avoid
+            // rendering stale static cards before DB data arrives (flicker + MY PICK loss).
+            if (typeof _dbMatchups !== 'undefined' && _dbMatchups && _dbMatchups.length > 0) {
+                renderFightCards();
+            }
             applyEventInfo();
             renderEventLeaderboard();
             renderEventSidebar();
