@@ -2213,10 +2213,17 @@
         }
     }
 
-    function saveNickname() {
+    async function saveNickname() {
         const val = document.getElementById('nickname-input').value.trim();
         if (!val || val.length < 2) { showToast('⚠ 닉네임은 2자 이상이어야 합니다'); return; }
         localStorage.setItem('picktagon_nickname', val);
+        if (sb && currentUser) {
+            var res = await runSupabaseMutation(function() {
+                return sb.from('users').update({ nickname: val }).eq('id', currentUser.id);
+            }, '⚠ 닉네임 저장에 실패했습니다.');
+            if (!res.ok) return;
+            sb.auth.updateUser({ data: { nickname: val } }).then(function() {});
+        }
         document.getElementById('nickname-modal').classList.add('hidden');
         updateNicknameDisplay();
         showToast(`✅ 닉네임 설정: ${val}`);
@@ -4077,7 +4084,14 @@ async function publishPost() {
             });
         } else {
             if (nickname) localStorage.setItem('picktagon_nickname', nickname);
-            sb.auth.signUp({ email: email, password: password, options: { emailRedirectTo: getAuthRedirectUrl() } })
+            sb.auth.signUp({
+                email: email,
+                password: password,
+                options: {
+                    emailRedirectTo: getAuthRedirectUrl(),
+                    data: { nickname: nickname }
+                }
+            })
             .then(function(res) {
                 submitBtn.disabled = false;
                 submitBtn.textContent = '회원가입';
@@ -4297,6 +4311,7 @@ async function publishPost() {
     // ── DB 연동 ──
     function createUserProfile(userId, nickname) {
         if (!sb) return;
+        nickname = nickname || (currentUser && currentUser.user_metadata && currentUser.user_metadata.nickname) || 'PLAYER';
         sb.from('users').insert({
             id: userId,
             nickname: nickname,

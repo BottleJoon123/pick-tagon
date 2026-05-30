@@ -354,7 +354,10 @@ function loadPostsFromDB() {
             } else {
                 // 첫 로그인 → 프로필 생성 (currentUser null-safe)
                 var userEmail = (currentUser && currentUser.email) ? currentUser.email : '';
-                var nick = getNickname() || (userEmail ? userEmail.split('@')[0] : 'PLAYER');
+                var metaNick = (currentUser && currentUser.user_metadata && currentUser.user_metadata.nickname)
+                    ? currentUser.user_metadata.nickname
+                    : null;
+                var nick = getNickname() || metaNick || (userEmail ? userEmail.split('@')[0] : 'PLAYER');
                 createUserProfile(userId, nick);
             }
         });
