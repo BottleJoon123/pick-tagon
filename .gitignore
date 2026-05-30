@@ -23,3 +23,6 @@ docs/design_handoff_picktagon/screenshots/
 
 # Script output / dry-run reports (local only — large files, not committed)
 reports/
+
+# Local SEO/design asset packages (reference only, not deployed)
+08_SEO_적용패키지/
