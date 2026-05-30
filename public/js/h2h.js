@@ -16,6 +16,14 @@ var _h2hFighters = [];    // full loadable fighter pool
 var _h2hF1Id = '';        // always a normalized string
 var _h2hF2Id = '';        // always a normalized string
 
+// Reset content back to a prompt state (used when selection changes) ──
+function _showH2HPrompt() {
+    var content = document.getElementById('h2h-content');
+    if (!content) return;
+    if (h2hRadarChart) { h2hRadarChart.destroy(); h2hRadarChart = null; }
+    content.innerHTML = '<div class="text-center py-12 text-gray-600 oswald-sharp text-xs italic uppercase tracking-widest">⚔️ 두 파이터를 선택 후 "비교 분석 시작" 버튼을 눌러주세요</div>';
+}
+
 // ── Division normalization + adjacency tables ─────────────────────────
 var _DIV_ORDER_M = ['flw', 'bw', 'fw', 'lw', 'ww', 'mw', 'lhw', 'hw'];
 var _DIV_ORDER_W = ['w-flw', 'w-bw', 'w-fw', 'w-sw', 'w-mw'];
@@ -201,7 +209,7 @@ async function openH2H() {
     await _ensureH2HFighters();
     _populateF1Select();
     _populateF2Select();
-    _renderH2HContent();
+    _showH2HPrompt();
 }
 
 function closeH2H() {
@@ -217,13 +225,13 @@ function h2hOnF1Change(val) {
     // Sync _h2hF2Id from DOM in case _populateF2Select preserved a selection
     var s2 = document.getElementById('h2h-f2-select');
     if (s2) _h2hF2Id = _h2hId(s2.value);
-    _renderH2HContent();
+    _showH2HPrompt();
 }
 
 // Called by f2 select onchange
 function h2hOnF2Change(val) {
     _h2hF2Id = _h2hId(val);
-    _renderH2HContent();
+    _showH2HPrompt();
 }
 
 // Mobile belt-and-suspenders: read DOM → update vars → render
@@ -332,18 +340,20 @@ function _doRenderH2H(content, f1, f2) {
 
     var h2hRecordsHtml;
     if (!h2hRecords.length) {
-        h2hRecordsHtml = '<p class="oswald-sharp text-xs text-gray-700 italic uppercase text-center py-3">아카이브에 두 선수의 맞대결 기록이 없습니다</p>';
+        h2hRecordsHtml = '<p class="oswald-sharp text-xs text-gray-700 italic uppercase text-center py-3">공식 맞대결 기록 없음</p>';
     } else {
         var rows = h2hRecords.map(function(r) {
             var w1 = r.winner && r.winner.toLowerCase().includes(f1Last.toLowerCase());
-            return '<div class="flex items-center justify-between gap-3 py-2 border-b border-white/5 last:border-0">' +
-                '<div class="flex items-center gap-3 min-w-0">' +
-                    '<span class="oswald-sharp text-[9px] text-gray-600 italic uppercase flex-shrink-0">' + (r.event || '') + '</span>' +
-                    '<span class="oswald-sharp text-xs font-black italic ' + (w1 ? 'text-ufcRed' : 'text-gray-400') + ' flex-shrink-0">' + f1Last + '</span>' +
-                    '<span class="text-gray-700 text-[9px]">vs</span>' +
-                    '<span class="oswald-sharp text-xs font-black italic ' + (!w1 ? 'text-ufcBlue' : 'text-gray-400') + ' flex-shrink-0">' + f2Last + '</span>' +
+            return '<div class="py-2 border-b border-white/5 last:border-0">' +
+                '<p class="oswald-sharp text-[9px] text-gray-600 italic uppercase truncate mb-1">' + (r.event || '') + '</p>' +
+                '<div class="flex items-center justify-between">' +
+                    '<div class="flex items-center gap-2">' +
+                        '<span class="oswald-sharp text-xs font-black italic ' + (w1 ? 'text-ufcRed' : 'text-gray-400') + '">' + f1Last + '</span>' +
+                        '<span class="text-gray-700 text-[9px]">vs</span>' +
+                        '<span class="oswald-sharp text-xs font-black italic ' + (!w1 ? 'text-ufcBlue' : 'text-gray-400') + '">' + f2Last + '</span>' +
+                    '</div>' +
+                    '<span class="oswald-sharp text-[8px] border border-white/10 text-gray-500 px-2 py-0.5 rounded-lg font-black italic uppercase">' + (r.method || '') + ' R' + (r.round || '') + '</span>' +
                 '</div>' +
-                '<span class="oswald-sharp text-[8px] border border-white/10 text-gray-500 px-2 py-0.5 rounded-lg font-black italic uppercase flex-shrink-0">' + (r.method || '') + ' R' + (r.round || '') + '</span>' +
             '</div>';
         }).join('');
         var w1count = h2hRecords.filter(function(r) { return r.winner && r.winner.toLowerCase().includes(f1Last.toLowerCase()); }).length;
@@ -357,13 +367,13 @@ function _doRenderH2H(content, f1, f2) {
     }
 
     content.innerHTML =
-        '<div class="grid grid-cols-2 gap-4 mb-6">' + fighterCardsHtml + '</div>' +
+        '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">' + fighterCardsHtml + '</div>' +
         '<div class="glass-card rounded-2xl p-5 lg:p-7 mb-6 border ' + (h2hRecords.length > 0 ? 'border-yellow-500/20 bg-yellow-500/[0.03]' : 'border-white/5') + '">' +
-            '<p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[0.3em] font-black italic mb-4">⚔️ 실제 맞대결 기록 (아카이브 기반) <span class="text-gray-700 ml-2">' + h2hRecords.length + '경기</span></p>' +
+            '<p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[0.3em] font-black italic mb-4">⚔️ 직접 맞대결</p>' +
             h2hRecordsHtml +
         '</div>' +
         '<div class="glass-card rounded-2xl p-5 lg:p-7 mb-6 border border-white/5">' +
-            '<p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[0.3em] font-black italic mb-4">🧠 스타일 궁합 분석</p>' +
+            '<p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[0.3em] font-black italic mb-4">🔍 스탯 기반 관전 포인트</p>' +
             '<div class="grid grid-cols-3 gap-3 mb-4">' +
                 '<div class="text-center p-3 rounded-xl bg-black/30 border border-white/5"><p class="text-xl mb-1">' + styleAnalysis.f1Icon + '</p><p class="oswald-sharp text-[9px] text-gray-500 italic uppercase mb-1">' + f1Last + '</p><p class="oswald-sharp text-xs font-black italic text-ufcRed uppercase">' + styleAnalysis.f1Style + '</p></div>' +
                 '<div class="text-center p-3 rounded-xl bg-ufcRed/5 border border-ufcRed/20 flex items-center justify-center"><div><p class="oswald-sharp text-[8px] text-gray-500 italic uppercase mb-1">키 매치업</p><p class="oswald-sharp text-xs font-black italic text-white uppercase leading-tight">' + styleAnalysis.keyMatchup + '</p></div></div>' +
@@ -423,21 +433,44 @@ function _getDisplayStats(f) {
 // ── Archive-based matchup records ─────────────────────────────────────
 function findH2HRecords(name1, name2) {
     var records = [];
+    var seen = {};   // dedupe key: event+f1+f2+method+round
     var archive = (typeof archiveDB !== 'undefined' && archiveDB) ? archiveDB : [];
-    var n1 = (name1 || '').split(' ').pop().toLowerCase();
-    var n2 = (name2 || '').split(' ').pop().toLowerCase();
+
+    var n1 = (name1 || '').toLowerCase().trim();
+    var n2 = (name2 || '').toLowerCase().trim();
+    if (!n1 || !n2) return [];
+
     archive.forEach(function(ev) {
-        (ev.fights || []).forEach(function(f) {
-            var f1n = (f.f1 || '').toLowerCase(), f2n = (f.f2 || '').toLowerCase();
-            var inv1  = f1n.includes(n1) || n1.includes(f1n.split(' ').pop());
-            var inv2  = f2n.includes(n2) || n2.includes(f2n.split(' ').pop());
-            var inv1r = f1n.includes(n2) || n2.includes(f1n.split(' ').pop());
-            var inv2r = f2n.includes(n1) || n1.includes(f2n.split(' ').pop());
-            if ((inv1 && inv2) || (inv1r && inv2r)) {
-                records.push({ event: ev.name, date: ev.date, winner: f.winner || '', method: f.method || '', round: f.round || '', time: f.time || '' });
-            }
+        (ev.fights || []).forEach(function(fight) {
+            var f1n = (fight.f1 || '').toLowerCase().trim();
+            var f2n = (fight.f2 || '').toLowerCase().trim();
+
+            // 정방향: f1=name1, f2=name2
+            var fwd = (f1n === n1 && f2n === n2);
+            // 역방향: f1=name2, f2=name1
+            var rev = (f1n === n2 && f2n === n1);
+
+            if (!fwd && !rev) return;
+
+            var key = [ev.name, fight.f1, fight.f2, fight.method, fight.round].join('|');
+            if (seen[key]) return;
+            seen[key] = true;
+
+            // winner를 name1 기준으로 정규화
+            var winnerRaw = (fight.winner || '').toLowerCase().trim();
+            var winner = winnerRaw === n1 ? name1 : winnerRaw === n2 ? name2 : (fight.winner || '');
+
+            records.push({
+                event: ev.name,
+                date: ev.date,
+                winner: winner,
+                method: fight.method || '',
+                round: fight.round || '',
+                time: fight.time || ''
+            });
         });
     });
+
     return records.sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
 }
 
@@ -445,39 +478,61 @@ function findH2HRecords(name1, name2) {
 function analyzeStyleMatchup(s1, s2, name1, name2) {
     var str1 = s1[0]||75, grp1 = s1[1]||75, stm1 = s1[2]||75, def1 = s1[3]||75, spd1 = s1[4]||75;
     var str2 = s2[0]||75, grp2 = s2[1]||75, stm2 = s2[2]||75, def2 = s2[3]||75, spd2 = s2[4]||75;
+    var STAT_NAMES = ['Striking', 'Grappling', 'Stamina', 'Defense', 'Speed'];
+    var vals1 = [str1, grp1, stm1, def1, spd1];
+    var vals2 = [str2, grp2, stm2, def2, spd2];
 
+    var n1 = (name1 || '').split(' ').pop();
+    var n2 = (name2 || '').split(' ').pop();
+
+    // 각 스탯에서 누가 우세한지 파악
+    var adv1 = [], adv2 = [];
+    STAT_NAMES.forEach(function(label, i) {
+        var diff = vals1[i] - vals2[i];
+        if (diff >= 5) adv1.push(label);
+        else if (diff <= -5) adv2.push(label);
+    });
+
+    // 스타일 레이블
     function getStyle(str, grp, spd) {
         if (grp > str + 10) return { label: '그래플러', icon: '🤼' };
         if (str > grp + 15) return { label: '스트라이커', icon: '👊' };
         if (spd > 88)       return { label: '스피드 파이터', icon: '⚡' };
         return { label: '올라운더', icon: '⚔️' };
     }
-
     var st1 = getStyle(str1, grp1, spd1);
     var st2 = getStyle(str2, grp2, spd2);
-    var n1 = (name1 || '').split(' ').pop();
-    var n2 = (name2 || '').split(' ').pop();
-    var keyMatchup, prediction;
 
-    if (st1.label === '그래플러' && st2.label === '스트라이커') {
-        keyMatchup = '테이크다운 vs 스트라이킹';
-        prediction = n1 + '의 테이크다운 성공 여부가 핵심입니다. ' + n2 + '은 스트라이킹이 강하므로 ' + n1 + '이 거리를 좁혀 그래플링 게임으로 끌고 가야 유리합니다.';
-    } else if (st1.label === '스트라이커' && st2.label === '그래플러') {
-        keyMatchup = '스트라이킹 vs 테이크다운';
-        prediction = n2 + '의 테이크다운 성공 여부가 핵심입니다. ' + n1 + '은 스트라이킹이 강하므로 거리를 유지하며 타격전을 펼쳐야 유리합니다.';
-    } else if (st1.label === '그래플러' && st2.label === '그래플러') {
-        keyMatchup = '그래플링 대결';
-        prediction = '두 선수 모두 그래플링이 강합니다. 스태미나(' + stm1 + ' vs ' + stm2 + ')와 디펜스(' + def1 + ' vs ' + def2 + ')가 후반 라운드 결과를 결정할 가능성이 높습니다.';
-    } else if (st1.label === '스트라이커' && st2.label === '스트라이커') {
-        keyMatchup = '타격 맞대결';
-        prediction = '두 선수 모두 스트라이킹이 강합니다. 순발력(' + spd1 + ' vs ' + spd2 + ')과 디펜스(' + def1 + ' vs ' + def2 + ')가 관건입니다.';
-    } else {
-        keyMatchup = '스타일 충돌';
-        var advName = (str1 + grp1) > (str2 + grp2) ? n1 : n2;
-        prediction = '두 선수의 스타일이 흥미롭게 맞붙습니다. 종합 스탯에서는 ' + advName + '가 약간 우세하지만 경기 흐름에 따라 결과가 달라질 수 있습니다.';
+    // 관전 포인트 텍스트 생성
+    var lines = [];
+    if (adv1.length > 0) lines.push(n1 + '는 ' + adv1.join('/') + ' 스탯에서 우위.');
+    if (adv2.length > 0) lines.push(n2 + '는 ' + adv2.join('/') + ' 스탯에서 우위.');
+    if (adv1.length === 0 && adv2.length === 0) lines.push('두 선수의 스탯이 전반적으로 균형 잡혀 있습니다.');
+
+    // 핵심 변수: 가장 큰 차이 스탯 찾기
+    var keyMatchup = '균형 대결';
+    var maxDiff = 0;
+    var keyIdx = -1;
+    STAT_NAMES.forEach(function(_, i) {
+        var d = Math.abs(vals1[i] - vals2[i]);
+        if (d > maxDiff) { maxDiff = d; keyIdx = i; }
+    });
+
+    if (keyIdx >= 0 && maxDiff >= 5) {
+        var keyLabel = STAT_NAMES[keyIdx];
+        var keyAdvName = vals1[keyIdx] > vals2[keyIdx] ? n1 : n2;
+        keyMatchup = keyLabel + ' 격차';
+        lines.push('핵심 변수: ' + keyAdvName + '의 ' + keyLabel + ' 우위(' + Math.abs(vals1[keyIdx] - vals2[keyIdx]) + '점 차)가 경기 흐름을 좌우할 가능성이 높습니다.');
     }
 
-    return { f1Style: st1.label, f1Icon: st1.icon, f2Style: st2.label, f2Icon: st2.icon, keyMatchup: keyMatchup, prediction: prediction };
+    var prediction = lines.join(' ');
+
+    return {
+        f1Style: st1.label, f1Icon: st1.icon,
+        f2Style: st2.label, f2Icon: st2.icon,
+        keyMatchup: keyMatchup,
+        prediction: prediction
+    };
 }
 
 // ── UFC ranking lookup (safe against undefined globals) ───────────────
