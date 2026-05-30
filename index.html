@@ -4572,6 +4572,10 @@ async function addCommentToDB(postDbId, userNick, text) {
     }
 
     window.onload = function() {
+        // Preserve Supabase auth callback URLs before SPA hash routing rewrites them.
+        // Password reset links arrive as #access_token=...&type=recovery or ?code=...
+        window.__picktagonInitialAuthUrl = window.location.href || '';
+
         load();
         loadAdmin();
         loadEventInfo();
@@ -4580,14 +4584,18 @@ async function addCommentToDB(postDbId, userNick, text) {
         applyEventInfo();
         updateNicknameDisplay();
         refreshUI();
+        initSupabase(); // sb 동기 생성 — auth redirect hash/code must be parsed before route rewrite
+        loadUFCRankings();
         // hash 기반 초기 페이지 복원 (뒤로가기 지원)
         var validPages = ['home','matchups','ufc-rankings','rankings','mma-news','community','archive','profile','admin'];
-        var hashPage = window.location.hash.replace('#', '');
+        var initialAuthUrl = window.__picktagonInitialAuthUrl || '';
+        var isSupabaseAuthCallback = /(?:access_token|refresh_token|code=|token_hash|type=recovery|type=signup)/.test(initialAuthUrl);
+        var hashPage = isSupabaseAuthCallback ? '' : window.location.hash.replace('#', '');
         var initPage = validPages.indexOf(hashPage) !== -1 ? hashPage : 'home';
-        history.replaceState({ page: initPage }, '', '#' + initPage);
+        if (!isSupabaseAuthCallback) {
+            history.replaceState({ page: initPage }, '', '#' + initPage);
+        }
         _currentPage = initPage;
-        initSupabase(); // sb 동기 생성 — 이후 loadUFCRankings가 sb를 사용할 수 있음
-        loadUFCRankings();
         navigateTo(initPage, true);
         fetchArchive();
         setTimeout(initHome, 400);

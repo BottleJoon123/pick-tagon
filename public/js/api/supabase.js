@@ -180,7 +180,7 @@ function loadPostsFromDB() {
     function initSupabase() {
         try {
             // Supabase createClient가 URL hash를 소비하기 전에 초기 URL 저장 + recovery 판정
-            var _initialAuthUrl = window.location.href || '';
+            var _initialAuthUrl = window.__picktagonInitialAuthUrl || window.location.href || '';
             window.__picktagonInitialAuthUrl = _initialAuthUrl;
             window.__picktagonRecoveryMode = isPasswordRecoveryRedirect(_initialAuthUrl);
 
