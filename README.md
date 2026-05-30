@@ -1,5 +1,13 @@
 # Pick-tagon
 
+**Official site:** https://pick-tagon.com/
+
+Pick-tagon Official is the UFC & MMA prediction platform published at
+`pick-tagon.com`. Use this domain as the canonical public URL for SEO,
+social profiles, and external references.
+
+---
+
 UFC 경기 결과 예측 플랫폼. Supabase + Vite + Tailwind CSS 기반 SPA.
 
 ---
