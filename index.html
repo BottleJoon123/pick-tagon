@@ -432,7 +432,7 @@
     </div>
     <!-- Mobile Sidebar Fab Button -->
     <button id="mobile-sidebar-fab" onclick="openMobileSidebar()"
-        class="lg:hidden fixed bottom-28 right-4 z-[200] glass-card rounded-full w-12 h-12 flex items-center justify-center border border-white/20 shadow-xl transition-all hover:border-white/40 active:scale-95">
+        class="lg:hidden fixed bottom-28 right-4 z-[310] glass-card rounded-full w-12 h-12 flex items-center justify-center border border-white/20 shadow-xl transition-all hover:border-white/40 active:scale-95">
         <span class="text-lg">📅</span>
     </button>
 
@@ -1914,21 +1914,28 @@
         </div>
 
         <!-- Fighter Selectors -->
-        <div class="px-8 lg:px-12 py-6 border-b border-white/10 grid grid-cols-2 gap-4">
-            <div>
-                <label class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic block mb-2">🔴 파이터 1</label>
-                <select id="h2h-f1-select" onchange="renderH2H()"
-                    class="w-full bg-black/50 border border-ufcRed/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-ufcRed oswald-sharp font-black italic uppercase text-sm">
-                    <option value="">-- 선택 --</option>
-                </select>
+        <div class="px-8 lg:px-12 py-6 border-b border-white/10">
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic block mb-2">🔴 파이터 1</label>
+                    <select id="h2h-f1-select" onchange="renderH2H()"
+                        class="w-full bg-black/50 border border-ufcRed/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-ufcRed oswald-sharp font-black italic uppercase text-sm">
+                        <option value="">-- 선택 --</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic block mb-2">🔵 파이터 2</label>
+                    <select id="h2h-f2-select" onchange="renderH2H()"
+                        class="w-full bg-black/50 border border-ufcBlue/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-ufcBlue oswald-sharp font-black italic uppercase text-sm">
+                        <option value="">-- 선택 --</option>
+                    </select>
+                </div>
             </div>
-            <div>
-                <label class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic block mb-2">🔵 파이터 2</label>
-                <select id="h2h-f2-select" onchange="renderH2H()"
-                    class="w-full bg-black/50 border border-ufcBlue/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-ufcBlue oswald-sharp font-black italic uppercase text-sm">
-                    <option value="">-- 선택 --</option>
-                </select>
-            </div>
+            <!-- Mobile fallback: explicit compare button -->
+            <button onclick="renderH2H()"
+                class="w-full oswald-sharp bg-white/5 hover:bg-white/10 border border-white/15 text-white font-black py-2.5 rounded-xl italic uppercase text-xs tracking-widest transition active:scale-95">
+                ⚔️ 비교 분석 시작
+            </button>
         </div>
 
         <!-- Comparison Content -->
@@ -2015,7 +2022,9 @@
      NICKNAME SETUP MODAL
 ================================ -->
 <div id="nickname-modal" class="hidden fixed inset-0 z-[500] flex items-center justify-center p-4" style="background:rgba(0,0,0,0.95)">
-    <div class="glass-card rounded-[2rem] p-8 lg:p-12 w-full max-w-md border border-white/10 text-center">
+    <div class="glass-card rounded-[2rem] p-8 lg:p-12 w-full max-w-md border border-white/10 text-center relative">
+        <button id="nickname-close-btn" onclick="document.getElementById('nickname-modal').classList.add('hidden')"
+            class="hidden absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/15 text-gray-400 hover:text-white transition text-sm">✕</button>
         <div class="text-5xl mb-5">🥊</div>
         <h3 class="oswald-sharp text-3xl font-black italic text-white uppercase tracking-tighter mb-2">닉네임 설정</h3>
         <p class="text-gray-500 text-xs uppercase tracking-widest oswald-sharp italic mb-8">옥타곤에서 불릴 당신의 이름을 정하세요</p>
@@ -2200,22 +2209,25 @@
         const modal = document.getElementById('nickname-modal');
         modal.classList.remove('hidden');
         const input = document.getElementById('nickname-input');
+        const closeBtn = document.getElementById('nickname-close-btn');
         const existing = getNickname();
         if (existing) input.value = existing;
         else input.value = '';
         setTimeout(() => input.focus(), 100);
-        if (!force) {
-            // add skip button if not forced
-            let skipBtn = document.getElementById('nickname-skip-btn');
-            if (!skipBtn && existing) {
-                // already has one, just show modal
-            }
-        }
+        // 닫기 버튼: force 강제 모드에서만 숨김 (닉네임 없는 초기 설정)
+        if (closeBtn) closeBtn.classList.toggle('hidden', !!force);
     }
 
+    var _NICKNAME_BLOCKLIST = ['시발','씨발','씨팔','개새끼','보지','자지','존나','fuck','shit','bitch','ass','dick','porn','sex'];
     async function saveNickname() {
         const val = document.getElementById('nickname-input').value.trim();
         if (!val || val.length < 2) { showToast('⚠ 닉네임은 2자 이상이어야 합니다'); return; }
+        if (val.length > 20) { showToast('⚠ 닉네임은 20자 이하여야 합니다'); return; }
+        var lower = val.toLowerCase();
+        if (_NICKNAME_BLOCKLIST.some(function(w) { return lower.includes(w); })) {
+            showToast('⚠ 사용할 수 없는 닉네임입니다');
+            return;
+        }
         localStorage.setItem('picktagon_nickname', val);
         if (sb && currentUser) {
             var res = await runSupabaseMutation(function() {

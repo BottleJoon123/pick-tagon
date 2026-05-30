@@ -9,6 +9,21 @@
 var _fightCardCache = {};
 var _betSlipIsChange = false;
 
+// ── 체급 약어 → 한국어 전체 이름 맵 ───────────────────────────────
+var _DIV_KR = {
+    'hw': '헤비웨이트', 'lhw': '라이트헤비웨이트',
+    'mw': '미들웨이트', 'ww': '웰터웨이트',
+    'lw': '라이트웨이트', 'fw': '페더웨이트',
+    'bw': '밴텀웨이트', 'flw': '플라이웨이트',
+    'w-sw': '여자 스트로웨이트', 'w-flw': '여자 플라이웨이트',
+    'w-bw': '여자 밴텀웨이트', 'w-fw': '여자 페더웨이트',
+};
+function _divLabel(div) {
+    if (!div) return '';
+    var key = div.toLowerCase();
+    return _DIV_KR[key] || div;
+}
+
 function openPickSlipFromCard(fightId) {
     var fight = _fightCardCache[fightId];
     if (!fight) return;
@@ -92,7 +107,7 @@ function renderHeroCard(fight, idx) {
         <div class="flex items-center justify-between px-5 lg:px-10 py-3 lg:py-4 border-b border-white/10 bg-black/30">
             <div class="flex items-center gap-3">
                 <span class="oswald-sharp text-[8px] lg:text-xs font-black italic uppercase tracking-widest px-3 py-1 rounded-full ${tagColor}">${fight.tag}</span>
-                <span class="oswald-sharp text-[8px] lg:text-xs text-gray-500 font-black italic tracking-widest uppercase">${fight.division}</span>
+                <span class="oswald-sharp text-[8px] lg:text-xs text-gray-500 font-black italic tracking-widest uppercase">${_divLabel(fight.division)}</span>
             </div>
             <div class="flex items-center gap-2 lg:gap-3">
                 <button onclick="toggleStatsOverlay('${fight.id}')"
@@ -149,14 +164,18 @@ function renderHeroCard(fight, idx) {
                 <div class="flex gap-1 mb-1.5">${renderDotForm(fight.f1.recent)}</div>
                 <h4 data-no-pick="1" onclick="openFighterProfile(${JSON.stringify(fight.f1).replace(/\"/g, '&quot;')})"
                     class="oswald-sharp ${isMain ? 'text-xl lg:text-3xl' : 'text-lg lg:text-2xl'} font-black italic uppercase tracking-tighter leading-tight text-white cursor-pointer hover:text-ufcRed transition mb-1">${fight.f1.name}</h4>
-                <p id="cta-l-${fight.id}" class="oswald-sharp ${fight.f1.odds ? 'text-xs' : 'text-[9px]'} text-ufcRed italic font-bold tracking-widest mb-3">${fight.f1.odds ? `ODDS ${fight.f1.odds} &nbsp;·&nbsp; +${Math.round(fight.f1.odds * 100)}P` : 'TAP TO PICK ›'}</p>
+                <p id="cta-l-${fight.id}" class="oswald-sharp ${fight.f1.odds ? 'text-xs' : 'text-[9px]'} text-ufcRed italic font-bold tracking-widest mb-2">${fight.f1.odds ? `ODDS ${fight.f1.odds} &nbsp;·&nbsp; +${Math.round(fight.f1.odds * 100)}P` : 'TAP TO PICK ›'}</p>
+                <button data-no-pick="1" onclick="openFighterProfile(${JSON.stringify(fight.f1).replace(/\"/g, '&quot;')})"
+                    class="oswald-sharp text-[8px] text-gray-500 hover:text-white border border-white/15 hover:border-white/30 px-2 py-0.5 rounded-md italic uppercase tracking-wide transition">👤 선수 정보</button>
             </div>
             <!-- F2 Info (bottom-right) -->
             <div class="absolute bottom-0 right-0 w-[48%] p-4 lg:p-6 z-20 text-right">
                 <div class="flex gap-1 mb-1.5 justify-end">${renderDotForm(fight.f2.recent)}</div>
                 <h4 data-no-pick="1" onclick="openFighterProfile(${JSON.stringify(fight.f2).replace(/\"/g, '&quot;')})"
                     class="oswald-sharp ${isMain ? 'text-xl lg:text-3xl' : 'text-lg lg:text-2xl'} font-black italic uppercase tracking-tighter leading-tight text-white cursor-pointer hover:text-ufcBlue transition mb-1">${fight.f2.name}</h4>
-                <p id="cta-r-${fight.id}" class="oswald-sharp ${fight.f2.odds ? 'text-xs' : 'text-[9px]'} text-ufcBlue italic font-bold tracking-widest mb-3">${fight.f2.odds ? `ODDS ${fight.f2.odds} &nbsp;·&nbsp; +${Math.round(fight.f2.odds * 100)}P` : 'TAP TO PICK ›'}</p>
+                <p id="cta-r-${fight.id}" class="oswald-sharp ${fight.f2.odds ? 'text-xs' : 'text-[9px]'} text-ufcBlue italic font-bold tracking-widest mb-2">${fight.f2.odds ? `ODDS ${fight.f2.odds} &nbsp;·&nbsp; +${Math.round(fight.f2.odds * 100)}P` : 'TAP TO PICK ›'}</p>
+                <button data-no-pick="1" onclick="openFighterProfile(${JSON.stringify(fight.f2).replace(/\"/g, '&quot;')})"
+                    class="oswald-sharp text-[8px] text-gray-500 hover:text-white border border-white/15 hover:border-white/30 px-2 py-0.5 rounded-md italic uppercase tracking-wide transition">선수 정보 👤</button>
             </div>
         </div>
 
@@ -217,7 +236,7 @@ function renderStripRow(fight) {
         : 'border-white/6';
     const f1Last = fight.f1.name.split(' ').pop();
     const f2Last = fight.f2.name.split(' ').pop();
-    const divShort = fight.division.replace(' CHAMPIONSHIP', '').replace("WOMEN'S", 'W').trim();
+    const divShort = _divLabel(fight.division);
 
     const f1Img = fight.f1.imgUrl || '';
     const f2Img = fight.f2.imgUrl || '';
@@ -649,7 +668,7 @@ function selectPickFighter(side, fightId, match, name, odds) {
     if (matchTitleEl) matchTitleEl.textContent = match;
     if (pickNameEl) pickNameEl.textContent = name;
     if (payoutEl) payoutEl.textContent = '+' + Math.round(100 * safeOdds) + 'P';
-    if (statusMsgEl) statusMsgEl.textContent = _betSlipIsChange ? 'No additional points charged before lock' : '';
+    if (statusMsgEl) statusMsgEl.textContent = _betSlipIsChange ? '픽 변경은 마감 전까지 포인트 추가 차감 없음' : '';
     if (confirmBtn) {
         const cost = typeof BET_COST !== 'undefined' ? BET_COST : 100;
         confirmBtn.textContent = _betSlipIsChange ? '✓ CHANGE PICK' : ('✓ CONFIRM PICK — ' + cost + 'P');

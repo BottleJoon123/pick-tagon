@@ -212,7 +212,9 @@ function loadPostsFromDB() {
 
                 if (session && session.user) {
                     currentUser = session.user;
-                    loadUserFromDB(session.user.id);
+                    // SIGNED_IN = 실제 로그인 → 환영 토스트 표시
+                    // INITIAL_SESSION = 세션 복원 (페이지 리로드) → 토스트 생략
+                    loadUserFromDB(session.user.id, event === 'SIGNED_IN');
                     document.getElementById('auth-modal').classList.add('hidden');
                     updateAuthUI();
                     if (typeof isBattleFeatureEnabled === 'function' && isBattleFeatureEnabled()) {
@@ -296,7 +298,7 @@ function loadPostsFromDB() {
         if (mobNavAdmin) mobNavAdmin.classList.toggle('hidden', !adminUnlocked);
     }
 
-    function loadUserFromDB(userId) {
+    function loadUserFromDB(userId, showWelcome) {
         if (!sb) return;
 
         // 계정 전환 시 어드민 권한 즉시 초기화 (비동기 콜백 전에)
@@ -343,7 +345,7 @@ function loadPostsFromDB() {
                 updateAuthUI();
                 if (typeof updateFactionBadgeUI === 'function') updateFactionBadgeUI();
                 reconcileHistoryFromDB();
-                showToast('✅ ' + (res.data.nickname || '유저') + ' 님 환영해요!');
+                if (showWelcome) showToast('✅ ' + (res.data.nickname || '유저') + ' 님 환영해요!');
                 // 집단 미선택 유저 → 세션당 1회만 모달 표시 (매 페이지 로드마다 방해 방지)
                 if (!res.data.faction_id && typeof openFactionSelectModal === 'function'
                     && !sessionStorage.getItem('factionModalDismissed')) {
