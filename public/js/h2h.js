@@ -16,12 +16,35 @@ var _h2hFighters = [];    // full loadable fighter pool
 var _h2hF1Id = '';        // always a normalized string
 var _h2hF2Id = '';        // always a normalized string
 
-// ── Division adjacency tables ─────────────────────────────────────────
+// ── Division normalization + adjacency tables ─────────────────────────
 var _DIV_ORDER_M = ['flw', 'bw', 'fw', 'lw', 'ww', 'mw', 'lhw', 'hw'];
 var _DIV_ORDER_W = ['w-flw', 'w-bw', 'w-fw', 'w-sw', 'w-mw'];
 
+// Maps any known division string to its canonical code
+var _DIV_NORM_MAP = {
+    'flyweight':'flw', 'flw':'flw', '플라이급':'flw', '플라이웨이트':'flw',
+    'bantamweight':'bw', 'bw':'bw', '밴텀급':'bw', '밴텀웨이트':'bw',
+    'featherweight':'fw', 'fw':'fw', '페더급':'fw', '페더웨이트':'fw',
+    'lightweight':'lw', 'lw':'lw', '라이트급':'lw', '라이트웨이트':'lw',
+    'welterweight':'ww', 'ww':'ww', '웰터급':'ww', '웰터웨이트':'ww',
+    'middleweight':'mw', 'mw':'mw', '미들급':'mw', '미들웨이트':'mw',
+    'light heavyweight':'lhw', 'lhw':'lhw', '라이트헤비급':'lhw', '라이트헤비웨이트':'lhw',
+    'heavyweight':'hw', 'hw':'hw', '헤비급':'hw', '헤비웨이트':'hw',
+    "women's strawweight":'w-sw', 'w-sw':'w-sw', 'w-strawweight':'w-sw',
+    "women's flyweight":'w-flw', 'w-flw':'w-flw',
+    "women's bantamweight":'w-bw', 'w-bw':'w-bw',
+    "women's featherweight":'w-fw', 'w-fw':'w-fw',
+    "women's middleweight":'w-mw', 'w-mw':'w-mw',
+};
+function _normalizeH2HDivision(div) {
+    if (!div) return '';
+    var d = String(div).toLowerCase().trim();
+    return _DIV_NORM_MAP[d] || d;
+}
+
 function _getAdjacentDivs(div) {
-    var d = (div || '').toLowerCase();
+    var d = _normalizeH2HDivision(div);
+    if (!d) return null;
     for (var o = 0; o < [_DIV_ORDER_M, _DIV_ORDER_W].length; o++) {
         var order = [_DIV_ORDER_M, _DIV_ORDER_W][o];
         var idx = order.indexOf(d);
@@ -42,15 +65,27 @@ function _eventFighterSet() {
 }
 
 function getAllFightersForH2H() {
-    var fromDB = fighterDB.map(function(f) { return Object.assign({}, f); });
+    // DB fighters: normalize division so adjacency filter works
+    var fromDB = fighterDB.map(function(f) {
+        var copy = Object.assign({}, f);
+        copy._normDiv = _normalizeH2HDivision(f.division);
+        return copy;
+    });
     var fromFights = [];
     var nameSet = {};
     fromDB.forEach(function(f) { if (f.name) nameSet[f.name] = true; });
     getActiveFights().forEach(function(fight) {
+        // fight.division is the weight class code (e.g. 'lw'); f1/f2 sub-objects have no division
+        var fightDiv = _normalizeH2HDivision(fight.division);
         [fight.f1, fight.f2].forEach(function(f) {
             if (f && f.name && !nameSet[f.name]) {
                 nameSet[f.name] = true;
-                fromFights.push(Object.assign({}, f, { id: 'fc_' + f.name.replace(/\s/g, '_') }));
+                var entry = Object.assign({}, f, {
+                    id: 'fc_' + f.name.replace(/\s/g, '_'),
+                    division: fightDiv,       // inject fight-level division
+                    _normDiv: fightDiv,
+                });
+                fromFights.push(entry);
             }
         });
     });
@@ -115,11 +150,14 @@ function _populateF2Select() {
     if (!sel) return;
 
     var f1 = _h2hF1Id ? _h2hFighters.find(function(f) { return _h2hSameId(f.id, _h2hF1Id); }) : null;
-    var adjDivs = f1 ? _getAdjacentDivs(f1.division) : null;
+    var f1Div = f1 ? (f1._normDiv || _normalizeH2HDivision(f1.division)) : '';
+    var adjDivs = f1Div ? _getAdjacentDivs(f1Div) : null;
+
+    console.debug('[H2H] f1:', f1 && f1.name, '| div:', f1Div, '| adjDivs:', adjDivs);
 
     var pool = _h2hFighters.filter(function(f) { return !_h2hSameId(f.id, _h2hF1Id); });
     var candidates = adjDivs
-        ? pool.filter(function(f) { return adjDivs[(f.division || '').toLowerCase()]; })
+        ? pool.filter(function(f) { return adjDivs[f._normDiv || _normalizeH2HDivision(f.division)]; })
         : pool;
     if (!candidates.length) candidates = pool;
 
@@ -189,11 +227,13 @@ function h2hOnF2Change(val) {
 }
 
 // Mobile belt-and-suspenders: read DOM → update vars → render
-function compareH2H() {
+function compareH2H(evt) {
+    if (evt && evt.preventDefault) evt.preventDefault();
     var s1 = document.getElementById('h2h-f1-select');
     var s2 = document.getElementById('h2h-f2-select');
     if (s1) _h2hF1Id = _h2hId(s1.value);
     if (s2) _h2hF2Id = _h2hId(s2.value);
+    console.debug('[H2H] compareH2H called: f1=', _h2hF1Id, 'f2=', _h2hF2Id);
     _renderH2HContent();
 }
 
@@ -216,8 +256,9 @@ function _renderH2HContent() {
 
     var f1 = _h2hFighters.find(function(f) { return _h2hSameId(f.id, _h2hF1Id); });
     var f2 = _h2hFighters.find(function(f) { return _h2hSameId(f.id, _h2hF2Id); });
+    console.debug('[H2H] render: f1=', _h2hF1Id, f1 && f1.name, '| f2=', _h2hF2Id, f2 && f2.name, '| pool:', _h2hFighters.length);
     if (!f1 || !f2) {
-        content.innerHTML = '<div class="text-center py-12 text-gray-600 oswald-sharp text-xs italic uppercase tracking-widest">선수 정보를 찾지 못했어요. 다시 선택해 주세요.</div>';
+        content.innerHTML = '<div class="text-center py-12 text-gray-600 oswald-sharp text-xs italic uppercase tracking-widest">선수 정보를 찾지 못했어요. 다시 선택해 주세요.<br><span class="text-gray-700 text-[10px]">(f1=' + _h2hF1Id + ' f2=' + _h2hF2Id + ')</span></div>';
         return;
     }
 
