@@ -165,8 +165,8 @@ function renderHeroCard(fight, idx) {
                 <h4 data-no-pick="1"
                     class="oswald-sharp ${isMain ? 'text-xl lg:text-3xl' : 'text-lg lg:text-2xl'} font-black italic uppercase tracking-tighter leading-tight text-white mb-1">${fight.f1.name}</h4>
                 <p id="cta-l-${fight.id}" class="oswald-sharp ${fight.f1.odds ? 'text-xs' : 'text-[9px]'} text-ufcRed italic font-bold tracking-widest mb-2">${fight.f1.odds ? `ODDS ${fight.f1.odds} &nbsp;·&nbsp; +${Math.round(fight.f1.odds * 100)}P` : 'TAP TO PICK ›'}</p>
-                <button data-no-pick="1" onclick="openFighterProfile(${JSON.stringify(fight.f1).replace(/\"/g, '&quot;')})"
-                    class="oswald-sharp text-[10px] text-gray-400 hover:text-white border border-white/20 hover:border-ufcRed/50 px-3 py-1 rounded-lg italic uppercase tracking-wide transition active:scale-95">👤 선수 정보</button>
+                <button data-no-pick="1" onclick="event.stopPropagation(); openFighterProfile(${JSON.stringify(fight.f1).replace(/\"/g, '&quot;')})"
+                    class="oswald-sharp text-xs lg:text-sm text-gray-300 hover:text-white bg-black/40 hover:bg-ufcRed/15 border border-white/20 hover:border-ufcRed/50 px-4 py-2 rounded-xl italic uppercase tracking-wide transition active:scale-95">👤 선수 정보</button>
             </div>
             <!-- F2 Info (bottom-right) -->
             <div class="absolute bottom-0 right-0 w-[48%] p-4 lg:p-6 z-20 text-right">
@@ -174,8 +174,8 @@ function renderHeroCard(fight, idx) {
                 <h4 data-no-pick="1"
                     class="oswald-sharp ${isMain ? 'text-xl lg:text-3xl' : 'text-lg lg:text-2xl'} font-black italic uppercase tracking-tighter leading-tight text-white mb-1">${fight.f2.name}</h4>
                 <p id="cta-r-${fight.id}" class="oswald-sharp ${fight.f2.odds ? 'text-xs' : 'text-[9px]'} text-ufcBlue italic font-bold tracking-widest mb-2">${fight.f2.odds ? `ODDS ${fight.f2.odds} &nbsp;·&nbsp; +${Math.round(fight.f2.odds * 100)}P` : 'TAP TO PICK ›'}</p>
-                <button data-no-pick="1" onclick="openFighterProfile(${JSON.stringify(fight.f2).replace(/\"/g, '&quot;')})"
-                    class="oswald-sharp text-[10px] text-gray-400 hover:text-white border border-white/20 hover:border-ufcBlue/50 px-3 py-1 rounded-lg italic uppercase tracking-wide transition active:scale-95">선수 정보 👤</button>
+                <button data-no-pick="1" onclick="event.stopPropagation(); openFighterProfile(${JSON.stringify(fight.f2).replace(/\"/g, '&quot;')})"
+                    class="oswald-sharp text-xs lg:text-sm text-gray-300 hover:text-white bg-black/40 hover:bg-ufcBlue/15 border border-white/20 hover:border-ufcBlue/50 px-4 py-2 rounded-xl italic uppercase tracking-wide transition active:scale-95">선수 정보 👤</button>
             </div>
         </div>
 

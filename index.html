@@ -1918,22 +1918,22 @@
             <div class="grid grid-cols-2 gap-4 mb-4">
                 <div>
                     <label class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic block mb-2">🔴 파이터 1</label>
-                    <select id="h2h-f1-select" onchange="renderH2H()"
+                    <select id="h2h-f1-select" onchange="h2hOnF1Change(this.value)"
                         class="w-full bg-black/50 border border-ufcRed/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-ufcRed oswald-sharp font-black italic uppercase text-sm">
-                        <option value="">-- 선택 --</option>
+                        <option value="">🔴 파이터 1 선택</option>
                     </select>
                 </div>
                 <div>
                     <label class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic block mb-2">🔵 파이터 2</label>
-                    <select id="h2h-f2-select" onchange="renderH2H()"
+                    <select id="h2h-f2-select" onchange="h2hOnF2Change(this.value)"
                         class="w-full bg-black/50 border border-ufcBlue/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-ufcBlue oswald-sharp font-black italic uppercase text-sm">
-                        <option value="">-- 선택 --</option>
+                        <option value="">🔵 파이터 2 선택</option>
                     </select>
                 </div>
             </div>
-            <!-- Mobile fallback: explicit compare button -->
+            <!-- 비교 버튼: mobile에서 select focus change로 값이 날아가는 경우 대비 belt-and-suspenders -->
             <button onclick="compareH2H()"
-                class="w-full oswald-sharp bg-ufcRed/10 hover:bg-ufcRed/20 border border-ufcRed/30 text-white font-black py-2.5 rounded-xl italic uppercase text-xs tracking-widest transition active:scale-95">
+                class="w-full oswald-sharp bg-ufcRed/10 hover:bg-ufcRed/20 border border-ufcRed/30 text-white font-black py-3 rounded-xl italic uppercase text-sm tracking-widest transition active:scale-95">
                 ⚔️ 비교 분석 시작
             </button>
         </div>
