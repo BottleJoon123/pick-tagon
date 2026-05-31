@@ -632,6 +632,22 @@ async function loadUserPicksFromDB() {
     }
 }
 
+// state.history 정렬: PENDING 뒤로, 정산 항목은 settledAt DESC, settledAt 없는 항목은 뒤쪽 fallback
+function _sortHistory() {
+    state.history.sort(function(a, b) {
+        var ap = (a.res === 'PENDING');
+        var bp = (b.res === 'PENDING');
+        if (ap !== bp) return ap ? 1 : -1;
+        if (ap) return 0; // both PENDING → preserve insertion order
+        var ta = a.settledAt ? new Date(a.settledAt).getTime() : 0;
+        var tb = b.settledAt ? new Date(b.settledAt).getTime() : 0;
+        if (ta === 0 && tb === 0) return 0; // both legacy (no settledAt) → preserve order
+        if (ta === 0) return 1;             // a is legacy → push after b
+        if (tb === 0) return -1;            // b is legacy → push after a
+        return tb - ta;                     // newer settledAt first
+    });
+}
+
 // ── DB settled picks → state.history reconcile ────────────────────────────
 // 서버 정산 후 state.history의 PENDING 항목을 WIN/LOSE/CANCEL로 업데이트.
 // history 항목이 없으면 DB 기준으로 새로 생성 (cross-device/캐시 초기화 대응).
@@ -664,6 +680,11 @@ async function reconcileHistoryFromDB() {
                     if (pick.status === 'win') entry.payout = pick.payout || 0;
                     changed = true;
                 }
+                // Backfill settledAt for accurate sort (old entries may not have it)
+                if (!entry.settledAt && pick.settled_at) {
+                    entry.settledAt = pick.settled_at;
+                    changed = true;
+                }
             } else {
                 newEntries.push({ pick: pick, dbRes: dbRes });
             }
@@ -682,13 +703,14 @@ async function reconcileHistoryFromDB() {
                 var p  = x.pick;
                 var mu = muMap[p.fight_id];
                 state.history.push({
-                    fightId: p.fight_id,
-                    match:   mu ? (mu.red_fighter_name + ' vs ' + mu.blue_fighter_name)
-                               : (p.actual_winner ? p.actual_winner + ' bout' : 'Past Bout'),
-                    pick:    p.pick_name || '',
-                    payout:  p.payout || 0,
-                    betCost: p.bet_cost || 100,
-                    res:     x.dbRes
+                    fightId:   p.fight_id,
+                    match:     mu ? (mu.red_fighter_name + ' vs ' + mu.blue_fighter_name)
+                                  : (p.actual_winner ? p.actual_winner + ' bout' : 'Past Bout'),
+                    pick:      p.pick_name || '',
+                    payout:    p.payout || 0,
+                    betCost:   p.bet_cost || 100,
+                    res:       x.dbRes,
+                    settledAt: p.settled_at || null
                 });
                 changed = true;
             });
@@ -696,12 +718,7 @@ async function reconcileHistoryFromDB() {
 
         if (!changed) return;
 
-        // PENDING 항목은 리스트 끝으로, settled 항목은 기존 순서 유지 (stable sort)
-        state.history.sort(function(a, b) {
-            if (a.res === 'PENDING' && b.res !== 'PENDING') return 1;
-            if (b.res === 'PENDING' && a.res !== 'PENDING') return -1;
-            return 0;
-        });
+        _sortHistory();
 
         save();
 
