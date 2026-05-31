@@ -1,0 +1,25 @@
+{
+  "name": "Pick-tagon",
+  "short_name": "Pick-tagon",
+  "description": "UFC & MMA 승부예측 픽뎀 플랫폼",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#08090b",
+  "theme_color": "#e10600",
+  "lang": "ko-KR",
+  "icons": [
+    {
+      "src": "/favicon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
