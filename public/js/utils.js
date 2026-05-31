@@ -59,6 +59,7 @@
         var name = getDisplayUsernameWithFaction();
         var el = document.getElementById('profile-nickname-display');
         if (el) el.textContent = name;
+        if (typeof applyProfileAvatar === 'function') applyProfileAvatar();
     }
 
     // 집단 뱃지 UI 갱신 (로그인 후 faction 확정 시 호출)
@@ -73,6 +74,67 @@
             } else {
                 factionEl.innerHTML = '<button onclick="openFactionSelectModal()" class="oswald-sharp text-xs font-black italic uppercase text-ufcRed border border-ufcRed/40 px-3 py-1 rounded-lg hover:bg-ufcRed/10 transition">+ 집단 선택</button>';
             }
+        }
+    }
+
+    // ── 아바타 커스터마이징 (localStorage 기반, 기기별 저장) ──────────
+    var _AVATAR_BG_WHITELIST = ['#1a0a0a','#E10600','#1d4ed8','#7c3aed','#b45309','#15803d','#1a1a1a'];
+    var _AVATAR_FG_WHITELIST = ['#ffffff','#E10600'];
+    var _AVATAR_DEFAULT_BG   = '#1a0a0a';
+    var _AVATAR_DEFAULT_FG   = '#E10600';
+    var _AVATAR_DEFAULT_LABEL = '⚡';
+
+    function getAvatarStorageKey() {
+        var uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.id) ? currentUser.id : 'guest';
+        return 'picktagon_avatar_v1_' + uid;
+    }
+
+    function getAvatarConfig() {
+        try {
+            var raw = localStorage.getItem(getAvatarStorageKey());
+            if (raw) {
+                var p = JSON.parse(raw);
+                if (_AVATAR_BG_WHITELIST.indexOf(p.bg) === -1) p.bg = _AVATAR_DEFAULT_BG;
+                if (_AVATAR_FG_WHITELIST.indexOf(p.fg) === -1) p.fg = _AVATAR_DEFAULT_FG;
+                if (p.mode !== 'emoji' && p.mode !== 'initial') p.mode = 'emoji';
+                return p;
+            }
+        } catch(e) {}
+        return { mode: 'emoji', label: _AVATAR_DEFAULT_LABEL, bg: _AVATAR_DEFAULT_BG, fg: _AVATAR_DEFAULT_FG };
+    }
+
+    function saveAvatarConfig(config) {
+        var mode  = (config.mode === 'initial') ? 'initial' : 'emoji';
+        var raw   = String(config.label || '');
+        var label = Array.from(raw).slice(0, 2).join('') || _AVATAR_DEFAULT_LABEL;
+        var bg    = (_AVATAR_BG_WHITELIST.indexOf(config.bg) !== -1) ? config.bg : _AVATAR_DEFAULT_BG;
+        var fg    = (_AVATAR_FG_WHITELIST.indexOf(config.fg) !== -1) ? config.fg : _AVATAR_DEFAULT_FG;
+        localStorage.setItem(getAvatarStorageKey(), JSON.stringify({ mode: mode, label: label, bg: bg, fg: fg }));
+    }
+
+    function getAvatarInitialsFromNickname() {
+        var nick = getDisplayUsername() || '';
+        var clean = nick.replace(/[^a-zA-Z0-9가-힣]/g, ' ').trim();
+        var parts = clean.split(/\s+/).filter(Boolean);
+        if (parts.length >= 2) return (Array.from(parts[0])[0] + Array.from(parts[1])[0]).toUpperCase();
+        return Array.from(nick).slice(0, 2).join('').toUpperCase() || '?';
+    }
+
+    function applyProfileAvatar() {
+        var wrap = document.getElementById('profile-avatar-wrap');
+        if (!wrap) return;
+        var cfg = getAvatarConfig();
+        var bg = (_AVATAR_BG_WHITELIST.indexOf(cfg.bg) !== -1) ? cfg.bg : _AVATAR_DEFAULT_BG;
+        var fg = (_AVATAR_FG_WHITELIST.indexOf(cfg.fg) !== -1) ? cfg.fg : _AVATAR_DEFAULT_FG;
+        var label = cfg.label || '';
+        if (!label) label = (cfg.mode === 'initial') ? getAvatarInitialsFromNickname() : _AVATAR_DEFAULT_LABEL;
+        var displayLabel = Array.from(label).slice(0, 2).join('') || _AVATAR_DEFAULT_LABEL;
+        wrap.style.background = bg;
+        wrap.style.borderColor = (fg === '#E10600') ? 'rgba(225,6,0,0.3)' : 'rgba(255,255,255,0.15)';
+        var labelEl = document.getElementById('profile-avatar-label');
+        if (labelEl) {
+            labelEl.style.color = fg;
+            labelEl.textContent = displayLabel;
         }
     }
 

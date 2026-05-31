@@ -757,8 +757,8 @@
         <!-- 프로필 아이덴티티 카드 -->
         <div class="profile-hero-card rounded-2xl p-5 lg:p-7 mb-5 flex items-center gap-4 flex-wrap">
             <!-- 아바타 -->
-            <div class="prof-avatar-wrap w-16 h-16 lg:w-20 lg:h-20 rounded-2xl bg-gradient-to-br from-red-900/60 to-black/90 border border-ufcRed/30 flex items-center justify-center flex-shrink-0">
-                <span class="oswald-sharp text-3xl lg:text-4xl font-black italic text-ufcRed select-none">⚡</span>
+            <div id="profile-avatar-wrap" class="prof-avatar-wrap w-16 h-16 lg:w-20 lg:h-20 rounded-2xl flex items-center justify-center flex-shrink-0" style="background:#1a0a0a;border:1px solid rgba(225,6,0,0.3);">
+                <span id="profile-avatar-label" class="oswald-sharp text-3xl lg:text-4xl font-black italic select-none" style="color:#E10600;">⚡</span>
             </div>
             <!-- 닉네임 + 팩션 + 벨트 -->
             <div class="flex-1 min-w-0">
@@ -777,6 +777,10 @@
                 <button onclick="openNicknameModal()"
                     class="oswald-sharp text-[10px] border border-white/15 text-gray-500 hover:text-white hover:border-white/35 px-3 py-1.5 rounded-lg italic uppercase tracking-widest transition">
                     닉네임 변경
+                </button>
+                <button onclick="openAvatarModal()"
+                    class="oswald-sharp text-[10px] border border-white/15 text-gray-500 hover:text-white hover:border-white/35 px-3 py-1.5 rounded-lg italic uppercase tracking-widest transition">
+                    아바타 변경
                 </button>
                 <button onclick="profilePasswordReset()" id="profile-reset-pw-btn"
                     class="oswald-sharp text-[10px] border border-white/15 text-gray-500 hover:text-white hover:border-white/35 px-3 py-1.5 rounded-lg italic uppercase tracking-widest transition hidden">
@@ -2149,6 +2153,64 @@
 </div>
 
 <!-- ================================
+     AVATAR SETTINGS MODAL
+================================ -->
+<div id="avatar-modal" class="hidden fixed inset-0 z-[550] flex items-center justify-center p-4" style="background:rgba(0,0,0,0.92)" onclick="if(event.target===this)closeAvatarModal()">
+    <div class="glass-card rounded-3xl p-6 w-full max-w-sm space-y-4 relative">
+        <button onclick="closeAvatarModal()" class="absolute top-4 right-4 oswald-sharp text-gray-500 hover:text-white text-xs italic uppercase tracking-widest transition">✕</button>
+        <h3 class="oswald-sharp text-lg font-black italic uppercase tracking-widest text-white">아바타 설정</h3>
+
+        <!-- 프리뷰 -->
+        <div class="flex justify-center py-1">
+            <div id="avatar-preview-wrap" class="w-20 h-20 rounded-2xl flex items-center justify-center transition-all duration-200" style="background:#1a0a0a;border:1px solid rgba(225,6,0,0.3);">
+                <span id="avatar-preview-label" class="oswald-sharp text-3xl font-black italic select-none" style="color:#E10600;">⚡</span>
+            </div>
+        </div>
+
+        <!-- 모드 선택 -->
+        <div class="flex gap-2">
+            <button id="avatar-mode-btn-emoji" onclick="setAvatarMode('emoji')"
+                class="oswald-sharp flex-1 text-xs font-black italic uppercase tracking-widest px-3 py-2 rounded-xl border transition border-ufcRed text-ufcRed bg-ufcRed/10">이모지</button>
+            <button id="avatar-mode-btn-initial" onclick="setAvatarMode('initial')"
+                class="oswald-sharp flex-1 text-xs font-black italic uppercase tracking-widest px-3 py-2 rounded-xl border transition border-white/15 text-gray-500">이니셜</button>
+        </div>
+
+        <!-- 이모지 프리셋 -->
+        <div id="avatar-emoji-section">
+            <p class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic mb-2">이모지 선택</p>
+            <div id="avatar-emoji-grid" class="flex gap-2 flex-wrap"></div>
+        </div>
+
+        <!-- 이니셜 입력 -->
+        <div id="avatar-initial-section" class="hidden">
+            <p class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic mb-2">이니셜 입력 (1~2글자)</p>
+            <input id="avatar-initial-input" type="text" maxlength="4" placeholder="예: KB"
+                oninput="_onAvatarInitialInput()"
+                class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2 text-white text-center oswald-sharp font-black italic uppercase text-xl focus:outline-none focus:border-ufcRed">
+        </div>
+
+        <!-- 배경 색상 -->
+        <div>
+            <p class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic mb-2">배경 색상</p>
+            <div id="avatar-bg-swatches" class="flex gap-2 flex-wrap"></div>
+        </div>
+
+        <!-- 글자 색상 -->
+        <div>
+            <p class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic mb-2">글자 색상</p>
+            <div id="avatar-fg-swatches" class="flex gap-2"></div>
+        </div>
+
+        <!-- 액션 버튼 -->
+        <div class="flex gap-2 pt-1">
+            <button onclick="saveAvatarFromModal()" class="oswald-sharp flex-1 bg-ufcRed hover:bg-red-700 text-white font-black py-2.5 rounded-xl italic uppercase text-xs tracking-widest transition">💾 저장</button>
+            <button onclick="resetAvatar()" class="oswald-sharp border border-white/15 text-gray-500 hover:text-white font-black py-2.5 px-4 rounded-xl italic uppercase text-xs tracking-widest transition">초기화</button>
+            <button onclick="closeAvatarModal()" class="oswald-sharp border border-white/15 text-gray-500 hover:text-white font-black py-2.5 px-4 rounded-xl italic uppercase text-xs tracking-widest transition">취소</button>
+        </div>
+    </div>
+</div>
+
+<!-- ================================
      FACTION SELECT MODAL
 ================================ -->
 <div id="faction-select-modal" class="hidden fixed inset-0 z-[650] flex items-center justify-center p-4" style="background:rgba(0,0,0,0.97)" onclick="if(event.target===this)closeFactionSelectModal()">
@@ -2261,7 +2323,7 @@
 <script src="/js/data/constants.js"></script>
 <script src="/js/state.js"></script>
 <script src="/js/storage.js"></script>
-<script src="/js/utils.js"></script>
+<script src="/js/utils.js?v=1"></script>
 <script src="/js/event-countdown.js"></script>
 <script src="/js/api/supabase.js?v=8"></script>
 <script src="/js/modal-helpers.js"></script>
@@ -2404,7 +2466,7 @@
             if (typeof renderFeed === 'function') renderFeed();
             if (currentUser) loadMyBattles();
         }
-        if(id === 'profile') { setTimeout(() => renderProfileStats(), 100); }
+        if(id === 'profile') { applyProfileAvatar(); setTimeout(() => renderProfileStats(), 100); }
         if(id === 'admin') {
             // 대시보드를 기본 탭으로 표시 (내부에서 renderAdminDashboard 호출)
             switchAdminTab('dashboard');
@@ -2827,6 +2889,151 @@
         showToast(`픽이 변경되었습니다 · ${pick}`);
         save();
         refreshUI();
+    }
+
+    // ── 아바타 모달 ──────────────────────────────────────────────────
+    var _AVATAR_EMOJI_LIST = ['⚡','🥊','🔥','👊','🧠','🏆','⭐'];
+    var _AVATAR_BG_LIST    = ['#1a0a0a','#E10600','#1d4ed8','#7c3aed','#b45309','#15803d','#1a1a1a'];
+    var _AVATAR_FG_LIST    = ['#ffffff','#E10600'];
+    var _avatarModalState  = { mode: 'emoji', label: '⚡', bg: '#1a0a0a', fg: '#E10600' };
+
+    function openAvatarModal() {
+        var cfg = getAvatarConfig();
+        _avatarModalState = { mode: cfg.mode, label: cfg.label, bg: cfg.bg, fg: cfg.fg };
+        if (cfg.mode === 'initial') {
+            document.getElementById('avatar-initial-input').value = cfg.label || getAvatarInitialsFromNickname();
+        } else {
+            document.getElementById('avatar-initial-input').value = '';
+        }
+        _renderAvatarEmojiGrid();
+        _renderAvatarBgSwatches();
+        _renderAvatarFgSwatches();
+        _updateAvatarModeButtons();
+        _updateAvatarPreview();
+        document.getElementById('avatar-modal').classList.remove('hidden');
+    }
+
+    function closeAvatarModal() {
+        document.getElementById('avatar-modal').classList.add('hidden');
+    }
+
+    function setAvatarMode(mode) {
+        _avatarModalState.mode = mode;
+        if (mode === 'emoji') {
+            document.getElementById('avatar-emoji-section').classList.remove('hidden');
+            document.getElementById('avatar-initial-section').classList.add('hidden');
+            if (!_AVATAR_EMOJI_LIST.includes(_avatarModalState.label)) _avatarModalState.label = '⚡';
+        } else {
+            document.getElementById('avatar-emoji-section').classList.add('hidden');
+            document.getElementById('avatar-initial-section').classList.remove('hidden');
+            var cur = document.getElementById('avatar-initial-input').value;
+            _avatarModalState.label = cur || getAvatarInitialsFromNickname();
+        }
+        _updateAvatarModeButtons();
+        _updateAvatarPreview();
+    }
+
+    function setAvatarLabel(label) {
+        _avatarModalState.label = label;
+        _renderAvatarEmojiGrid();
+        _updateAvatarPreview();
+    }
+
+    function setAvatarBg(color) {
+        _avatarModalState.bg = color;
+        _renderAvatarBgSwatches();
+        _updateAvatarPreview();
+    }
+
+    function setAvatarFg(color) {
+        _avatarModalState.fg = color;
+        _renderAvatarFgSwatches();
+        _updateAvatarPreview();
+    }
+
+    function _onAvatarInitialInput() {
+        var raw = document.getElementById('avatar-initial-input').value || '';
+        _avatarModalState.label = Array.from(raw).slice(0, 2).join('');
+        _updateAvatarPreview();
+    }
+
+    function _updateAvatarModeButtons() {
+        var isEmoji = _avatarModalState.mode === 'emoji';
+        var eb = document.getElementById('avatar-mode-btn-emoji');
+        var ib = document.getElementById('avatar-mode-btn-initial');
+        if (eb) { eb.style.borderColor = isEmoji ? '#E10600' : 'rgba(255,255,255,0.15)'; eb.style.color = isEmoji ? '#E10600' : '#6b7280'; eb.style.background = isEmoji ? 'rgba(225,6,0,0.1)' : 'transparent'; }
+        if (ib) { ib.style.borderColor = !isEmoji ? '#E10600' : 'rgba(255,255,255,0.15)'; ib.style.color = !isEmoji ? '#E10600' : '#6b7280'; ib.style.background = !isEmoji ? 'rgba(225,6,0,0.1)' : 'transparent'; }
+    }
+
+    function _renderAvatarEmojiGrid() {
+        var grid = document.getElementById('avatar-emoji-grid');
+        if (!grid) return;
+        grid.innerHTML = _AVATAR_EMOJI_LIST.map(function(e) {
+            var sel = (_avatarModalState.mode === 'emoji' && _avatarModalState.label === e);
+            var border = sel ? '2px solid #E10600' : '1px solid rgba(255,255,255,0.1)';
+            return '<button onclick="setAvatarLabel(\'' + e + '\')" style="font-size:22px;width:40px;height:40px;border-radius:10px;border:' + border + ';background:rgba(0,0,0,0.3);cursor:pointer;transition:border .15s;display:flex;align-items:center;justify-content:center;">' + e + '</button>';
+        }).join('');
+    }
+
+    function _renderAvatarBgSwatches() {
+        var wrap = document.getElementById('avatar-bg-swatches');
+        if (!wrap) return;
+        wrap.innerHTML = _AVATAR_BG_LIST.map(function(c) {
+            var sel = (_avatarModalState.bg === c);
+            var ring = sel ? 'box-shadow:0 0 0 2px #fff,0 0 0 4px ' + c + ';' : '';
+            return '<button onclick="setAvatarBg(\'' + c + '\')" style="width:28px;height:28px;border-radius:50%;background:' + c + ';border:1px solid rgba(255,255,255,0.2);cursor:pointer;transition:.15s;' + ring + '"></button>';
+        }).join('');
+    }
+
+    function _renderAvatarFgSwatches() {
+        var wrap = document.getElementById('avatar-fg-swatches');
+        if (!wrap) return;
+        var labels = ['흰색', '레드'];
+        wrap.innerHTML = _AVATAR_FG_LIST.map(function(c, i) {
+            var sel = (_avatarModalState.fg === c);
+            var border = sel ? 'border:2px solid #E10600;' : 'border:1px solid rgba(255,255,255,0.2);';
+            var bg = sel ? 'background:rgba(225,6,0,0.1);' : 'background:rgba(0,0,0,0.3);';
+            return '<button onclick="setAvatarFg(\'' + c + '\')" style="display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:8px;cursor:pointer;' + border + bg + '">' +
+                '<span style="width:14px;height:14px;border-radius:50%;background:' + c + ';border:1px solid rgba(255,255,255,0.3);flex-shrink:0;"></span>' +
+                '<span style="font-size:11px;font-weight:900;font-style:italic;color:' + (_avatarModalState.fg === c ? '#E10600' : '#9ca3af') + ';text-transform:uppercase;">' + labels[i] + '</span>' +
+                '</button>';
+        }).join('');
+    }
+
+    function _updateAvatarPreview() {
+        var wrap = document.getElementById('avatar-preview-wrap');
+        var labelEl = document.getElementById('avatar-preview-label');
+        if (!wrap || !labelEl) return;
+        var bg = (_AVATAR_BG_LIST.indexOf(_avatarModalState.bg) !== -1) ? _avatarModalState.bg : '#1a0a0a';
+        var fg = (_AVATAR_FG_LIST.indexOf(_avatarModalState.fg) !== -1) ? _avatarModalState.fg : '#E10600';
+        var label = _avatarModalState.label || '';
+        if (!label) label = (_avatarModalState.mode === 'initial') ? getAvatarInitialsFromNickname() : '⚡';
+        var display = Array.from(label).slice(0, 2).join('') || '⚡';
+        wrap.style.background = bg;
+        wrap.style.borderColor = (fg === '#E10600') ? 'rgba(225,6,0,0.3)' : 'rgba(255,255,255,0.15)';
+        labelEl.style.color = fg;
+        labelEl.textContent = display;
+    }
+
+    function saveAvatarFromModal() {
+        var mode = _avatarModalState.mode;
+        var label;
+        if (mode === 'initial') {
+            label = document.getElementById('avatar-initial-input').value || getAvatarInitialsFromNickname();
+        } else {
+            label = _avatarModalState.label || '⚡';
+        }
+        saveAvatarConfig({ mode: mode, label: label, bg: _avatarModalState.bg, fg: _avatarModalState.fg });
+        applyProfileAvatar();
+        closeAvatarModal();
+        showToast('아바타를 저장했어요');
+    }
+
+    function resetAvatar() {
+        localStorage.removeItem(getAvatarStorageKey());
+        applyProfileAvatar();
+        closeAvatarModal();
+        showToast('아바타를 초기화했어요');
     }
 
     // ── 판정 결과 자동 세팅 헬퍼 ─────────────────────────────────────
