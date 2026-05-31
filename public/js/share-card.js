@@ -92,28 +92,28 @@ function drawPicktagonShareCard(canvas, data) {
     ctx.fillStyle = '#08090b';
     ctx.fillRect(0, 0, W, H);
 
-    // 2. 오른쪽 위 빨간 ambient glow
+    // 2. 오른쪽 위 빨간 ambient glow (강화: 0.28 → 0.35)
     var g1 = ctx.createRadialGradient(W - 80, 80, 0, W - 80, 80, 580);
-    g1.addColorStop(0, 'rgba(225,6,0,0.28)');
+    g1.addColorStop(0, 'rgba(225,6,0,0.35)');
     g1.addColorStop(1, 'rgba(225,6,0,0)');
     ctx.fillStyle = g1;
     ctx.fillRect(0, 0, W, H);
 
-    // 3. 왼쪽 아래 벨트 색 glow
+    // 3. 왼쪽 아래 벨트 색 glow (강화: 0.45 → 0.55)
     var bGlow = _beltGlow(data.belt.name);
     var g2 = ctx.createRadialGradient(80, H - 80, 0, 80, H - 80, 440);
     g2.addColorStop(0, bGlow);
     g2.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.globalAlpha = 0.45;
+    ctx.globalAlpha = 0.55;
     ctx.fillStyle = g2;
     ctx.fillRect(0, 0, W, H);
     ctx.globalAlpha = 1;
 
-    // 4. 옥타곤 데코
+    // 4. 옥타곤 데코 (링 투명도 강화: 0.14 → 0.18)
     ctx.save();
-    ctx.strokeStyle = 'rgba(225,6,0,0.14)'; ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(225,6,0,0.18)'; ctx.lineWidth = 2;
     _scOctagon(ctx, W / 2, H / 2, W * 0.60, Math.PI / 8); ctx.stroke();
-    ctx.strokeStyle = 'rgba(225,6,0,0.07)'; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(225,6,0,0.09)'; ctx.lineWidth = 1.5;
     _scOctagon(ctx, W / 2, H / 2, W * 0.73, Math.PI / 8); ctx.stroke();
     ctx.restore();
 
@@ -135,61 +135,103 @@ function drawPicktagonShareCard(canvas, data) {
 
     var PAD = 80;
 
-    // 6. 로고
-    ctx.fillStyle = RED;
-    ctx.beginPath(); ctx.arc(PAD + 9, 100, 11, 0, Math.PI * 2); ctx.fill();
+    // 6. 로고 — 빨간 옥타곤 + 흰 체크마크 + PICK-TAGON
+    var logoCy = 100;
+    var logoR  = 22;
+    var logoCx = PAD + logoR;
+    ctx.save();
+    ctx.strokeStyle = RED;
+    ctx.lineWidth   = 3;
+    ctx.lineJoin    = 'round';
+    _scOctagon(ctx, logoCx, logoCy, logoR, Math.PI / 8);
+    ctx.stroke();
+    // 흰색 체크마크
+    ctx.strokeStyle = WHITE;
+    ctx.lineWidth   = 4;
+    ctx.lineCap     = 'round';
+    ctx.lineJoin    = 'round';
+    ctx.beginPath();
+    ctx.moveTo(logoCx - logoR * 0.45, logoCy + logoR * 0.05);
+    ctx.lineTo(logoCx - logoR * 0.05, logoCy + logoR * 0.50);
+    ctx.lineTo(logoCx + logoR * 0.55, logoCy - logoR * 0.45);
+    ctx.stroke();
+    ctx.restore();
+
     ctx.font = '600 42px ' + F_BLK;
     ctx.fillStyle = WHITE;
     ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
-    ctx.fillText('PICK-TAGON', PAD + 30, 100);
+    ctx.fillText('PICK-TAGON', logoCx + logoR + 20, logoCy);
 
-    // 이벤트명 (오른쪽)
-    var evShort = (data.event && data.event.length > 26) ? data.event.slice(0, 25) + '…' : (data.event || '');
+    // 이벤트명 (오른쪽) — fallback 개선
+    var isDefaultEvent = !data.event || data.event === 'Pick-tagon';
+    var evRight = isDefaultEvent
+        ? 'UFC & MMA PICK GAME'
+        : ((data.event.length > 26) ? data.event.slice(0, 25) + '…' : data.event).toUpperCase();
     ctx.font = '400 20px ' + F_MONO;
     ctx.fillStyle = MUTED2;
     ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-    ctx.fillText(evShort.toUpperCase(), W - PAD, 100);
+    ctx.fillText(evRight, W - PAD, logoCy);
     ctx.textAlign = 'left';
 
     // 구분선
     ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(PAD, 130); ctx.lineTo(W - PAD, 130); ctx.stroke();
 
-    // 7. 큰 기록 숫자
-    var recY = 380;
-    var hitStr = String(data.success);
-    ctx.font = '700 220px ' + F_BLK;
-    ctx.fillStyle = RED;
-    ctx.textBaseline = 'alphabetic';
-    ctx.fillText(hitStr, PAD, recY);
-    var hitW = ctx.measureText(hitStr).width;
+    // 7. 큰 기록 숫자 — 히어로 (가운데 정렬)
+    var heroCx = W / 2;
 
-    ctx.font = '400 96px ' + F_BLK;
+    // PICK RESULT 라벨
+    ctx.font = '400 20px ' + F_MONO;
     ctx.fillStyle = MUTED2;
-    ctx.fillText('/' + data.total, PAD + hitW + 8, recY);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText('PICK RESULT', heroCx, 300);
 
-    // 정확도 라벨
-    ctx.font = '500 26px ' + F_BODY;
-    ctx.fillStyle = MUTED;
-    ctx.fillText('예측 적중  ·  ' + data.acc + '% ACCURACY', PAD + 4, recY + 54);
+    // success (큰 빨간) + /total (회색) — 묶음을 중앙에 정렬
+    var recY = 470;
+    var hitStr   = String(data.success);
+    var totStr   = '/' + data.total;
+    ctx.font = '700 190px ' + F_BLK;
+    var hitW = ctx.measureText(hitStr).width;
+    ctx.font = '400 80px ' + F_BLK;
+    var totW = ctx.measureText(totStr).width;
+    var gap  = 10;
+    var blockW = hitW + gap + totW;
+    var startX = heroCx - blockW / 2;
+
+    ctx.textAlign = 'left';
+    ctx.font = '700 190px ' + F_BLK;
+    ctx.fillStyle = RED;
+    ctx.fillText(hitStr, startX, recY);
+
+    ctx.font = '400 80px ' + F_BLK;
+    ctx.fillStyle = MUTED2;
+    ctx.fillText(totStr, startX + hitW + gap, recY);
+
+    // 정확도 강조 라벨 (GOLD)
+    ctx.font = '600 32px ' + F_BODY;
+    ctx.fillStyle = GOLD;
+    ctx.textAlign = 'center';
+    ctx.fillText('예측 적중 · ' + data.acc + '% ACCURACY', heroCx, recY + 56);
+    ctx.textAlign = 'left';
 
     // 구분선
     ctx.strokeStyle = 'rgba(255,255,255,0.07)';
-    ctx.beginPath(); ctx.moveTo(PAD, recY + 94); ctx.lineTo(W - PAD, recY + 94); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(PAD, recY + 96); ctx.lineTo(W - PAD, recY + 96); ctx.stroke();
 
     // 8. 스탯 그리드 2×2
     var beltLabel = data.belt.name.toUpperCase() + ' BELT';
     var beltColor = (data.belt.name === 'White') ? '#c0c0c4' :
                     (data.belt.name === 'Black') ? WHITE : data.belt.color;
+    var rankIsNone = (data.rank === '—');
     var cells = [
-        { k: 'LEADERBOARD', v: '#' + data.rank,                   c: RED    },
+        { k: 'LEADERBOARD', v: rankIsNone ? '집계 전' : ('#' + data.rank), c: rankIsNone ? MUTED : RED },
         { k: 'BELT RANK',   v: beltLabel,                          c: beltColor },
         { k: 'TOTAL PICKS', v: String(data.total),                 c: WHITE  },
         { k: 'POINTS',      v: data.points.toLocaleString() + ' P', c: GOLD   }
     ];
     var colW  = (W - PAD * 2) / 2;
     var rowH  = 128;
-    var grdY  = recY + 118;
+    var grdY  = recY + 120;
     ctx.textBaseline = 'alphabetic';
     cells.forEach(function(cell, i) {
         var col = i % 2, row = Math.floor(i / 2);
@@ -209,19 +251,28 @@ function drawPicktagonShareCard(canvas, data) {
         ctx.fillText(sIcon + ' ' + sText, PAD, streakY);
     }
 
-    // 10. 하단 푸터
+    // 10. 하단 푸터 — 닉네임 + 선명한 CTA
     var fY = H - 70;
-    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
-    ctx.beginPath(); ctx.moveTo(PAD, fY - 24); ctx.lineTo(W - PAD, fY - 24); ctx.stroke();
 
     ctx.font = '600 28px ' + F_BODY;
     ctx.fillStyle = WHITE; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
     ctx.fillText('@' + data.nick, PAD, fY);
 
-    ctx.font = '400 22px ' + F_BODY;
-    ctx.fillStyle = RED; ctx.textAlign = 'right';
+    ctx.font = '700 30px ' + F_BODY;
+    ctx.fillStyle = WHITE; ctx.textAlign = 'right';
     ctx.fillText('너도 픽 해보기 · pick-tagon.com', W - PAD, fY);
     ctx.textAlign = 'left';
+
+    // 하단 빨간 강조선 (gradient, 카드 하단 경계)
+    var barY = H - fr - 4;
+    var barX = fr + r;
+    var barW = (W - fr - r) - barX;
+    var gBar = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+    gBar.addColorStop(0,   'rgba(225,6,0,0)');
+    gBar.addColorStop(0.5, 'rgba(225,6,0,0.9)');
+    gBar.addColorStop(1,   'rgba(225,6,0,0)');
+    ctx.fillStyle = gBar;
+    ctx.fillRect(barX, barY, barW, 4);
 }
 
 function _beltGlow(beltName) {
