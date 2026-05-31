@@ -1,8 +1,8 @@
 /* ==============================
    YOUTUBE & NEWS TAB LAYER
    (extracted from index.html – global functions, no import/export)
-   의존성: state.js (ytVideoCache, activeYoutubeCardIdx, currentNewsCat)
-           constants.js (YOUTUBE_CARDS, NEWS_CATS)
+   의존성: state.js (ytVideoCache, ytMetaCache, activeYoutubeCardIdx, currentNewsCat)
+           data/constants.js (YOUTUBE_CARDS, NEWS_CATS)
            utils.js (escapeHtml)
 ============================== */
 
@@ -23,7 +23,8 @@
     function renderYoutubeVideoCard(vid, cardInfo) {
         var thumb = 'https://img.youtube.com/vi/' + vid.id + '/mqdefault.jpg';
         var watchUrl = 'https://www.youtube.com/watch?v=' + vid.id;
-        var titleText = vid.title ? escapeHtml(vid.title.substring(0, 60)) : escapeHtml(cardInfo.title);
+        var rawTitle = vid.title ? vid.title : ('YouTube 영상 보기 · ' + cardInfo.title);
+        var titleText = escapeHtml(rawTitle.substring(0, 60));
         return '<a href="' + watchUrl + '" target="_blank" rel="noopener noreferrer" ' +
             'class="glass-card rounded-[1.2rem] overflow-hidden hover:border-red-500/40 transition-all duration-300 block group">' +
             '<div class="relative bg-gray-900 overflow-hidden" style="aspect-ratio:16/9">' +
@@ -37,6 +38,25 @@
             '</div></a>';
     }
 
+    // videoId별 oEmbed 제목 조회 (ytMetaCache로 중복 fetch 방지)
+    async function fetchVideoTitle(videoId) {
+        if (ytMetaCache[videoId] !== undefined) return ytMetaCache[videoId];
+        try {
+            var oEmbedUrl = 'https://www.youtube.com/oembed?url=' +
+                encodeURIComponent('https://www.youtube.com/watch?v=' + videoId) +
+                '&format=json';
+            var res = await fetch(oEmbedUrl);
+            if (!res.ok) { ytMetaCache[videoId] = null; return null; }
+            var data = await res.json();
+            var title = (data && data.title) ? String(data.title) : null;
+            ytMetaCache[videoId] = title;
+            return title;
+        } catch(e) {
+            ytMetaCache[videoId] = null;
+            return null;
+        }
+    }
+
     async function fetchYoutubeVideosForQuery(query) {
         if (ytVideoCache[query]) return ytVideoCache[query];
         try {
@@ -45,28 +65,24 @@
             var res = await fetch(searchUrl, { headers: { 'Accept': 'text/plain' } });
             if (!res.ok) throw new Error('fetch 실패');
             var text = await res.text();
-            // 비디오 ID 추출 (11자 영상 ID + 제목 파싱)
+            // videoId만 추출 (제목 근처 줄 추정 금지)
             var videoIds = [];
             var seen = new Set();
-            // 패턴: /watch?v=XXXXXXXXXXX 형태 (제목은 이전 줄에서 추출 시도)
             var lines = text.split('\n');
             for (var i = 0; i < lines.length; i++) {
                 var m = lines[i].match(/\/watch\?v=([\w-]{11})/);
                 if (m && !seen.has(m[1])) {
                     seen.add(m[1]);
-                    // 제목: 앞 줄에서 텍스트 추출 시도
-                    var titleLine = '';
-                    var ytUiWords = ['search filters', 'show less', 'show more', 'from the video', 'description', 'subscribe', 'views', 'ago', 'shorts'];
-                    for (var j = i - 1; j >= Math.max(0, i - 5); j--) {
-                        var l = lines[j].replace(/^#+\s*/, '').replace(/\[([^\]]+)\].*/,'$1').trim();
-                        var lLower = l.toLowerCase();
-                        var isUiText = ytUiWords.some(function(w) { return lLower.indexOf(w) >= 0; });
-                        if (l.length > 5 && l.length < 120 && !l.startsWith('http') && !isUiText) { titleLine = l; break; }
-                    }
-                    videoIds.push({ id: m[1], title: titleLine });
+                    videoIds.push({ id: m[1], title: null });
                 }
                 if (videoIds.length >= 6) break;
             }
+            // videoId별 oEmbed 제목 병렬 조회
+            await Promise.all(videoIds.map(function(v) {
+                return fetchVideoTitle(v.id).then(function(title) {
+                    v.title = title;
+                });
+            }));
             ytVideoCache[query] = videoIds;
             return videoIds;
         } catch(e) {
