@@ -1684,46 +1684,43 @@
     <div class="glass-card rounded-[2.5rem] w-full max-w-2xl border border-white/10 overflow-hidden max-h-[94vh] overflow-y-auto">
 
         <!-- Hero Header -->
-        <div id="fp-header" class="relative px-8 lg:px-14 pt-10 pb-8 lg:pt-14 lg:pb-10 border-b border-white/10" style="background: linear-gradient(135deg, rgba(225,6,0,0.12) 0%, rgba(0,0,0,0) 60%)">
+        <div id="fp-header" class="relative px-6 lg:px-14 pt-6 pb-5 lg:pt-14 lg:pb-10 border-b border-white/10" style="background: linear-gradient(135deg, rgba(225,6,0,0.12) 0%, rgba(0,0,0,0) 60%)">
             <button onclick="closeFighterProfile()" class="absolute top-5 right-5 w-9 h-9 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/15 text-gray-400 hover:text-white transition text-lg">✕</button>
-            <div class="flex items-start gap-5 lg:gap-8">
-                <!-- Avatar Ring -->
-                <div id="fp-avatar" class="w-16 h-16 lg:w-24 lg:h-24 rounded-2xl lg:rounded-3xl flex-shrink-0 overflow-hidden border-2 border-ufcRed/40 bg-ufcRed/10 relative">
+            <!-- Avatar + Name -->
+            <div class="flex items-center gap-4 lg:gap-8 mb-3 lg:mb-5">
+                <div id="fp-avatar" class="w-14 h-14 lg:w-24 lg:h-24 rounded-2xl lg:rounded-3xl flex-shrink-0 overflow-hidden border-2 border-ufcRed/40 bg-ufcRed/10 relative">
                     <img id="fp-avatar-img" src="" alt="" class="hidden w-full h-full object-cover object-top">
                     <span id="fp-initials" class="absolute inset-0 flex items-center justify-center oswald-sharp text-2xl lg:text-4xl font-black italic text-ufcRed"></span>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-3 mb-2 flex-wrap">
-                        <span id="fp-rank-badge" class="oswald-sharp text-[9px] lg:text-[10px] bg-ufcRed/10 border border-ufcRed/30 text-ufcRed px-3 py-1 rounded-full font-black italic uppercase tracking-widest"></span>
-                        <span id="fp-division-badge" class="oswald-sharp text-[9px] lg:text-[10px] bg-white/5 border border-white/10 text-gray-400 px-3 py-1 rounded-full font-black italic uppercase tracking-widest"></span>
+                    <div class="flex items-center gap-2 mb-1 flex-wrap">
+                        <span id="fp-rank-badge" class="oswald-sharp text-[9px] lg:text-[10px] bg-ufcRed/10 border border-ufcRed/30 text-ufcRed px-2 py-0.5 rounded-full font-black italic uppercase tracking-widest"></span>
+                        <span id="fp-division-badge" class="oswald-sharp text-[9px] lg:text-[10px] bg-white/5 border border-white/10 text-gray-400 px-2 py-0.5 rounded-full font-black italic uppercase tracking-widest"></span>
                     </div>
-                    <h2 id="fp-name" class="oswald-sharp text-2xl lg:text-5xl font-black italic uppercase tracking-tighter text-white leading-none mb-3"></h2>
-                    <div class="flex items-center gap-4 flex-wrap">
-                        <div>
-                            <p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest italic">Record</p>
-                            <p id="fp-record" class="oswald-sharp text-base lg:text-xl font-black italic text-white"></p>
-                        </div>
-                        <div class="w-px h-8 bg-white/10"></div>
-                        <div>
-                            <p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest italic">Height</p>
-                            <p id="fp-height" class="oswald-sharp text-base lg:text-xl font-black italic text-white"></p>
-                        </div>
-                        <div class="w-px h-8 bg-white/10"></div>
-                        <div>
-                            <p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest italic">Reach</p>
-                            <p id="fp-reach" class="oswald-sharp text-base lg:text-xl font-black italic text-white"></p>
-                        </div>
-                        <div class="w-px h-8 bg-white/10"></div>
-                        <div>
-                            <p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest italic">Weight</p>
-                            <p id="fp-weight" class="oswald-sharp text-base lg:text-xl font-black italic text-white"></p>
-                        </div>
-                        <div class="w-px h-8 bg-white/10"></div>
-                        <div>
-                            <p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest italic">Odds</p>
-                            <p id="fp-odds" class="oswald-sharp text-base lg:text-xl font-black italic text-ufcRed"></p>
-                        </div>
-                    </div>
+                    <h2 id="fp-name" class="oswald-sharp text-[22px] lg:text-5xl font-black italic uppercase tracking-tighter text-white leading-none"></h2>
+                </div>
+            </div>
+            <!-- Compact Stats: 5-col grid on mobile, flex row on desktop -->
+            <div class="grid grid-cols-5 gap-x-2 gap-y-0.5 lg:flex lg:items-center lg:gap-x-6 lg:flex-wrap">
+                <div class="min-w-0">
+                    <p class="oswald-sharp text-[8px] text-gray-500 uppercase tracking-wider italic leading-none">REC</p>
+                    <p id="fp-record" class="oswald-sharp text-[13px] lg:text-xl font-black italic text-white leading-snug mt-0.5 truncate"></p>
+                </div>
+                <div class="min-w-0">
+                    <p class="oswald-sharp text-[8px] text-gray-500 uppercase tracking-wider italic leading-none">HT</p>
+                    <p id="fp-height" class="oswald-sharp text-[13px] lg:text-xl font-black italic text-white leading-snug mt-0.5 truncate"></p>
+                </div>
+                <div class="min-w-0">
+                    <p class="oswald-sharp text-[8px] text-gray-500 uppercase tracking-wider italic leading-none">RCH</p>
+                    <p id="fp-reach" class="oswald-sharp text-[13px] lg:text-xl font-black italic text-white leading-snug mt-0.5 truncate"></p>
+                </div>
+                <div class="min-w-0">
+                    <p class="oswald-sharp text-[8px] text-gray-500 uppercase tracking-wider italic leading-none">WT</p>
+                    <p id="fp-weight" class="oswald-sharp text-[13px] lg:text-xl font-black italic text-white leading-snug mt-0.5 truncate"></p>
+                </div>
+                <div class="min-w-0">
+                    <p class="oswald-sharp text-[8px] text-gray-500 uppercase tracking-wider italic leading-none">ODDS</p>
+                    <p id="fp-odds" class="oswald-sharp text-[13px] lg:text-xl font-black italic text-ufcRed leading-snug mt-0.5 truncate"></p>
                 </div>
             </div>
         </div>
