@@ -81,6 +81,37 @@ function renderTaleOfTapeHTML(fight) {
     ${renderStatBarsHTML(fight)}`;
 }
 
+// ── Hero Card Header: mobile(<640px) inline-style / desktop Tailwind ──
+function _renderHeroHdr(fight, isMain, tagColor) {
+    const isMob = window.innerWidth < 640;
+    if (isMob) {
+        const tagShort = fight.tag.replace(/\s*EVENT$/i, '') || fight.tag;
+        const divShort = (fight.division || '').toUpperCase();
+        const tagSt = isMain
+            ? 'background:#E10600;color:#fff;'
+            : 'background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);';
+        return '<div style="display:flex;align-items:center;padding:10px 20px;border-bottom:1px solid rgba(255,255,255,0.1);background:rgba(0,0,0,0.3);gap:6px;overflow:hidden;flex-wrap:nowrap;">' +
+            '<span style="font-size:7px;font-weight:900;font-style:italic;text-transform:uppercase;padding:3px 8px;border-radius:999px;flex-shrink:0;line-height:1.5;letter-spacing:0.02em;' + tagSt + '">' + tagShort + '</span>' +
+            '<span style="font-size:7px;font-weight:900;font-style:italic;text-transform:uppercase;color:rgba(107,114,128,1);flex-shrink:0;white-space:nowrap;letter-spacing:0.02em;">' + divShort + '</span>' +
+            '<div style="flex:1;min-width:0;"></div>' +
+            '<button data-no-pick="1" onclick="event.stopPropagation();sharePicktagonMatchCard(\'' + fight.id + '\')" style="font-size:15px;padding:4px 7px;border:1px solid rgba(255,255,255,0.1);border-radius:999px;background:transparent;color:rgba(107,114,128,1);cursor:pointer;flex-shrink:0;line-height:1;">📤</button>' +
+            '<button onclick="toggleStatsOverlay(\'' + fight.id + '\')" style="font-size:15px;padding:4px 7px;border:1px solid rgba(255,255,255,0.15);border-radius:999px;background:transparent;color:rgba(156,163,175,1);cursor:pointer;flex-shrink:0;line-height:1;">ℹ️</button>' +
+            '<button onclick="toggleAnalysis(\'' + fight.id + '\')" id="analysis-btn-' + fight.id + '" style="font-size:8px;font-weight:900;font-style:italic;text-transform:uppercase;background:transparent;border:none;color:rgba(107,114,128,1);cursor:pointer;flex-shrink:0;padding:4px;line-height:1;"><span id="analysis-btn-label-' + fight.id + '">▼</span></button>' +
+            '</div>';
+    }
+    return '<div class="flex items-center justify-between px-5 lg:px-10 py-3 lg:py-4 border-b border-white/10 bg-black/30">' +
+        '<div class="flex items-center gap-3">' +
+        '<span class="oswald-sharp text-[8px] lg:text-xs font-black italic uppercase tracking-widest px-3 py-1 rounded-full ' + tagColor + '">' + fight.tag + '</span>' +
+        '<span class="oswald-sharp text-[8px] lg:text-xs text-gray-500 font-black italic tracking-widest uppercase">' + _divLabel(fight.division) + '</span>' +
+        '</div>' +
+        '<div class="flex items-center gap-2 lg:gap-3">' +
+        '<button data-no-pick="1" onclick="event.stopPropagation(); sharePicktagonMatchCard(\'' + fight.id + '\')" class="oswald-sharp text-[9px] lg:text-[10px] text-gray-500 hover:text-ufcRed transition font-black italic uppercase tracking-widest border border-white/10 hover:border-ufcRed/40 px-3 py-1.5 rounded-full active:scale-95">📤 공유</button>' +
+        '<button onclick="toggleStatsOverlay(\'' + fight.id + '\')" class="oswald-sharp text-[8px] lg:text-[10px] text-gray-400 hover:text-white transition font-black italic uppercase tracking-widest border border-white/15 px-2.5 py-1 rounded-full">ℹ️ STATS</button>' +
+        '<button onclick="toggleAnalysis(\'' + fight.id + '\')" id="analysis-btn-' + fight.id + '" class="oswald-sharp text-[8px] lg:text-xs text-gray-500 hover:text-ufcRed transition font-black italic uppercase tracking-widest flex items-center gap-1"><span id="analysis-btn-label-' + fight.id + '">▼ ANALYSIS</span></button>' +
+        '</div>' +
+        '</div>';
+}
+
 // ── Hero Card (Main / Co-Main: idx 0 or 1) ───────────────────────
 function renderHeroCard(fight, idx) {
     const isMain = idx === 0;
@@ -103,34 +134,7 @@ function renderHeroCard(fight, idx) {
     _fightCardCache[fight.id] = fight;
     return `
     <div id="card-${fight.id}" onclick="if(event.target.closest('button,[data-no-pick]')) return; openPickSlipFromCard('${fight.id}')" class="fc-hero-card glass-card ${isMain ? 'rounded-[2.5rem] lg:rounded-[4rem]' : 'rounded-[2rem] lg:rounded-[3rem]'} overflow-hidden transition-all duration-500" style="${glowStyle}">
-        <!-- Card Header -->
-        <div class="flex items-center justify-between px-5 lg:px-10 py-3 lg:py-4 border-b border-white/10 bg-black/30 gap-2">
-            <div class="flex items-center gap-2 min-w-0">
-                <span class="oswald-sharp text-[8px] lg:text-xs font-black italic uppercase tracking-widest px-2.5 py-1 rounded-full flex-shrink-0 ${tagColor}">
-                    <span class="sm:hidden">${fight.tag.replace(/\s*EVENT$/i,'') || fight.tag}</span>
-                    <span class="hidden sm:inline">${fight.tag}</span>
-                </span>
-                <span class="oswald-sharp text-[8px] lg:text-xs text-gray-500 font-black italic tracking-widest uppercase whitespace-nowrap">
-                    <span class="sm:hidden">${(fight.division || '').toUpperCase()}</span>
-                    <span class="hidden sm:inline">${_divLabel(fight.division)}</span>
-                </span>
-            </div>
-            <div class="flex items-center gap-1.5 lg:gap-3 flex-shrink-0">
-                <button data-no-pick="1" onclick="event.stopPropagation(); sharePicktagonMatchCard('${fight.id}')"
-                    class="oswald-sharp text-gray-500 hover:text-ufcRed transition font-black italic uppercase tracking-widest border border-white/10 hover:border-ufcRed/40 px-2 py-1.5 rounded-full active:scale-95 text-[9px] lg:text-[10px]">
-                    <span class="sm:hidden">📤</span><span class="hidden sm:inline">📤 공유</span>
-                </button>
-                <button onclick="toggleStatsOverlay('${fight.id}')"
-                    class="oswald-sharp text-gray-400 hover:text-white transition font-black italic uppercase tracking-widest border border-white/15 px-2 py-1 rounded-full text-[8px] lg:text-[10px]">
-                    <span class="sm:hidden">ℹ️</span><span class="hidden sm:inline">ℹ️ STATS</span>
-                </button>
-                <button onclick="toggleAnalysis('${fight.id}')" id="analysis-btn-${fight.id}"
-                    class="oswald-sharp text-gray-500 hover:text-ufcRed transition font-black italic uppercase tracking-widest flex items-center text-[8px] lg:text-xs">
-                    <span id="analysis-btn-lm-${fight.id}" class="sm:hidden">▼</span>
-                    <span id="analysis-btn-ld-${fight.id}" class="hidden sm:inline">▼ ANALYSIS</span>
-                </button>
-            </div>
-        </div>
+        ${_renderHeroHdr(fight, isMain, tagColor)}
 
         <!-- Community Pick Bar -->
         <div class="fc-pick-bar px-5 lg:px-10 py-4 bg-black/20 border-b border-white/5">
@@ -469,13 +473,14 @@ function switchAnalysisTab(fightId, tab) {
 
 function toggleAnalysis(fightId) {
     const panel = document.getElementById(`analysis-${fightId}`);
-    const btnLm = document.getElementById(`analysis-btn-lm-${fightId}`);
-    const btnLd = document.getElementById(`analysis-btn-ld-${fightId}`);
+    const btnLabel = document.getElementById(`analysis-btn-label-${fightId}`);
     if (!panel) return;
     const isHidden = panel.classList.contains('hidden');
     panel.classList.toggle('hidden');
-    if (btnLm) btnLm.textContent = isHidden ? '▲' : '▼';
-    if (btnLd) btnLd.textContent = isHidden ? '▲ ANALYSIS' : '▼ ANALYSIS';
+    if (btnLabel) {
+        const isMob = window.innerWidth < 640;
+        btnLabel.textContent = isHidden ? (isMob ? '▲' : '▲ ANALYSIS') : (isMob ? '▼' : '▼ ANALYSIS');
+    }
     if (isHidden) switchAnalysisTab(fightId, 'radar');
 }
 

@@ -624,7 +624,7 @@ function sharePicktagonCard() {
     var losses = (data.total || 0) - (data.success || 0);
     var shareText  = data.nick + '의 픽 전적 ' + (data.success || 0) + '승 ' + losses + '패 · '
                    + '적중률 ' + (data.acc || 0) + '% · 너 적중률은? pick-tagon.com';
-    var shareUrl   = 'https://pick-tagon.com/#profile';
+    var shareUrl   = 'https://pick-tagon.com/?og=v2#profile';
     var shareTitle = 'PICK-TAGON';
 
     _scShowSharePicker({
@@ -1248,7 +1248,7 @@ function sharePicktagonMatchCard(fightId) {
     var shareText  = pickedName
         ? '나는 ' + pickedName + ' 픽! 너는? · UFC 픽은 PICK-TAGON'
         : data.f1.name + ' vs ' + data.f2.name + ', 너는 누구 보세요? · UFC 픽은 PICK-TAGON';
-    var shareUrl   = 'https://pick-tagon.com/?fight=' + encodeURIComponent(fightId);
+    var shareUrl   = 'https://pick-tagon.com/?fight=' + encodeURIComponent(fightId) + '&og=v2';
     var shareTitle = 'PICK-TAGON';
 
     _scShowSharePicker({
