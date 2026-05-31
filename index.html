@@ -1686,6 +1686,7 @@
         <!-- Hero Header -->
         <div id="fp-header" class="relative px-6 lg:px-14 pt-6 pb-5 lg:pt-14 lg:pb-10 border-b border-white/10" style="background: linear-gradient(135deg, rgba(225,6,0,0.12) 0%, rgba(0,0,0,0) 60%)">
             <button onclick="closeFighterProfile()" class="absolute top-5 right-5 w-9 h-9 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/15 text-gray-400 hover:text-white transition text-lg">✕</button>
+            <button id="fp-share-btn" onclick="sharePicktagonFighterCard(window._currentFighterProfile)" class="absolute top-5 right-16 oswald-sharp text-[9px] font-black italic uppercase tracking-widest border border-ufcRed/30 text-ufcRed hover:text-white hover:border-ufcRed hover:bg-ufcRed/10 px-3 h-9 rounded-lg transition flex items-center gap-1">📤 공유</button>
             <!-- Avatar + Name -->
             <div class="flex items-center gap-4 lg:gap-8 mb-3 lg:mb-5">
                 <div id="fp-avatar" class="w-14 h-14 lg:w-24 lg:h-24 rounded-2xl lg:rounded-3xl flex-shrink-0 overflow-hidden border-2 border-ufcRed/40 bg-ufcRed/10 relative">
@@ -2337,7 +2338,7 @@
 <script src="/js/h2h.js?v=21e"></script>
 <script src="/js/news-admin.js?v=6"></script>
 <script src="/js/home.js?v=6"></script>
-<script src="/js/share-card.js?v=10"></script>
+<script src="/js/share-card.js?v=11"></script>
 <script>
     /* ==============================
        FIGHT CARD DATA
@@ -3514,6 +3515,9 @@ async function publishPost() {
                 }
             } catch (_) {}
         }
+
+        // Cache enriched fighter for share button (after DB fetch)
+        window._currentFighterProfile = fighter;
 
         const modal = document.getElementById('fighter-profile-modal');
         modal.classList.remove('hidden');

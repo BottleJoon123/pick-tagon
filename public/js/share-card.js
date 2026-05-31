@@ -1298,3 +1298,621 @@ async function _scShareMatchImage(data, shareText, shareTitle) {
         if (typeof showToast === 'function') showToast('⚠️ 공유 중 오류가 발생했습니다');
     });
 }
+
+/* ==============================
+   FIGHTER SHARE CARD (Phase 3)
+   파이터 프로필 공유 카드 — canvas 기반, 외부 이미지 없음 (taint-free)
+   의존성: state.js, utils.js, admin.js (getActiveFights), fights-render.js (_fightCardCache)
+============================== */
+
+// ── 데이터 수집 ────────────────────────────────────────
+function buildFighterShareCardData(fighter) {
+    var f = fighter || {};
+    var name = f.name || '?';
+
+    // Pick percentage: active fight에서 이 선수 기준 비율 조회
+    var pickPct = null;
+    try {
+        var fights = (typeof getActiveFights === 'function') ? getActiveFights() : [];
+        var nameLower = name.toLowerCase();
+        for (var i = 0; i < fights.length; i++) {
+            var fight = fights[i];
+            var f1n = fight.f1 && fight.f1.name ? fight.f1.name.toLowerCase() : '';
+            var f2n = fight.f2 && fight.f2.name ? fight.f2.name.toLowerCase() : '';
+            var isF1 = (f1n === nameLower);
+            var isF2 = (f2n === nameLower);
+            if ((isF1 || isF2) && typeof eventPickCounts !== 'undefined' && eventPickCounts[fight.id]) {
+                var pc = eventPickCounts[fight.id];
+                var tot = (pc.c0 || 0) + (pc.c1 || 0);
+                if (tot > 0) {
+                    var myC = isF1 ? (pc.c0 || 0) : (pc.c1 || 0);
+                    pickPct = Math.round(myC / tot * 100);
+                }
+                break;
+            }
+        }
+    } catch(e) {}
+
+    var koRate  = (f.ko_rate  != null && !isNaN(f.ko_rate))  ? Number(f.ko_rate)  : null;
+    var subRate = (f.sub_rate != null && !isNaN(f.sub_rate)) ? Number(f.sub_rate) : null;
+    var decRate = (f.dec_rate != null && !isNaN(f.dec_rate)) ? Number(f.dec_rate) : null;
+    var hasFinish = (koRate != null || subRate != null || decRate != null);
+    var stats = (Array.isArray(f.stats) && f.stats.length === 5) ? f.stats.map(Number) : [50, 50, 50, 50, 50];
+    var statsDefault = !(Array.isArray(f.stats) && f.stats.length === 5);
+
+    return {
+        name:         name,
+        record:       f.record   || null,
+        rank:         f.rank     || null,
+        division:     f.division || null,
+        height:       f.height   || null,
+        reach:        f.reach    || null,
+        weight:       f.weight   || null,
+        odds:         f.odds     || null,
+        koRate:       koRate,
+        subRate:      subRate,
+        decRate:      decRate,
+        hasFinish:    hasFinish,
+        stats:        stats,
+        statsDefault: statsDefault,
+        pickPct:      pickPct
+    };
+}
+
+// ── 레이더 차트 (캔버스 직접 그리기) ──────────────────────
+function _scDrawRadar(ctx, cx, cy, R, values, labels, opts) {
+    var N = values.length;
+    var RED   = opts.RED   || '#E10600';
+    var WHITE = opts.WHITE || '#f4f4f5';
+    var MUTED = opts.MUTED || '#6a6a72';
+    var F_BLK = opts.F_BLK || '"Oswald",Arial,sans-serif';
+
+    function ptAt(i, r) {
+        var a = -Math.PI / 2 + i * (Math.PI * 2 / N);
+        return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+    }
+
+    // Background grid rings: 25 / 50 / 75 / 100
+    [0.25, 0.50, 0.75, 1.0].forEach(function(frac) {
+        ctx.beginPath();
+        for (var i = 0; i < N; i++) {
+            var p = ptAt(i, R * frac);
+            if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    });
+
+    // Axis lines
+    for (var i = 0; i < N; i++) {
+        var outer = ptAt(i, R);
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(outer.x, outer.y);
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    }
+
+    // Filled polygon
+    ctx.beginPath();
+    for (var i = 0; i < N; i++) {
+        var v = Math.max(0, Math.min(100, values[i])) / 100;
+        var p = ptAt(i, R * v);
+        if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(225,6,0,0.20)';
+    ctx.fill();
+    ctx.strokeStyle = RED;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    // Dots
+    for (var i = 0; i < N; i++) {
+        var v = Math.max(0, Math.min(100, values[i])) / 100;
+        var p = ptAt(i, R * v);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = RED;
+        ctx.fill();
+    }
+
+    // Labels
+    ctx.font = '700 22px ' + F_BLK;
+    ctx.fillStyle = MUTED;
+    ctx.textBaseline = 'middle';
+    for (var i = 0; i < N; i++) {
+        var lp = ptAt(i, R + 34);
+        ctx.textAlign = (Math.abs(lp.x - cx) < 10) ? 'center'
+                      : (lp.x < cx) ? 'right' : 'left';
+        ctx.fillText(labels[i], lp.x, lp.y);
+    }
+    ctx.textAlign = 'left';
+}
+
+// ── 카드 드로잉 ────────────────────────────────────────
+function drawPicktagonFighterShareCard(canvas, data) {
+    var W = 1080, H = 1080;
+    canvas.width  = W;
+    canvas.height = H;
+    var ctx = canvas.getContext('2d');
+
+    var RED    = '#E10600';
+    var WHITE  = '#f4f4f5';
+    var MUTED  = '#9a9aa2';
+    var MUTED2 = '#5a5a62';
+    var BLUE   = '#3b82f6';
+    var GRAY   = '#4a4a52';
+    var PAD    = 64;
+    var F_BLK  = '"Oswald","Pretendard","Apple SD Gothic Neo",Arial,sans-serif';
+    var F_BODY = '"Pretendard","Oswald","Apple SD Gothic Neo",Arial,sans-serif';
+    var F_MONO = '"Space Mono","Courier New",monospace';
+
+    /* ── ZONE 0: Background ── */
+    ctx.fillStyle = '#080808';
+    ctx.fillRect(0, 0, W, H);
+
+    // Red radial glow (top-left)
+    var gR = ctx.createRadialGradient(W * 0.15, H * 0.10, 0, W * 0.15, H * 0.10, W * 0.75);
+    gR.addColorStop(0,    'rgba(225,6,0,0.38)');
+    gR.addColorStop(0.55, 'rgba(225,6,0,0)');
+    ctx.fillStyle = gR;
+    ctx.fillRect(0, 0, W, H);
+
+    // Dark overlay
+    var gLin = ctx.createLinearGradient(0, 0, W, H);
+    gLin.addColorStop(0,    'rgba(10,8,10,0.80)');
+    gLin.addColorStop(0.65, 'rgba(4,4,4,0.92)');
+    gLin.addColorStop(1,    'rgba(4,4,4,1)');
+    ctx.fillStyle = gLin;
+    ctx.fillRect(0, 0, W, H);
+
+    // Vignette
+    var gV = ctx.createRadialGradient(W / 2, H * 0.42, W * 0.28, W / 2, H * 0.42, W * 0.85);
+    gV.addColorStop(0, 'rgba(0,0,0,0)');
+    gV.addColorStop(1, 'rgba(0,0,0,0.55)');
+    ctx.fillStyle = gV;
+    ctx.fillRect(0, 0, W, H);
+
+    // Large octagon deco (translucent)
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 1.5;
+    _scOctagon(ctx, W * 0.72, H * 0.36, W * 0.40, Math.PI / 8);
+    ctx.stroke();
+    ctx.restore();
+
+    // Rounded border frame
+    var fr = 22, rc = 18;
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(fr + rc, fr); ctx.lineTo(W - fr - rc, fr);
+    ctx.arcTo(W - fr, fr, W - fr, fr + rc, rc);
+    ctx.lineTo(W - fr, H - fr - rc);
+    ctx.arcTo(W - fr, H - fr, W - fr - rc, H - fr, rc);
+    ctx.lineTo(fr + rc, H - fr);
+    ctx.arcTo(fr, H - fr, fr, H - fr - rc, rc);
+    ctx.lineTo(fr, fr + rc);
+    ctx.arcTo(fr, fr, fr + rc, fr, rc);
+    ctx.closePath();
+    ctx.stroke();
+
+    /* ── ZONE 1: Header (y: 0–128) ── */
+    var logoY = 84, logoR = 19, logoCx = PAD + logoR;
+    ctx.save();
+    ctx.strokeStyle = RED; ctx.lineWidth = 3;
+    _scOctagon(ctx, logoCx, logoY, logoR, Math.PI / 8);
+    ctx.stroke();
+    ctx.strokeStyle = WHITE; ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(logoCx - logoR * 0.44, logoY + logoR * 0.06);
+    ctx.lineTo(logoCx - logoR * 0.05, logoY + logoR * 0.50);
+    ctx.lineTo(logoCx + logoR * 0.54, logoY - logoR * 0.44);
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.font = '600 38px ' + F_BLK;
+    ctx.fillStyle = WHITE;
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    ctx.fillText('PICK-TAGON', logoCx + logoR + 16, logoY);
+
+    // Header right: "FIGHTER PROFILE"
+    ctx.font = '400 19px ' + F_MONO;
+    ctx.fillStyle = MUTED2;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText('FIGHTER PROFILE', W - PAD, logoY);
+    ctx.textAlign = 'left';
+
+    // Header divider
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(PAD, 122); ctx.lineTo(W - PAD, 122); ctx.stroke();
+
+    /* ── ZONE 2: Fighter Hero (y: 140–490) ── */
+    var photoX = PAD, photoY = 140, photoW = 290, photoH = 315, photoR = 20;
+
+    // Photo placeholder box
+    ctx.fillStyle = 'rgba(225,6,0,0.06)';
+    ctx.strokeStyle = 'rgba(225,6,0,0.30)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    if (ctx.roundRect) {
+        ctx.roundRect(photoX, photoY, photoW, photoH, photoR);
+    } else {
+        ctx.rect(photoX, photoY, photoW, photoH);
+    }
+    ctx.fill(); ctx.stroke();
+
+    // Initials in photo placeholder
+    var initials = (data.name || '?').split(/\s+/).map(function(w) { return w[0] || ''; }).join('').slice(0, 2).toUpperCase();
+    var initFontSize = 88;
+    ctx.font = '700 ' + initFontSize + 'px ' + F_BLK;
+    while (ctx.measureText(initials).width > photoW - 32 && initFontSize > 40) {
+        initFontSize -= 6;
+        ctx.font = '700 ' + initFontSize + 'px ' + F_BLK;
+    }
+    ctx.fillStyle = 'rgba(225,6,0,0.22)';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(initials, photoX + photoW / 2, photoY + photoH / 2);
+
+    // "선수 사진" label bottom of placeholder
+    ctx.font = '400 17px ' + F_MONO;
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText('선수 사진', photoX + photoW / 2, photoY + photoH - 18);
+
+    // ── Right: rank + division pills ──
+    var rightX = photoX + photoW + 36;
+    var rightMaxW = W - PAD - rightX;
+    var pillY = 152, pillH = 34, pillR = 17;
+
+    function drawPill(text, x, y, bgColor, borderColor, textColor, fSize) {
+        if (!text) return 0;
+        fSize = fSize || 20;
+        ctx.font = '700 ' + fSize + 'px ' + F_BLK;
+        var tw = ctx.measureText(text).width + 28;
+        ctx.fillStyle = bgColor;
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        if (ctx.roundRect) { ctx.roundRect(x, y, tw, pillH, pillR); }
+        else { ctx.rect(x, y, tw, pillH); }
+        ctx.fill(); ctx.stroke();
+        ctx.fillStyle = textColor;
+        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.fillText(text, x + 14, y + pillH / 2);
+        return tw + 10;
+    }
+
+    var rankText = data.rank || 'UNRANKED';
+    var px = rightX;
+    px += drawPill(rankText, px, pillY, 'rgba(225,6,0,0.12)', 'rgba(225,6,0,0.35)', RED, 20);
+    if (data.division) {
+        drawPill(data.division.toUpperCase(), px, pillY, 'rgba(255,255,255,0.05)', 'rgba(255,255,255,0.12)', MUTED, 20);
+    }
+
+    // ── Fighter name (large, italic, uppercase, auto-size) ──
+    var nameParts = (data.name || '').trim().split(/\s+/);
+    var firstName = nameParts.slice(0, -1).join(' ');
+    var lastName  = nameParts[nameParts.length - 1] || data.name || '?';
+    var nameAreaW = W - PAD - rightX;
+    var nameY     = 290;
+
+    // First name (small, above)
+    if (firstName) {
+        var fnSize = 32;
+        ctx.font = '400 ' + fnSize + 'px ' + F_BLK;
+        while (ctx.measureText(firstName.toUpperCase()).width > nameAreaW && fnSize > 18) {
+            fnSize -= 2; ctx.font = '400 ' + fnSize + 'px ' + F_BLK;
+        }
+        ctx.fillStyle = 'rgba(244,244,245,0.55)';
+        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+        ctx.fillText(firstName.toUpperCase(), rightX, nameY - 40);
+    }
+
+    // Last name
+    var lnSize = 90;
+    ctx.font = '700 ' + lnSize + 'px ' + F_BLK;
+    while (ctx.measureText(lastName.toUpperCase()).width > nameAreaW && lnSize > 36) {
+        lnSize -= 4; ctx.font = '700 ' + lnSize + 'px ' + F_BLK;
+    }
+    ctx.fillStyle = WHITE;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText(lastName.toUpperCase(), rightX, nameY);
+
+    // Record (red) + 전적 label
+    var recY = nameY + 50;
+    if (data.record) {
+        var recFontSize = 44;
+        ctx.font = '700 ' + recFontSize + 'px ' + F_BLK;
+        while (ctx.measureText(data.record).width > nameAreaW - 90 && recFontSize > 24) {
+            recFontSize -= 2; ctx.font = '700 ' + recFontSize + 'px ' + F_BLK;
+        }
+        ctx.fillStyle = RED;
+        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+        ctx.fillText(data.record, rightX, recY);
+        var recW = ctx.measureText(data.record).width;
+        ctx.font = '400 22px ' + F_MONO;
+        ctx.fillStyle = MUTED2;
+        ctx.fillText('전적', rightX + recW + 14, recY - 2);
+    } else {
+        ctx.font = '400 22px ' + F_MONO;
+        ctx.fillStyle = MUTED2;
+        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+        ctx.fillText('전적 정보 없음', rightX, recY);
+    }
+
+    /* ── ZONE 3: Info Strip (y: 510–595) ── */
+    var stripY = 510, stripH = 82;
+    ctx.fillStyle = 'rgba(255,255,255,0.03)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    if (ctx.roundRect) { ctx.roundRect(PAD, stripY, W - PAD * 2, stripH, 12); }
+    else { ctx.rect(PAD, stripY, W - PAD * 2, stripH); }
+    ctx.fill(); ctx.stroke();
+
+    var infoItems = [
+        { label: 'HT',    value: data.height || '—' },
+        { label: 'RCH',   value: data.reach  || '—' },
+        { label: 'WT',    value: data.weight || '—' },
+        { label: 'ODDS',  value: data.odds ? '×' + data.odds : '—' }
+    ];
+    var cellW = (W - PAD * 2) / infoItems.length;
+    infoItems.forEach(function(item, idx) {
+        var cx2 = PAD + cellW * idx + cellW / 2;
+        // Divider
+        if (idx > 0) {
+            ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(PAD + cellW * idx, stripY + 12);
+            ctx.lineTo(PAD + cellW * idx, stripY + stripH - 12);
+            ctx.stroke();
+        }
+        ctx.font = '700 18px ' + F_BLK;
+        ctx.fillStyle = MUTED2;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+        ctx.fillText(item.label, cx2, stripY + 30);
+        ctx.font = '700 28px ' + F_BLK;
+        ctx.fillStyle = WHITE;
+        ctx.textBaseline = 'alphabetic';
+        // Truncate value if too wide
+        var valStr = String(item.value);
+        while (ctx.measureText(valStr).width > cellW - 20 && valStr.length > 1) {
+            valStr = valStr.slice(0, -1);
+        }
+        ctx.fillText(valStr, cx2, stripY + 66);
+    });
+    ctx.textAlign = 'left';
+
+    /* ── ZONE 4: Stats Section (y: 618–845) ── */
+    var statsTopY = 618;
+    var midX = W / 2 + 10;
+
+    // ── Left: Radar chart ──
+    var radarCx = PAD + 210, radarCy = statsTopY + 190, radarR = 130;
+    var STAT_KR = ['스트라이킹', '그래플링', '스태미나', '디펜스', '스피드'];
+    ctx.font = '700 18px ' + F_BLK;
+    ctx.fillStyle = MUTED2;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText('FIGHTER STATS', PAD, statsTopY + 24);
+    if (data.statsDefault) {
+        ctx.font = '400 17px ' + F_MONO;
+        ctx.fillStyle = MUTED2;
+        ctx.fillText('(집계중)', PAD + 140, statsTopY + 24);
+    }
+    _scDrawRadar(ctx, radarCx, radarCy, radarR, data.stats, STAT_KR, {
+        RED: RED, WHITE: WHITE, MUTED: MUTED2, F_BLK: F_BLK
+    });
+
+    // ── Right: Finish Rate bars ──
+    var barAreaX = midX + 16, barAreaW = W - PAD - barAreaX;
+    if (data.hasFinish) {
+        var ko  = data.koRate  != null ? data.koRate  : 0;
+        var sub = data.subRate != null ? data.subRate : 0;
+        var dec = data.decRate != null ? data.decRate : 0;
+
+        ctx.font = '700 18px ' + F_BLK;
+        ctx.fillStyle = MUTED2;
+        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+        ctx.fillText('FINISH RATE', barAreaX, statsTopY + 24);
+
+        var barDefs = [
+            { label: 'KO/TKO', value: ko,  color: RED  },
+            { label: '서브미션', value: sub, color: BLUE },
+            { label: '판정',    value: dec, color: GRAY }
+        ];
+        var bH = 44, bGap = 20;
+        var bStartY = statsTopY + 58;
+        barDefs.forEach(function(bd, bi) {
+            var bY = bStartY + bi * (bH + bGap);
+            var fillW = Math.max(0, Math.min(1, bd.value / 100)) * barAreaW;
+
+            // Track
+            ctx.fillStyle = 'rgba(255,255,255,0.06)';
+            ctx.beginPath();
+            if (ctx.roundRect) { ctx.roundRect(barAreaX, bY, barAreaW, bH, 6); }
+            else { ctx.rect(barAreaX, bY, barAreaW, bH); }
+            ctx.fill();
+
+            // Fill
+            if (fillW > 0) {
+                ctx.fillStyle = bd.color;
+                ctx.beginPath();
+                if (ctx.roundRect) { ctx.roundRect(barAreaX, bY, fillW, bH, 6); }
+                else { ctx.rect(barAreaX, bY, fillW, bH); }
+                ctx.fill();
+            }
+
+            // Label + value
+            ctx.font = '700 20px ' + F_BLK;
+            ctx.fillStyle = WHITE;
+            ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+            ctx.fillText(bd.label, barAreaX + 12, bY + bH / 2);
+            ctx.textAlign = 'right';
+            ctx.fillText(bd.value.toFixed(1) + '%', barAreaX + barAreaW - 12, bY + bH / 2);
+            ctx.textAlign = 'left';
+        });
+    } else {
+        // No finish data — 집계중 placeholder
+        ctx.font = '700 18px ' + F_BLK;
+        ctx.fillStyle = MUTED2;
+        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+        ctx.fillText('FINISH RATE', barAreaX, statsTopY + 24);
+        ctx.font = '400 20px ' + F_MONO;
+        ctx.fillStyle = MUTED2;
+        ctx.textBaseline = 'middle';
+        ctx.fillText('데이터 집계중', barAreaX, statsTopY + 120);
+    }
+    ctx.textAlign = 'left';
+
+    /* ── ZONE 5: Pick / Hook (y: 862–950) ── */
+    var hookBoxY = 862, hookBoxH = 72;
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.09)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    if (ctx.roundRect) { ctx.roundRect(PAD, hookBoxY, W - PAD * 2, hookBoxH, 14); }
+    else { ctx.rect(PAD, hookBoxY, W - PAD * 2, hookBoxH); }
+    ctx.fill(); ctx.stroke();
+
+    var hookCenterX = W / 2, hookCenterY = hookBoxY + hookBoxH / 2;
+    if (data.pickPct !== null && data.pickPct !== undefined) {
+        // "픽타곤 유저 NN%가 이 선수 픽!"
+        var prefix = '픽타곤 유저 ';
+        var pctStr = data.pickPct + '%';
+        var suffix = '가 이 선수 픽!';
+        ctx.font = '700 28px ' + F_BLK;
+        var prefW = ctx.measureText(prefix).width;
+        var pctW  = ctx.measureText(pctStr).width;
+        var sufW  = ctx.measureText(suffix).width;
+        var totalW = prefW + pctW + sufW;
+        var startX = hookCenterX - totalW / 2;
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = WHITE;
+        ctx.textAlign = 'left';
+        ctx.fillText(prefix, startX, hookCenterY);
+        ctx.fillStyle = RED;
+        ctx.fillText(pctStr, startX + prefW, hookCenterY);
+        ctx.fillStyle = WHITE;
+        ctx.fillText(suffix, startX + prefW + pctW, hookCenterY);
+    } else {
+        ctx.font = '700 28px ' + F_BLK;
+        ctx.fillStyle = MUTED;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('이 선수, 픽? · 다음 경기 예측하기', hookCenterX, hookCenterY);
+    }
+    ctx.textAlign = 'left';
+
+    /* ── ZONE 6: Footer (y: 952–1080) ── */
+    // Red accent line
+    var accentY = 952;
+    var gAL = ctx.createLinearGradient(PAD, 0, W - PAD, 0);
+    gAL.addColorStop(0,   'rgba(225,6,0,0)');
+    gAL.addColorStop(0.5, 'rgba(225,6,0,0.9)');
+    gAL.addColorStop(1,   'rgba(225,6,0,0)');
+    ctx.fillStyle = gAL;
+    ctx.fillRect(PAD, accentY, W - PAD * 2, 3);
+
+    // CTA: "이 선수, 픽? · pick-tagon.com"
+    var ctaY = 1012;
+    var ctaPre = '이 선수, 픽? · ';
+    ctx.font = '700 34px ' + F_BODY;
+    ctx.fillStyle = WHITE;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    // Measure full CTA to center
+    var ctaFull = ctaPre + 'pick-tagon.com';
+    var ctaFullW = ctx.measureText(ctaFull).width;
+    var ctaStartX = W / 2 - ctaFullW / 2;
+    ctx.textAlign = 'left';
+    ctx.fillText(ctaPre, ctaStartX, ctaY);
+    var preW = ctx.measureText(ctaPre).width;
+    ctx.fillStyle = RED;
+    ctx.fillText('pick-tagon.com', ctaStartX + preW, ctaY);
+
+    // "무료" pill (right)
+    ctx.font = '700 20px ' + F_MONO;
+    var badgeText = '무료';
+    var bW = ctx.measureText(badgeText).width + 26;
+    var bH2 = 36, bX2 = W - PAD - bW, bY2 = ctaY - bH2 + 4;
+    ctx.fillStyle = 'rgba(52,199,89,0.16)';
+    ctx.strokeStyle = 'rgba(52,199,89,0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    if (ctx.roundRect) { ctx.roundRect(bX2, bY2, bW, bH2, bH2 / 2); }
+    else { ctx.rect(bX2, bY2, bW, bH2); }
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#34c759';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(badgeText, bX2 + bW / 2, bY2 + bH2 / 2);
+    ctx.textAlign = 'left';
+}
+
+// ── 파이터 카드 공유 피커 ─────────────────────────────────
+function sharePicktagonFighterCard(fighter) {
+    if (!fighter || !fighter.name) {
+        if (typeof showToast === 'function') showToast('⚠️ 파이터 정보를 찾을 수 없습니다');
+        return;
+    }
+    var data = buildFighterShareCardData(fighter);
+    var shareText  = data.name + ' · ' + (data.record || '—') + ' · UFC 픽은 PICK-TAGON · pick-tagon.com';
+    var shareUrl   = 'https://pick-tagon.com/#fighter';
+    var shareTitle = 'PICK-TAGON — ' + data.name;
+
+    _scShowSharePicker({
+        title: '파이터 공유',
+        actions: [
+            { icon: '🖼', label: '이미지 카드 공유', fn: function() {
+                _scShareFighterImage(data, shareText, shareTitle);
+            }},
+            { icon: '🔗', label: '링크로 공유', fn: function() {
+                _scShareLink(shareTitle, shareText, shareUrl);
+            }},
+            { icon: '📋', label: '링크 복사', fn: function() {
+                _scCopyLink(shareUrl);
+            }}
+        ]
+    });
+}
+
+async function _scShareFighterImage(data, shareText, shareTitle) {
+    var btnEl = document.getElementById('fp-share-btn');
+    if (btnEl) { btnEl.disabled = true; btnEl.textContent = '생성 중…'; }
+    try {
+        var canvas = document.createElement('canvas');
+        if (typeof document.fonts !== 'undefined' && document.fonts.ready) {
+            try { await document.fonts.ready; } catch(e) {}
+        }
+        drawPicktagonFighterShareCard(canvas, data);
+
+        await new Promise(function(resolve, reject) {
+            canvas.toBlob(async function(blob) {
+                if (!blob) { reject(new Error('toBlob failed')); return; }
+                var safeName = (data.name || 'fighter').replace(/[^a-zA-Z0-9가-힣]/g, '_');
+                var file = new File([blob], 'picktagon_' + safeName + '.png', { type: 'image/png' });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({ files: [file], title: shareTitle, text: shareText });
+                        resolve(); return;
+                    } catch(e) { if (e.name === 'AbortError') { resolve(); return; } }
+                }
+                // PC fallback: download
+                var a = document.createElement('a');
+                a.href     = canvas.toDataURL('image/png');
+                a.download = 'picktagon_' + safeName + '.png';
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                if (typeof showToast === 'function') showToast('📥 파이터 카드 저장됨!');
+                resolve();
+            }, 'image/png');
+        });
+    } catch(err) {
+        console.warn('[FighterCard] image share error:', err);
+        if (typeof showToast === 'function') showToast('⚠️ 공유 중 오류가 발생했습니다');
+    } finally {
+        if (btnEl) { btnEl.disabled = false; btnEl.textContent = '📤 공유'; }
+    }
+}
