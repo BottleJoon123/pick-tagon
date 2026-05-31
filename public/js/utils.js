@@ -109,7 +109,40 @@
         var label = Array.from(raw).slice(0, 2).join('') || _AVATAR_DEFAULT_LABEL;
         var bg    = (_AVATAR_BG_WHITELIST.indexOf(config.bg) !== -1) ? config.bg : _AVATAR_DEFAULT_BG;
         var fg    = (_AVATAR_FG_WHITELIST.indexOf(config.fg) !== -1) ? config.fg : _AVATAR_DEFAULT_FG;
-        localStorage.setItem(getAvatarStorageKey(), JSON.stringify({ mode: mode, label: label, bg: bg, fg: fg }));
+        var sanitized = { mode: mode, label: label, bg: bg, fg: fg, updatedAt: new Date().toISOString() };
+        localStorage.setItem(getAvatarStorageKey(), JSON.stringify(sanitized));
+        _syncAvatarToAuthMeta(sanitized);
+    }
+
+    function _syncAvatarToAuthMeta(cfg) {
+        if (typeof sb === 'undefined' || !sb || typeof currentUser === 'undefined' || !currentUser) return;
+        sb.auth.updateUser({ data: { avatar_config: cfg } })
+            .then(function(res) {
+                if (res && res.data && res.data.user && currentUser) {
+                    currentUser.user_metadata = res.data.user.user_metadata || currentUser.user_metadata;
+                }
+            })
+            .catch(function(e) { console.warn('[avatar] auth metadata sync failed:', e); });
+    }
+
+    function syncAvatarFromAuthMeta() {
+        if (typeof currentUser === 'undefined' || !currentUser) return;
+        var meta = (currentUser.user_metadata && currentUser.user_metadata.avatar_config) || null;
+        if (!meta) { applyProfileAvatar(); return; }
+        var metaBg    = (_AVATAR_BG_WHITELIST.indexOf(meta.bg) !== -1) ? meta.bg : _AVATAR_DEFAULT_BG;
+        var metaFg    = (_AVATAR_FG_WHITELIST.indexOf(meta.fg) !== -1) ? meta.fg : _AVATAR_DEFAULT_FG;
+        var metaMode  = (meta.mode === 'initial') ? 'initial' : 'emoji';
+        var metaLabel = Array.from(String(meta.label || _AVATAR_DEFAULT_LABEL)).slice(0, 2).join('');
+        var metaTs    = meta.updatedAt || '';
+        var localRaw  = null;
+        try { localRaw = JSON.parse(localStorage.getItem(getAvatarStorageKey())); } catch(e) {}
+        var localTs = (localRaw && localRaw.updatedAt) ? localRaw.updatedAt : '';
+        if (!localTs || (metaTs && metaTs > localTs)) {
+            localStorage.setItem(getAvatarStorageKey(), JSON.stringify(
+                { mode: metaMode, label: metaLabel, bg: metaBg, fg: metaFg, updatedAt: metaTs }
+            ));
+        }
+        applyProfileAvatar();
     }
 
     function getAvatarInitialsFromNickname() {

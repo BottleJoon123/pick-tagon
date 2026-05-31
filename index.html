@@ -769,25 +769,25 @@
                 <p class="oswald-sharp text-[10px] text-gray-600 italic uppercase tracking-widest">픽태곤 커뮤니티 멤버</p>
             </div>
             <!-- 액션 버튼 -->
-            <div class="flex items-center gap-2 flex-shrink-0 flex-wrap">
+            <div class="w-full sm:w-auto grid grid-cols-2 gap-1.5 sm:flex sm:items-center sm:gap-2 sm:flex-shrink-0 sm:flex-wrap">
                 <button onclick="sharePicktagonCard()" id="profile-share-btn"
-                    class="oswald-sharp text-[10px] border border-ufcRed/30 text-ufcRed hover:text-white hover:border-ufcRed hover:bg-ufcRed/10 px-3 py-1.5 rounded-lg italic uppercase tracking-widest transition">
+                    class="oswald-sharp text-[9px] sm:text-[10px] border border-ufcRed/30 text-ufcRed hover:text-white hover:border-ufcRed hover:bg-ufcRed/10 px-3 py-1.5 rounded-lg italic uppercase tracking-wide sm:tracking-widest whitespace-nowrap text-center min-w-0 transition">
                     📤 기록 공유
                 </button>
                 <button onclick="openNicknameModal()"
-                    class="oswald-sharp text-[10px] border border-white/15 text-gray-500 hover:text-white hover:border-white/35 px-3 py-1.5 rounded-lg italic uppercase tracking-widest transition">
+                    class="oswald-sharp text-[9px] sm:text-[10px] border border-white/15 text-gray-500 hover:text-white hover:border-white/35 px-3 py-1.5 rounded-lg italic uppercase tracking-wide sm:tracking-widest whitespace-nowrap text-center min-w-0 transition">
                     닉네임 변경
                 </button>
                 <button onclick="openAvatarModal()"
-                    class="oswald-sharp text-[10px] border border-white/15 text-gray-500 hover:text-white hover:border-white/35 px-3 py-1.5 rounded-lg italic uppercase tracking-widest transition">
+                    class="oswald-sharp text-[9px] sm:text-[10px] border border-white/15 text-gray-500 hover:text-white hover:border-white/35 px-3 py-1.5 rounded-lg italic uppercase tracking-wide sm:tracking-widest whitespace-nowrap text-center min-w-0 transition">
                     아바타 변경
                 </button>
                 <button onclick="profilePasswordReset()" id="profile-reset-pw-btn"
-                    class="oswald-sharp text-[10px] border border-white/15 text-gray-500 hover:text-white hover:border-white/35 px-3 py-1.5 rounded-lg italic uppercase tracking-widest transition hidden">
+                    class="oswald-sharp text-[9px] sm:text-[10px] border border-white/15 text-gray-500 hover:text-white hover:border-white/35 px-3 py-1.5 rounded-lg italic uppercase tracking-wide sm:tracking-widest whitespace-nowrap text-center min-w-0 transition hidden">
                     비밀번호 재설정
                 </button>
                 <button onclick="logoutUser()" id="logout-btn"
-                    class="oswald-sharp text-[10px] border border-red-900/35 text-red-700 hover:text-red-400 hover:border-red-500/40 px-3 py-1.5 rounded-lg italic uppercase tracking-widest transition hidden">
+                    class="oswald-sharp text-[9px] sm:text-[10px] border border-red-900/35 text-red-700 hover:text-red-400 hover:border-red-500/40 px-3 py-1.5 rounded-lg italic uppercase tracking-wide sm:tracking-widest whitespace-nowrap text-center min-w-0 col-span-2 transition hidden">
                     로그아웃
                 </button>
             </div>
@@ -2323,7 +2323,7 @@
 <script src="/js/data/constants.js"></script>
 <script src="/js/state.js"></script>
 <script src="/js/storage.js"></script>
-<script src="/js/utils.js?v=1"></script>
+<script src="/js/utils.js?v=2"></script>
 <script src="/js/event-countdown.js"></script>
 <script src="/js/api/supabase.js?v=8"></script>
 <script src="/js/modal-helpers.js"></script>

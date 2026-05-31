@@ -342,6 +342,7 @@ function loadPostsFromDB() {
                 save();
                 refreshUI();
                 updateNicknameDisplay();
+                if (typeof syncAvatarFromAuthMeta === 'function') syncAvatarFromAuthMeta();
                 updateAuthUI();
                 if (typeof updateFactionBadgeUI === 'function') updateFactionBadgeUI();
                 reconcileHistoryFromDB();
