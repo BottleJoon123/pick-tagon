@@ -380,7 +380,7 @@
     </section>
 
     <!-- [SECTION: UFC RANKINGS] -->
-    <section id="ufc-rankings" class="section-animate max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-12 lg:pt-8 lg:pb-20">
+    <section id="ufc-rankings" class="section-animate max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-20 lg:pt-8 lg:pb-20">
         <!-- Header -->
         <div class="mb-6 lg:mb-10 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
             <div class="sx-head">
@@ -410,7 +410,7 @@
     </section>
 
     <!-- [SECTION: MATCHUPS] - Multi-Fight Card System -->
-    <section id="matchups" class="section-animate max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-12 lg:pt-8 lg:pb-20">
+    <section id="matchups" class="section-animate max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-20 lg:pt-8 lg:pb-20">
         <!-- Event Header -->
         <div class="mb-6 lg:mb-10">
             <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
@@ -499,7 +499,7 @@
     </button>
 
     <!-- [SECTION: RANKINGS] -->
-    <section id="rankings" class="section-animate max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-12 lg:pt-8 lg:pb-20">
+    <section id="rankings" class="section-animate max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-20 lg:pt-8 lg:pb-20">
         <div class="sx-head mb-6 lg:mb-10">
             <h3 class="oswald-sharp text-3xl lg:text-6xl font-black italic tracking-tighter uppercase">World Leaderboard</h3>
             <p class="text-gray-500 oswald-sharp uppercase tracking-widest mt-1 lg:mt-2 italic text-[10px] lg:text-sm">글로벌 파이터 IQ 랭킹 <span id="rankings-season-subtitle"></span></p>
@@ -616,7 +616,7 @@
     </section>
 
     <!-- [SECTION: MMA NEWS] -->
-    <section id="mma-news" class="section-animate max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-12 lg:pt-8 lg:pb-20">
+    <section id="mma-news" class="section-animate max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-20 lg:pt-8 lg:pb-20">
         <div class="mb-5 lg:mb-8 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
             <div class="sx-head">
                 <p class="oswald-sharp text-ufcRed text-[10px] tracking-[0.3em] font-black italic uppercase mb-1">AI POWERED</p>
@@ -728,7 +728,7 @@
     </section>
 
     <!-- [SECTION: OCTAGON BATTLE ROOM] -->
-    <section id="octagon" class="section-animate max-w-5xl mx-auto px-4 lg:px-6 pt-6 pb-12 lg:pt-8 lg:pb-20">
+    <section id="octagon" class="section-animate max-w-5xl mx-auto px-4 lg:px-6 pt-6 pb-20 lg:pt-8 lg:pb-20">
         <div id="octagon-content" class="min-h-[70vh]">
             <div class="flex flex-col items-center justify-center min-h-[70vh] text-center">
                 <div class="text-6xl mb-6">⚡</div>
@@ -989,7 +989,7 @@
     </section>
 
     <!-- [SECTION: ADMIN] -->
-    <section id="admin" class="section-animate max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-12 lg:pt-8 lg:pb-20">
+    <section id="admin" class="section-animate max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-20 lg:pt-8 lg:pb-20">
         <!-- Admin Header -->
         <div class="flex items-end justify-between mb-6 lg:mb-10">
             <div class="sx-head">
@@ -2498,6 +2498,7 @@
         const panel = document.getElementById('mobile-sidebar-panel');
         if (!drawer) return;
         renderEventSidebar();
+        document.body.style.overflow = 'hidden';
         drawer.classList.remove('pointer-events-none');
         requestAnimationFrame(function() {
             backdrop.classList.remove('opacity-0');

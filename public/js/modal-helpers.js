@@ -16,6 +16,7 @@ function closeMobileSidebar() {
     const backdrop = document.getElementById('mobile-sidebar-backdrop');
     const panel = document.getElementById('mobile-sidebar-panel');
     if (!drawer) return;
+    document.body.style.overflow = '';
     backdrop.classList.remove('opacity-100');
     backdrop.classList.add('opacity-0');
     backdrop.classList.add('pointer-events-none');
