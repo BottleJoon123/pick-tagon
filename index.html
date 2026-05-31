@@ -2269,7 +2269,7 @@
 <script src="/js/h2h.js?v=21e"></script>
 <script src="/js/news-admin.js?v=6"></script>
 <script src="/js/home.js?v=6"></script>
-<script src="/js/share-card.js?v=7"></script>
+<script src="/js/share-card.js?v=8"></script>
 <script>
     /* ==============================
        FIGHT CARD DATA
@@ -4685,11 +4685,33 @@ async function addCommentToDB(postDbId, userNick, text) {
         var isSupabaseAuthCallback = /(?:access_token|refresh_token|code=|token_hash|type=recovery|type=signup)/.test(initialAuthUrl);
         var hashPage = isSupabaseAuthCallback ? '' : window.location.hash.replace('#', '');
         var initPage = validPages.indexOf(hashPage) !== -1 ? hashPage : 'home';
+
+        // ?fight={id} 딥링크: matchups 강제 이동 후 해당 카드 스크롤
+        var _deepFightId = null;
+        try { _deepFightId = new URLSearchParams(window.location.search).get('fight') || null; } catch(e) {}
+        if (_deepFightId && !isSupabaseAuthCallback) initPage = 'matchups';
+
         if (!isSupabaseAuthCallback) {
             history.replaceState({ page: initPage }, '', '#' + initPage);
         }
         _currentPage = initPage;
         navigateTo(initPage, true);
+
+        // 딥링크 카드 스크롤: 비동기 렌더 완료 대기 (최대 4초, 400ms 간격)
+        if (_deepFightId) {
+            (function _tryScrollToFight(n) {
+                var el = document.getElementById('card-' + _deepFightId);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    el.style.transition = 'box-shadow 0.5s ease';
+                    el.style.boxShadow = '0 0 0 3px rgba(225,20,20,0.75), 0 0 24px rgba(225,20,20,0.35)';
+                    setTimeout(function() { el.style.boxShadow = ''; el.style.transition = ''; }, 2500);
+                    return;
+                }
+                if (n < 10) setTimeout(function() { _tryScrollToFight(n + 1); }, 400);
+                else console.warn('[deeplink] fight card not found:', _deepFightId);
+            })(0);
+        }
         fetchArchive();
         setTimeout(initHome, 400);
     };

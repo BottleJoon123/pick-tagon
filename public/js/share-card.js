@@ -551,33 +551,35 @@ async function sharePicktagonCard() {
             canvas.toBlob(async function(blob) {
                 if (!blob) { reject(new Error('toBlob failed')); return; }
 
-                var file = new File([blob], 'picktagon.png', { type: 'image/png' });
-                var shareText = '@' + data.nick + ' · ' + data.success + '/' + data.total
-                              + ' 예측 적중 · ' + data.acc + '% 정확도 · pick-tagon.com';
+                var file   = new File([blob], 'picktagon.png', { type: 'image/png' });
+                var losses = (data.total || 0) - (data.success || 0);
+                var shareText  = data.nick + '의 픽 전적 ' + (data.success || 0) + '승 ' + losses + '패 · '
+                               + '적중률 ' + (data.acc || 0) + '% · 너 적중률은? pick-tagon.com';
+                var shareUrl   = 'https://pick-tagon.com/#profile';
+                var shareTitle = 'PICK-TAGON';
 
-                // 모바일 네이티브 공유 (파일 포함)
+                // 1. files + title + text + url
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
                     try {
-                        await navigator.share({ files: [file], text: shareText, title: 'PICK-TAGON' });
+                        await navigator.share({ files: [file], title: shareTitle, text: shareText, url: shareUrl });
                         resolve(); return;
-                    } catch(e) {
-                        if (e.name === 'AbortError') { resolve(); return; }
-                        console.warn('[ShareCard] native share:', e);
-                    }
+                    } catch(e) { if (e.name === 'AbortError') { resolve(); return; } }
+                    // 2. files + title + text
+                    try {
+                        await navigator.share({ files: [file], title: shareTitle, text: shareText });
+                        resolve(); return;
+                    } catch(e) { if (e.name === 'AbortError') { resolve(); return; } }
                 }
 
-                // Web Share API (텍스트+URL)
+                // 3. title + text + url
                 if (navigator.share) {
                     try {
-                        await navigator.share({ text: shareText, url: 'https://pick-tagon.com/', title: 'PICK-TAGON' });
+                        await navigator.share({ title: shareTitle, text: shareText, url: shareUrl });
                         resolve(); return;
-                    } catch(e) {
-                        if (e.name === 'AbortError') { resolve(); return; }
-                        console.warn('[ShareCard] web share:', e);
-                    }
+                    } catch(e) { if (e.name === 'AbortError') { resolve(); return; } }
                 }
 
-                // PC fallback: PNG 다운로드
+                // 4. PC fallback: PNG 다운로드
                 var a = document.createElement('a');
                 a.href    = canvas.toDataURL('image/png');
                 a.download = 'picktagon_' + data.nick.replace(/[^a-zA-Z0-9가-힣]/g, '_') + '.png';
@@ -1170,21 +1172,35 @@ async function sharePicktagonMatchCard(fightId) {
     return new Promise(function(resolve, reject) {
         canvas.toBlob(async function(blob) {
             if (!blob) { reject(new Error('toBlob failed')); return; }
-            var file = new File([blob], 'picktagon_match.png', { type: 'image/png' });
-            var pickedName = data.userPick === 'f1' ? data.f1.name : data.userPick === 'f2' ? data.f2.name : null;
-            var shareText = pickedName
-                ? '나는 ' + pickedName + ' 픽! 너는? · pick-tagon.com'
-                : data.f1.name + ' vs ' + data.f2.name + ' — 너는 누구? · pick-tagon.com';
+            var file      = new File([blob], 'picktagon_match.png', { type: 'image/png' });
+            var pickedName = data.userPick === 'f1' ? data.f1.name
+                           : data.userPick === 'f2' ? data.f2.name : null;
+            var shareText  = pickedName
+                ? '나는 ' + pickedName + ' 픽! 너는? · UFC 픽은 PICK-TAGON'
+                : data.f1.name + ' vs ' + data.f2.name + ', 너는 누구 보세요? · UFC 픽은 PICK-TAGON';
+            var shareUrl   = 'https://pick-tagon.com/?fight=' + encodeURIComponent(fightId);
+            var shareTitle = 'PICK-TAGON';
 
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                try { await navigator.share({ files: [file], text: shareText, title: 'PICK-TAGON' }); resolve(); return; }
-                catch(e) { if (e.name === 'AbortError') { resolve(); return; } }
+                // 1. files + title + text + url
+                try {
+                    await navigator.share({ files: [file], title: shareTitle, text: shareText, url: shareUrl });
+                    resolve(); return;
+                } catch(e) { if (e.name === 'AbortError') { resolve(); return; } }
+                // 2. files + title + text (일부 브라우저 files+url 거부 대응)
+                try {
+                    await navigator.share({ files: [file], title: shareTitle, text: shareText });
+                    resolve(); return;
+                } catch(e) { if (e.name === 'AbortError') { resolve(); return; } }
             }
+            // 3. title + text + url (파일 없음)
             if (navigator.share) {
-                try { await navigator.share({ text: shareText, url: 'https://pick-tagon.com/', title: 'PICK-TAGON' }); resolve(); return; }
-                catch(e) { if (e.name === 'AbortError') { resolve(); return; } }
+                try {
+                    await navigator.share({ title: shareTitle, text: shareText, url: shareUrl });
+                    resolve(); return;
+                } catch(e) { if (e.name === 'AbortError') { resolve(); return; } }
             }
-            // PC fallback
+            // 4. PC PNG 다운로드 fallback
             var a = document.createElement('a');
             a.href = canvas.toDataURL('image/png');
             a.download = 'picktagon_' + (data.f1.name + '_vs_' + data.f2.name).replace(/[^a-zA-Z0-9가-힣]/g, '_') + '.png';
