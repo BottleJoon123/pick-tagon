@@ -762,7 +762,11 @@
                 <p class="oswald-sharp text-[10px] text-gray-600 italic uppercase tracking-widest">픽태곤 커뮤니티 멤버</p>
             </div>
             <!-- 액션 버튼 -->
-            <div class="flex items-center gap-2 flex-shrink-0">
+            <div class="flex items-center gap-2 flex-shrink-0 flex-wrap">
+                <button onclick="sharePicktagonCard()" id="profile-share-btn"
+                    class="oswald-sharp text-[10px] border border-ufcRed/30 text-ufcRed hover:text-white hover:border-ufcRed hover:bg-ufcRed/10 px-3 py-1.5 rounded-lg italic uppercase tracking-widest transition">
+                    📤 기록 공유
+                </button>
                 <button onclick="openNicknameModal()"
                     class="oswald-sharp text-[10px] border border-white/15 text-gray-500 hover:text-white hover:border-white/35 px-3 py-1.5 rounded-lg italic uppercase tracking-widest transition">
                     닉네임 변경
@@ -2265,6 +2269,7 @@
 <script src="/js/h2h.js?v=21e"></script>
 <script src="/js/news-admin.js?v=6"></script>
 <script src="/js/home.js?v=6"></script>
+<script src="/js/share-card.js?v=1"></script>
 <script>
     /* ==============================
        FIGHT CARD DATA
