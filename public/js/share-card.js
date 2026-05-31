@@ -471,314 +471,403 @@ function drawPicktagonMatchShareCard(canvas, data) {
 
     var RED    = '#E11414';
     var BLUE   = '#2f6df6';
-    var GOLD   = '#E8B23A';
     var WHITE  = '#f4f4f5';
     var MUTED  = '#9a9aa2';
     var MUTED2 = '#6a6a72';
     var F_BLK  = '"Oswald","Pretendard","Apple SD Gothic Neo",Arial,sans-serif';
     var F_BODY = '"Pretendard","Oswald","Apple SD Gothic Neo",Arial,sans-serif';
     var F_MONO = '"Space Mono","Courier New",monospace';
-    var PAD    = 72;
+    var PAD    = 68;
 
-    // 1. 배경: 어두운 기반 + diagonal clash
+    /* ── ZONE 0: Background ── */
+    // Base dark
     ctx.fillStyle = '#070707';
     ctx.fillRect(0, 0, W, H);
 
-    // 왼쪽 레드 radial glow
-    var gR = ctx.createRadialGradient(-W*0.05, H*0.38, 0, -W*0.05, H*0.38, W*0.95);
-    gR.addColorStop(0, 'rgba(225,20,20,0.55)');
-    gR.addColorStop(0.5, 'rgba(225,20,20,0.0)');
-    ctx.fillStyle = gR; ctx.fillRect(0, 0, W, H);
+    // Left red radial glow (원점을 카드 왼쪽 바깥)
+    var gR = ctx.createRadialGradient(-W * 0.08, H * 0.40, 0, -W * 0.08, H * 0.40, W);
+    gR.addColorStop(0,   'rgba(225,20,20,0.58)');
+    gR.addColorStop(0.55,'rgba(225,20,20,0)');
+    ctx.fillStyle = gR;
+    ctx.fillRect(0, 0, W, H);
 
-    // 오른쪽 블루 radial glow
-    var gB = ctx.createRadialGradient(W*1.05, H*0.38, 0, W*1.05, H*0.38, W*0.95);
-    gB.addColorStop(0, 'rgba(47,109,246,0.50)');
-    gB.addColorStop(0.5, 'rgba(47,109,246,0.0)');
-    ctx.fillStyle = gB; ctx.fillRect(0, 0, W, H);
+    // Right blue radial glow
+    var gB = ctx.createRadialGradient(W * 1.08, H * 0.40, 0, W * 1.08, H * 0.40, W);
+    gB.addColorStop(0,   'rgba(47,109,246,0.52)');
+    gB.addColorStop(0.55,'rgba(47,109,246,0)');
+    ctx.fillStyle = gB;
+    ctx.fillRect(0, 0, W, H);
 
-    // diagonal linear overlay
-    var gD = ctx.createLinearGradient(0, 0, W, H);
-    gD.addColorStop(0,    'rgba(225,20,20,0.16)');
-    gD.addColorStop(0.4,  'rgba(225,20,20,0.0)');
-    gD.addColorStop(0.6,  'rgba(47,109,246,0.0)');
-    gD.addColorStop(1,    'rgba(47,109,246,0.16)');
-    ctx.fillStyle = gD; ctx.fillRect(0, 0, W, H);
+    // Diagonal linear clash overlay (118deg-ish)
+    var gD = ctx.createLinearGradient(0, H, W, 0);
+    gD.addColorStop(0,   'rgba(225,20,20,0.14)');
+    gD.addColorStop(0.4, 'rgba(225,20,20,0)');
+    gD.addColorStop(0.6, 'rgba(47,109,246,0)');
+    gD.addColorStop(1,   'rgba(47,109,246,0.14)');
+    ctx.fillStyle = gD;
+    ctx.fillRect(0, 0, W, H);
 
-    // 비네팅
-    var gV = ctx.createRadialGradient(W/2, H*0.45, W*0.3, W/2, H*0.45, W*0.85);
+    // Vignette
+    var gV = ctx.createRadialGradient(W / 2, H * 0.42, W * 0.28, W / 2, H * 0.42, W * 0.82);
     gV.addColorStop(0, 'rgba(0,0,0,0)');
-    gV.addColorStop(1, 'rgba(0,0,0,0.55)');
-    ctx.fillStyle = gV; ctx.fillRect(0, 0, W, H);
+    gV.addColorStop(1, 'rgba(0,0,0,0.60)');
+    ctx.fillStyle = gV;
+    ctx.fillRect(0, 0, W, H);
 
-    // 2. 중앙 분리 seam (약간 기울어진 반투명 선)
+    // Center diagonal seam
     ctx.save();
-    ctx.translate(W/2, H/2);
+    ctx.translate(W / 2, H / 2);
     ctx.rotate(8 * Math.PI / 180);
-    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.20)';
     ctx.lineWidth = 1;
-    ctx.filter = 'blur(0.4px)';
-    ctx.beginPath(); ctx.moveTo(0, -H*0.7); ctx.lineTo(0, H*0.7);
-    ctx.stroke();
-    ctx.filter = 'none';
-    ctx.restore();
-
-    // 3. 옥타곤 데코 (중앙, 연하게)
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1;
-    _scOctagon(ctx, W/2, H*0.45, W*0.44, Math.PI/8); ctx.stroke();
-    ctx.restore();
-
-    // 4. 테두리 프레임
-    ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 2;
-    var fr = 24, rc = 20;
     ctx.beginPath();
-    ctx.moveTo(fr+rc, fr); ctx.lineTo(W-fr-rc, fr);
-    ctx.arcTo(W-fr, fr, W-fr, fr+rc, rc);
-    ctx.lineTo(W-fr, H-fr-rc);
-    ctx.arcTo(W-fr, H-fr, W-fr-rc, H-fr, rc);
-    ctx.lineTo(fr+rc, H-fr);
-    ctx.arcTo(fr, H-fr, fr, H-fr-rc, rc);
-    ctx.lineTo(fr, fr+rc);
-    ctx.arcTo(fr, fr, fr+rc, fr, rc);
-    ctx.closePath(); ctx.stroke();
-
-    // 5. 로고 (옥타곤+체크 + PICK-TAGON)
-    var logoY = 96;
-    // 옥타곤 outline
-    ctx.save();
-    ctx.strokeStyle = RED; ctx.lineWidth = 3;
-    _scOctagon(ctx, PAD + 18, logoY, 18, Math.PI/8); ctx.stroke();
-    // 체크마크
-    var cx = PAD + 18, cy = logoY, r = 18;
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5;
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    ctx.beginPath();
-    ctx.moveTo(cx - r*0.45, cy + r*0.05);
-    ctx.lineTo(cx - r*0.05, cy + r*0.50);
-    ctx.lineTo(cx + r*0.55, cy - r*0.45);
+    ctx.moveTo(0, -H * 0.72);
+    ctx.lineTo(0,  H * 0.72);
     ctx.stroke();
     ctx.restore();
-    ctx.font = '600 38px ' + F_BLK;
-    ctx.fillStyle = WHITE; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
-    ctx.fillText('PICK-TAGON', PAD + 46, logoY);
 
-    // 이벤트명 우측 (없으면 'UFC & MMA PICK GAME')
+    // Large translucent octagon background deco
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.055)';
+    ctx.lineWidth = 1.5;
+    _scOctagon(ctx, W / 2, H * 0.43, W * 0.46, Math.PI / 8);
+    ctx.stroke();
+    ctx.restore();
+
+    // Rounded border frame
+    ctx.strokeStyle = 'rgba(255,255,255,0.09)';
+    ctx.lineWidth = 2;
+    var fr = 22, rc = 18;
+    ctx.beginPath();
+    ctx.moveTo(fr + rc, fr);
+    ctx.lineTo(W - fr - rc, fr);
+    ctx.arcTo(W - fr, fr, W - fr, fr + rc, rc);
+    ctx.lineTo(W - fr, H - fr - rc);
+    ctx.arcTo(W - fr, H - fr, W - fr - rc, H - fr, rc);
+    ctx.lineTo(fr + rc, H - fr);
+    ctx.arcTo(fr, H - fr, fr, H - fr - rc, rc);
+    ctx.lineTo(fr, fr + rc);
+    ctx.arcTo(fr, fr, fr + rc, fr, rc);
+    ctx.closePath();
+    ctx.stroke();
+
+    /* ── ZONE 1: Header (y: 0–168) ── */
+    var logoY = 88;
+
+    // Logo: octagon outline
+    ctx.save();
+    ctx.strokeStyle = RED;
+    ctx.lineWidth = 3;
+    _scOctagon(ctx, PAD + 19, logoY, 19, Math.PI / 8);
+    ctx.stroke();
+    // Checkmark
+    var lx = PAD + 19, ly = logoY, lr = 19;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(lx - lr * 0.44, ly + lr * 0.06);
+    ctx.lineTo(lx - lr * 0.05, ly + lr * 0.50);
+    ctx.lineTo(lx + lr * 0.54, ly - lr * 0.44);
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.font = '600 40px ' + F_BLK;
+    ctx.fillStyle = WHITE;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.fillText('PICK-TAGON', PAD + 48, logoY);
+
+    // Event name (right)
     var evText = (data.event && data.event !== 'Pick-tagon' && data.event.length > 0)
-        ? data.event : 'UFC & MMA PICK GAME';
-    if (evText.length > 24) evText = evText.slice(0, 23) + '…';
-    ctx.font = '400 19px ' + F_MONO;
-    ctx.fillStyle = MUTED2; ctx.textAlign = 'right';
+        ? data.event
+        : 'UFC & MMA PICK GAME';
+    if (evText.length > 22) evText = evText.slice(0, 21) + '…';
+    ctx.font = '400 20px ' + F_MONO;
+    ctx.fillStyle = MUTED2;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
     ctx.fillText(evText.toUpperCase(), W - PAD, logoY);
     ctx.textAlign = 'left';
 
-    // 헤더 구분선
-    ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(PAD, 126); ctx.lineTo(W-PAD, 126); ctx.stroke();
+    // Header divider
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(PAD, 132);
+    ctx.lineTo(W - PAD, 132);
+    ctx.stroke();
 
-    // 6. 체급/라운드 라벨 (중앙)
+    // Weight class / rounds label
     var divLabel = _scDivisionLabel(data.division);
-    var wLabel = divLabel + (divLabel ? ' · ' : '') + data.rounds + 'R';
-    ctx.font = '400 22px ' + F_MONO;
-    ctx.fillStyle = MUTED2; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    ctx.fillText(wLabel.toUpperCase(), W/2, 178);
+    var wLabel   = divLabel + (divLabel ? ' · ' : '') + (data.rounds || 3) + 'R';
+    ctx.font = '400 24px ' + F_MONO;
+    ctx.fillStyle = MUTED2;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(wLabel.toUpperCase(), W / 2, 164);
     ctx.textAlign = 'left';
 
-    // 7. 선수명 대결 구도
-    var midY = 370; // 중앙 Y 기준
+    /* ── ZONE 2: Fighter Names (y: 168–548) ── */
+    // Names take up ~380px vertical space
+    // Layout: first-name row ~y=285, last-name row ~y=410, record ~y=448
+    // VS badge centered at (W/2, ~340)
 
-    // 선수명 폰트 크기 자동 조정 (최대 너비 = 카드 절반 - PAD - VS배지 절반)
-    var maxNameW = W/2 - PAD - 72;
+    var f1Name   = (data.f1 && data.f1.name) ? data.f1.name : '?';
+    var f2Name   = (data.f2 && data.f2.name) ? data.f2.name : '?';
 
-    function fitFighterName(name, maxPx, maxFontSize) {
-        var size = maxFontSize;
-        ctx.font = '600 ' + size + 'px ' + F_BLK;
-        while (ctx.measureText(name).width > maxPx && size > 32) {
-            size -= 4;
-            ctx.font = '600 ' + size + 'px ' + F_BLK;
-        }
-        return size;
+    // Split into first+last parts
+    var f1Parts  = f1Name.trim().split(/\s+/);
+    var f2Parts  = f2Name.trim().split(/\s+/);
+    var f1Last   = f1Parts[f1Parts.length - 1];
+    var f1First  = f1Parts.slice(0, -1).join(' ');
+    var f2Last   = f2Parts[f2Parts.length - 1];
+    var f2First  = f2Parts.slice(0, -1).join(' ');
+
+    // Available width per side (from edge to VS badge boundary)
+    var vsBadgeR = 58;          // VS badge radius
+    var vsX      = W / 2;       // VS badge center X
+    var nameEdge = vsX - vsBadgeR - 16;   // right boundary for f1 (left side)
+    var maxNameW = nameEdge - PAD;        // max width for last-name text
+
+    // Auto-fit last names
+    var f1Size = 96, f2Size = 96;
+    ctx.font = '600 ' + f1Size + 'px ' + F_BLK;
+    while (ctx.measureText(f1Last.toUpperCase()).width > maxNameW && f1Size > 36) {
+        f1Size -= 4;
+        ctx.font = '600 ' + f1Size + 'px ' + F_BLK;
+    }
+    ctx.font = '600 ' + f2Size + 'px ' + F_BLK;
+    while (ctx.measureText(f2Last.toUpperCase()).width > maxNameW && f2Size > 36) {
+        f2Size -= 4;
+        ctx.font = '600 ' + f2Size + 'px ' + F_BLK;
     }
 
-    // F1 (왼쪽, 빨간)
-    var f1Name = (data.f1 && data.f1.name) ? data.f1.name : '?';
-    var f1Parts = f1Name.split(' ');
-    var f1Last  = f1Parts[f1Parts.length - 1];
-    var f1First = f1Parts.slice(0, -1).join(' ');
-    var f1Size  = fitFighterName(f1Last, maxNameW, 88);
-
-    // F2 (오른쪽, 파란)
-    var f2Name = (data.f2 && data.f2.name) ? data.f2.name : '?';
-    var f2Parts = f2Name.split(' ');
-    var f2Last  = f2Parts[f2Parts.length - 1];
-    var f2First = f2Parts.slice(0, -1).join(' ');
-    var f2Size  = fitFighterName(f2Last, maxNameW, 88);
+    var lastNameY  = 420;   // baseline for last names
+    var firstNameY = lastNameY - Math.max(f1Size, f2Size) * 0.70 - 8;
+    var recordY    = lastNameY + 36;
 
     ctx.textBaseline = 'alphabetic';
 
-    // F1 이름 (오른쪽 정렬, 왼쪽 절반)
-    var f1X = W/2 - 68; // VS 배지 왼쪽 경계
+    // F1 first name
     if (f1First) {
-        ctx.font = '400 28px ' + F_BLK;
-        ctx.fillStyle = 'rgba(244,244,245,0.7)';
+        ctx.font = '400 30px ' + F_BLK;
+        ctx.fillStyle = 'rgba(244,244,245,0.65)';
         ctx.textAlign = 'right';
-        ctx.fillText(f1First.toUpperCase(), f1X, midY - f1Size * 0.12 - 10);
+        ctx.fillText(f1First.toUpperCase(), nameEdge, firstNameY);
     }
+    // F1 last name
     ctx.font = '600 ' + f1Size + 'px ' + F_BLK;
     ctx.fillStyle = WHITE;
     ctx.shadowColor = 'rgba(225,20,20,0.45)';
-    ctx.shadowBlur = 24;
+    ctx.shadowBlur = 26;
     ctx.textAlign = 'right';
-    ctx.fillText(f1Last.toUpperCase(), f1X, midY);
+    ctx.fillText(f1Last.toUpperCase(), nameEdge, lastNameY);
     ctx.shadowBlur = 0;
-
-    // F1 전적
+    // F1 record
     if (data.f1 && data.f1.record) {
-        ctx.font = '400 18px ' + F_MONO;
-        ctx.fillStyle = 'rgba(225,20,20,0.70)';
+        ctx.font = '400 19px ' + F_MONO;
+        ctx.fillStyle = 'rgba(225,20,20,0.65)';
         ctx.textAlign = 'right';
-        ctx.fillText(data.f1.record, f1X, midY + 28);
+        ctx.fillText(data.f1.record, nameEdge, recordY);
     }
 
-    // F2 이름 (왼쪽 정렬, 오른쪽 절반)
-    var f2X = W/2 + 68;
+    // F2 first name
+    var f2NameEdge = vsX + vsBadgeR + 16;   // left boundary for f2 (right side)
     if (f2First) {
-        ctx.font = '400 28px ' + F_BLK;
-        ctx.fillStyle = 'rgba(244,244,245,0.7)';
+        ctx.font = '400 30px ' + F_BLK;
+        ctx.fillStyle = 'rgba(244,244,245,0.65)';
         ctx.textAlign = 'left';
-        ctx.fillText(f2First.toUpperCase(), f2X, midY - f2Size * 0.12 - 10);
+        ctx.fillText(f2First.toUpperCase(), f2NameEdge, firstNameY);
     }
+    // F2 last name
     ctx.font = '600 ' + f2Size + 'px ' + F_BLK;
     ctx.fillStyle = WHITE;
     ctx.shadowColor = 'rgba(47,109,246,0.45)';
-    ctx.shadowBlur = 24;
+    ctx.shadowBlur = 26;
     ctx.textAlign = 'left';
-    ctx.fillText(f2Last.toUpperCase(), f2X, midY);
+    ctx.fillText(f2Last.toUpperCase(), f2NameEdge, lastNameY);
     ctx.shadowBlur = 0;
-
+    // F2 record
     if (data.f2 && data.f2.record) {
-        ctx.font = '400 18px ' + F_MONO;
-        ctx.fillStyle = 'rgba(47,109,246,0.70)';
+        ctx.font = '400 19px ' + F_MONO;
+        ctx.fillStyle = 'rgba(47,109,246,0.65)';
         ctx.textAlign = 'left';
-        ctx.fillText(data.f2.record, f2X, midY + 28);
+        ctx.fillText(data.f2.record, f2NameEdge, recordY);
     }
 
-    // VS 배지 (중앙)
-    var vsR = 56;
+    // VS badge (centered vertically ~at lastNameY - lastNameSize/2)
+    var vsY = lastNameY - Math.max(f1Size, f2Size) * 0.30;
     ctx.save();
-    ctx.fillStyle = '#0a0a0a';
-    ctx.beginPath(); ctx.arc(W/2, midY - vsR*0.3, vsR, 0, Math.PI*2); ctx.fill();
-    ctx.strokeStyle = RED; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(W/2, midY - vsR*0.3, vsR, 0, Math.PI*2); ctx.stroke();
-    ctx.shadowColor = 'rgba(225,20,20,0.55)'; ctx.shadowBlur = 22;
-    ctx.strokeStyle = RED; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(W/2, midY - vsR*0.3, vsR, 0, Math.PI*2); ctx.stroke();
+    // background circle
+    ctx.fillStyle = 'rgba(7,7,7,0.92)';
+    ctx.beginPath();
+    ctx.arc(vsX, vsY, vsBadgeR, 0, Math.PI * 2);
+    ctx.fill();
+    // glow ring
+    ctx.shadowColor = 'rgba(225,20,20,0.55)';
+    ctx.shadowBlur = 20;
+    ctx.strokeStyle = RED;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(vsX, vsY, vsBadgeR, 0, Math.PI * 2);
+    ctx.stroke();
     ctx.shadowBlur = 0;
-    ctx.font = '700 36px ' + F_BLK;
-    ctx.fillStyle = WHITE; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('VS', W/2, midY - vsR*0.3);
+    // VS text
+    ctx.font = '700 38px ' + F_BLK;
+    ctx.fillStyle = WHITE;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('VS', vsX, vsY);
     ctx.restore();
 
-    // 8. 커뮤니티 픽 바
-    var barY = midY + 80;
-    ctx.font = '400 18px ' + F_MONO;
-    ctx.fillStyle = MUTED2; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.fillText('현재 팬 여론', PAD, barY);
-    // LIVE dot
-    ctx.fillStyle = RED;
-    ctx.beginPath(); ctx.arc(PAD + 120, barY - 5, 5, 0, Math.PI*2); ctx.fill();
-    ctx.font = '400 16px ' + F_MONO;
-    ctx.fillStyle = '#ff3b3b'; ctx.textAlign = 'left';
-    ctx.fillText('LIVE', PAD + 132, barY);
+    /* ── ZONE 3: Pick Bar (y: 548–680) ── */
+    var barLabelY = 564;
+    var barTop    = 584;
+    var barH      = 70;
+    var barW      = W - PAD * 2;
 
-    var barH   = 52, barW = W - PAD*2;
-    var barTop = barY + 12;
-    var pct0   = 50, pct1 = 50;
+    // Label: "현재 팬 여론"
+    ctx.font = '400 19px ' + F_MONO;
+    ctx.fillStyle = MUTED2;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('현재 팬 여론', PAD, barLabelY);
+    // LIVE dot + text
+    var dotX = PAD + ctx.measureText('현재 팬 여론  ').width;
+    ctx.fillStyle = RED;
+    ctx.beginPath();
+    ctx.arc(dotX + 6, barLabelY - 6, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.font = '400 16px ' + F_MONO;
+    ctx.fillStyle = '#ff3b3b';
+    ctx.textAlign = 'left';
+    ctx.fillText('LIVE', dotX + 18, barLabelY);
+
+    // Compute percentages
+    var pct0 = 50, pct1 = 50;
     if (data.pickCounts) {
-        var tot = data.pickCounts.c0 + data.pickCounts.c1;
-        if (tot > 0) {
-            pct0 = Math.round(data.pickCounts.c0 / tot * 100);
+        var ptot = data.pickCounts.c0 + data.pickCounts.c1;
+        if (ptot > 0) {
+            pct0 = Math.round(data.pickCounts.c0 / ptot * 100);
             pct1 = 100 - pct0;
         }
     }
 
-    // 빨간 쪽 bar
-    var gBarR = ctx.createLinearGradient(PAD, 0, PAD + barW*(pct0/100), 0);
-    gBarR.addColorStop(0, '#b81010'); gBarR.addColorStop(1, '#e11414');
-    ctx.fillStyle = gBarR;
-    ctx.beginPath();
-    ctx.roundRect ? ctx.roundRect(PAD, barTop, barW*(pct0/100), barH, [8, 0, 0, 8]) :
-    (function () { ctx.moveTo(PAD+8, barTop); ctx.lineTo(PAD+barW*(pct0/100), barTop); ctx.lineTo(PAD+barW*(pct0/100), barTop+barH); ctx.lineTo(PAD+8, barTop+barH); ctx.arcTo(PAD, barTop+barH, PAD, barTop+barH-8, 8); ctx.lineTo(PAD, barTop+8); ctx.arcTo(PAD, barTop, PAD+8, barTop, 8); ctx.closePath(); })();
-    ctx.fill();
+    var seg0W = Math.max(0, Math.min(barW, barW * pct0 / 100));
+    var seg1W = barW - seg0W;
 
-    // 파란 쪽 bar
-    var gBarB = ctx.createLinearGradient(W-PAD-barW*(pct1/100), 0, W-PAD, 0);
-    gBarB.addColorStop(0, '#2f6df6'); gBarB.addColorStop(1, '#1d4aa8');
-    ctx.fillStyle = gBarB;
-    ctx.beginPath();
-    ctx.roundRect ? ctx.roundRect(PAD+barW*(pct0/100), barTop, barW*(pct1/100), barH, [0, 8, 8, 0]) :
-    (function () { ctx.moveTo(PAD+barW*(pct0/100), barTop); ctx.lineTo(W-PAD-8, barTop); ctx.arcTo(W-PAD, barTop, W-PAD, barTop+8, 8); ctx.lineTo(W-PAD, barTop+barH-8); ctx.arcTo(W-PAD, barTop+barH, W-PAD-8, barTop+barH, 8); ctx.lineTo(PAD+barW*(pct0/100), barTop+barH); ctx.closePath(); })();
-    ctx.fill();
+    // Red segment
+    if (seg0W > 0) {
+        var gBR = ctx.createLinearGradient(PAD, 0, PAD + seg0W, 0);
+        gBR.addColorStop(0, '#b81010');
+        gBR.addColorStop(1, '#e11414');
+        ctx.fillStyle = gBR;
+        ctx.beginPath();
+        _scRoundRectLeft(ctx, PAD, barTop, seg0W, barH, 8);
+        ctx.fill();
+    }
+    // Blue segment
+    if (seg1W > 0) {
+        var gBB = ctx.createLinearGradient(PAD + seg0W, 0, W - PAD, 0);
+        gBB.addColorStop(0, '#2f6df6');
+        gBB.addColorStop(1, '#1a44b8');
+        ctx.fillStyle = gBB;
+        ctx.beginPath();
+        _scRoundRectRight(ctx, PAD + seg0W, barTop, seg1W, barH, 8);
+        ctx.fill();
+    }
 
-    // bar 위에 텍스트
-    ctx.font = '700 26px ' + F_BLK;
-    ctx.fillStyle = WHITE; ctx.textBaseline = 'middle';
-    ctx.textAlign = 'left';
-    ctx.fillText(pct0 + '%', PAD + 14, barTop + barH/2);
-    ctx.textAlign = 'right';
-    ctx.fillText(pct1 + '%', W - PAD - 14, barTop + barH/2);
+    // Percentage labels on bar
+    ctx.font = '700 28px ' + F_BLK;
+    ctx.fillStyle = WHITE;
+    ctx.textBaseline = 'middle';
+    if (pct0 > 0) {
+        ctx.textAlign = 'left';
+        ctx.fillText(pct0 + '%', PAD + 14, barTop + barH / 2);
+    }
+    if (pct1 > 0) {
+        ctx.textAlign = 'right';
+        ctx.fillText(pct1 + '%', W - PAD - 14, barTop + barH / 2);
+    }
 
-    // bar 테두리
-    ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
+    // Bar border
+    ctx.strokeStyle = 'rgba(255,255,255,0.09)';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(PAD, barTop, barW, barH, 8);
-    else { ctx.moveTo(PAD+8, barTop); ctx.lineTo(W-PAD-8, barTop); ctx.arcTo(W-PAD, barTop, W-PAD, barTop+8, 8); ctx.lineTo(W-PAD, barTop+barH-8); ctx.arcTo(W-PAD, barTop+barH, W-PAD-8, barTop+barH, 8); ctx.lineTo(PAD+8, barTop+barH); ctx.arcTo(PAD, barTop+barH, PAD, barTop+barH-8, 8); ctx.lineTo(PAD, barTop+8); ctx.arcTo(PAD, barTop, PAD+8, barTop, 8); ctx.closePath(); }
+    if (ctx.roundRect) {
+        ctx.roundRect(PAD, barTop, barW, barH, 8);
+    } else {
+        ctx.moveTo(PAD + 8, barTop);
+        ctx.lineTo(W - PAD - 8, barTop);
+        ctx.arcTo(W - PAD, barTop, W - PAD, barTop + 8, 8);
+        ctx.lineTo(W - PAD, barTop + barH - 8);
+        ctx.arcTo(W - PAD, barTop + barH, W - PAD - 8, barTop + barH, 8);
+        ctx.lineTo(PAD + 8, barTop + barH);
+        ctx.arcTo(PAD, barTop + barH, PAD, barTop + barH - 8, 8);
+        ctx.lineTo(PAD, barTop + 8);
+        ctx.arcTo(PAD, barTop, PAD + 8, barTop, 8);
+        ctx.closePath();
+    }
     ctx.stroke();
 
-    // 9. Hook 문구
-    var hookY = barTop + barH + 74;
+    /* ── ZONE 4: Hook Text (y: 680–900) ── */
+    var hookY  = 790;
+    var subY   = 848;
+
     var hookText, subText;
     if (data.userPick === 'f1') {
-        hookText = '나는 ' + f1Last + ' 픽';
+        hookText = f1Last + ', 간다.';
         subText  = '반박은 픽으로.';
     } else if (data.userPick === 'f2') {
-        hookText = '나는 ' + f2Last + ' 픽';
+        hookText = f2Last + ', 간다.';
         subText  = '반박은 픽으로.';
     } else {
         hookText = '이 경기, 누구 보세요?';
         subText  = '';
     }
 
-    ctx.font = '700 64px ' + F_BLK;
-    ctx.fillStyle = WHITE;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    // 너무 길면 크기 줄이기
-    while (ctx.measureText(hookText).width > W - PAD*2 && parseInt(ctx.font) > 40) {
-        var curSize = parseInt(ctx.font);
-        ctx.font = '700 ' + (curSize - 4) + 'px ' + F_BLK;
+    // Auto-shrink hook text if too wide
+    var hookSize = 68;
+    ctx.font = '700 ' + hookSize + 'px ' + F_BLK;
+    while (ctx.measureText(hookText).width > W - PAD * 2 && hookSize > 40) {
+        hookSize -= 4;
+        ctx.font = '700 ' + hookSize + 'px ' + F_BLK;
     }
-    ctx.fillText(hookText, W/2, hookY);
+    ctx.fillStyle = WHITE;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(hookText, W / 2, hookY);
 
     if (subText) {
-        ctx.font = '500 30px ' + F_BODY;
+        ctx.font = '500 32px ' + F_BODY;
         ctx.fillStyle = MUTED;
-        ctx.fillText(subText, W/2, hookY + 46);
+        ctx.textAlign = 'center';
+        ctx.fillText(subText, W / 2, subY);
     }
 
-    // 10. 하단 CTA
-    var fY = H - 68;
-    // red gradient accent line
-    var gLine = ctx.createLinearGradient(PAD, 0, W-PAD, 0);
-    gLine.addColorStop(0, 'rgba(225,20,20,0)');
-    gLine.addColorStop(0.3, RED);
-    gLine.addColorStop(0.7, RED);
-    gLine.addColorStop(1, 'rgba(225,20,20,0)');
+    /* ── ZONE 5: Footer (y: 900–1080) ── */
+    // Red accent line
+    var accentY = 928;
+    var gLine   = ctx.createLinearGradient(PAD, 0, W - PAD, 0);
+    gLine.addColorStop(0,   'rgba(225,20,20,0)');
+    gLine.addColorStop(0.25, RED);
+    gLine.addColorStop(0.75, RED);
+    gLine.addColorStop(1,   'rgba(225,20,20,0)');
     ctx.fillStyle = gLine;
-    ctx.fillRect(PAD, fY - 28, W - PAD*2, 3);
+    ctx.fillRect(PAD, accentY, W - PAD * 2, 3);
 
-    var ctaText = data.userPick ? '너는? · pick-tagon.com' : 'pick-tagon.com에서 픽하기';
-    ctx.font = '700 30px ' + F_BODY;
-    ctx.fillStyle = WHITE; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
-    ctx.fillText(ctaText, W/2, fY);
+    // CTA text
+    var ctaY    = 988;
+    var ctaText = data.userPick
+        ? 'UFC 픽으로 붙는 곳 · pick-tagon.com'
+        : 'pick-tagon.com에서 픽하기';
+    ctx.font = '600 32px ' + F_BODY;
+    ctx.fillStyle = WHITE;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(ctaText, W / 2, ctaY);
     ctx.textAlign = 'left';
 }
 
