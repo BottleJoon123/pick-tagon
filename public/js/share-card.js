@@ -690,6 +690,69 @@ function _scFitFont(ctx, text, weight, basePx, F, maxW, minPx) {
     return px;
 }
 
+// 선수 이름 블록(first + last + record) — width fitting + gap 보장
+// Returns: last name font size (used for VS badge Y)
+function _scDrawMatchNameBlock(ctx, opts) {
+    var firstName   = opts.firstName || '';
+    var lastName    = opts.lastName  || '?';
+    var record      = opts.record    || '';
+    var side        = opts.side;
+    var nameEdge    = opts.nameEdge;
+    var maxW        = opts.maxW;
+    var lastNameY   = opts.lastNameY;
+    var shadowColor = opts.shadowColor;
+    var recordColor = opts.recordColor;
+    var WHITE       = opts.WHITE;
+    var F_BLK       = opts.F_BLK;
+    var F_MONO      = opts.F_MONO;
+    var align       = (side === 'left') ? 'right' : 'left';
+
+    // Auto-fit last name 96→36 (step 2 via _scFitFont)
+    var lnSize = _scFitFont(ctx, lastName.toUpperCase(), '600', 96, F_BLK, maxW, 36);
+
+    // Auto-fit first name 30→16, then truncate if still over
+    var fnSize = 30;
+    if (firstName) {
+        fnSize = _scFitFont(ctx, firstName.toUpperCase(), '400', 30, F_BLK, maxW, 16);
+        ctx.font = '400 ' + fnSize + 'px ' + F_BLK;
+        if (ctx.measureText(firstName.toUpperCase()).width > maxW) {
+            while (firstName.length > 1 && ctx.measureText((firstName.slice(0, -1) + '…').toUpperCase()).width > maxW)
+                firstName = firstName.slice(0, -1);
+            firstName = firstName + '…';
+        }
+    }
+
+    // Gap guarantee: bottom-of-first-name (fnY + fnSize*0.25) is ≥12px above
+    // top-of-last-name (lastNameY - lnSize*0.78)
+    // => fnY = lastNameY - lnSize*0.78 - 12 - fnSize*0.25
+    var fnY     = firstName ? (lastNameY - lnSize * 0.78 - 12 - fnSize * 0.25) : 0;
+    var recordY = lastNameY + 38;
+
+    ctx.textBaseline = 'alphabetic';
+
+    if (firstName) {
+        ctx.font = '400 ' + fnSize + 'px ' + F_BLK;
+        ctx.fillStyle = 'rgba(244,244,245,0.65)';
+        ctx.textAlign = align;
+        ctx.fillText(firstName.toUpperCase(), nameEdge, fnY);
+    }
+    ctx.font = '600 ' + lnSize + 'px ' + F_BLK;
+    ctx.fillStyle = WHITE;
+    ctx.shadowColor = shadowColor;
+    ctx.shadowBlur = 26;
+    ctx.textAlign = align;
+    ctx.fillText(lastName.toUpperCase(), nameEdge, lastNameY);
+    ctx.shadowBlur = 0;
+    if (record) {
+        ctx.font = '400 19px ' + F_MONO;
+        ctx.fillStyle = recordColor;
+        ctx.textAlign = align;
+        ctx.fillText(record, nameEdge, recordY);
+    }
+
+    return lnSize;
+}
+
 // ── 매치 카드 드로잉 ─────────────────────────────────────
 function drawPicktagonMatchShareCard(canvas, data) {
     var W = 1080, H = 1080;
@@ -858,74 +921,37 @@ function drawPicktagonMatchShareCard(canvas, data) {
     var nameEdge = vsX - vsBadgeR - 16;   // right boundary for f1 (left side)
     var maxNameW = nameEdge - PAD;        // max width for last-name text
 
-    // Auto-fit last names
-    var f1Size = 96, f2Size = 96;
-    ctx.font = '600 ' + f1Size + 'px ' + F_BLK;
-    while (ctx.measureText(f1Last.toUpperCase()).width > maxNameW && f1Size > 36) {
-        f1Size -= 4;
-        ctx.font = '600 ' + f1Size + 'px ' + F_BLK;
-    }
-    ctx.font = '600 ' + f2Size + 'px ' + F_BLK;
-    while (ctx.measureText(f2Last.toUpperCase()).width > maxNameW && f2Size > 36) {
-        f2Size -= 4;
-        ctx.font = '600 ' + f2Size + 'px ' + F_BLK;
-    }
+    var lastNameY = 420;
 
-    var lastNameY  = 420;   // baseline for last names
-    var firstNameY = lastNameY - Math.max(f1Size, f2Size) * 0.70 - 8;
-    var recordY    = lastNameY + 36;
+    var f1LnSize = _scDrawMatchNameBlock(ctx, {
+        firstName:   f1First,
+        lastName:    f1Last,
+        record:      data.f1 && data.f1.record ? data.f1.record : '',
+        side:        'left',
+        nameEdge:    nameEdge,
+        maxW:        maxNameW,
+        lastNameY:   lastNameY,
+        shadowColor: 'rgba(225,20,20,0.45)',
+        recordColor: 'rgba(225,20,20,0.65)',
+        WHITE: WHITE, F_BLK: F_BLK, F_MONO: F_MONO
+    });
 
-    ctx.textBaseline = 'alphabetic';
+    var f2NameEdge = vsX + vsBadgeR + 16;
+    var f2LnSize = _scDrawMatchNameBlock(ctx, {
+        firstName:   f2First,
+        lastName:    f2Last,
+        record:      data.f2 && data.f2.record ? data.f2.record : '',
+        side:        'right',
+        nameEdge:    f2NameEdge,
+        maxW:        maxNameW,
+        lastNameY:   lastNameY,
+        shadowColor: 'rgba(47,109,246,0.45)',
+        recordColor: 'rgba(47,109,246,0.65)',
+        WHITE: WHITE, F_BLK: F_BLK, F_MONO: F_MONO
+    });
 
-    // F1 first name
-    if (f1First) {
-        ctx.font = '400 30px ' + F_BLK;
-        ctx.fillStyle = 'rgba(244,244,245,0.65)';
-        ctx.textAlign = 'right';
-        ctx.fillText(f1First.toUpperCase(), nameEdge, firstNameY);
-    }
-    // F1 last name
-    ctx.font = '600 ' + f1Size + 'px ' + F_BLK;
-    ctx.fillStyle = WHITE;
-    ctx.shadowColor = 'rgba(225,20,20,0.45)';
-    ctx.shadowBlur = 26;
-    ctx.textAlign = 'right';
-    ctx.fillText(f1Last.toUpperCase(), nameEdge, lastNameY);
-    ctx.shadowBlur = 0;
-    // F1 record
-    if (data.f1 && data.f1.record) {
-        ctx.font = '400 19px ' + F_MONO;
-        ctx.fillStyle = 'rgba(225,20,20,0.65)';
-        ctx.textAlign = 'right';
-        ctx.fillText(data.f1.record, nameEdge, recordY);
-    }
-
-    // F2 first name
-    var f2NameEdge = vsX + vsBadgeR + 16;   // left boundary for f2 (right side)
-    if (f2First) {
-        ctx.font = '400 30px ' + F_BLK;
-        ctx.fillStyle = 'rgba(244,244,245,0.65)';
-        ctx.textAlign = 'left';
-        ctx.fillText(f2First.toUpperCase(), f2NameEdge, firstNameY);
-    }
-    // F2 last name
-    ctx.font = '600 ' + f2Size + 'px ' + F_BLK;
-    ctx.fillStyle = WHITE;
-    ctx.shadowColor = 'rgba(47,109,246,0.45)';
-    ctx.shadowBlur = 26;
-    ctx.textAlign = 'left';
-    ctx.fillText(f2Last.toUpperCase(), f2NameEdge, lastNameY);
-    ctx.shadowBlur = 0;
-    // F2 record
-    if (data.f2 && data.f2.record) {
-        ctx.font = '400 19px ' + F_MONO;
-        ctx.fillStyle = 'rgba(47,109,246,0.65)';
-        ctx.textAlign = 'left';
-        ctx.fillText(data.f2.record, f2NameEdge, recordY);
-    }
-
-    // VS badge (centered vertically ~at lastNameY - lastNameSize/2)
-    var vsY = lastNameY - Math.max(f1Size, f2Size) * 0.30;
+    // VS badge (centered at visual midpoint of last name glyphs)
+    var vsY = lastNameY - Math.max(f1LnSize, f2LnSize) * 0.30;
     ctx.save();
     // background circle
     ctx.fillStyle = 'rgba(7,7,7,0.92)';
