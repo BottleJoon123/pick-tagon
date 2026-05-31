@@ -77,7 +77,7 @@
         }
     }
 
-    // ── 아바타 커스터마이징 (localStorage 기반, 기기별 저장) ──────────
+    // ── 아바타 커스터마이징 (localStorage + Auth metadata 동기화) ──────────
     var _AVATAR_BG_WHITELIST = ['#1a0a0a','#E10600','#1d4ed8','#7c3aed','#b45309','#15803d','#1a1a1a'];
     var _AVATAR_FG_WHITELIST = ['#ffffff','#E10600'];
     var _AVATAR_DEFAULT_BG   = '#1a0a0a';
@@ -87,6 +87,16 @@
     function getAvatarStorageKey() {
         var uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.id) ? currentUser.id : 'guest';
         return 'picktagon_avatar_v1_' + uid;
+    }
+
+    function sanitizeAvatarConfig(config) {
+        var mode  = (config.mode === 'initial') ? 'initial' : 'emoji';
+        var raw   = String(config.label || '');
+        var label = Array.from(raw).slice(0, 2).join('') || _AVATAR_DEFAULT_LABEL;
+        var bg    = (_AVATAR_BG_WHITELIST.indexOf(config.bg) !== -1) ? config.bg : _AVATAR_DEFAULT_BG;
+        var fg    = (_AVATAR_FG_WHITELIST.indexOf(config.fg) !== -1) ? config.fg : _AVATAR_DEFAULT_FG;
+        var updatedAt = (config.updatedAt && typeof config.updatedAt === 'string') ? config.updatedAt : new Date().toISOString();
+        return { mode: mode, label: label, bg: bg, fg: fg, updatedAt: updatedAt };
     }
 
     function getAvatarConfig() {
@@ -104,45 +114,50 @@
     }
 
     function saveAvatarConfig(config) {
-        var mode  = (config.mode === 'initial') ? 'initial' : 'emoji';
-        var raw   = String(config.label || '');
-        var label = Array.from(raw).slice(0, 2).join('') || _AVATAR_DEFAULT_LABEL;
-        var bg    = (_AVATAR_BG_WHITELIST.indexOf(config.bg) !== -1) ? config.bg : _AVATAR_DEFAULT_BG;
-        var fg    = (_AVATAR_FG_WHITELIST.indexOf(config.fg) !== -1) ? config.fg : _AVATAR_DEFAULT_FG;
-        var sanitized = { mode: mode, label: label, bg: bg, fg: fg, updatedAt: new Date().toISOString() };
-        localStorage.setItem(getAvatarStorageKey(), JSON.stringify(sanitized));
+        var sanitized = sanitizeAvatarConfig(config);
+        try { localStorage.setItem(getAvatarStorageKey(), JSON.stringify(sanitized)); } catch(e) {}
         _syncAvatarToAuthMeta(sanitized);
+        return sanitized;
     }
 
     function _syncAvatarToAuthMeta(cfg) {
         if (typeof sb === 'undefined' || !sb || typeof currentUser === 'undefined' || !currentUser) return;
         sb.auth.updateUser({ data: { avatar_config: cfg } })
             .then(function(res) {
-                if (res && res.data && res.data.user && currentUser) {
-                    currentUser.user_metadata = res.data.user.user_metadata || currentUser.user_metadata;
+                if (res && res.data && res.data.user && currentUser && currentUser.id === res.data.user.id) {
+                    if (!currentUser.user_metadata) currentUser.user_metadata = {};
+                    currentUser.user_metadata.avatar_config = cfg;
                 }
             })
             .catch(function(e) { console.warn('[avatar] auth metadata sync failed:', e); });
     }
 
     function syncAvatarFromAuthMeta() {
-        if (typeof currentUser === 'undefined' || !currentUser) return;
-        var meta = (currentUser.user_metadata && currentUser.user_metadata.avatar_config) || null;
-        if (!meta) { applyProfileAvatar(); return; }
-        var metaBg    = (_AVATAR_BG_WHITELIST.indexOf(meta.bg) !== -1) ? meta.bg : _AVATAR_DEFAULT_BG;
-        var metaFg    = (_AVATAR_FG_WHITELIST.indexOf(meta.fg) !== -1) ? meta.fg : _AVATAR_DEFAULT_FG;
-        var metaMode  = (meta.mode === 'initial') ? 'initial' : 'emoji';
-        var metaLabel = Array.from(String(meta.label || _AVATAR_DEFAULT_LABEL)).slice(0, 2).join('');
-        var metaTs    = meta.updatedAt || '';
-        var localRaw  = null;
-        try { localRaw = JSON.parse(localStorage.getItem(getAvatarStorageKey())); } catch(e) {}
-        var localTs = (localRaw && localRaw.updatedAt) ? localRaw.updatedAt : '';
-        if (!localTs || (metaTs && metaTs > localTs)) {
-            localStorage.setItem(getAvatarStorageKey(), JSON.stringify(
-                { mode: metaMode, label: metaLabel, bg: metaBg, fg: metaFg, updatedAt: metaTs }
-            ));
-        }
-        applyProfileAvatar();
+        if (typeof currentUser === 'undefined' || !currentUser) { applyProfileAvatar(); return; }
+        if (typeof sb === 'undefined' || !sb) { applyProfileAvatar(); return; }
+        sb.auth.getUser()
+            .then(function(res) {
+                var freshUser = (res && res.data && res.data.user) ? res.data.user : null;
+                if (freshUser && currentUser && freshUser.id === currentUser.id) {
+                    currentUser.user_metadata = freshUser.user_metadata || {};
+                }
+                var meta = (currentUser.user_metadata && currentUser.user_metadata.avatar_config) || null;
+                var localRaw = null;
+                try { localRaw = JSON.parse(localStorage.getItem(getAvatarStorageKey())); } catch(e) {}
+                var localTs = (localRaw && localRaw.updatedAt) ? localRaw.updatedAt : '';
+                var metaTs  = (meta && meta.updatedAt) ? meta.updatedAt : '';
+                if (meta && (!localTs || (metaTs && metaTs > localTs))) {
+                    var synced = sanitizeAvatarConfig(meta);
+                    try { localStorage.setItem(getAvatarStorageKey(), JSON.stringify(synced)); } catch(e) {}
+                    applyProfileAvatar(synced);
+                } else {
+                    applyProfileAvatar();
+                }
+            })
+            .catch(function(e) {
+                console.warn('[avatar] getUser for sync failed:', e);
+                applyProfileAvatar();
+            });
     }
 
     function getAvatarInitialsFromNickname() {
@@ -153,10 +168,10 @@
         return Array.from(nick).slice(0, 2).join('').toUpperCase() || '?';
     }
 
-    function applyProfileAvatar() {
+    function applyProfileAvatar(configOverride) {
         var wrap = document.getElementById('profile-avatar-wrap');
         if (!wrap) return;
-        var cfg = getAvatarConfig();
+        var cfg = configOverride || getAvatarConfig();
         var bg = (_AVATAR_BG_WHITELIST.indexOf(cfg.bg) !== -1) ? cfg.bg : _AVATAR_DEFAULT_BG;
         var fg = (_AVATAR_FG_WHITELIST.indexOf(cfg.fg) !== -1) ? cfg.fg : _AVATAR_DEFAULT_FG;
         var label = cfg.label || '';

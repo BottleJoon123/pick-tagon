@@ -198,7 +198,14 @@ function loadPostsFromDB() {
                     }
                     return;
                 }
-                // TOKEN_REFRESHED, USER_UPDATED 등 불필요한 이벤트는 무시
+                // USER_UPDATED: currentUser 최신화만 (loadUserFromDB 재호출 없음)
+                if (event === 'USER_UPDATED') {
+                    if (session && session.user && currentUser && session.user.id === currentUser.id) {
+                        currentUser = session.user;
+                    }
+                    return;
+                }
+                // TOKEN_REFRESHED 등 나머지 불필요한 이벤트는 무시
                 if (event !== 'INITIAL_SESSION' && event !== 'SIGNED_IN' && event !== 'SIGNED_OUT') return;
 
                 // recovery hash 감지 fallback: INITIAL_SESSION/SIGNED_IN에도 modal 표시

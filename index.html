@@ -2323,9 +2323,9 @@
 <script src="/js/data/constants.js"></script>
 <script src="/js/state.js"></script>
 <script src="/js/storage.js"></script>
-<script src="/js/utils.js?v=2"></script>
+<script src="/js/utils.js?v=3"></script>
 <script src="/js/event-countdown.js"></script>
-<script src="/js/api/supabase.js?v=8"></script>
+<script src="/js/api/supabase.js?v=9"></script>
 <script src="/js/modal-helpers.js"></script>
 <script src="/js/format-helpers.js"></script>
 <script src="/js/news-render-helpers.js"></script>
@@ -3023,15 +3023,17 @@
         } else {
             label = _avatarModalState.label || '⚡';
         }
-        saveAvatarConfig({ mode: mode, label: label, bg: _avatarModalState.bg, fg: _avatarModalState.fg });
-        applyProfileAvatar();
+        var saved = saveAvatarConfig({ mode: mode, label: label, bg: _avatarModalState.bg, fg: _avatarModalState.fg });
+        applyProfileAvatar(saved);
         closeAvatarModal();
         showToast('아바타를 저장했어요');
     }
 
     function resetAvatar() {
-        localStorage.removeItem(getAvatarStorageKey());
-        applyProfileAvatar();
+        var defaultCfg = sanitizeAvatarConfig({ mode: 'emoji', label: _AVATAR_DEFAULT_LABEL, bg: _AVATAR_DEFAULT_BG, fg: _AVATAR_DEFAULT_FG });
+        try { localStorage.setItem(getAvatarStorageKey(), JSON.stringify(defaultCfg)); } catch(e) {}
+        _syncAvatarToAuthMeta(defaultCfg);
+        applyProfileAvatar(defaultCfg);
         closeAvatarModal();
         showToast('아바타를 초기화했어요');
     }
