@@ -1421,16 +1421,115 @@ function _scDrawRadar(ctx, cx, cy, R, values, labels, opts) {
     }
 
     // Labels
-    ctx.font = '700 22px ' + F_BLK;
+    var labelOffset   = opts.labelOffset   || 34;
+    var labelFontSize = opts.labelFontSize || 22;
+    ctx.font = '700 ' + labelFontSize + 'px ' + F_BLK;
     ctx.fillStyle = MUTED;
     ctx.textBaseline = 'middle';
     for (var i = 0; i < N; i++) {
-        var lp = ptAt(i, R + 34);
+        var lp = ptAt(i, R + labelOffset);
         ctx.textAlign = (Math.abs(lp.x - cx) < 10) ? 'center'
                       : (lp.x < cx) ? 'right' : 'left';
         ctx.fillText(labels[i], lp.x, lp.y);
     }
     ctx.textAlign = 'left';
+}
+
+// ── 파이터 이름 블록 (textBaseline='top' 기반, 겹침 없음 보장) ──
+// opts: { firstName, lastName, record, x, topY, maxW, maxH, F_BLK, F_MONO, WHITE, RED, MUTED2 }
+function _scDrawFighterNameBlock(ctx, opts) {
+    var firstName = opts.firstName || '';
+    var lastName  = opts.lastName  || '?';
+    var record    = opts.record    || null;
+    var x         = opts.x;
+    var topY      = opts.topY;
+    var maxW      = opts.maxW;
+    var maxH      = opts.maxH;
+    var F_BLK     = opts.F_BLK;
+    var F_MONO    = opts.F_MONO;
+    var WHITE     = opts.WHITE;
+    var RED       = opts.RED;
+    var MUTED2    = opts.MUTED2;
+
+    var GAP_FN_LN  = 12; // firstName 하단 ~ lastName 상단 최소 간격
+    var GAP_LN_REC = 16; // lastName 하단 ~ record 상단 최소 간격
+
+    // 1. lastName 크기 결정
+    var lnSize = 90;
+    ctx.font = '700 ' + lnSize + 'px ' + F_BLK;
+    while (ctx.measureText(lastName.toUpperCase()).width > maxW && lnSize > 36) {
+        lnSize -= 4;
+        ctx.font = '700 ' + lnSize + 'px ' + F_BLK;
+    }
+    var lnLineH = Math.round(lnSize * 1.05);
+
+    // 2. firstName 크기 결정 (lnSize에 비례, 최대 32px)
+    var fnSize = 0, fnLineH = 0;
+    if (firstName) {
+        fnSize = Math.min(32, Math.max(14, Math.round(lnSize * 0.38)));
+        ctx.font = '400 ' + fnSize + 'px ' + F_BLK;
+        while (ctx.measureText(firstName.toUpperCase()).width > maxW && fnSize > 14) {
+            fnSize -= 2;
+            ctx.font = '400 ' + fnSize + 'px ' + F_BLK;
+        }
+        fnLineH = Math.round(fnSize * 1.05);
+    }
+
+    // 3. record 크기
+    var recSize = 40, recLineH = record ? Math.round(recSize * 1.05) : 0;
+
+    // 4. 전체 높이 체크, maxH 초과 시 firstName 축소 → 생략 순으로 처리
+    function totalH() {
+        return (fnLineH > 0 ? fnLineH + GAP_FN_LN : 0)
+             + lnLineH
+             + (recLineH > 0 ? GAP_LN_REC + recLineH : 0);
+    }
+    if (firstName) {
+        while (fnSize > 14 && totalH() > maxH) {
+            fnSize -= 2;
+            fnLineH = Math.round(fnSize * 1.05);
+        }
+        if (totalH() > maxH) { fnSize = 0; fnLineH = 0; } // firstName 생략
+    }
+
+    // 5. 그리기 (textBaseline = 'top')
+    var curY = topY;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+
+    if (firstName && fnSize > 0) {
+        ctx.font = '400 ' + fnSize + 'px ' + F_BLK;
+        ctx.fillStyle = 'rgba(244,244,245,0.55)';
+        ctx.fillText(firstName.toUpperCase(), x, curY);
+        curY += fnLineH + GAP_FN_LN;
+    }
+
+    ctx.font = '700 ' + lnSize + 'px ' + F_BLK;
+    ctx.fillStyle = WHITE;
+    ctx.fillText(lastName.toUpperCase(), x, curY);
+    curY += lnLineH + GAP_LN_REC;
+
+    if (record) {
+        ctx.font = '700 ' + recSize + 'px ' + F_BLK;
+        while (ctx.measureText(record).width > maxW - 70 && recSize > 22) {
+            recSize -= 2;
+            ctx.font = '700 ' + recSize + 'px ' + F_BLK;
+        }
+        ctx.fillStyle = RED;
+        ctx.fillText(record, x, curY);
+        var rW = ctx.measureText(record).width;
+        // "전적" 레이블: record 텍스트와 수직 중앙 정렬
+        ctx.font = '400 20px ' + F_MONO;
+        ctx.fillStyle = MUTED2;
+        ctx.textBaseline = 'middle';
+        ctx.fillText('전적', x + rW + 12, curY + recSize * 0.52);
+        ctx.textBaseline = 'top';
+    } else {
+        ctx.font = '400 20px ' + F_MONO;
+        ctx.fillStyle = MUTED2;
+        ctx.fillText('전적 정보 없음', x, curY);
+    }
+
+    ctx.textBaseline = 'alphabetic'; // 원상 복구
 }
 
 // ── 카드 드로잉 ────────────────────────────────────────
@@ -1595,56 +1694,27 @@ function drawPicktagonFighterShareCard(canvas, data) {
         drawPill(data.division.toUpperCase(), px, pillY, 'rgba(255,255,255,0.05)', 'rgba(255,255,255,0.12)', MUTED, 20);
     }
 
-    // ── Fighter name (large, italic, uppercase, auto-size) ──
+    // ── Fighter name block (safe, top-baseline, gap-guaranteed) ──
     var nameParts = (data.name || '').trim().split(/\s+/);
     var firstName = nameParts.slice(0, -1).join(' ');
     var lastName  = nameParts[nameParts.length - 1] || data.name || '?';
     var nameAreaW = W - PAD - rightX;
-    var nameY     = 290;
-
-    // First name (small, above)
-    if (firstName) {
-        var fnSize = 32;
-        ctx.font = '400 ' + fnSize + 'px ' + F_BLK;
-        while (ctx.measureText(firstName.toUpperCase()).width > nameAreaW && fnSize > 18) {
-            fnSize -= 2; ctx.font = '400 ' + fnSize + 'px ' + F_BLK;
-        }
-        ctx.fillStyle = 'rgba(244,244,245,0.55)';
-        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-        ctx.fillText(firstName.toUpperCase(), rightX, nameY - 40);
-    }
-
-    // Last name
-    var lnSize = 90;
-    ctx.font = '700 ' + lnSize + 'px ' + F_BLK;
-    while (ctx.measureText(lastName.toUpperCase()).width > nameAreaW && lnSize > 36) {
-        lnSize -= 4; ctx.font = '700 ' + lnSize + 'px ' + F_BLK;
-    }
-    ctx.fillStyle = WHITE;
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.fillText(lastName.toUpperCase(), rightX, nameY);
-
-    // Record (red) + 전적 label
-    var recY = nameY + 50;
-    if (data.record) {
-        var recFontSize = 44;
-        ctx.font = '700 ' + recFontSize + 'px ' + F_BLK;
-        while (ctx.measureText(data.record).width > nameAreaW - 90 && recFontSize > 24) {
-            recFontSize -= 2; ctx.font = '700 ' + recFontSize + 'px ' + F_BLK;
-        }
-        ctx.fillStyle = RED;
-        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-        ctx.fillText(data.record, rightX, recY);
-        var recW = ctx.measureText(data.record).width;
-        ctx.font = '400 22px ' + F_MONO;
-        ctx.fillStyle = MUTED2;
-        ctx.fillText('전적', rightX + recW + 14, recY - 2);
-    } else {
-        ctx.font = '400 22px ' + F_MONO;
-        ctx.fillStyle = MUTED2;
-        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-        ctx.fillText('전적 정보 없음', rightX, recY);
-    }
+    // nameBlockTop: pillY(152) + pillH(34) + 14px gap = 200
+    // nameBlockMaxH: infoStrip starts at 510, minus 15px buffer = 495 → maxH = 295
+    _scDrawFighterNameBlock(ctx, {
+        firstName: firstName,
+        lastName:  lastName,
+        record:    data.record,
+        x:         rightX,
+        topY:      200,
+        maxW:      nameAreaW,
+        maxH:      295,
+        F_BLK:     F_BLK,
+        F_MONO:    F_MONO,
+        WHITE:     WHITE,
+        RED:       RED,
+        MUTED2:    MUTED2
+    });
 
     /* ── ZONE 3: Info Strip (y: 510–595) ── */
     var stripY = 510, stripH = 82;
@@ -1694,7 +1764,8 @@ function drawPicktagonFighterShareCard(canvas, data) {
     var midX = W / 2 + 10;
 
     // ── Left: Radar chart ──
-    var radarCx = PAD + 210, radarCy = statsTopY + 190, radarR = 130;
+    // radarCy=750: top label bottom=618(statsTopY), bottom label bottom=859 < hookBoxY(896)-37px margin
+    var radarCx = PAD + 200, radarCy = statsTopY + 132, radarR = 100;
     var STAT_KR = ['스트라이킹', '그래플링', '스태미나', '디펜스', '스피드'];
     ctx.font = '700 18px ' + F_BLK;
     ctx.fillStyle = MUTED2;
@@ -1706,7 +1777,8 @@ function drawPicktagonFighterShareCard(canvas, data) {
         ctx.fillText('(집계중)', PAD + 140, statsTopY + 24);
     }
     _scDrawRadar(ctx, radarCx, radarCy, radarR, data.stats, STAT_KR, {
-        RED: RED, WHITE: WHITE, MUTED: MUTED2, F_BLK: F_BLK
+        RED: RED, WHITE: WHITE, MUTED: MUTED2, F_BLK: F_BLK,
+        labelOffset: 22, labelFontSize: 20
     });
 
     // ── Right: Finish Rate bars ──
@@ -1770,8 +1842,9 @@ function drawPicktagonFighterShareCard(canvas, data) {
     }
     ctx.textAlign = 'left';
 
-    /* ── ZONE 5: Pick / Hook (y: 862–950) ── */
-    var hookBoxY = 862, hookBoxH = 72;
+    /* ── ZONE 5: Pick / Hook (y: 896–954) ── */
+    // hookBoxY=896: radar bottom label y≈859, gap=37px; finish bar bottom≈848, gap=48px
+    var hookBoxY = 896, hookBoxH = 58;
     ctx.fillStyle = 'rgba(255,255,255,0.04)';
     ctx.strokeStyle = 'rgba(255,255,255,0.09)';
     ctx.lineWidth = 1;
@@ -1781,16 +1854,21 @@ function drawPicktagonFighterShareCard(canvas, data) {
     ctx.fill(); ctx.stroke();
 
     var hookCenterX = W / 2, hookCenterY = hookBoxY + hookBoxH / 2;
+    var hookAvailW = W - PAD * 2 - 40; // inner usable width
     if (data.pickPct !== null && data.pickPct !== undefined) {
-        // "픽타곤 유저 NN%가 이 선수 픽!"
+        // "픽타곤 유저 NN%가 이 선수 픽!" — auto-fit font size
         var prefix = '픽타곤 유저 ';
         var pctStr = data.pickPct + '%';
         var suffix = '가 이 선수 픽!';
-        ctx.font = '700 28px ' + F_BLK;
-        var prefW = ctx.measureText(prefix).width;
-        var pctW  = ctx.measureText(pctStr).width;
-        var sufW  = ctx.measureText(suffix).width;
-        var totalW = prefW + pctW + sufW;
+        var hFontSize = 28;
+        ctx.font = '700 ' + hFontSize + 'px ' + F_BLK;
+        while (ctx.measureText(prefix + pctStr + suffix).width > hookAvailW && hFontSize > 18) {
+            hFontSize -= 2;
+            ctx.font = '700 ' + hFontSize + 'px ' + F_BLK;
+        }
+        var prefW  = ctx.measureText(prefix).width;
+        var pctW   = ctx.measureText(pctStr).width;
+        var totalW = ctx.measureText(prefix + pctStr + suffix).width;
         var startX = hookCenterX - totalW / 2;
         ctx.textBaseline = 'middle';
         ctx.fillStyle = WHITE;
@@ -1801,16 +1879,22 @@ function drawPicktagonFighterShareCard(canvas, data) {
         ctx.fillStyle = WHITE;
         ctx.fillText(suffix, startX + prefW + pctW, hookCenterY);
     } else {
-        ctx.font = '700 28px ' + F_BLK;
+        var hookText = '이 선수, 픽? · 다음 경기 예측하기';
+        var hFontSize = 28;
+        ctx.font = '700 ' + hFontSize + 'px ' + F_BLK;
+        while (ctx.measureText(hookText).width > hookAvailW && hFontSize > 18) {
+            hFontSize -= 2;
+            ctx.font = '700 ' + hFontSize + 'px ' + F_BLK;
+        }
         ctx.fillStyle = MUTED;
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('이 선수, 픽? · 다음 경기 예측하기', hookCenterX, hookCenterY);
+        ctx.fillText(hookText, hookCenterX, hookCenterY);
     }
     ctx.textAlign = 'left';
 
-    /* ── ZONE 6: Footer (y: 952–1080) ── */
-    // Red accent line
-    var accentY = 952;
+    /* ── ZONE 6: Footer (y: 966–1080) ── */
+    // hookBoxBottom = 896+58 = 954, accentY = 966 (12px gap)
+    var accentY = 966;
     var gAL = ctx.createLinearGradient(PAD, 0, W - PAD, 0);
     gAL.addColorStop(0,   'rgba(225,6,0,0)');
     gAL.addColorStop(0.5, 'rgba(225,6,0,0.9)');
