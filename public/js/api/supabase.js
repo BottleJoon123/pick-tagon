@@ -499,7 +499,7 @@ async function fetchUpcomingMatchups() {
                 sectionTime: '',
                 tag: tag,
                 division: m.weight_class || '',
-                rounds: isMainCard ? 5 : 3,
+                rounds: (m.is_main_event === true || tag === 'MAIN EVENT') ? 5 : 3,
                 leftBias: Number(m.left_bias) || 0.5,
                 _eventId: event.id,
                 _eventTitle: event.title || '',

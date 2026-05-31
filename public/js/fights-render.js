@@ -111,7 +111,7 @@ function renderHeroCard(fight, idx) {
             </div>
             <div class="flex items-center gap-2 lg:gap-3">
                 <button data-no-pick="1" onclick="event.stopPropagation(); sharePicktagonMatchCard('${fight.id}')"
-                    class="oswald-sharp text-[8px] lg:text-[10px] text-gray-500 hover:text-ufcRed transition font-black italic uppercase tracking-widest border border-white/10 hover:border-ufcRed/40 px-2.5 py-1 rounded-full">📤 공유</button>
+                    class="oswald-sharp text-[9px] lg:text-[10px] text-gray-500 hover:text-ufcRed transition font-black italic uppercase tracking-widest border border-white/10 hover:border-ufcRed/40 px-3 py-1.5 rounded-full active:scale-95">📤 공유</button>
                 <button onclick="toggleStatsOverlay('${fight.id}')"
                     class="oswald-sharp text-[8px] lg:text-[10px] text-gray-400 hover:text-white transition font-black italic uppercase tracking-widest border border-white/15 px-2.5 py-1 rounded-full">ℹ️ STATS</button>
                 <button onclick="toggleAnalysis('${fight.id}')" id="analysis-btn-${fight.id}"
@@ -288,6 +288,8 @@ function renderStripRow(fight) {
             </div>
             <!-- F2 Thumbnail -->
             ${f2Img ? `<div class="flex-shrink-0 w-10 h-14 rounded-lg overflow-hidden border border-white/10" style="background-image:url('${f2Img}');background-size:cover;background-position:center 15%;"></div>` : ''}
+            <button data-no-pick="1" onclick="event.stopPropagation(); sharePicktagonMatchCard('${fight.id}')"
+                class="flex-shrink-0 oswald-sharp text-[9px] text-gray-600 hover:text-ufcRed transition font-black italic uppercase border border-white/8 hover:border-ufcRed/40 px-2 py-1.5 rounded-lg">📤</button>
             <div id="live-total-${fight.id}" class="hidden"></div>
         </div>
         <!-- MY PICK (compact, populated by updateAllFightCards) -->
