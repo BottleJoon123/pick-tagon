@@ -110,6 +110,8 @@ function renderHeroCard(fight, idx) {
                 <span class="oswald-sharp text-[8px] lg:text-xs text-gray-500 font-black italic tracking-widest uppercase">${_divLabel(fight.division)}</span>
             </div>
             <div class="flex items-center gap-2 lg:gap-3">
+                <button data-no-pick="1" onclick="event.stopPropagation(); sharePicktagonMatchCard('${fight.id}')"
+                    class="oswald-sharp text-[8px] lg:text-[10px] text-gray-500 hover:text-ufcRed transition font-black italic uppercase tracking-widest border border-white/10 hover:border-ufcRed/40 px-2.5 py-1 rounded-full">📤 공유</button>
                 <button onclick="toggleStatsOverlay('${fight.id}')"
                     class="oswald-sharp text-[8px] lg:text-[10px] text-gray-400 hover:text-white transition font-black italic uppercase tracking-widest border border-white/15 px-2.5 py-1 rounded-full">ℹ️ STATS</button>
                 <button onclick="toggleAnalysis('${fight.id}')" id="analysis-btn-${fight.id}"
