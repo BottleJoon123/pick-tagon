@@ -533,15 +533,121 @@ function _beltGlow(beltName) {
 }
 
 // ── 공유 실행 ───────────────────────────────────────────
-async function sharePicktagonCard() {
+// ── 공유 모드 선택 피커 ──────────────────────────────────
+var _scPickerEl = null;
+
+function _scDismissPicker() {
+    if (_scPickerEl) { _scPickerEl.remove(); _scPickerEl = null; }
+}
+
+function _scShowSharePicker(opts) {
+    _scDismissPicker();
+
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);display:flex;align-items:flex-end;';
+
+    var sheet = document.createElement('div');
+    sheet.style.cssText = 'width:100%;background:#111;border-radius:20px 20px 0 0;padding:12px 16px 40px;box-shadow:0 -4px 40px rgba(0,0,0,0.9);';
+
+    var handle = document.createElement('div');
+    handle.style.cssText = 'width:36px;height:4px;background:#2a2a2a;border-radius:2px;margin:0 auto 18px;';
+    sheet.appendChild(handle);
+
+    if (opts.title) {
+        var lbl = document.createElement('p');
+        lbl.style.cssText = 'color:#6a6a72;font-size:10px;font-weight:700;letter-spacing:0.12em;text-align:center;text-transform:uppercase;margin-bottom:12px;';
+        lbl.textContent = opts.title;
+        sheet.appendChild(lbl);
+    }
+
+    opts.actions.forEach(function(act) {
+        var row = document.createElement('button');
+        row.type = 'button';
+        row.style.cssText = 'display:flex;align-items:center;gap:14px;width:100%;padding:15px 12px;background:transparent;border:none;border-radius:12px;cursor:pointer;margin-bottom:2px;';
+        var iconEl = document.createElement('span');
+        iconEl.style.cssText = 'font-size:20px;width:26px;text-align:center;flex-shrink:0;';
+        iconEl.textContent = act.icon;
+        var textEl = document.createElement('span');
+        textEl.style.cssText = 'font-family:Pretendard,sans-serif;font-weight:500;font-size:15px;color:#f4f4f5;';
+        textEl.textContent = act.label;
+        row.appendChild(iconEl); row.appendChild(textEl);
+        row.addEventListener('pointerenter', function() { row.style.background = 'rgba(255,255,255,0.07)'; });
+        row.addEventListener('pointerleave', function() { row.style.background = ''; });
+        row.addEventListener('click', function() { _scDismissPicker(); act.fn(); });
+        sheet.appendChild(row);
+    });
+
+    var sep = document.createElement('div');
+    sep.style.cssText = 'height:1px;background:rgba(255,255,255,0.07);margin:10px 0;';
+    sheet.appendChild(sep);
+
+    var cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.style.cssText = 'width:100%;padding:14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:#6a6a72;font-size:14px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;cursor:pointer;';
+    cancelBtn.textContent = '취소';
+    cancelBtn.addEventListener('click', _scDismissPicker);
+    sheet.appendChild(cancelBtn);
+
+    ov.appendChild(sheet);
+    ov.addEventListener('click', function(e) { if (e.target === ov) _scDismissPicker(); });
+    document.body.appendChild(ov);
+    _scPickerEl = ov;
+
+    function _onEsc(e) {
+        if (e.key === 'Escape') { _scDismissPicker(); document.removeEventListener('keydown', _onEsc); }
+    }
+    document.addEventListener('keydown', _onEsc);
+}
+
+// 링크 복사 (clipboard → prompt fallback)
+async function _scCopyLink(url) {
+    try {
+        await navigator.clipboard.writeText(url);
+        if (typeof showToast === 'function') showToast('링크를 복사했어요 📋');
+    } catch(e) {
+        try { window.prompt('링크를 복사하세요:', url); } catch(e2) {}
+    }
+}
+
+// 링크 공유 (navigator.share → clipboard fallback)
+async function _scShareLink(title, text, url) {
+    if (navigator.share) {
+        try { await navigator.share({ title: title, text: text, url: url }); return; }
+        catch(e) { if (e.name === 'AbortError') return; }
+    }
+    _scCopyLink(url);
+}
+
+// ── 프로필 공유 피커 ─────────────────────────────────────
+function sharePicktagonCard() {
+    var data = buildShareCardData();
+    var losses = (data.total || 0) - (data.success || 0);
+    var shareText  = data.nick + '의 픽 전적 ' + (data.success || 0) + '승 ' + losses + '패 · '
+                   + '적중률 ' + (data.acc || 0) + '% · 너 적중률은? pick-tagon.com';
+    var shareUrl   = 'https://pick-tagon.com/#profile';
+    var shareTitle = 'PICK-TAGON';
+
+    _scShowSharePicker({
+        title: '공유 방식 선택',
+        actions: [
+            { icon: '🖼', label: '이미지 카드 공유', fn: function() {
+                _scShareProfileImage(data, shareText, shareTitle);
+            }},
+            { icon: '🔗', label: '링크로 공유', fn: function() {
+                _scShareLink(shareTitle, shareText, shareUrl);
+            }},
+            { icon: '📋', label: '링크 복사', fn: function() {
+                _scCopyLink(shareUrl);
+            }}
+        ]
+    });
+}
+
+async function _scShareProfileImage(data, shareText, shareTitle) {
     var btn = document.getElementById('profile-share-btn');
     if (btn) { btn.disabled = true; btn.textContent = '생성 중…'; }
-
     try {
-        var data   = buildShareCardData();
         var canvas = document.createElement('canvas');
-
-        // 폰트 로딩 완료 후 드로잉
         if (typeof document.fonts !== 'undefined' && document.fonts.ready) {
             try { await document.fonts.ready; } catch(e) {}
         }
@@ -550,50 +656,24 @@ async function sharePicktagonCard() {
         await new Promise(function(resolve, reject) {
             canvas.toBlob(async function(blob) {
                 if (!blob) { reject(new Error('toBlob failed')); return; }
-
-                var file   = new File([blob], 'picktagon.png', { type: 'image/png' });
-                var losses = (data.total || 0) - (data.success || 0);
-                var shareText  = data.nick + '의 픽 전적 ' + (data.success || 0) + '승 ' + losses + '패 · '
-                               + '적중률 ' + (data.acc || 0) + '% · 너 적중률은? pick-tagon.com';
-                var shareUrl   = 'https://pick-tagon.com/#profile';
-                var shareTitle = 'PICK-TAGON';
-
-                // 1. files + title + text + url
+                var file = new File([blob], 'picktagon.png', { type: 'image/png' });
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    try {
-                        await navigator.share({ files: [file], title: shareTitle, text: shareText, url: shareUrl });
-                        resolve(); return;
-                    } catch(e) { if (e.name === 'AbortError') { resolve(); return; } }
-                    // 2. files + title + text
                     try {
                         await navigator.share({ files: [file], title: shareTitle, text: shareText });
                         resolve(); return;
                     } catch(e) { if (e.name === 'AbortError') { resolve(); return; } }
                 }
-
-                // 3. title + text + url
-                if (navigator.share) {
-                    try {
-                        await navigator.share({ title: shareTitle, text: shareText, url: shareUrl });
-                        resolve(); return;
-                    } catch(e) { if (e.name === 'AbortError') { resolve(); return; } }
-                }
-
-                // 4. PC fallback: PNG 다운로드
+                // PC fallback
                 var a = document.createElement('a');
                 a.href    = canvas.toDataURL('image/png');
                 a.download = 'picktagon_' + data.nick.replace(/[^a-zA-Z0-9가-힣]/g, '_') + '.png';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                if (typeof showToast === 'function') {
-                    showToast('📥 PNG 저장됨 — 카카오·인스타 등에 공유해보세요!');
-                }
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                if (typeof showToast === 'function') showToast('📥 PNG 저장됨 — 카카오·인스타 등에 공유해보세요!');
                 resolve();
             }, 'image/png');
         });
     } catch(err) {
-        console.warn('[ShareCard] error:', err);
+        console.warn('[ProfileCard] image share error:', err);
         if (typeof showToast === 'function') showToast('⚠️ 공유 중 오류가 발생했습니다');
     } finally {
         if (btn) { btn.disabled = false; btn.textContent = '📤 기록 공유'; }
@@ -1156,13 +1236,38 @@ function _scRoundRectRight(ctx, x, y, w, h, rad) {
     ctx.fill();
 }
 
-// ── 매치 카드 공유 실행 ──────────────────────────────────
-async function sharePicktagonMatchCard(fightId) {
+// ── 매치 카드 공유 피커 ──────────────────────────────────
+function sharePicktagonMatchCard(fightId) {
     var data = buildMatchShareCardData(fightId);
     if (!data) {
         if (typeof showToast === 'function') showToast('⚠️ 경기 정보를 찾을 수 없습니다');
         return;
     }
+    var pickedName = data.userPick === 'f1' ? data.f1.name
+                   : data.userPick === 'f2' ? data.f2.name : null;
+    var shareText  = pickedName
+        ? '나는 ' + pickedName + ' 픽! 너는? · UFC 픽은 PICK-TAGON'
+        : data.f1.name + ' vs ' + data.f2.name + ', 너는 누구 보세요? · UFC 픽은 PICK-TAGON';
+    var shareUrl   = 'https://pick-tagon.com/?fight=' + encodeURIComponent(fightId);
+    var shareTitle = 'PICK-TAGON';
+
+    _scShowSharePicker({
+        title: '공유 방식 선택',
+        actions: [
+            { icon: '🖼', label: '이미지 카드 공유', fn: function() {
+                _scShareMatchImage(data, shareText, shareTitle);
+            }},
+            { icon: '🔗', label: '링크로 공유', fn: function() {
+                _scShareLink(shareTitle, shareText, shareUrl);
+            }},
+            { icon: '📋', label: '링크 복사', fn: function() {
+                _scCopyLink(shareUrl);
+            }}
+        ]
+    });
+}
+
+async function _scShareMatchImage(data, shareText, shareTitle) {
     var canvas = document.createElement('canvas');
     if (typeof document.fonts !== 'undefined' && document.fonts.ready) {
         try { await document.fonts.ready; } catch(e) {}
@@ -1172,35 +1277,14 @@ async function sharePicktagonMatchCard(fightId) {
     return new Promise(function(resolve, reject) {
         canvas.toBlob(async function(blob) {
             if (!blob) { reject(new Error('toBlob failed')); return; }
-            var file      = new File([blob], 'picktagon_match.png', { type: 'image/png' });
-            var pickedName = data.userPick === 'f1' ? data.f1.name
-                           : data.userPick === 'f2' ? data.f2.name : null;
-            var shareText  = pickedName
-                ? '나는 ' + pickedName + ' 픽! 너는? · UFC 픽은 PICK-TAGON'
-                : data.f1.name + ' vs ' + data.f2.name + ', 너는 누구 보세요? · UFC 픽은 PICK-TAGON';
-            var shareUrl   = 'https://pick-tagon.com/?fight=' + encodeURIComponent(fightId);
-            var shareTitle = 'PICK-TAGON';
-
+            var file = new File([blob], 'picktagon_match.png', { type: 'image/png' });
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                // 1. files + title + text + url
-                try {
-                    await navigator.share({ files: [file], title: shareTitle, text: shareText, url: shareUrl });
-                    resolve(); return;
-                } catch(e) { if (e.name === 'AbortError') { resolve(); return; } }
-                // 2. files + title + text (일부 브라우저 files+url 거부 대응)
                 try {
                     await navigator.share({ files: [file], title: shareTitle, text: shareText });
                     resolve(); return;
                 } catch(e) { if (e.name === 'AbortError') { resolve(); return; } }
             }
-            // 3. title + text + url (파일 없음)
-            if (navigator.share) {
-                try {
-                    await navigator.share({ title: shareTitle, text: shareText, url: shareUrl });
-                    resolve(); return;
-                } catch(e) { if (e.name === 'AbortError') { resolve(); return; } }
-            }
-            // 4. PC PNG 다운로드 fallback
+            // PC fallback
             var a = document.createElement('a');
             a.href = canvas.toDataURL('image/png');
             a.download = 'picktagon_' + (data.f1.name + '_vs_' + data.f2.name).replace(/[^a-zA-Z0-9가-힣]/g, '_') + '.png';
@@ -1209,7 +1293,7 @@ async function sharePicktagonMatchCard(fightId) {
             resolve();
         }, 'image/png');
     }).catch(function(err) {
-        console.warn('[MatchCard] error:', err);
+        console.warn('[MatchCard] image share error:', err);
         if (typeof showToast === 'function') showToast('⚠️ 공유 중 오류가 발생했습니다');
     });
 }
