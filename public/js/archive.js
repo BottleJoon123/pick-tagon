@@ -563,6 +563,7 @@ const DIVISION_LABEL = {
     ww:  '웰터웨이트',  lw:  '라이트웨이트',     fw:  '페더웨이트',
     bw:  '밴텀웨이트',  flw: '플라이웨이트',     wmw: '여성 스트로웨이트',
     wfw: '여성 플라이웨이트', wbw: '여성 밴텀웨이트', wfe: '여성 페더웨이트',
+    catchweight: '캐치웨이트',
 };
 
 // ufc_rankings 맵에서 랭크 조회 (없으면 fighters.rank 폴백)

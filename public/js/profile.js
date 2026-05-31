@@ -15,6 +15,7 @@ const WEIGHT_CLASS_LABEL = {
     bw: 'Bantamweight', flw: 'Flyweight',
     wbw: "W. Bantamweight", wfw: "W. Featherweight",
     wsw: "W. Strawweight", wflw: "W. Flyweight",
+    catchweight: "Catchweight",
 };
 
 // actual_method → 아이콘 / 바 색상 (RPC 동적 렌더용)

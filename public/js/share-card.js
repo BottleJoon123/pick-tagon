@@ -85,6 +85,7 @@ function _scDivisionLabel(div) {
         'w-bw':'여자 밴텀웨이트', "women's bantamweight":'여자 밴텀웨이트',
         'w-fw':'여자 페더웨이트', "women's featherweight":'여자 페더웨이트',
         'w-mw':'여자 미들웨이트', "women's middleweight":'여자 미들웨이트',
+        'catchweight':'캐치웨이트',
     };
     var key = (div || '').toLowerCase().trim();
     return MAP[key] || (div ? div.toUpperCase() : '');

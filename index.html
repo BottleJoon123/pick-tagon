@@ -1336,6 +1336,7 @@
                         <option value="wmw">여자 스트로급</option>
                         <option value="wfw">여자 플라이급</option>
                         <option value="wbw">여자 밴텀급</option>
+                        <option value="catchweight">캐치웨이트</option>
                     </select>
                 </div>
                 <!-- 액션 버튼 -->
@@ -1594,6 +1595,7 @@
                     <option>FLYWEIGHT</option>
                     <option>WOMEN'S STRAWWEIGHT</option>
                     <option>WOMEN'S FLYWEIGHT</option>
+                    <option>CATCHWEIGHT</option>
                 </select>
             </div>
         </div>
@@ -2187,7 +2189,7 @@
             </div>
             <div>
                 <label class="oswald-sharp text-[10px] text-gray-500 uppercase tracking-widest italic block mb-2">승리 방식 *</label>
-                <select id="result-method-select" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-ufcRed oswald-sharp font-black italic uppercase text-sm">
+                <select id="result-method-select" onchange="onResultMethodChange()" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-ufcRed oswald-sharp font-black italic uppercase text-sm">
                     <option value="KO/TKO">KO/TKO</option>
                     <option value="SUB">서브미션 (SUB)</option>
                     <option value="UD">만장일치 판정 (UD)</option>
@@ -2827,6 +2829,31 @@
         refreshUI();
     }
 
+    // ── 판정 결과 자동 세팅 헬퍼 ─────────────────────────────────────
+    function isDecisionMethod(method) {
+        return method === 'UD' || method === 'SD' || method === 'MD';
+    }
+
+    function getFightFinalRound(fight) {
+        if (fight && fight.rounds) return parseInt(fight.rounds) || 3;
+        if (fight && fight.tag && /\bMAIN\b/i.test(fight.tag) && !/\bCO[\s-]MAIN\b/i.test(fight.tag)) return 5;
+        return 3;
+    }
+
+    function applyDecisionDefaults(fightId) {
+        const method = document.getElementById('result-method-select').value;
+        if (!isDecisionMethod(method)) return;
+        const fight = getActiveFights().find(f => f.id === fightId);
+        const finalRound = getFightFinalRound(fight);
+        document.getElementById('result-round-input').value = finalRound;
+        document.getElementById('result-time-input').value = '5:00';
+    }
+
+    function onResultMethodChange() {
+        const fightId = document.getElementById('result-modal-fight-id').value;
+        applyDecisionDefaults(fightId);
+    }
+
     // 어드민이 실제 결과를 입력하면 자동 정산
     function adminSetResult(fightId) {
         document.getElementById('result-modal-fight-id').value = fightId;
@@ -2843,6 +2870,7 @@
             <option value="NC">경기 취소/무효 (NC)</option>
         `;
         document.getElementById('result-modal').classList.remove('hidden');
+        applyDecisionDefaults(fightId);
     }
 
     function editMatchupResult(fightId) {
@@ -2858,9 +2886,15 @@
         const fightId = document.getElementById('result-modal-fight-id').value;
         const winner  = document.getElementById('result-winner-select').value;
         const method  = document.getElementById('result-method-select').value;
-        const round   = document.getElementById('result-round-input').value || '3';
-        const time    = document.getElementById('result-time-input').value || '5:00';
+        let   round   = document.getElementById('result-round-input').value || '3';
+        let   time    = document.getElementById('result-time-input').value || '5:00';
         const isForce = document.getElementById('result-modal-force').value === 'true';
+
+        if (isDecisionMethod(method)) {
+            const _fight = getActiveFights().find(f => f.id === fightId);
+            round = String(getFightFinalRound(_fight));
+            time  = '5:00';
+        }
 
         if (!winner) { showToast('⚠ 결과를 선택하세요'); return; }
 

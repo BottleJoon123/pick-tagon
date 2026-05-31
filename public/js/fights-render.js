@@ -17,6 +17,7 @@ var _DIV_KR = {
     'bw': '밴텀웨이트', 'flw': '플라이웨이트',
     'w-sw': '여자 스트로웨이트', 'w-flw': '여자 플라이웨이트',
     'w-bw': '여자 밴텀웨이트', 'w-fw': '여자 페더웨이트',
+    'catchweight': '캐치웨이트',
 };
 function _divLabel(div) {
     if (!div) return '';
@@ -86,7 +87,7 @@ function _renderHeroHdr(fight, isMain, tagColor) {
     const isMob = window.innerWidth < 640;
     if (isMob) {
         const tagShort = fight.tag.replace(/\s*EVENT$/i, '') || fight.tag;
-        const divShort = (fight.division || '').toUpperCase();
+        const divShort = (fight.division || '').toLowerCase() === 'catchweight' ? 'CW' : (fight.division || '').toUpperCase();
         const tagSt = isMain
             ? 'background:#E10600;color:#fff;'
             : 'background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);';
