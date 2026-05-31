@@ -104,19 +104,30 @@ function renderHeroCard(fight, idx) {
     return `
     <div id="card-${fight.id}" onclick="if(event.target.closest('button,[data-no-pick]')) return; openPickSlipFromCard('${fight.id}')" class="fc-hero-card glass-card ${isMain ? 'rounded-[2.5rem] lg:rounded-[4rem]' : 'rounded-[2rem] lg:rounded-[3rem]'} overflow-hidden transition-all duration-500" style="${glowStyle}">
         <!-- Card Header -->
-        <div class="flex items-center justify-between px-5 lg:px-10 py-3 lg:py-4 border-b border-white/10 bg-black/30">
-            <div class="flex items-center gap-3">
-                <span class="oswald-sharp text-[8px] lg:text-xs font-black italic uppercase tracking-widest px-3 py-1 rounded-full ${tagColor}">${fight.tag}</span>
-                <span class="oswald-sharp text-[8px] lg:text-xs text-gray-500 font-black italic tracking-widest uppercase">${_divLabel(fight.division)}</span>
+        <div class="flex items-center justify-between px-5 lg:px-10 py-3 lg:py-4 border-b border-white/10 bg-black/30 gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+                <span class="oswald-sharp text-[8px] lg:text-xs font-black italic uppercase tracking-widest px-2.5 py-1 rounded-full flex-shrink-0 ${tagColor}">
+                    <span class="sm:hidden">${fight.tag.replace(/\s*EVENT$/i,'') || fight.tag}</span>
+                    <span class="hidden sm:inline">${fight.tag}</span>
+                </span>
+                <span class="oswald-sharp text-[8px] lg:text-xs text-gray-500 font-black italic tracking-widest uppercase whitespace-nowrap">
+                    <span class="sm:hidden">${(fight.division || '').toUpperCase()}</span>
+                    <span class="hidden sm:inline">${_divLabel(fight.division)}</span>
+                </span>
             </div>
-            <div class="flex items-center gap-2 lg:gap-3">
+            <div class="flex items-center gap-1.5 lg:gap-3 flex-shrink-0">
                 <button data-no-pick="1" onclick="event.stopPropagation(); sharePicktagonMatchCard('${fight.id}')"
-                    class="oswald-sharp text-[9px] lg:text-[10px] text-gray-500 hover:text-ufcRed transition font-black italic uppercase tracking-widest border border-white/10 hover:border-ufcRed/40 px-3 py-1.5 rounded-full active:scale-95">📤 공유</button>
+                    class="oswald-sharp text-gray-500 hover:text-ufcRed transition font-black italic uppercase tracking-widest border border-white/10 hover:border-ufcRed/40 px-2 py-1.5 rounded-full active:scale-95 text-[9px] lg:text-[10px]">
+                    <span class="sm:hidden">📤</span><span class="hidden sm:inline">📤 공유</span>
+                </button>
                 <button onclick="toggleStatsOverlay('${fight.id}')"
-                    class="oswald-sharp text-[8px] lg:text-[10px] text-gray-400 hover:text-white transition font-black italic uppercase tracking-widest border border-white/15 px-2.5 py-1 rounded-full">ℹ️ STATS</button>
+                    class="oswald-sharp text-gray-400 hover:text-white transition font-black italic uppercase tracking-widest border border-white/15 px-2 py-1 rounded-full text-[8px] lg:text-[10px]">
+                    <span class="sm:hidden">ℹ️</span><span class="hidden sm:inline">ℹ️ STATS</span>
+                </button>
                 <button onclick="toggleAnalysis('${fight.id}')" id="analysis-btn-${fight.id}"
-                    class="oswald-sharp text-[8px] lg:text-xs text-gray-500 hover:text-ufcRed transition font-black italic uppercase tracking-widest flex items-center gap-1">
-                    <span id="analysis-btn-label-${fight.id}">▼ ANALYSIS</span>
+                    class="oswald-sharp text-gray-500 hover:text-ufcRed transition font-black italic uppercase tracking-widest flex items-center text-[8px] lg:text-xs">
+                    <span id="analysis-btn-lm-${fight.id}" class="sm:hidden">▼</span>
+                    <span id="analysis-btn-ld-${fight.id}" class="hidden sm:inline">▼ ANALYSIS</span>
                 </button>
             </div>
         </div>
@@ -458,11 +469,13 @@ function switchAnalysisTab(fightId, tab) {
 
 function toggleAnalysis(fightId) {
     const panel = document.getElementById(`analysis-${fightId}`);
-    const btnLabel = document.getElementById(`analysis-btn-label-${fightId}`);
+    const btnLm = document.getElementById(`analysis-btn-lm-${fightId}`);
+    const btnLd = document.getElementById(`analysis-btn-ld-${fightId}`);
     if (!panel) return;
     const isHidden = panel.classList.contains('hidden');
     panel.classList.toggle('hidden');
-    if (btnLabel) btnLabel.textContent = isHidden ? '▲ ANALYSIS' : '▼ ANALYSIS';
+    if (btnLm) btnLm.textContent = isHidden ? '▲' : '▼';
+    if (btnLd) btnLd.textContent = isHidden ? '▲ ANALYSIS' : '▼ ANALYSIS';
     if (isHidden) switchAnalysisTab(fightId, 'radar');
 }
 
