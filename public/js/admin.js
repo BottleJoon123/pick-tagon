@@ -1989,6 +1989,14 @@ async function saveMatchupFightStats(matchupId) {
     if (!_mfsValidateLandLteAtt(red,  'Red'))  return;
     if (!_mfsValidateLandLteAtt(blue, 'Blue')) return;
 
+    // 미리보기 RPC는 matchup_fight_stats.fighter_id로 경기를 찾으므로,
+    // 저장 시 해당 코너의 fighter_id를 반드시 전달해야 한다 (없으면 NULL → preview에서 매칭 불가).
+    var _matchup = (typeof _builderMatchups !== 'undefined' && Array.isArray(_builderMatchups))
+        ? _builderMatchups.find(function(x) { return x.id === matchupId; })
+        : null;
+    var redFighterId  = _matchup ? _matchup.red_fighter_id  : null;
+    var blueFighterId = _matchup ? _matchup.blue_fighter_id : null;
+
     showToast('⏳ 스탯 저장 중...');
 
     var tasks = [];
@@ -1996,6 +2004,7 @@ async function saveMatchupFightStats(matchupId) {
         tasks.push(sb.rpc('admin_upsert_matchup_fight_stats', {
             p_matchup_id:         matchupId,
             p_side:               'red',
+            p_fighter_id:         redFighterId,
             p_total_strikes_att:  red.total_att,
             p_total_strikes_land: red.total_land,
             p_sig_strikes_att:    red.sig_att,
@@ -2011,6 +2020,7 @@ async function saveMatchupFightStats(matchupId) {
         tasks.push(sb.rpc('admin_upsert_matchup_fight_stats', {
             p_matchup_id:         matchupId,
             p_side:               'blue',
+            p_fighter_id:         blueFighterId,
             p_total_strikes_att:  blue.total_att,
             p_total_strikes_land: blue.total_land,
             p_sig_strikes_att:    blue.sig_att,
