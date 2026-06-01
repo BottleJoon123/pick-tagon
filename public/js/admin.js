@@ -1991,11 +1991,50 @@ async function saveMatchupFightStats(matchupId) {
 
     // 미리보기 RPC는 matchup_fight_stats.fighter_id로 경기를 찾으므로,
     // 저장 시 해당 코너의 fighter_id를 반드시 전달해야 한다 (없으면 NULL → preview에서 매칭 불가).
-    var _matchup = (typeof _builderMatchups !== 'undefined' && Array.isArray(_builderMatchups))
+    //
+    // 결과 입력 모달은 Fight Card 리스트(_dbMatchups) / Builder(_builderMatchups) 등
+    // 여러 탭에서 열릴 수 있다. _builderMatchups만 보면 다른 탭에서 열었을 때 비어 있어
+    // fighter_id가 NULL로 저장된다. 따라서 다단계로 조회한다:
+    //   1) _builderMatchups (Builder 탭에서 열린 경우)
+    //   2) matchups 테이블 직접 조회 (가장 신뢰 가능한 source of truth)
+    // (_dbMatchups의 매핑된 객체는 red_fighter_id/blue_fighter_id를 보관하지 않으므로 제외)
+    var redFighterId  = null;
+    var blueFighterId = null;
+
+    var _bm = (typeof _builderMatchups !== 'undefined' && Array.isArray(_builderMatchups))
         ? _builderMatchups.find(function(x) { return x.id === matchupId; })
         : null;
-    var redFighterId  = _matchup ? _matchup.red_fighter_id  : null;
-    var blueFighterId = _matchup ? _matchup.blue_fighter_id : null;
+    if (_bm) {
+        redFighterId  = _bm.red_fighter_id  || null;
+        blueFighterId = _bm.blue_fighter_id || null;
+    }
+
+    // fighter_id를 아직 못 찾았으면 matchups 테이블에서 직접 조회 (탭 무관 신뢰 경로)
+    if ((!redEmpty && !redFighterId) || (!blueEmpty && !blueFighterId)) {
+        try {
+            var _mRes = await sb
+                .from('matchups')
+                .select('red_fighter_id, blue_fighter_id')
+                .eq('id', matchupId)
+                .maybeSingle();
+            if (_mRes && _mRes.data) {
+                if (!redFighterId)  redFighterId  = _mRes.data.red_fighter_id  || null;
+                if (!blueFighterId) blueFighterId = _mRes.data.blue_fighter_id || null;
+            }
+        } catch (e) {
+            console.warn('[stats] matchup fighter_id 조회 실패:', e);
+        }
+    }
+
+    // fighter_id가 없으면 저장 차단 — NULL row가 생기면 preview RPC가 경기를 못 찾는다.
+    if (!redEmpty && !redFighterId) {
+        showToast('⚠ 레드 코너 선수 ID를 찾지 못해 스탯을 저장할 수 없습니다');
+        return;
+    }
+    if (!blueEmpty && !blueFighterId) {
+        showToast('⚠ 블루 코너 선수 ID를 찾지 못해 스탯을 저장할 수 없습니다');
+        return;
+    }
 
     showToast('⏳ 스탯 저장 중...');
 
@@ -2042,6 +2081,13 @@ async function saveMatchupFightStats(matchupId) {
         }).join(' / ');
         showToast('❌ 스탯 저장 실패: ' + msg);
     } else {
+        results.forEach(function(r) {
+            console.debug('[stats] saved', {
+                side: r._side,
+                fighter_id: r._side === 'red' ? redFighterId : blueFighterId,
+                matchup_id: matchupId
+            });
+        });
         var saved = results.map(function(r) { return r._side === 'red' ? '레드' : '블루'; }).join(' / ');
         showToast('📊 ' + saved + ' 코너 스탯 저장 완료');
     }
