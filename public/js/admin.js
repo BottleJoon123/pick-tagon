@@ -545,6 +545,171 @@ function autoComputeFighterStats() {
     showToast('스탯 자동 계산 완료');
 }
 
+// ----- STATS MODIFIER PREVIEW (dry-run only, read-only) -----
+var STATS_MODIFIER_AXIS_LABELS = ['Striking', 'Grappling', 'Stamina', 'Defense', 'Speed'];
+
+// Convert RPC skip/status reason into a Korean label.
+function _statsModifierReasonKo(reason, rawScore) {
+    if (reason == null && rawScore == null) return '스탯 데이터 없음';
+    var r = String(reason || '');
+    if (r.indexOf('표본 부족') !== -1) return '표본 부족';
+    if (r.indexOf('상대 스탯 없음') !== -1) return '상대 스탯 없음 (Defense skip)';
+    if (rawScore == null) return '스탯 데이터 없음';
+    return r || '—';
+}
+
+function previewFighterStatsModifier() {
+    var box = document.getElementById('stats-modifier-preview');
+    if (!box) return;
+
+    if (!editingFighterId) {
+        box.classList.remove('hidden');
+        box.innerHTML = '<div class="glass-card rounded-xl p-4 mt-2 border border-white/10 oswald-sharp text-[10px] text-gray-500 italic uppercase tracking-widest text-center">기존 파이터를 수정할 때만 미리보기가 가능합니다</div>';
+        return;
+    }
+    if (typeof sb === 'undefined' || !sb) {
+        box.classList.remove('hidden');
+        box.innerHTML = '<div class="glass-card rounded-xl p-4 mt-2 border border-white/10 oswald-sharp text-[10px] text-gray-500 italic uppercase tracking-widest text-center">⚠ Supabase 연결 필요</div>';
+        return;
+    }
+
+    box.classList.remove('hidden');
+    box.innerHTML = '<div class="glass-card rounded-xl p-4 mt-2 border border-white/10 oswald-sharp text-[10px] text-gray-500 italic uppercase tracking-widest text-center animate-pulse">미리보기 계산 중...</div>';
+
+    sb.rpc('admin_preview_fighter_stats_modifier', {
+        p_fighter_id: editingFighterId,
+        p_dry_run: true
+    }).then(function(res) {
+        if (res.error) {
+            box.innerHTML = '<div class="glass-card rounded-xl p-4 mt-2 border border-ufcRed/20 oswald-sharp text-[10px] text-ufcRed/70 italic uppercase tracking-widest text-center">⚠ RPC 오류: ' + escapeHtml(res.error.message || String(res.error)) + '</div>';
+            return;
+        }
+        _renderStatsModifierPreview(box, res.data);
+    }).catch(function(e) {
+        box.innerHTML = '<div class="glass-card rounded-xl p-4 mt-2 border border-ufcRed/20 oswald-sharp text-[10px] text-ufcRed/70 italic uppercase tracking-widest text-center">⚠ 네트워크 오류: ' + escapeHtml(e && e.message ? e.message : String(e)) + '</div>';
+    });
+}
+
+function _renderStatsModifierPreview(box, d) {
+    if (!d) {
+        box.innerHTML = '<div class="glass-card rounded-xl p-4 mt-2 border border-white/10 oswald-sharp text-[10px] text-gray-500 italic uppercase tracking-widest text-center">반영 가능한 최근 경기 스탯 없음</div>';
+        return;
+    }
+
+    var axes = Array.isArray(d.axes) ? d.axes : [];
+    var allSkipped = axes.length === 0 || axes.every(function(a) { return a && a.status === 'skipped'; });
+
+    if (d.ok === false || allSkipped) {
+        var hint = '';
+        // surface a reason hint if RPC provided skipped_axes with reasons
+        var sk = Array.isArray(d.skipped_axes) ? d.skipped_axes : [];
+        if (sk.length) {
+            hint = '<div class="mt-2 space-y-0.5">' + sk.map(function(s) {
+                var lbl = s && s.axis ? s.axis : '—';
+                return '<p class="oswald-sharp text-[9px] text-gray-600 italic">' + escapeHtml(lbl) + ' — ' + escapeHtml(_statsModifierReasonKo(s && s.reason, undefined)) + '</p>';
+            }).join('') + '</div>';
+        }
+        box.innerHTML = '<div class="glass-card rounded-xl p-4 mt-2 border border-white/10 text-center">'
+            + '<p class="oswald-sharp text-[10px] text-gray-500 italic uppercase tracking-widest">반영 가능한 최근 경기 스탯 없음</p>'
+            + hint + '</div>';
+        return;
+    }
+
+    var current = Array.isArray(d.current_stats) ? d.current_stats : [];
+    var baseline = Array.isArray(d.baseline_stats) ? d.baseline_stats : [];
+    var computed = Array.isArray(d.computed_stats) ? d.computed_stats : [];
+
+    // axis rows — indexed by axis.index (fallback to position)
+    var rowsHtml = STATS_MODIFIER_AXIS_LABELS.map(function(label, i) {
+        var ax = axes.find(function(a) { return a && a.index === i; }) || axes[i] || {};
+        var cur = (ax.current != null) ? ax.current : current[i];
+        var base = (ax.baseline != null) ? ax.baseline : baseline[i];
+        var comp = computed[i];
+        var delta = (ax.delta != null) ? ax.delta : ((comp != null && cur != null) ? (comp - cur) : null);
+        var applied = ax.status === 'applied';
+        var deltaStr = '—';
+        var deltaCls = 'text-gray-500';
+        if (delta != null) {
+            if (delta > 0) { deltaStr = '+' + delta; deltaCls = 'text-green-400'; }
+            else if (delta < 0) { deltaStr = String(delta); deltaCls = 'text-ufcRed'; }
+            else { deltaStr = '0'; deltaCls = 'text-gray-400'; }
+        }
+        var reasonTxt = applied ? '적용됨' : _statsModifierReasonKo(ax.reason, ax.raw_score);
+        var reasonCls = applied ? 'text-green-400/70' : 'text-amber-400/70';
+        var sample = (ax.sample_count != null) ? ax.sample_count : '—';
+        return [
+            '<tr class="border-b border-white/5 last:border-0">',
+            '  <td class="py-1.5 pr-2 oswald-sharp text-[10px] text-white italic uppercase tracking-widest">' + escapeHtml(label) + '</td>',
+            '  <td class="py-1.5 px-1 text-center oswald-sharp text-[10px] text-gray-400">' + (cur != null ? cur : '—') + '</td>',
+            '  <td class="py-1.5 px-1 text-center oswald-sharp text-[10px] text-gray-500">' + (base != null ? base : '—') + '</td>',
+            '  <td class="py-1.5 px-1 text-center oswald-sharp text-[10px] text-white font-black">' + (comp != null ? comp : '—') + '</td>',
+            '  <td class="py-1.5 px-1 text-center oswald-sharp text-[10px] font-black ' + deltaCls + '">' + deltaStr + '</td>',
+            '  <td class="py-1.5 px-1 text-center oswald-sharp text-[10px] text-gray-500">' + sample + '</td>',
+            '  <td class="py-1.5 pl-2 oswald-sharp text-[9px] italic ' + reasonCls + '">' + escapeHtml(reasonTxt) + '</td>',
+            '</tr>'
+        ].join('');
+    }).join('');
+
+    var appliedAxes = Array.isArray(d.applied_axes) ? d.applied_axes : [];
+    var skippedAxes = Array.isArray(d.skipped_axes) ? d.skipped_axes : [];
+    var inp = d.input_summary || {};
+
+    var metaHtml = [
+        '<div class="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-3">',
+        '  <div class="text-center"><p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest">Rank Factor</p><p class="oswald-sharp text-[11px] text-white font-black italic">' + (d.rank_factor != null ? d.rank_factor : '—') + '</p></div>',
+        '  <div class="text-center"><p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest">Δ Max</p><p class="oswald-sharp text-[11px] text-white font-black italic">' + (d.delta_max != null ? d.delta_max : '—') + '</p></div>',
+        '  <div class="text-center"><p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest">Applied</p><p class="oswald-sharp text-[11px] text-green-400 font-black italic">' + appliedAxes.length + '</p></div>',
+        '  <div class="text-center"><p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest">Skipped</p><p class="oswald-sharp text-[11px] text-amber-400 font-black italic">' + skippedAxes.length + '</p></div>',
+        '</div>'
+    ].join('');
+
+    var appliedListHtml = appliedAxes.length
+        ? '<p class="oswald-sharp text-[9px] text-green-400/70 italic mt-2">적용 축: ' + escapeHtml(appliedAxes.join(', ')) + '</p>'
+        : '';
+    var skippedListHtml = skippedAxes.length
+        ? '<div class="mt-1 space-y-0.5">' + skippedAxes.map(function(s) {
+            var lbl = s && s.axis ? s.axis : '—';
+            return '<p class="oswald-sharp text-[9px] text-amber-400/60 italic">skip: ' + escapeHtml(lbl) + ' — ' + escapeHtml(_statsModifierReasonKo(s && s.reason, undefined)) + '</p>';
+          }).join('') + '</div>'
+        : '';
+
+    var inputHtml = [
+        '<p class="oswald-sharp text-[9px] text-gray-600 italic mt-2">',
+        '입력 표본 — 전체 ' + (inp.total_fights != null ? inp.total_fights : '—'),
+        ' · 상대스탯 ' + (inp.fights_with_opponent_stats != null ? inp.fights_with_opponent_stats : '—'),
+        ' · 완료 ' + (inp.completed_fights != null ? inp.completed_fights : '—'),
+        ' · 표본채택 ' + (inp.sampled_fights != null ? inp.sampled_fights : '—'),
+        '</p>'
+    ].join('');
+
+    box.innerHTML = [
+        '<div class="glass-card rounded-xl p-4 mt-2 border border-white/10">',
+        '  <div class="flex items-center justify-between mb-2">',
+        '    <p class="oswald-sharp text-[10px] text-gray-400 font-black italic uppercase tracking-widest">능력치 보정 미리보기 <span class="text-gray-700">· DRY-RUN</span></p>',
+        '    <span class="oswald-sharp text-[8px] text-gray-700 italic uppercase tracking-widest">미적용 · 읽기 전용</span>',
+        '  </div>',
+        '  <div class="overflow-x-auto">',
+        '    <table class="w-full">',
+        '      <thead><tr class="border-b border-white/10">',
+        '        <th class="py-1 pr-2 text-left oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest">축</th>',
+        '        <th class="py-1 px-1 oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest">현재</th>',
+        '        <th class="py-1 px-1 oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest">기준</th>',
+        '        <th class="py-1 px-1 oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest">계산</th>',
+        '        <th class="py-1 px-1 oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest">Δ</th>',
+        '        <th class="py-1 px-1 oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest">표본</th>',
+        '        <th class="py-1 pl-2 text-left oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest">사유</th>',
+        '      </tr></thead>',
+        '      <tbody>' + rowsHtml + '</tbody>',
+        '    </table>',
+        '  </div>',
+        metaHtml,
+        appliedListHtml,
+        skippedListHtml,
+        inputHtml,
+        '</div>'
+    ].join('');
+}
+
 function buildStatsSliders(stats) {
     const container = document.getElementById('stats-sliders');
     container.innerHTML = STAT_LABELS.map((label, i) => `
@@ -564,6 +729,10 @@ function openFighterModal(fighterId) {
     const modal = document.getElementById('fighter-modal');
     const title = document.getElementById('fighter-modal-title');
     modal.classList.remove('hidden');
+
+    // reset stats modifier preview (avoid showing stale data from a prior fighter)
+    var _smp = document.getElementById('stats-modifier-preview');
+    if (_smp) { _smp.classList.add('hidden'); _smp.innerHTML = ''; }
 
     if (fighterId) {
         const f = fighterDB.find(x => x.id === fighterId);
