@@ -137,10 +137,10 @@ function renderProfileReport() {
             typeEl.innerHTML = `
             <div class="flex items-center gap-4">
                 <div>
-                    <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-widest italic mb-1">나의 예측가 유형</p>
+                    <p class="oswald-sharp text-[11px] text-gray-500 uppercase tracking-widest italic mb-1">나의 예측가 유형</p>
                     <p class="oswald-sharp text-lg lg:text-xl font-black italic ${analyst.color}">${analyst.title}</p>
-                    <p class="text-gray-400 text-xs mt-1 italic">${analyst.desc}</p>
-                    <p class="oswald-sharp text-[9px] text-gray-600 italic mt-1.5">첫 픽을 등록하면 유형이 결정됩니다</p>
+                    <p class="text-gray-400 text-sm mt-1 italic">${analyst.desc}</p>
+                    <p class="oswald-sharp text-[11px] text-gray-600 italic mt-1.5">첫 픽을 등록하면 유형이 결정됩니다</p>
                 </div>
             </div>`;
         }
@@ -156,7 +156,7 @@ function renderProfileReport() {
             <div class="col-span-full flex flex-col items-center justify-center py-8 gap-3 text-center">
                 <p class="oswald-sharp text-lg font-black italic text-white uppercase tracking-widest">예측 등록 완료</p>
                 <p class="text-gray-400 text-sm italic">경기 결과를 기다리는 중 · ${pendingCount}개 픽 대기</p>
-                <p class="oswald-sharp text-[10px] text-gray-600 italic uppercase tracking-widest mt-1">결과 확정 후 통계가 업데이트됩니다</p>
+                <p class="oswald-sharp text-xs text-gray-600 italic uppercase tracking-widest mt-1">결과 확정 후 통계가 업데이트됩니다</p>
             </div>`;
         }
         const typeEl = document.getElementById('profile-analyst-type');
@@ -164,10 +164,10 @@ function renderProfileReport() {
             typeEl.innerHTML = `
             <div class="flex items-center gap-4">
                 <div>
-                    <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-widest italic mb-1">나의 예측가 유형</p>
+                    <p class="oswald-sharp text-[11px] text-gray-500 uppercase tracking-widest italic mb-1">나의 예측가 유형</p>
                     <p class="oswald-sharp text-lg lg:text-xl font-black italic ${analyst.color}">${analyst.title}</p>
-                    <p class="text-gray-400 text-xs mt-1 italic">${analyst.desc}</p>
-                    <p class="oswald-sharp text-[9px] text-gray-600 italic mt-1.5">픽 결과 확정 후 유형이 정식 산출됩니다</p>
+                    <p class="text-gray-400 text-sm mt-1 italic">${analyst.desc}</p>
+                    <p class="oswald-sharp text-[11px] text-gray-600 italic mt-1.5">픽 결과 확정 후 유형이 정식 산출됩니다</p>
                 </div>
             </div>`;
         }
@@ -215,9 +215,9 @@ function renderProfileReport() {
             { label: '업셋 픽 성공',   value: upsetWins + '회',                     sub: upsetSub,  color: 'text-orange-400' },
         ].map(item => `
             <div class="bg-black/30 rounded-2xl p-4 border border-white/8">
-                <p class="oswald-sharp text-[10px] text-gray-400 uppercase tracking-widest italic mb-2">${item.label}</p>
+                <p class="oswald-sharp text-xs text-gray-400 uppercase tracking-widest italic mb-2">${item.label}</p>
                 <p class="oswald-sharp text-xl lg:text-2xl font-black italic leading-none ${item.color}">${item.value}</p>
-                <p class="oswald-sharp text-[10px] text-gray-500 italic mt-2 truncate">${item.sub}</p>
+                <p class="oswald-sharp text-xs text-gray-500 italic mt-2 truncate">${item.sub}</p>
             </div>
         `).join('');
     }
@@ -231,10 +231,10 @@ function renderProfileReport() {
         typeEl.innerHTML = `
         <div class="flex items-center gap-4">
             <div>
-                <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-widest italic mb-1">나의 예측가 유형</p>
+                <p class="oswald-sharp text-[11px] text-gray-500 uppercase tracking-widest italic mb-1">나의 예측가 유형</p>
                 <p class="oswald-sharp text-lg lg:text-xl font-black italic ${analyst.color}">${analyst.title}</p>
                 <p class="text-gray-400 text-xs mt-1 italic">${analyst.desc}</p>
-                <p class="oswald-sharp text-[9px] text-gray-600 italic mt-1.5">${typeBasis}</p>
+                <p class="oswald-sharp text-[11px] text-gray-600 italic mt-1.5">${typeBasis}</p>
             </div>
         </div>`;
     }
@@ -267,9 +267,9 @@ function renderDivisionStats() {
             return `
             <div>
                 <div class="flex justify-between items-center mb-1.5">
-                    <span class="oswald-sharp text-[10px] lg:text-xs font-black italic text-gray-300 uppercase truncate max-w-[55%]">${label}</span>
+                    <span class="oswald-sharp text-xs lg:text-xs font-black italic text-gray-300 uppercase truncate max-w-[55%]">${label}</span>
                     <div class="flex items-center gap-2 shrink-0">
-                        <span class="oswald-sharp text-[9px] text-gray-500 italic">${ratioText}${totalNote}</span>
+                        <span class="oswald-sharp text-[11px] text-gray-500 italic">${ratioText}${totalNote}</span>
                         <span class="oswald-sharp text-xs font-black italic ${accColor}">${accText}</span>
                     </div>
                 </div>
@@ -312,9 +312,9 @@ function renderDivisionStats() {
         return `
         <div>
             <div class="flex justify-between items-center mb-1.5">
-                <span class="oswald-sharp text-[10px] lg:text-xs font-black italic text-gray-300 uppercase truncate max-w-[55%]">${shortDiv}</span>
+                <span class="oswald-sharp text-xs lg:text-xs font-black italic text-gray-300 uppercase truncate max-w-[55%]">${shortDiv}</span>
                 <div class="flex items-center gap-2 shrink-0">
-                    <span class="oswald-sharp text-[9px] text-gray-500 italic">${stat.wins}W ${loses}L</span>
+                    <span class="oswald-sharp text-[11px] text-gray-500 italic">${stat.wins}W ${loses}L</span>
                     <span class="oswald-sharp text-xs font-black italic ${acc >= 70 ? 'text-ufcRed' : acc >= 50 ? 'text-white' : 'text-gray-500'}">${acc}%</span>
                 </div>
             </div>
@@ -359,12 +359,12 @@ function renderFormChart() {
         const tip      = isWin ? '+' + (h.payout || 0) + 'P' : (isCancel ? 'CANCEL' : 'LOSE');
         return `
         <div class="flex flex-col items-center gap-1 flex-1 group relative">
-            <div class="absolute -top-6 left-1/2 -translate-x-1/2 bg-black/80 text-[9px] text-white px-2 py-0.5 rounded oswald-sharp italic opacity-0 group-hover:opacity-100 transition whitespace-nowrap z-10">
+            <div class="absolute -top-6 left-1/2 -translate-x-1/2 bg-black/80 text-[11px] text-white px-2 py-0.5 rounded oswald-sharp italic opacity-0 group-hover:opacity-100 transition whitespace-nowrap z-10">
                 ${tip}
             </div>
             <div class="w-full rounded-t transition-all duration-700 ${barCls} cursor-default"
                 style="height:${height}px; min-height:4px;"></div>
-            <span class="oswald-sharp text-[9px] font-black italic ${lblCls}">${label}</span>
+            <span class="oswald-sharp text-[11px] font-black italic ${lblCls}">${label}</span>
         </div>`;
     }).join('');
 }
@@ -396,7 +396,7 @@ function renderMethodStats() {
                 <div class="h-2 rounded-full bg-white/8 overflow-hidden">
                     <div class="h-full rounded-full ${cfg.color} transition-all duration-700" style="width:${pct}%"></div>
                 </div>
-                <p class="oswald-sharp text-[10px] text-gray-500 italic mt-1">${wins}승 / ${total}정산</p>
+                <p class="oswald-sharp text-xs text-gray-500 italic mt-1">${wins}승 / ${total}정산</p>
             </div>`;
         }).join('');
         return;
@@ -432,7 +432,7 @@ function renderMethodStats() {
             <div class="h-2 rounded-full bg-white/8 overflow-hidden">
                 <div class="h-full rounded-full ${m.color} transition-all duration-700" style="width:${pct}%"></div>
             </div>
-            <p class="oswald-sharp text-[10px] text-gray-500 italic mt-1">${total === 0 ? '데이터 없음' : `${wins}승 / ${total}경기`}</p>
+            <p class="oswald-sharp text-xs text-gray-500 italic mt-1">${total === 0 ? '데이터 없음' : `${wins}승 / ${total}경기`}</p>
         </div>`;
     }).join('');
 }
@@ -454,7 +454,7 @@ function renderBonusSummary() {
         <div class="glass-card rounded-2xl p-4 text-center border border-white/5">
             <p class="text-2xl mb-1">${b.icon}</p>
             <p class="oswald-sharp text-xl lg:text-2xl font-black italic ${b.color}">${b.count}</p>
-            <p class="oswald-sharp text-[9px] text-gray-600 uppercase tracking-widest italic mt-1">${b.label}</p>
+            <p class="oswald-sharp text-[11px] text-gray-600 uppercase tracking-widest italic mt-1">${b.label}</p>
         </div>
     `).join('');
 }
@@ -493,13 +493,13 @@ function renderHistoryList() {
                 <div class="shrink-0 w-8 h-8 rounded-full bg-white/5 flex items-center justify-center font-oswald text-sm font-black italic ${ltrCls}">${letter}</div>
                 <div class="min-w-0">
                     <p class="oswald-sharp text-xs font-black italic text-white tracking-tight uppercase truncate">${esc(h.match)}</p>
-                    <p class="text-[9px] text-gray-500 italic uppercase">Pick: <span class="text-gray-300">${esc(h.pick)}</span></p>
+                    <p class="text-[11px] text-gray-500 italic uppercase">Pick: <span class="text-gray-300">${esc(h.pick)}</span></p>
                 </div>
             </div>
             <span class="shrink-0 ml-3 px-3 py-0.5 rounded-full text-[8px] font-black oswald-sharp italic uppercase border ${pillCls}">${h.res}</span>
         </div>`;
     }).join('') + (hasMore ? `
-        <button onclick="toggleHistoryExpand()" class="w-full py-2.5 text-center oswald-sharp text-[10px] text-gray-500 hover:text-white italic uppercase tracking-widest transition border border-white/5 rounded-xl hover:border-white/15">
+        <button onclick="toggleHistoryExpand()" class="w-full py-2.5 text-center oswald-sharp text-xs text-gray-500 hover:text-white italic uppercase tracking-widest transition border border-white/5 rounded-xl hover:border-white/15">
             ${_histExpanded ? '접기 ▲' : '전체 기록 보기 (' + settled.length + ') ▼'}
         </button>` : '');
 }

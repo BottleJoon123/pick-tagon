@@ -112,7 +112,7 @@
             <div class="matchup-card ${tagCls === 'matchup-tag-main' ? 'card-main' : ''}" onclick="navigateTo('matchups'); setTimeout(function(){ var el=document.getElementById('card-${fid}'); if(el) el.scrollIntoView({behavior:'smooth',block:'center'}); },350);">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
                     <span class="matchup-tag ${tagCls}">${escapeHtml(fight.tag || 'BOUT')}</span>
-                    ${hasPick ? `<span style="font-family:'Oswald',sans-serif;font-size:8px;font-style:italic;font-weight:900;color:#e8000d;text-transform:uppercase;letter-spacing:.06em;">✓ PICKED</span>` : ''}
+                    ${hasPick ? `<span style="font-family:'Oswald',sans-serif;font-size:10px;font-style:italic;font-weight:900;color:#e8000d;text-transform:uppercase;letter-spacing:.06em;">✓ PICKED</span>` : ''}
                 </div>
                 <div class="matchup-names">
                     <div class="matchup-fighter-name">${f1}</div>
@@ -124,7 +124,7 @@
                 </div>
                 <div class="matchup-pct-row">
                     <span style="color:${leftColor};font-weight:900;">${leftPct}%</span>
-                    <span style="font-size:7px;color:#2a2a2a;letter-spacing:.05em;">커뮤니티 픽</span>
+                    <span style="font-size:9px;color:#2a2a2a;letter-spacing:.05em;">커뮤니티 픽</span>
                     <span style="color:${rightColor};font-weight:900;">${rightPct}%</span>
                 </div>
                 <div class="matchup-card-foot">
@@ -141,7 +141,7 @@
             container.innerHTML += `
             <div style="display:flex;align-items:center;justify-content:center;">
                 <button onclick="navigateTo('matchups')"
-                    style="font-family:'Oswald',sans-serif;font-size:10px;font-weight:900;font-style:italic;
+                    style="font-family:'Oswald',sans-serif;font-size:12px;font-weight:900;font-style:italic;
                            text-transform:uppercase;letter-spacing:.1em;background:transparent;
                            border:1px solid #2a2a2a;color:#555;padding:10px 20px;border-radius:8px;
                            cursor:pointer;transition:all .15s;width:100%;"
@@ -159,7 +159,7 @@
         if (!container) return;
 
         if (!filtered || filtered.length === 0) {
-            container.innerHTML = `<div style="padding:36px 20px;text-align:center;font-family:'Oswald',sans-serif;font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.1em;font-style:italic;">표시할 게시글이 없습니다</div>`;
+            container.innerHTML = `<div style="padding:36px 20px;text-align:center;font-family:'Oswald',sans-serif;font-size:13px;color:#666;text-transform:uppercase;letter-spacing:.1em;font-style:italic;">표시할 게시글이 없습니다</div>`;
             return;
         }
 
@@ -370,7 +370,7 @@
             var safeAuthor = escapeHtml(p.author || '').replace(/'/g, "\\'");
             var battleBtn = (!isSelf && currentUser && typeof isBattleFeatureEnabled === 'function' && isBattleFeatureEnabled())
                 ? `<button onclick="requestBattle('${safeAuthor}', event)"
-                       style="font-family:'Oswald',sans-serif;font-size:8px;font-weight:900;font-style:italic;text-transform:uppercase;background:transparent;border:1px solid #222;color:#444;padding:2px 7px;border-radius:5px;cursor:pointer;letter-spacing:.05em;transition:color .12s,border-color .12s;"
+                       style="font-family:'Oswald',sans-serif;font-size:10px;font-weight:900;font-style:italic;text-transform:uppercase;background:transparent;border:1px solid #222;color:#444;padding:2px 7px;border-radius:5px;cursor:pointer;letter-spacing:.05em;transition:color .12s,border-color .12s;"
                        onmouseover="this.style.color='#e8000d';this.style.borderColor='rgba(232,0,13,.4)'"
                        onmouseout="this.style.color='#444';this.style.borderColor='#222'">⚡ 옥타곤</button>`
                 : '';
@@ -420,7 +420,7 @@
         var listEl = document.getElementById('pd-com-list');
         if (!listEl) return;
         if (!comments || comments.length === 0) {
-            listEl.innerHTML = '<p style="font-size:10px;color:#333;font-style:italic;text-align:center;padding:12px 0;">첫 댓글을 남겨주세요</p>';
+            listEl.innerHTML = '<p style="font-size:13px;color:#555;font-style:italic;text-align:center;padding:12px 0;">첫 댓글을 남겨주세요</p>';
             return;
         }
         listEl.innerHTML = comments.map(function(c) {
@@ -428,7 +428,7 @@
             var safeUser = escapeHtml(c.user || '').replace(/'/g, "\\'");
             var battleBtn = (!isSelf && currentUser && typeof isBattleFeatureEnabled === 'function' && isBattleFeatureEnabled())
                 ? `<button onclick="requestBattle('${safeUser}', event)"
-                       style="font-family:'Oswald',sans-serif;font-size:8px;font-weight:900;font-style:italic;text-transform:uppercase;background:transparent;border:1px solid #222;color:#444;padding:2px 7px;border-radius:5px;cursor:pointer;letter-spacing:.05em;transition:color .12s,border-color .12s;"
+                       style="font-family:'Oswald',sans-serif;font-size:10px;font-weight:900;font-style:italic;text-transform:uppercase;background:transparent;border:1px solid #222;color:#444;padding:2px 7px;border-radius:5px;cursor:pointer;letter-spacing:.05em;transition:color .12s,border-color .12s;"
                        onmouseover="this.style.color='#e8000d';this.style.borderColor='rgba(232,0,13,.4)'"
                        onmouseout="this.style.color='#444';this.style.borderColor='#222'">⚡ 옥타곤</button>`
                 : '';

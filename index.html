@@ -26,15 +26,15 @@
 <meta property="og:description" content="UFC·MMA 승자를 예측하고 친구와 경쟁하세요. 정확도·랭킹·포인트로 파이터 IQ를 증명하는 무료 픽뎀 플랫폼." />
 <meta property="og:url" content="https://pick-tagon.com/" />
 <meta property="og:locale" content="ko_KR" />
-<meta property="og:image" content="https://pick-tagon.com/og-pickt-official-v2.png" />
-<meta property="og:image:secure_url" content="https://pick-tagon.com/og-pickt-official-v2.png" />
+<meta property="og:image" content="https://pick-tagon.com/og-pickt-v3.png" />
+<meta property="og:image:secure_url" content="https://pick-tagon.com/og-pickt-v3.png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="Pick-tagon (픽타곤) | UFC & MMA 승부예측 픽뎀 플랫폼" />
 <meta name="twitter:description" content="UFC·MMA 승자를 예측하고 친구와 경쟁하세요. 정확도·랭킹·포인트로 파이터 IQ를 증명." />
-<meta name="twitter:image" content="https://pick-tagon.com/og-pickt-official-v2.png" />
+<meta name="twitter:image" content="https://pick-tagon.com/og-pickt-v3.png" />
 <!-- JSON-LD Structured Data -->
 <script type="application/ld+json">
 {
@@ -654,7 +654,7 @@
         <div class="flex items-center justify-between mb-4">
             <div class="sx-head">
                 <h3 class="oswald-sharp text-2xl lg:text-3xl font-black italic tracking-tight uppercase text-white leading-none">Community</h3>
-                <p class="text-gray-600 text-[10px] mt-0.5">격투기 팬들의 뜨거운 설전과 분석</p>
+                <p class="text-gray-600 text-xs mt-0.5">격투기 팬들의 뜨거운 설전과 분석</p>
             </div>
             <div class="flex items-center gap-2">
                 <button id="my-battle-btn" onclick="toggleMyBattlePanel()"
@@ -674,9 +674,9 @@
                 <div class="flex items-center gap-2">
                     <span>⚡</span>
                     <h4 class="oswald-sharp text-sm font-black italic text-white uppercase">내 배틀</h4>
-                    <span id="my-battle-count" class="oswald-sharp text-[9px] bg-ufcRed/15 border border-ufcRed/30 text-ufcRed px-2 py-0.5 rounded font-black italic uppercase">0</span>
+                    <span id="my-battle-count" class="oswald-sharp text-[11px] bg-ufcRed/15 border border-ufcRed/30 text-ufcRed px-2 py-0.5 rounded font-black italic uppercase">0</span>
                 </div>
-                <button onclick="toggleMyBattlePanel()" class="oswald-sharp text-[10px] text-gray-500 hover:text-white border border-white/10 px-3 py-1 rounded-lg italic uppercase transition">접기</button>
+                <button onclick="toggleMyBattlePanel()" class="oswald-sharp text-xs text-gray-500 hover:text-white border border-white/10 px-3 py-1 rounded-lg italic uppercase transition">접기</button>
             </div>
             <div id="my-battle-list" class="space-y-2"></div>
         </div>
@@ -751,7 +751,7 @@
         <!-- 헤더 타이틀 -->
         <div class="sx-head mb-5">
             <h3 class="oswald-sharp text-2xl lg:text-3xl font-black italic tracking-tight uppercase text-white leading-none">Dashboard</h3>
-            <p class="text-gray-500 text-[10px] mt-0.5 oswald-sharp italic uppercase tracking-widest">내 픽 통계 및 커뮤니티 랭크</p>
+            <p class="text-gray-500 text-xs mt-0.5 oswald-sharp italic uppercase tracking-widest">내 픽 통계 및 커뮤니티 랭크</p>
         </div>
 
         <!-- 프로필 아이덴티티 카드 -->
@@ -766,28 +766,28 @@
                     <p id="profile-nickname-display" class="oswald-sharp text-lg lg:text-xl font-black italic text-white tracking-tight leading-none"></p>
                     <div id="profile-faction-display" class="flex items-center gap-1"></div>
                 </div>
-                <p class="oswald-sharp text-[10px] text-gray-600 italic uppercase tracking-widest">픽태곤 커뮤니티 멤버</p>
+                <p class="oswald-sharp text-xs text-gray-600 italic uppercase tracking-widest">픽태곤 커뮤니티 멤버</p>
             </div>
             <!-- 액션 버튼 -->
             <div class="w-full sm:w-auto grid grid-cols-2 gap-1.5 sm:flex sm:items-center sm:gap-2 sm:flex-shrink-0 sm:flex-wrap">
                 <button onclick="sharePicktagonCard()" id="profile-share-btn"
-                    class="oswald-sharp text-[9px] sm:text-[10px] border border-ufcRed/30 text-ufcRed hover:text-white hover:border-ufcRed hover:bg-ufcRed/10 px-3 py-1.5 rounded-lg italic uppercase tracking-wide sm:tracking-widest whitespace-nowrap text-center min-w-0 transition">
+                    class="oswald-sharp text-[11px] sm:text-xs border border-ufcRed/30 text-ufcRed hover:text-white hover:border-ufcRed hover:bg-ufcRed/10 px-3 py-1.5 rounded-lg italic uppercase tracking-wide sm:tracking-widest whitespace-nowrap text-center min-w-0 transition">
                     📤 기록 공유
                 </button>
                 <button onclick="openNicknameModal()"
-                    class="oswald-sharp text-[9px] sm:text-[10px] border border-white/15 text-gray-500 hover:text-white hover:border-white/35 px-3 py-1.5 rounded-lg italic uppercase tracking-wide sm:tracking-widest whitespace-nowrap text-center min-w-0 transition">
+                    class="oswald-sharp text-[11px] sm:text-xs border border-white/15 text-gray-500 hover:text-white hover:border-white/35 px-3 py-1.5 rounded-lg italic uppercase tracking-wide sm:tracking-widest whitespace-nowrap text-center min-w-0 transition">
                     닉네임 변경
                 </button>
                 <button onclick="openAvatarModal()"
-                    class="oswald-sharp text-[9px] sm:text-[10px] border border-white/15 text-gray-500 hover:text-white hover:border-white/35 px-3 py-1.5 rounded-lg italic uppercase tracking-wide sm:tracking-widest whitespace-nowrap text-center min-w-0 transition">
+                    class="oswald-sharp text-[11px] sm:text-xs border border-white/15 text-gray-500 hover:text-white hover:border-white/35 px-3 py-1.5 rounded-lg italic uppercase tracking-wide sm:tracking-widest whitespace-nowrap text-center min-w-0 transition">
                     아바타 변경
                 </button>
                 <button onclick="profilePasswordReset()" id="profile-reset-pw-btn"
-                    class="oswald-sharp text-[9px] sm:text-[10px] border border-white/15 text-gray-500 hover:text-white hover:border-white/35 px-3 py-1.5 rounded-lg italic uppercase tracking-wide sm:tracking-widest whitespace-nowrap text-center min-w-0 transition hidden">
+                    class="oswald-sharp text-[11px] sm:text-xs border border-white/15 text-gray-500 hover:text-white hover:border-white/35 px-3 py-1.5 rounded-lg italic uppercase tracking-wide sm:tracking-widest whitespace-nowrap text-center min-w-0 transition hidden">
                     비밀번호 재설정
                 </button>
                 <button onclick="logoutUser()" id="logout-btn"
-                    class="oswald-sharp text-[9px] sm:text-[10px] border border-red-900/35 text-red-700 hover:text-red-400 hover:border-red-500/40 px-3 py-1.5 rounded-lg italic uppercase tracking-wide sm:tracking-widest whitespace-nowrap text-center min-w-0 col-span-2 transition hidden">
+                    class="oswald-sharp text-[11px] sm:text-xs border border-red-900/35 text-red-700 hover:text-red-400 hover:border-red-500/40 px-3 py-1.5 rounded-lg italic uppercase tracking-wide sm:tracking-widest whitespace-nowrap text-center min-w-0 col-span-2 transition hidden">
                     로그아웃
                 </button>
             </div>
@@ -797,36 +797,36 @@
         <div id="belt-tracker-panel" class="pt-belt-tracker rounded-2xl p-5 lg:p-6 mb-5">
             <div class="flex items-center justify-between mb-5">
                 <h4 class="oswald-sharp text-xs lg:text-sm font-black italic uppercase text-white tracking-widest">Belt Progression</h4>
-                <span id="bt-next-label" class="oswald-sharp text-[9px] text-gray-500 italic uppercase tracking-widest"></span>
+                <span id="bt-next-label" class="oswald-sharp text-[11px] text-gray-500 italic uppercase tracking-widest"></span>
             </div>
             <div id="bt-stops" class="pt-belt-line">
                 <div class="progress-fill" id="bt-line-fill"></div>
             </div>
             <div class="flex items-center gap-3 mt-4 pt-3 border-t border-white/6">
-                <span id="bt-prog-label" class="oswald-sharp text-[9px] text-gray-500 italic uppercase tracking-widest shrink-0"></span>
+                <span id="bt-prog-label" class="oswald-sharp text-[11px] text-gray-500 italic uppercase tracking-widest shrink-0"></span>
                 <div class="flex-1 h-2 rounded-full bg-white/8 overflow-hidden">
                     <div id="bt-prog-fill" class="h-full rounded-full transition-all duration-700" style="width:0%;background:linear-gradient(90deg,rgba(139,63,227,0.90),rgba(181,128,58,0.80))"></div>
                 </div>
-                <span id="bt-prog-text" class="oswald-sharp text-[10px] font-black italic text-white shrink-0"></span>
+                <span id="bt-prog-text" class="oswald-sharp text-xs font-black italic text-white shrink-0"></span>
             </div>
         </div>
 
         <!-- 4 핵심 지표 카드 -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
             <div class="glass-card p-5 lg:p-7 flex flex-col justify-between h-28 lg:h-36 rounded-2xl border border-white/10">
-                <span class="oswald-sharp text-[9px] tracking-[.2em] italic font-black uppercase text-gray-500">Balance</span>
+                <span class="oswald-sharp text-[11px] tracking-[.2em] italic font-black uppercase text-gray-500">Balance</span>
                 <h4 id="prof-pts" class="oswald-sharp text-2xl lg:text-3xl text-yellow-400 font-black italic tracking-tighter leading-none">1,000 P</h4>
             </div>
             <div class="glass-card p-5 lg:p-7 flex flex-col justify-between h-28 lg:h-36 rounded-2xl border border-white/10">
-                <span class="oswald-sharp text-[9px] tracking-[.2em] italic font-black uppercase text-gray-500">Forecasts</span>
+                <span class="oswald-sharp text-[11px] tracking-[.2em] italic font-black uppercase text-gray-500">Forecasts</span>
                 <h4 id="prof-tot" class="oswald-sharp text-2xl lg:text-3xl font-black italic tracking-tighter text-white leading-none">0 회</h4>
             </div>
             <div class="glass-card p-5 lg:p-7 flex flex-col justify-between h-28 lg:h-36 rounded-2xl border border-white/10">
-                <span class="oswald-sharp text-[9px] tracking-[.2em] italic font-black uppercase text-gray-500">Accuracy</span>
+                <span class="oswald-sharp text-[11px] tracking-[.2em] italic font-black uppercase text-gray-500">Accuracy</span>
                 <h4 id="prof-acc" class="oswald-sharp text-2xl lg:text-3xl font-black italic tracking-tighter text-ufcRed leading-none">0 %</h4>
             </div>
             <div id="belt-box" class="bg-white text-black p-5 lg:p-7 rounded-2xl flex flex-col justify-between h-28 lg:h-36 transition-all duration-700 shadow-2xl">
-                <span class="text-gray-600 oswald-sharp text-[9px] tracking-[.2em] font-black uppercase italic">Belt Rank</span>
+                <span class="text-gray-600 oswald-sharp text-[11px] tracking-[.2em] font-black uppercase italic">Belt Rank</span>
                 <h4 id="belt-name" class="oswald-sharp text-xl lg:text-2xl font-black italic uppercase leading-none tracking-tighter">White Belt</h4>
             </div>
         </div>
@@ -845,7 +845,7 @@
                 style="background:linear-gradient(135deg,rgba(225,6,0,0.06) 0%,rgba(0,0,0,0) 55%)">
                 <div class="flex items-center justify-between mb-5 flex-wrap gap-3">
                     <div>
-                        <p class="oswald-sharp text-[9px] text-ufcRed uppercase tracking-[.3em] font-black italic mb-1">MY ANALYST REPORT</p>
+                        <p class="oswald-sharp text-[11px] text-ufcRed uppercase tracking-[.3em] font-black italic mb-1">MY ANALYST REPORT</p>
                         <h4 class="oswald-sharp text-xl lg:text-2xl font-black italic text-white uppercase tracking-tighter">나만의 분석 리포트</h4>
                     </div>
                     <div id="profile-streak-badge"></div>
@@ -857,18 +857,18 @@
             <!-- 체급별 적중률 + 최근 폼 -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 <div class="glass-card rounded-2xl p-5 lg:p-7">
-                    <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[.3em] font-black italic mb-4">체급별 예측 적중률</p>
+                    <p class="oswald-sharp text-[11px] text-gray-500 uppercase tracking-[.3em] font-black italic mb-4">체급별 예측 적중률</p>
                     <div id="profile-division-stats" class="space-y-3"></div>
                 </div>
                 <div class="glass-card rounded-2xl p-5 lg:p-7">
                     <div class="flex items-center justify-between mb-4">
-                        <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[.3em] font-black italic">최근 폼 (최근 10경기)</p>
+                        <p class="oswald-sharp text-[11px] text-gray-500 uppercase tracking-[.3em] font-black italic">최근 폼 (최근 10경기)</p>
                         <p id="profile-streak-text" class="oswald-sharp text-xs font-black italic text-gray-500 uppercase"></p>
                     </div>
                     <div id="profile-form-chart" class="flex items-end gap-2 h-28 mb-3 overflow-visible"></div>
                     <div class="flex gap-4">
-                        <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded bg-ufcRed"></div><span class="oswald-sharp text-[9px] text-gray-500 italic uppercase">WIN</span></div>
-                        <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded bg-white/10"></div><span class="oswald-sharp text-[9px] text-gray-500 italic uppercase">LOSE</span></div>
+                        <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded bg-ufcRed"></div><span class="oswald-sharp text-[11px] text-gray-500 italic uppercase">WIN</span></div>
+                        <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded bg-white/10"></div><span class="oswald-sharp text-[11px] text-gray-500 italic uppercase">LOSE</span></div>
                     </div>
                 </div>
             </div>
@@ -876,11 +876,11 @@
             <!-- 방식별 적중률 + 보너스 현황 -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 <div class="glass-card rounded-2xl p-5 lg:p-7">
-                    <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[.3em] font-black italic mb-4">방식별 예측 적중률</p>
+                    <p class="oswald-sharp text-[11px] text-gray-500 uppercase tracking-[.3em] font-black italic mb-4">방식별 예측 적중률</p>
                     <div id="profile-method-stats" class="space-y-4"></div>
                 </div>
                 <div class="glass-card rounded-2xl p-5 lg:p-7">
-                    <p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[.3em] font-black italic mb-4">보너스 획득 현황</p>
+                    <p class="oswald-sharp text-[11px] text-gray-500 uppercase tracking-[.3em] font-black italic mb-4">보너스 획득 현황</p>
                     <div id="profile-bonus-summary" class="grid grid-cols-3 gap-3"></div>
                 </div>
             </div>
@@ -1888,7 +1888,7 @@
             <div class="flex justify-between items-start mb-5 gap-4">
                 <div class="flex items-center gap-2 flex-wrap">
                     <span id="pd-cat-badge" class="post-type-tag"></span>
-                    <span id="pd-date" class="oswald-sharp text-[9px] text-gray-600 italic"></span>
+                    <span id="pd-date" class="oswald-sharp text-[11px] text-gray-600 italic"></span>
                 </div>
                 <button onclick="closePostDetail()" class="text-gray-500 hover:text-white text-2xl transition flex-shrink-0">✕</button>
             </div>
@@ -1932,9 +1932,9 @@
                 🔥 추천
             </button>
             <div class="flex items-center gap-2">
-                <button id="pd-edit-btn" class="hidden oswald-sharp text-[10px] border border-white/10 text-gray-400 hover:text-white font-black px-4 py-2 rounded-xl italic uppercase tracking-wider transition" onclick="startOwnPostEdit()">✏ 수정</button>
-                <button id="pd-delete-btn" class="hidden oswald-sharp text-[10px] border border-red-900/40 text-red-400 hover:text-white hover:border-ufcRed font-black px-4 py-2 rounded-xl italic uppercase tracking-wider transition" onclick="deleteOwnPost()">✕ 삭제</button>
-                <span id="pd-stats" class="oswald-sharp text-[10px] text-gray-600 italic uppercase tracking-widest"></span>
+                <button id="pd-edit-btn" class="hidden oswald-sharp text-xs border border-white/10 text-gray-400 hover:text-white font-black px-4 py-2 rounded-xl italic uppercase tracking-wider transition" onclick="startOwnPostEdit()">✏ 수정</button>
+                <button id="pd-delete-btn" class="hidden oswald-sharp text-xs border border-red-900/40 text-red-400 hover:text-white hover:border-ufcRed font-black px-4 py-2 rounded-xl italic uppercase tracking-wider transition" onclick="deleteOwnPost()">✕ 삭제</button>
+                <span id="pd-stats" class="oswald-sharp text-xs text-gray-600 italic uppercase tracking-widest"></span>
             </div>
         </div>
     </div>
