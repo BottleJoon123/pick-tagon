@@ -1976,6 +1976,31 @@ function _resetMfsFields() {
     if (arrow)   arrow.textContent = '▶';
 }
 
+// fighter_id가 NULL인 matchup row에 대해 이름으로 fighters.id를 찾는 fallback.
+// 반환값: id 문자열 | null(못 찾음) | '__DUPLICATE__'(동명이인/중복 후보)
+async function _resolveFighterId(fighterId, fighterName) {
+    if (fighterId) return fighterId;
+    var name = (fighterName || '').trim();
+    if (!name) return null;
+    // 이름(name) 정확 대소문자 무시 조회
+    var res1 = await sb
+        .from('fighters')
+        .select('id, name, name_en')
+        .ilike('name', name);
+    var rows = (res1 && res1.data) ? res1.data : [];
+    if (rows.length === 0) {
+        // name_en fallback
+        var res2 = await sb
+            .from('fighters')
+            .select('id, name, name_en')
+            .ilike('name_en', name);
+        rows = (res2 && res2.data) ? res2.data : [];
+    }
+    if (rows.length === 0) return null;
+    if (rows.length > 1) return '__DUPLICATE__';
+    return rows[0].id;
+}
+
 async function saveMatchupFightStats(matchupId) {
     if (!matchupId || !sb) { showToast('⚠ 연결 오류'); return; }
 
@@ -2010,14 +2035,18 @@ async function saveMatchupFightStats(matchupId) {
     }
 
     // fighter_id를 아직 못 찾았으면 matchups 테이블에서 직접 조회 (탭 무관 신뢰 경로)
+    // 일부 row는 red_fighter_id/blue_fighter_id가 NULL이므로 name 컬럼도 함께 가져와
+    // 이름 기반 fallback 조회(_resolveFighterId)에 사용한다.
+    var _mData = null;
     if ((!redEmpty && !redFighterId) || (!blueEmpty && !blueFighterId)) {
         try {
             var _mRes = await sb
                 .from('matchups')
-                .select('red_fighter_id, blue_fighter_id')
+                .select('red_fighter_id, blue_fighter_id, red_fighter_name, blue_fighter_name')
                 .eq('id', matchupId)
                 .maybeSingle();
             if (_mRes && _mRes.data) {
+                _mData = _mRes.data;
                 if (!redFighterId)  redFighterId  = _mRes.data.red_fighter_id  || null;
                 if (!blueFighterId) blueFighterId = _mRes.data.blue_fighter_id || null;
             }
@@ -2026,14 +2055,48 @@ async function saveMatchupFightStats(matchupId) {
         }
     }
 
-    // fighter_id가 없으면 저장 차단 — NULL row가 생기면 preview RPC가 경기를 못 찾는다.
-    if (!redEmpty && !redFighterId) {
-        showToast('⚠ 레드 코너 선수 ID를 찾지 못해 스탯을 저장할 수 없습니다');
+    // 여전히 fighter_id가 없으면 이름으로 fighters 테이블에서 fallback 조회
+    var _redViaName  = false;
+    var _blueViaName = false;
+    if (!redEmpty && !redFighterId && _mData) {
+        var _rid = await _resolveFighterId(null, _mData.red_fighter_name);
+        if (_rid && _rid !== '__DUPLICATE__') { redFighterId = _rid; _redViaName = true; }
+        else if (_rid === '__DUPLICATE__') { redFighterId = '__DUPLICATE__'; }
+    }
+    if (!blueEmpty && !blueFighterId && _mData) {
+        var _bid = await _resolveFighterId(null, _mData.blue_fighter_name);
+        if (_bid && _bid !== '__DUPLICATE__') { blueFighterId = _bid; _blueViaName = true; }
+        else if (_bid === '__DUPLICATE__') { blueFighterId = '__DUPLICATE__'; }
+    }
+
+    // 동명이인/중복 후보 — ID 확정 불가
+    if (redFighterId === '__DUPLICATE__') {
+        showToast('⚠ 레드 코너 동명이인/중복 선수 후보가 있어 선수 ID를 확정할 수 없습니다');
         return;
     }
-    if (!blueEmpty && !blueFighterId) {
-        showToast('⚠ 블루 코너 선수 ID를 찾지 못해 스탯을 저장할 수 없습니다');
+    if (blueFighterId === '__DUPLICATE__') {
+        showToast('⚠ 블루 코너 동명이인/중복 선수 후보가 있어 선수 ID를 확정할 수 없습니다');
         return;
+    }
+
+    // fighter_id가 없으면 저장 차단 — NULL row가 생기면 preview RPC가 경기를 못 찾는다.
+    if ((!redEmpty && !redFighterId) || (!blueEmpty && !blueFighterId)) {
+        showToast('⚠ 레드/블루 코너 선수 ID를 찾지 못했습니다. 대진 관리에서 선수를 다시 선택해 주세요.');
+        return;
+    }
+
+    // 이름으로 찾은 경우 matchups에 backfill (실패해도 stats 저장은 계속 진행)
+    if (_redViaName || _blueViaName) {
+        try {
+            var updates = {};
+            if (_redViaName  && redFighterId)  updates.red_fighter_id  = redFighterId;
+            if (_blueViaName && blueFighterId) updates.blue_fighter_id = blueFighterId;
+            if (Object.keys(updates).length > 0) {
+                await sb.from('matchups').update(updates).eq('id', matchupId);
+            }
+        } catch (e) {
+            console.warn('[stats] matchups backfill 실패:', e);
+        }
     }
 
     showToast('⏳ 스탯 저장 중...');
@@ -2085,11 +2148,11 @@ async function saveMatchupFightStats(matchupId) {
             console.debug('[stats] saved', {
                 side: r._side,
                 fighter_id: r._side === 'red' ? redFighterId : blueFighterId,
-                matchup_id: matchupId
+                matchup_id: matchupId,
+                via_name_lookup: r._side === 'red' ? _redViaName : _blueViaName
             });
         });
-        var saved = results.map(function(r) { return r._side === 'red' ? '레드' : '블루'; }).join(' / ');
-        showToast('📊 ' + saved + ' 코너 스탯 저장 완료');
+        showToast('✅ 스탯 저장 완료. 결과 확정은 다시 누르지 않아도 됩니다.');
     }
 }
 
