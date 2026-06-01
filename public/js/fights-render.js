@@ -583,7 +583,7 @@ function initRadarChart(fightId) {
     fightCharts[fightId] = new Chart(ctx, {
         type: 'radar',
         data: {
-            labels: ['타격', '레슬링', '서브미션', '방어', '피니시'],
+            labels: ['타격', '그래플링', '스태미나', '방어', '스피드'],
             datasets: [
                 {
                     label: fight.f1.name,

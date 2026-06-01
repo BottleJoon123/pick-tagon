@@ -20,6 +20,20 @@ const FIXED_MAX = {
   tdAvg: 6, tdAcc: 80, tdDef: 95, subAvg: 3, finishMix: 90,
 }
 
+// admin.js computeStatsFromPerf / admin_recompute_fighter_stats RPC와 동일한 p05/p95 fallback
+const FIXED_BASELINES = {
+  slpm:    { p05: 1.5,  p95: 7.5  },
+  strAcc:  { p05: 28,   p95: 62   },
+  sapm:    { p05: 1.5,  p95: 6.5  },
+  strDef:  { p05: 45,   p95: 76   },
+  tdAvg:   { p05: 0.0,  p95: 4.5  },
+  tdAcc:   { p05: 15,   p95: 70   },
+  tdDef:   { p05: 40,   p95: 88   },
+  subAvg:  { p05: 0.0,  p95: 2.5  },
+  koRate:  { p05: 0,    p95: 60   },
+  decRate: { p05: 20,   p95: 80   },
+}
+
 interface SyncRequest {
   slug?: string; syncAll?: boolean; division?: string
   offset?: number; batchSize?: number
@@ -236,33 +250,32 @@ function shrinkRate(rate: number | null, wins: number | null, prior: number): nu
   return prior + (w / (w + SHRINKAGE_K)) * (rate - prior)
 }
 
-function computeScores(s: EspnStats | ClientStatPayload, wins: number | null, bl: FighterBaseline | null) {
+// canonical [Striking, Grappling, Stamina, Defense, Speed]
+// admin.js computeStatsFromPerf / admin_recompute_fighter_stats RPC와 동일한 의미·가중치·clamp [45,98]
+function computeScores(s: EspnStats | ClientStatPayload, _wins: number | null, bl: FighterBaseline | null) {
+  const fb = FIXED_BASELINES
   const n = (v: number | null | undefined, p05: number | null, p95: number | null, max: number, inv = false) =>
     normMetric(v ?? null, p05, p95, max, inv)
 
-  const slpm_n   = n(s.slpm,   bl?.slpm_p05 ?? null,    bl?.slpm_p95 ?? null,    FIXED_MAX.slpm)
-  const strAcc_n = n(s.strAcc, bl?.str_acc_p05 ?? null, bl?.str_acc_p95 ?? null, FIXED_MAX.strAcc)
-  const sapm_inv = n(s.sapm,   bl?.sapm_p05 ?? null,    bl?.sapm_p95 ?? null,    FIXED_MAX.sapm, true)
-  const strDef_n = n(s.strDef, bl?.str_def_p05 ?? null, bl?.str_def_p95 ?? null, FIXED_MAX.strDef)
-  const tdAvg_n  = n(s.tdAvg,  bl?.td_avg_p05 ?? null,  bl?.td_avg_p95 ?? null,  FIXED_MAX.tdAvg)
-  const tdAcc_n  = n(s.tdAcc,  bl?.td_acc_p05 ?? null,  bl?.td_acc_p95 ?? null,  FIXED_MAX.tdAcc)
-  const tdDef_n  = n(s.tdDef,  bl?.td_def_p05 ?? null,  bl?.td_def_p95 ?? null,  FIXED_MAX.tdDef)
-  const subAvg_n = n(s.subAvg, bl?.sub_avg_p05 ?? null, bl?.sub_avg_p95 ?? null, FIXED_MAX.subAvg)
+  // division baseline 우선, 없으면 FIXED_BASELINES (admin.js FIGHTER_STAT_FALLBACK_BASELINES와 동일)
+  const slpm_n   = n(s.slpm,   bl?.slpm_p05   ?? fb.slpm.p05,   bl?.slpm_p95   ?? fb.slpm.p95,   FIXED_MAX.slpm)
+  const strAcc_n = n(s.strAcc, bl?.str_acc_p05 ?? fb.strAcc.p05, bl?.str_acc_p95 ?? fb.strAcc.p95, FIXED_MAX.strAcc)
+  const sapm_inv = n(s.sapm,   bl?.sapm_p05   ?? fb.sapm.p05,   bl?.sapm_p95   ?? fb.sapm.p95,   FIXED_MAX.sapm, true)
+  const strDef_n = n(s.strDef, bl?.str_def_p05 ?? fb.strDef.p05, bl?.str_def_p95 ?? fb.strDef.p95, FIXED_MAX.strDef)
+  const tdAvg_n  = n(s.tdAvg,  bl?.td_avg_p05  ?? fb.tdAvg.p05,  bl?.td_avg_p95  ?? fb.tdAvg.p95,  FIXED_MAX.tdAvg)
+  const tdAcc_n  = n(s.tdAcc,  bl?.td_acc_p05  ?? fb.tdAcc.p05,  bl?.td_acc_p95  ?? fb.tdAcc.p95,  FIXED_MAX.tdAcc)
+  const tdDef_n  = n(s.tdDef,  bl?.td_def_p05  ?? fb.tdDef.p05,  bl?.td_def_p95  ?? fb.tdDef.p95,  FIXED_MAX.tdDef)
+  const subAvg_n = n(s.subAvg, bl?.sub_avg_p05 ?? fb.subAvg.p05, bl?.sub_avg_p95 ?? fb.subAvg.p95, FIXED_MAX.subAvg)
+  // ko_rate / dec_rate: FighterBaseline에 p05/p95 없음 — FIXED_BASELINES 고정 사용
+  const koRate_n  = n(s.koRate  ?? null, fb.koRate.p05,  fb.koRate.p95,  100)
+  const decRate_n = n(s.decRate ?? null, fb.decRate.p05, fb.decRate.p95, 100)
 
-  const koPrior  = bl?.avg_ko_rate  ?? 35
-  const subPrior = bl?.avg_sub_rate ?? 20
-  const finishMixRaw = powerMean([
-    { value: shrinkRate(s.koRate ?? null, wins, koPrior),  w: 0.6 },
-    { value: shrinkRate(s.subRate ?? null, wins, subPrior), w: 0.4 },
-  ])
-  const finish_n = n(finishMixRaw ?? null, bl?.finish_mix_p05 ?? null, bl?.finish_mix_p95 ?? null, FIXED_MAX.finishMix)
-
-  const striking   = Math.round(clamp(weightedAvg([{value:slpm_n,w:.40},{value:strAcc_n,w:.30},{value:sapm_inv,w:.15},{value:strDef_n,w:.15}])))
-  const wrestling  = Math.round(clamp(weightedAvg([{value:tdAvg_n,w:.55},{value:tdAcc_n,w:.30},{value:tdDef_n,w:.15}])))
-  const submission = Math.round(clamp(weightedAvg([{value:subAvg_n,w:.70},{value:tdAvg_n,w:.20},{value:tdAcc_n,w:.10}])))
-  const defense    = Math.round(clamp(weightedAvg([{value:sapm_inv,w:.40},{value:strDef_n,w:.30},{value:tdDef_n,w:.30}])))
-  const finishing  = Math.round(clamp(weightedAvg([{value:finish_n,w:.85},{value:slpm_n,w:.10},{value:subAvg_n,w:.05}])))
-  return { stats: [striking, wrestling, submission, defense, finishing], usedBaseline: !!bl }
+  const striking  = Math.round(clamp(weightedAvg([{value:slpm_n,  w:.55},{value:strAcc_n, w:.45}]),                           45, 98))
+  const grappling = Math.round(clamp(weightedAvg([{value:tdAvg_n, w:.45},{value:tdAcc_n,  w:.35},{value:subAvg_n, w:.20}]),   45, 98))
+  const stamina   = Math.round(clamp(weightedAvg([{value:sapm_inv,w:.60},{value:decRate_n,w:.40}]),                           45, 98))
+  const defense   = Math.round(clamp(weightedAvg([{value:strDef_n,w:.60},{value:tdDef_n,  w:.40}]),                           45, 98))
+  const speed     = Math.round(clamp(weightedAvg([{value:slpm_n,  w:.40},{value:koRate_n, w:.35},{value:strAcc_n, w:.25}]),   45, 98))
+  return { stats: [striking, grappling, stamina, defense, speed], usedBaseline: !!bl }
 }
 
 // ── DB 헬퍼 ────────────────────────────────────────────────────────────
@@ -312,15 +325,15 @@ async function syncOneEspn(sb: ReturnType<typeof createClient>, fighter: Fighter
     if (!espnId) throw new Error(`ESPN에서 ${fighter.name_en} 미발견`)
   }
 
-  const s  = await fetchEspnAthleteStats(espnId)
-  const bl = fighter.division ? baselines.get(fighter.division.toLowerCase()) ?? null : null
-  const { stats, usedBaseline } = computeScores(s, fighter.wins, bl)
+  const s = await fetchEspnAthleteStats(espnId)
 
+  // server mode: ESPN은 raw 8필드(slpm/sapm/str_acc 등)를 제공하지 않음.
+  // stats 배열은 raw가 있는 client 모드 또는 admin_recompute_fighter_stats RPC에서만 갱신.
+  // 여기서는 신체정보·finish rate·espn_id만 업데이트해 기존 stats를 보존.
   const updatePayload: Record<string, unknown> = {
     espn_id: espnId,
     height_cm: s.heightCm, weight_kg: s.weightKg, reach_cm: s.reachCm,
     ko_rate: s.koRate, sub_rate: s.subRate, dec_rate: s.decRate,
-    stats, stats_updated_at: new Date().toISOString(),
   }
   // null 스탯은 기존 DB 값 보존 (나중에 다른 소스로 채울 수 있게)
   if (s.slpm   !== null) updatePayload.slpm    = s.slpm
@@ -333,9 +346,8 @@ async function syncOneEspn(sb: ReturnType<typeof createClient>, fighter: Fighter
   if (s.subAvg !== null) updatePayload.sub_avg = s.subAvg
 
   const { error } = await sb.from('fighters').update(updatePayload).eq('id', fighter.id)
-
   if (error) throw new Error(`upsert failed: ${error.message}`)
-  return { name: fighter.name_en, espnId, division: fighter.division, usedBaseline, stats }
+  return { name: fighter.name_en, espnId, division: fighter.division, usedBaseline: false, stats: null }
 }
 
 // ── 클라이언트사이드 모드 (브라우저가 파싱해서 전송) ─────────────────────
