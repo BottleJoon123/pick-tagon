@@ -2280,8 +2280,76 @@
             <p class="text-gray-400 text-xs italic">업셋 픽 성공 (배당 2.0↑): +20% 추가</p>
         </div>
 
-        <div class="flex gap-3">
+        <!-- 경기 상세 스탯 (선택) -->
+        <div class="mb-5 text-left">
+            <button type="button" onclick="var s=document.getElementById('mfs-section'),a=document.getElementById('mfs-arrow');s.classList.toggle('hidden');a.textContent=s.classList.contains('hidden')?'▶':'▼';"
+                class="w-full flex items-center justify-between oswald-sharp text-[10px] text-gray-500 hover:text-gray-300 uppercase tracking-widest italic transition border-b border-white/10 pb-2">
+                <span>📊 경기 상세 스탯 <span class="text-gray-600 font-normal not-italic">(선택)</span></span>
+                <span id="mfs-arrow" class="text-gray-600">▶</span>
+            </button>
+            <div id="mfs-section" class="hidden mt-3">
+                <div class="grid grid-cols-3 gap-x-3 items-center mb-2">
+                    <div></div>
+                    <div class="oswald-sharp text-[9px] text-red-400 uppercase tracking-widest text-center">RED</div>
+                    <div class="oswald-sharp text-[9px] text-blue-400 uppercase tracking-widest text-center">BLUE</div>
+                </div>
+                <div class="space-y-1.5">
+                    <div class="grid grid-cols-3 gap-x-3 items-center">
+                        <div class="oswald-sharp text-[9px] text-gray-500 uppercase italic">총타격 시도</div>
+                        <input id="mfs-red-total-att" type="number" min="0" max="999" placeholder="—" class="w-full bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-white text-center text-[11px] focus:outline-none focus:border-red-500/60 oswald-sharp">
+                        <input id="mfs-blue-total-att" type="number" min="0" max="999" placeholder="—" class="w-full bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-white text-center text-[11px] focus:outline-none focus:border-blue-500/60 oswald-sharp">
+                    </div>
+                    <div class="grid grid-cols-3 gap-x-3 items-center">
+                        <div class="oswald-sharp text-[9px] text-gray-500 uppercase italic">총타격 성공</div>
+                        <input id="mfs-red-total-land" type="number" min="0" max="999" placeholder="—" class="w-full bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-white text-center text-[11px] focus:outline-none focus:border-red-500/60 oswald-sharp">
+                        <input id="mfs-blue-total-land" type="number" min="0" max="999" placeholder="—" class="w-full bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-white text-center text-[11px] focus:outline-none focus:border-blue-500/60 oswald-sharp">
+                    </div>
+                    <div class="grid grid-cols-3 gap-x-3 items-center">
+                        <div class="oswald-sharp text-[9px] text-gray-500 uppercase italic">유효타격 시도</div>
+                        <input id="mfs-red-sig-att" type="number" min="0" max="999" placeholder="—" class="w-full bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-white text-center text-[11px] focus:outline-none focus:border-red-500/60 oswald-sharp">
+                        <input id="mfs-blue-sig-att" type="number" min="0" max="999" placeholder="—" class="w-full bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-white text-center text-[11px] focus:outline-none focus:border-blue-500/60 oswald-sharp">
+                    </div>
+                    <div class="grid grid-cols-3 gap-x-3 items-center">
+                        <div class="oswald-sharp text-[9px] text-gray-500 uppercase italic">유효타격 성공</div>
+                        <input id="mfs-red-sig-land" type="number" min="0" max="999" placeholder="—" class="w-full bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-white text-center text-[11px] focus:outline-none focus:border-red-500/60 oswald-sharp">
+                        <input id="mfs-blue-sig-land" type="number" min="0" max="999" placeholder="—" class="w-full bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-white text-center text-[11px] focus:outline-none focus:border-blue-500/60 oswald-sharp">
+                    </div>
+                    <div class="grid grid-cols-3 gap-x-3 items-center">
+                        <div class="oswald-sharp text-[9px] text-gray-500 uppercase italic">테이크다운 시도</div>
+                        <input id="mfs-red-td-att" type="number" min="0" max="99" placeholder="—" class="w-full bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-white text-center text-[11px] focus:outline-none focus:border-red-500/60 oswald-sharp">
+                        <input id="mfs-blue-td-att" type="number" min="0" max="99" placeholder="—" class="w-full bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-white text-center text-[11px] focus:outline-none focus:border-blue-500/60 oswald-sharp">
+                    </div>
+                    <div class="grid grid-cols-3 gap-x-3 items-center">
+                        <div class="oswald-sharp text-[9px] text-gray-500 uppercase italic">테이크다운 성공</div>
+                        <input id="mfs-red-td-land" type="number" min="0" max="99" placeholder="—" class="w-full bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-white text-center text-[11px] focus:outline-none focus:border-red-500/60 oswald-sharp">
+                        <input id="mfs-blue-td-land" type="number" min="0" max="99" placeholder="—" class="w-full bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-white text-center text-[11px] focus:outline-none focus:border-blue-500/60 oswald-sharp">
+                    </div>
+                    <div class="grid grid-cols-3 gap-x-3 items-center">
+                        <div class="oswald-sharp text-[9px] text-gray-500 uppercase italic">서브미션 시도</div>
+                        <input id="mfs-red-sub-att" type="number" min="0" max="99" placeholder="—" class="w-full bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-white text-center text-[11px] focus:outline-none focus:border-red-500/60 oswald-sharp">
+                        <input id="mfs-blue-sub-att" type="number" min="0" max="99" placeholder="—" class="w-full bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-white text-center text-[11px] focus:outline-none focus:border-blue-500/60 oswald-sharp">
+                    </div>
+                    <div class="grid grid-cols-3 gap-x-3 items-center">
+                        <div class="oswald-sharp text-[9px] text-gray-500 uppercase italic">넉다운</div>
+                        <input id="mfs-red-kd" type="number" min="0" max="99" placeholder="—" class="w-full bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-white text-center text-[11px] focus:outline-none focus:border-red-500/60 oswald-sharp">
+                        <input id="mfs-blue-kd" type="number" min="0" max="99" placeholder="—" class="w-full bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-white text-center text-[11px] focus:outline-none focus:border-blue-500/60 oswald-sharp">
+                    </div>
+                    <div class="grid grid-cols-3 gap-x-3 items-center">
+                        <div class="oswald-sharp text-[9px] text-gray-500 uppercase italic">컨트롤 타임</div>
+                        <input id="mfs-red-ctrl" type="text" maxlength="5" placeholder="0:00"
+                            oninput="this.value=this.value.replace(/[^0-9:]/g,'');"
+                            class="w-full bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-white text-center text-[11px] focus:outline-none focus:border-red-500/60 oswald-sharp">
+                        <input id="mfs-blue-ctrl" type="text" maxlength="5" placeholder="0:00"
+                            oninput="this.value=this.value.replace(/[^0-9:]/g,'');"
+                            class="w-full bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-white text-center text-[11px] focus:outline-none focus:border-blue-500/60 oswald-sharp">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex gap-2">
             <button onclick="closeResultModal()" class="flex-1 oswald-sharp border border-white/10 text-gray-500 hover:text-white font-black py-3 rounded-xl italic uppercase text-sm tracking-widest transition">취소</button>
+            <button onclick="saveMatchupFightStats(document.getElementById('result-modal-fight-id').value)" class="flex-1 oswald-sharp border border-white/10 text-white hover:bg-white/5 font-black py-3 rounded-xl italic uppercase text-sm tracking-widest transition">📊 스탯 저장</button>
             <button onclick="confirmAdminResult()" class="flex-1 oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black py-3 rounded-xl italic uppercase text-sm tracking-widest transition">✅ 결과 확정</button>
         </div>
     </div>
@@ -2330,7 +2398,7 @@
 <script src="/js/news.js"></script>
 <script src="/js/youtube.js?v=1"></script>
 <script src="/js/community.js?v=6"></script>
-<script src="/js/admin.js?v=7"></script>
+<script src="/js/admin.js?v=8"></script>
 <script src="/js/profile.js"></script>
 <script src="/js/archive.js?v=6"></script>
 <script src="/js/season.js"></script>
@@ -3077,6 +3145,7 @@
             <option value="NC">경기 취소/무효 (NC)</option>
         `;
         document.getElementById('result-modal').classList.remove('hidden');
+        _resetMfsFields();
         applyDecisionDefaults(fightId);
     }
 
@@ -3128,6 +3197,7 @@
             }
         }
 
+        const hasStats = _mfsHasAnyInput();
         closeResultModal();
 
         // 무승부 / 경기취소
@@ -3135,6 +3205,7 @@
             const dbSide = winner === 'DRAW' ? 'draw' : 'nc';
             const autoMethod = winner === 'NC' ? 'NC' : method;
             await adminSetMatchupResultWithUI(fightId, winner, dbSide, autoMethod, parseInt(round), time, isForce);
+            if (hasStats) await saveMatchupFightStats(fightId);
             return;
         }
 
@@ -3151,6 +3222,7 @@
                 dbSide = opts[1] && opts[1].value === winner ? 'red' : 'blue';
             }
             await adminSetMatchupResultWithUI(fightId, winner, dbSide, method, parseInt(round), time, isForce);
+            if (hasStats) await saveMatchupFightStats(fightId);
         } else {
             showToast('⚠ DB 경기만 결과 입력을 지원합니다');
         }

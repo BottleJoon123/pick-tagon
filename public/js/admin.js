@@ -1733,6 +1733,141 @@ async function adminSetMatchupResult(matchupId, winnerName, winnerSide, method, 
     return data;
 }
 
+// ── matchup_fight_stats helpers ──────────────────────────────────────────────
+
+function _parseMmSs(val) {
+    if (!val) return null;
+    val = String(val).trim();
+    if (!val) return null;
+    var colon = val.indexOf(':');
+    if (colon !== -1) {
+        var m = parseInt(val.slice(0, colon), 10);
+        var s = parseInt(val.slice(colon + 1), 10);
+        if (isNaN(m) || isNaN(s) || s >= 60) return null;
+        return m * 60 + s;
+    }
+    var n = parseInt(val, 10);
+    return isNaN(n) ? null : n;
+}
+
+function _readMfsField(side, suffix) {
+    var el = document.getElementById('mfs-' + side + '-' + suffix);
+    if (!el || el.value.trim() === '') return null;
+    var n = parseInt(el.value, 10);
+    return isNaN(n) ? null : n;
+}
+
+function _readMfsSide(side) {
+    var ctrlEl = document.getElementById('mfs-' + side + '-ctrl');
+    var ctrl   = (ctrlEl && ctrlEl.value.trim()) ? _parseMmSs(ctrlEl.value.trim()) : null;
+    return {
+        total_att:  _readMfsField(side, 'total-att'),
+        total_land: _readMfsField(side, 'total-land'),
+        sig_att:    _readMfsField(side, 'sig-att'),
+        sig_land:   _readMfsField(side, 'sig-land'),
+        td_att:     _readMfsField(side, 'td-att'),
+        td_land:    _readMfsField(side, 'td-land'),
+        sub_att:    _readMfsField(side, 'sub-att'),
+        kd:         _readMfsField(side, 'kd'),
+        ctrl:       ctrl
+    };
+}
+
+function _mfsIsEmpty(d) {
+    return Object.keys(d).every(function(k) { return d[k] === null; });
+}
+
+function _mfsHasAnyInput() {
+    return !_mfsIsEmpty(_readMfsSide('red')) || !_mfsIsEmpty(_readMfsSide('blue'));
+}
+
+function _mfsValidateLandLteAtt(d, label) {
+    if (d.total_land !== null && d.total_att !== null && d.total_land > d.total_att) {
+        showToast('⚠ [' + label + '] 총 타격 성공이 시도보다 많습니다'); return false;
+    }
+    if (d.sig_land !== null && d.sig_att !== null && d.sig_land > d.sig_att) {
+        showToast('⚠ [' + label + '] 유효 타격 성공이 시도보다 많습니다'); return false;
+    }
+    if (d.td_land !== null && d.td_att !== null && d.td_land > d.td_att) {
+        showToast('⚠ [' + label + '] 테이크다운 성공이 시도보다 많습니다'); return false;
+    }
+    return true;
+}
+
+function _resetMfsFields() {
+    ['red', 'blue'].forEach(function(side) {
+        ['total-att','total-land','sig-att','sig-land','td-att','td-land','sub-att','kd','ctrl'].forEach(function(f) {
+            var el = document.getElementById('mfs-' + side + '-' + f);
+            if (el) el.value = '';
+        });
+    });
+    var section = document.getElementById('mfs-section');
+    var arrow   = document.getElementById('mfs-arrow');
+    if (section) section.classList.add('hidden');
+    if (arrow)   arrow.textContent = '▶';
+}
+
+async function saveMatchupFightStats(matchupId) {
+    if (!matchupId || !sb) { showToast('⚠ 연결 오류'); return; }
+
+    var red  = _readMfsSide('red');
+    var blue = _readMfsSide('blue');
+    var redEmpty  = _mfsIsEmpty(red);
+    var blueEmpty = _mfsIsEmpty(blue);
+
+    if (redEmpty && blueEmpty) { showToast('💡 입력된 스탯이 없습니다'); return; }
+
+    if (!_mfsValidateLandLteAtt(red,  'Red'))  return;
+    if (!_mfsValidateLandLteAtt(blue, 'Blue')) return;
+
+    showToast('⏳ 스탯 저장 중...');
+
+    var tasks = [];
+    if (!redEmpty) {
+        tasks.push(sb.rpc('admin_upsert_matchup_fight_stats', {
+            p_matchup_id:         matchupId,
+            p_side:               'red',
+            p_total_strikes_att:  red.total_att,
+            p_total_strikes_land: red.total_land,
+            p_sig_strikes_att:    red.sig_att,
+            p_sig_strikes_land:   red.sig_land,
+            p_td_att:             red.td_att,
+            p_td_land:            red.td_land,
+            p_sub_att:            red.sub_att,
+            p_knockdowns:         red.kd,
+            p_ctrl_time_sec:      red.ctrl
+        }).then(function(r) { return Object.assign({ _side: 'red' }, r); }));
+    }
+    if (!blueEmpty) {
+        tasks.push(sb.rpc('admin_upsert_matchup_fight_stats', {
+            p_matchup_id:         matchupId,
+            p_side:               'blue',
+            p_total_strikes_att:  blue.total_att,
+            p_total_strikes_land: blue.total_land,
+            p_sig_strikes_att:    blue.sig_att,
+            p_sig_strikes_land:   blue.sig_land,
+            p_td_att:             blue.td_att,
+            p_td_land:            blue.td_land,
+            p_sub_att:            blue.sub_att,
+            p_knockdowns:         blue.kd,
+            p_ctrl_time_sec:      blue.ctrl
+        }).then(function(r) { return Object.assign({ _side: 'blue' }, r); }));
+    }
+
+    var results = await Promise.all(tasks);
+    var errors  = results.filter(function(r) { return r.error; });
+
+    if (errors.length) {
+        var msg = errors.map(function(r) {
+            return '[' + r._side + '] ' + (r.error.message || r.error);
+        }).join(' / ');
+        showToast('❌ 스탯 저장 실패: ' + msg);
+    } else {
+        var saved = results.map(function(r) { return r._side === 'red' ? '레드' : '블루'; }).join(' / ');
+        showToast('📊 ' + saved + ' 코너 스탯 저장 완료');
+    }
+}
+
 async function adminSettleEvent(eventId) {
     if (!sb) return;
     const { data, error } = await sb.rpc('admin_settle_event', { p_event_id: eventId });
