@@ -741,6 +741,148 @@ function _renderStatsModifierPreview(box, d) {
     ].join('');
 }
 
+function previewFighterSeedPolicyB() {
+    var box = document.getElementById('seed-policy-b-preview');
+    if (!box) return;
+
+    if (!editingFighterId) {
+        box.classList.remove('hidden');
+        box.innerHTML = '<div class="glass-card rounded-xl p-4 mt-2 border border-white/10 oswald-sharp text-[10px] text-gray-500 italic uppercase tracking-widest text-center">기존 파이터를 수정할 때만 미리보기가 가능합니다</div>';
+        return;
+    }
+    if (typeof sb === 'undefined' || !sb) {
+        box.classList.remove('hidden');
+        box.innerHTML = '<div class="glass-card rounded-xl p-4 mt-2 border border-white/10 oswald-sharp text-[10px] text-gray-500 italic uppercase tracking-widest text-center">⚠ Supabase 연결 필요</div>';
+        return;
+    }
+
+    box.classList.remove('hidden');
+    box.innerHTML = '<div class="glass-card rounded-xl p-4 mt-2 border border-emerald-500/10 oswald-sharp text-[10px] text-gray-500 italic uppercase tracking-widest text-center animate-pulse">Seed B 계산 중...</div>';
+
+    sb.rpc('admin_preview_fighter_seed_policy_b', {
+        p_fighter_id: editingFighterId,
+        p_limit: 1,
+        p_include_samples: true
+    }).then(function(res) {
+        if (res.error) {
+            box.innerHTML = '<div class="glass-card rounded-xl p-4 mt-2 border border-ufcRed/20 oswald-sharp text-[10px] text-ufcRed/70 italic uppercase tracking-widest text-center">⚠ RPC 오류: ' + escapeHtml(res.error.message || String(res.error)) + '</div>';
+            return;
+        }
+        _renderSeedPolicyBPreview(box, res.data);
+    }).catch(function(e) {
+        box.innerHTML = '<div class="glass-card rounded-xl p-4 mt-2 border border-ufcRed/20 oswald-sharp text-[10px] text-ufcRed/70 italic uppercase tracking-widest text-center">⚠ 네트워크 오류: ' + escapeHtml(e && e.message ? e.message : String(e)) + '</div>';
+    });
+}
+
+function _renderSeedPolicyBPreview(box, d) {
+    if (!d || !d.ok) {
+        var errMsg = (d && d.error) ? escapeHtml(String(d.error)) : '응답 없음';
+        box.innerHTML = '<div class="glass-card rounded-xl p-4 mt-2 border border-ufcRed/20 oswald-sharp text-[10px] text-ufcRed/70 italic uppercase tracking-widest text-center">⚠ ' + errMsg + '</div>';
+        return;
+    }
+
+    var rows = Array.isArray(d.rows) ? d.rows : [];
+    var row = rows[0];
+    if (!row) {
+        box.innerHTML = '<div class="glass-card rounded-xl p-4 mt-2 border border-white/10 oswald-sharp text-[10px] text-gray-500 italic uppercase tracking-widest text-center">해당 선수 데이터 없음</div>';
+        return;
+    }
+
+    var axisLabels = ['Striking', 'Grappling', 'Stamina', 'Defense', 'Speed'];
+    var cur  = Array.isArray(row.current_stats)  ? row.current_stats  : [];
+    var pb   = Array.isArray(row.policy_b_stats) ? row.policy_b_stats : [];
+    var delt = Array.isArray(row.delta)          ? row.delta          : [];
+    var rf   = row.raw_flags || {};
+
+    var statsRowsHtml = axisLabels.map(function(label, i) {
+        var cv = cur[i]  != null ? cur[i]  : '—';
+        var pv = pb[i]   != null ? pb[i]   : '—';
+        var dv = delt[i] != null ? delt[i] : null;
+        var deltaStr = '—', deltaCls = 'text-gray-500';
+        if (dv != null) {
+            if (dv > 0)      { deltaStr = '+' + dv; deltaCls = 'text-green-400'; }
+            else if (dv < 0) { deltaStr = String(dv); deltaCls = 'text-ufcRed'; }
+            else             { deltaStr = '0'; deltaCls = 'text-gray-400'; }
+        }
+        return [
+            '<tr class="border-b border-white/5 last:border-0">',
+            '  <td class="py-1.5 pr-2 oswald-sharp text-[10px] text-white italic uppercase tracking-widest">' + label + '</td>',
+            '  <td class="py-1.5 px-2 text-center oswald-sharp text-[10px] text-gray-400">' + cv + '</td>',
+            '  <td class="py-1.5 px-2 text-center oswald-sharp text-[10px] text-emerald-400 font-black">' + pv + '</td>',
+            '  <td class="py-1.5 pl-2 text-center oswald-sharp text-[10px] font-black ' + deltaCls + '">' + deltaStr + '</td>',
+            '</tr>'
+        ].join('');
+    }).join('');
+
+    var groupColorMap = { Champion: 'text-yellow-400', Top5: 'text-orange-400', Top10: 'text-blue-400', Top15: 'text-gray-300', Unranked: 'text-gray-500' };
+    var groupLabel = escapeHtml(row.group || 'Unranked');
+    var groupCls   = groupColorMap[row.group] || 'text-gray-500';
+    var curOvr  = row.current_overall  != null ? row.current_overall  : '—';
+    var pbOvr   = row.policy_b_overall != null ? row.policy_b_overall : '—';
+
+    var flagsHtml = [
+        '<div class="grid grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-0.5 mt-3">',
+        _seedFlagLine('has_raw', rf.has_raw, 'Raw 스탯 보유'),
+        _seedFlagLine('total_fights', rf.total_fights, '총 경기 수', true),
+        _seedFlagLine('slpm_capped', rf.slpm_capped, 'SLpM cap 적용'),
+        _seedFlagLine('no_raw_default', rf.no_raw_default, 'No-raw 기본값'),
+        _seedFlagLine('fight_cap_applied', rf.fight_cap_applied, 'Fight cap 적용'),
+        _seedFlagLine('flat_floor', rf.flat_floor, 'Flat floor'),
+        '</div>'
+    ].join('');
+
+    var warningLines = [];
+    if (rf.flat_floor)        warningLines.push('⚠ 랭킹 floor가 적용되어 축별 개성이 평평해질 수 있습니다.');
+    if (rf.fight_cap_applied) warningLines.push('⚠ 표본 부족 선수라 ceiling이 제한되었습니다.');
+    if (rf.slpm_capped)       warningLines.push('⚠ SLpM 극단값 cap이 적용되었습니다.');
+    if (rf.no_raw_default)    warningLines.push('⚠ raw 데이터 부족으로 보수 기본값이 적용되었습니다.');
+
+    var warningsHtml = warningLines.length
+        ? '<div class="mt-3 space-y-0.5">' + warningLines.map(function(w) {
+            return '<p class="oswald-sharp text-[9px] text-amber-400/70 italic">' + escapeHtml(w) + '</p>';
+          }).join('') + '</div>'
+        : '';
+
+    box.innerHTML = [
+        '<div class="glass-card rounded-xl p-4 mt-2 border border-emerald-500/15">',
+        '  <div class="flex items-center justify-between mb-2">',
+        '    <p class="oswald-sharp text-[10px] text-emerald-400/80 font-black italic uppercase tracking-widest">Seed B 미리보기 <span class="text-gray-700">· DRY-RUN</span></p>',
+        '    <span class="oswald-sharp text-[8px] text-gray-700 italic uppercase tracking-widest">읽기 전용 · 이 버튼은 능력치를 변경하지 않습니다</span>',
+        '  </div>',
+        '  <div class="flex items-center gap-4 mb-3">',
+        '    <div><p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest">Group</p><p class="oswald-sharp text-[11px] font-black italic ' + groupCls + '">' + groupLabel + '</p></div>',
+        '    <div><p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest">Overall</p><p class="oswald-sharp text-[11px] text-gray-400 italic">' + curOvr + ' <span class="text-gray-700">→</span> <span class="text-emerald-400 font-black">' + pbOvr + '</span></p></div>',
+        '  </div>',
+        '  <div class="overflow-x-auto">',
+        '    <table class="w-full">',
+        '      <thead><tr class="border-b border-white/10">',
+        '        <th class="py-1 pr-2 text-left oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest">축</th>',
+        '        <th class="py-1 px-2 oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest">현재</th>',
+        '        <th class="py-1 px-2 oswald-sharp text-[8px] text-emerald-700 uppercase tracking-widest">Seed B</th>',
+        '        <th class="py-1 pl-2 oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest">Δ</th>',
+        '      </tr></thead>',
+        '      <tbody>' + statsRowsHtml + '</tbody>',
+        '    </table>',
+        '  </div>',
+        flagsHtml,
+        warningsHtml,
+        '</div>'
+    ].join('');
+}
+
+function _seedFlagLine(key, val, label, isNumeric) {
+    var display, cls;
+    if (isNumeric) {
+        display = val != null ? String(val) : '—';
+        cls = 'text-gray-300';
+    } else {
+        display = val ? 'Yes' : 'No';
+        cls = val ? 'text-amber-400' : 'text-gray-600';
+    }
+    return '<div><p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest">' + label + '</p>'
+         + '<p class="oswald-sharp text-[10px] font-black italic ' + cls + '">' + display + '</p></div>';
+}
+
 function buildStatsSliders(stats) {
     const container = document.getElementById('stats-sliders');
     container.innerHTML = STAT_LABELS.map((label, i) => `
@@ -764,6 +906,8 @@ function openFighterModal(fighterId) {
     // reset stats modifier preview (avoid showing stale data from a prior fighter)
     var _smp = document.getElementById('stats-modifier-preview');
     if (_smp) { _smp.classList.add('hidden'); _smp.innerHTML = ''; }
+    var _sbp = document.getElementById('seed-policy-b-preview');
+    if (_sbp) { _sbp.classList.add('hidden'); _sbp.innerHTML = ''; }
 
     if (fighterId) {
         const f = fighterDB.find(x => x.id === fighterId);
