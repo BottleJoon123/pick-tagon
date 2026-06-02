@@ -2035,27 +2035,70 @@ async function _populateMfsFields(matchupId) {
 
 // fighter_id가 NULL인 matchup row에 대해 이름으로 fighters.id를 찾는 fallback.
 // 반환값: id 문자열 | null(못 찾음) | '__DUPLICATE__'(동명이인/중복 후보)
+
+// 악센트 제거 + 공백/하이픈/점/특수문자 제거 + lowercase
+function _normalizeName(str) {
+    if (!str) return '';
+    return str.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z]/g, '').toLowerCase();
+}
+
+// 공백 구분 우선, 없으면 CamelCase 분할 ("DanielSantos" → ["Daniel","Santos"])
+function _splitNameTokens(rawName) {
+    var s = (rawName || '').trim();
+    var parts = s.split(/\s+/).filter(Boolean);
+    if (parts.length > 1) return parts;
+    var camel = s.replace(/([A-Z][a-z]*)/g, ' $1').trim().split(/\s+/).filter(Boolean);
+    return camel.length > 1 ? camel : [s];
+}
+
 async function _resolveFighterId(fighterId, fighterName) {
     if (fighterId) return fighterId;
     var name = (fighterName || '').trim();
     if (!name) return null;
-    // 이름(name) 정확 대소문자 무시 조회
-    var res1 = await sb
-        .from('fighters')
-        .select('id, name, name_en')
-        .ilike('name', name);
+
+    // Step 1: exact ilike (name, then name_en)
+    var res1 = await sb.from('fighters').select('id, name, name_en').ilike('name', name);
     var rows = (res1 && res1.data) ? res1.data : [];
     if (rows.length === 0) {
-        // name_en fallback
-        var res2 = await sb
-            .from('fighters')
-            .select('id, name, name_en')
-            .ilike('name_en', name);
+        var res2 = await sb.from('fighters').select('id, name, name_en').ilike('name_en', name);
         rows = (res2 && res2.data) ? res2.data : [];
     }
-    if (rows.length === 0) return null;
+    if (rows.length === 1) {
+        console.debug('[mfs] resolved_by: name_exact', rows[0].id);
+        return rows[0].id;
+    }
     if (rows.length > 1) return '__DUPLICATE__';
-    return rows[0].id;
+
+    // Step 2: normalized match — 공백 없음/CamelCase/표기 차이 처리
+    // 예: "DanielSantos" → normalize "danielsantos" == normalize("Daniel Santos")
+    var normInput = _normalizeName(name);
+    if (!normInput) return null;
+
+    var tokens = _splitNameTokens(name);
+    var hint = tokens[tokens.length - 1] || tokens[0]; // 성(last token)으로 후보 검색
+    if (hint.length < 3 && tokens.length > 1) hint = tokens[0];
+
+    var cands = [];
+    var rc1 = await sb.from('fighters').select('id, name, name_en').ilike('name', '%' + hint + '%');
+    if (rc1 && rc1.data) cands = cands.concat(rc1.data);
+    var rc2 = await sb.from('fighters').select('id, name, name_en').ilike('name_en', '%' + hint + '%');
+    if (rc2 && rc2.data) cands = cands.concat(rc2.data);
+
+    // id 기준 중복 제거
+    var seen = {};
+    cands = cands.filter(function(c) { if (seen[c.id]) return false; seen[c.id] = true; return true; });
+
+    // normalized exact match만 허용 (fuzzy includes 자동 선택 금지)
+    var matched = cands.filter(function(c) {
+        return _normalizeName(c.name) === normInput || _normalizeName(c.name_en) === normInput;
+    });
+
+    if (matched.length === 1) {
+        console.debug('[mfs] resolved_by: normalized_name', matched[0].id);
+        return matched[0].id;
+    }
+    if (matched.length > 1) return '__DUPLICATE__';
+    return null;
 }
 
 async function saveMatchupFightStats(matchupId) {
@@ -2128,11 +2171,11 @@ async function saveMatchupFightStats(matchupId) {
 
     // 동명이인/중복 후보 — ID 확정 불가
     if (redFighterId === '__DUPLICATE__') {
-        showToast('⚠ 레드 코너 동명이인/중복 선수 후보가 있어 선수 ID를 확정할 수 없습니다');
+        showToast('⚠ 레드 코너 중복 선수 후보가 있어 자동 선택 불가합니다. 대진 관리에서 선수를 다시 선택해 주세요.');
         return;
     }
     if (blueFighterId === '__DUPLICATE__') {
-        showToast('⚠ 블루 코너 동명이인/중복 선수 후보가 있어 선수 ID를 확정할 수 없습니다');
+        showToast('⚠ 블루 코너 중복 선수 후보가 있어 자동 선택 불가합니다. 대진 관리에서 선수를 다시 선택해 주세요.');
         return;
     }
 
