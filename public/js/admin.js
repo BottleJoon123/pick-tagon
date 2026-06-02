@@ -553,7 +553,9 @@ function _statsModifierReasonKo(reason, rawScore) {
     if (reason == null && rawScore == null) return '스탯 데이터 없음';
     var r = String(reason || '');
     if (r.indexOf('표본 부족') !== -1) return '표본 부족';
+    if (r.indexOf('MVP 제외') !== -1) return '미구현 (MVP 이후 적용 예정)';
     if (r.indexOf('상대 스탯 없음') !== -1) return '상대 스탯 없음 (Defense skip)';
+    if (r.indexOf('경기 데이터 없음') !== -1) return '유효타/TD/KD 데이터 없음';
     if (rawScore == null) return '스탯 데이터 없음';
     return r || '—';
 }
@@ -600,6 +602,7 @@ function _renderStatsModifierPreview(box, d) {
     var allSkipped = axes.length === 0 || axes.every(function(a) { return a && a.status === 'skipped'; });
 
     if (d.ok === false || allSkipped) {
+        var inp0 = d.input_summary || {};
         var hint = '';
         // surface a reason hint if RPC provided skipped_axes with reasons
         var sk = Array.isArray(d.skipped_axes) ? d.skipped_axes : [];
@@ -609,9 +612,18 @@ function _renderStatsModifierPreview(box, d) {
                 return '<p class="oswald-sharp text-[9px] text-gray-600 italic">' + escapeHtml(lbl) + ' — ' + escapeHtml(_statsModifierReasonKo(s && s.reason, undefined)) + '</p>';
             }).join('') + '</div>';
         }
-        box.innerHTML = '<div class="glass-card rounded-xl p-4 mt-2 border border-white/10 text-center">'
-            + '<p class="oswald-sharp text-[10px] text-gray-500 italic uppercase tracking-widest">반영 가능한 최근 경기 스탯 없음</p>'
-            + hint + '</div>';
+        if (inp0.total_mfs_rows > 0) {
+            box.innerHTML = '<div class="glass-card rounded-xl p-4 mt-2 border border-amber-500/20 text-center">'
+                + '<p class="oswald-sharp text-[10px] text-amber-400/80 italic uppercase tracking-widest">스탯 저장됨 · 계산 가능한 축 없음</p>'
+                + '<p class="oswald-sharp text-[9px] text-gray-500 italic mt-1">저장된 스탯 ' + (inp0.total_mfs_rows || 0) + '건 · 완료 경기 ' + (inp0.completed_fights || 0) + '건</p>'
+                + hint
+                + '<p class="oswald-sharp text-[9px] text-amber-400/60 italic mt-2">유효타격(Sig. Strikes) · 테이크다운 · 넉다운 값을 결과 입력 모달에서 추가 입력하세요</p>'
+                + '</div>';
+        } else {
+            box.innerHTML = '<div class="glass-card rounded-xl p-4 mt-2 border border-white/10 text-center">'
+                + '<p class="oswald-sharp text-[10px] text-gray-500 italic uppercase tracking-widest">반영 가능한 최근 경기 스탯 없음</p>'
+                + hint + '</div>';
+        }
         return;
     }
 
