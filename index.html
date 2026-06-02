@@ -2402,7 +2402,7 @@
 <script src="/js/news.js"></script>
 <script src="/js/youtube.js?v=1"></script>
 <script src="/js/community.js?v=6"></script>
-<script src="/js/admin.js?v=12"></script>
+<script src="/js/admin.js?v=13"></script>
 <script src="/js/profile.js"></script>
 <script src="/js/archive.js?v=6"></script>
 <script src="/js/season.js"></script>
@@ -3150,6 +3150,7 @@
         `;
         document.getElementById('result-modal').classList.remove('hidden');
         _resetMfsFields();
+        _populateMfsFields(fightId);
         applyDecisionDefaults(fightId);
     }
 

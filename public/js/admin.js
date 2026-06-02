@@ -1586,6 +1586,8 @@ function openResultModal(matchupId) {
         <option value="DRAW">무승부 (DRAW)</option>
         <option value="NC">경기 취소/무효 (NC)</option>`;
     modal.classList.remove('hidden');
+    _resetMfsFields();
+    _populateMfsFields(matchupId);
 }
 
 function openResultModalForEdit(matchupId) {
@@ -1974,6 +1976,49 @@ function _resetMfsFields() {
     var arrow   = document.getElementById('mfs-arrow');
     if (section) section.classList.add('hidden');
     if (arrow)   arrow.textContent = '▶';
+}
+
+function _secsToMmSs(secs) {
+    var n = parseInt(secs, 10);
+    if (isNaN(n) || n < 0) return '';
+    return Math.floor(n / 60) + ':' + (n % 60 < 10 ? '0' : '') + (n % 60);
+}
+
+async function _populateMfsFields(matchupId) {
+    if (!matchupId || typeof sb === 'undefined' || !sb) return;
+    try {
+        var res = await sb
+            .from('matchup_fight_stats')
+            .select('side,total_strikes_att,total_strikes_land,sig_strikes_att,sig_strikes_land,td_att,td_land,sub_att,knockdowns,ctrl_time_sec')
+            .eq('matchup_id', matchupId);
+        if (!res || !res.data || !res.data.length) return;
+        var hasData = false;
+        res.data.forEach(function(row) {
+            var s = row.side;
+            function setF(suffix, val) {
+                var el = document.getElementById('mfs-' + s + '-' + suffix);
+                if (el && val != null) { el.value = val; hasData = true; }
+            }
+            setF('total-att',  row.total_strikes_att);
+            setF('total-land', row.total_strikes_land);
+            setF('sig-att',    row.sig_strikes_att);
+            setF('sig-land',   row.sig_strikes_land);
+            setF('td-att',     row.td_att);
+            setF('td-land',    row.td_land);
+            setF('sub-att',    row.sub_att);
+            setF('kd',         row.knockdowns);
+            var ctrlEl = document.getElementById('mfs-' + s + '-ctrl');
+            if (ctrlEl && row.ctrl_time_sec != null) { ctrlEl.value = _secsToMmSs(row.ctrl_time_sec); hasData = true; }
+        });
+        if (hasData) {
+            var sec = document.getElementById('mfs-section');
+            var arr = document.getElementById('mfs-arrow');
+            if (sec) sec.classList.remove('hidden');
+            if (arr) arr.textContent = '▼';
+        }
+    } catch (e) {
+        console.warn('[mfs] 기존 스탯 불러오기 실패:', e);
+    }
 }
 
 // fighter_id가 NULL인 matchup row에 대해 이름으로 fighters.id를 찾는 fallback.
