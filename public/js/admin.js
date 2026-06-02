@@ -554,7 +554,10 @@ function _statsModifierReasonKo(reason, rawScore) {
     var r = String(reason || '');
     if (r.indexOf('표본 부족') !== -1) return '표본 부족';
     if (r.indexOf('MVP 제외') !== -1) return '미구현 (MVP 이후 적용 예정)';
+    if (r.indexOf('Defense: 상대 스탯 필요') !== -1) return '상대 Sig/TD 시도값 입력 필요';
     if (r.indexOf('상대 스탯 없음') !== -1) return '상대 스탯 없음 (Defense skip)';
+    if (r.indexOf('경기 시간 데이터 없음') !== -1) return '경기 시간 부족 (R1 종료 경기 제외)';
+    if (r.indexOf('Speed: 유효타') !== -1) return '유효타/KD 데이터 없음';
     if (r.indexOf('경기 데이터 없음') !== -1) return '유효타/TD/KD 데이터 없음';
     if (rawScore == null) return '스탯 데이터 없음';
     return r || '—';
