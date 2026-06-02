@@ -598,16 +598,30 @@ function _renderStatsModifierPreview(box, d) {
         return;
     }
 
-    var axes = Array.isArray(d.axes) ? d.axes : [];
-    var allSkipped = axes.length === 0 || axes.every(function(a) { return a && a.status === 'skipped'; });
+    // RPC response keys (d.axes is NOT returned — use applied_axes / skipped_axes / sample_count)
+    var appliedAxes = Array.isArray(d.applied_axes) ? d.applied_axes : [];
+    var skippedAxes = Array.isArray(d.skipped_axes) ? d.skipped_axes : [];
+    var sampleCount = Array.isArray(d.sample_count) ? d.sample_count : [];
+    var current     = Array.isArray(d.current_stats)  ? d.current_stats  : [];
+    var baseline    = Array.isArray(d.baseline_stats) ? d.baseline_stats : [];
+    var computed    = Array.isArray(d.computed_stats) ? d.computed_stats : [];
+    var deltaArr    = Array.isArray(d.delta)          ? d.delta          : [];
+    var inp         = d.input_summary || {};
+    var axisNames   = ['striking', 'grappling', 'stamina', 'defense', 'speed'];
+
+    // allSkipped only when no axis was actually applied
+    var allSkipped = appliedAxes.length === 0;
+
+    // operator debug: raw scores visible in console
+    if (Array.isArray(d.raw_recent_scores) && d.raw_recent_scores.length) {
+        console.debug('[mfs preview] raw_recent_scores:', JSON.stringify(d.raw_recent_scores));
+    }
 
     if (d.ok === false || allSkipped) {
-        var inp0 = d.input_summary || {};
+        var inp0 = inp;
         var hint = '';
-        // surface a reason hint if RPC provided skipped_axes with reasons
-        var sk = Array.isArray(d.skipped_axes) ? d.skipped_axes : [];
-        if (sk.length) {
-            hint = '<div class="mt-2 space-y-0.5">' + sk.map(function(s) {
+        if (skippedAxes.length) {
+            hint = '<div class="mt-2 space-y-0.5">' + skippedAxes.map(function(s) {
                 var lbl = s && s.axis ? s.axis : '—';
                 return '<p class="oswald-sharp text-[9px] text-gray-600 italic">' + escapeHtml(lbl) + ' — ' + escapeHtml(_statsModifierReasonKo(s && s.reason, undefined)) + '</p>';
             }).join('') + '</div>';
@@ -627,51 +641,52 @@ function _renderStatsModifierPreview(box, d) {
         return;
     }
 
-    var current = Array.isArray(d.current_stats) ? d.current_stats : [];
-    var baseline = Array.isArray(d.baseline_stats) ? d.baseline_stats : [];
-    var computed = Array.isArray(d.computed_stats) ? d.computed_stats : [];
-
-    // axis rows — indexed by axis.index (fallback to position)
+    // applied_axes >= 1 — render full 5-axis table from RPC arrays
     var rowsHtml = STATS_MODIFIER_AXIS_LABELS.map(function(label, i) {
-        var ax = axes.find(function(a) { return a && a.index === i; }) || axes[i] || {};
-        var cur = (ax.current != null) ? ax.current : current[i];
-        var base = (ax.baseline != null) ? ax.baseline : baseline[i];
-        var comp = computed[i];
-        var delta = (ax.delta != null) ? ax.delta : ((comp != null && cur != null) ? (comp - cur) : null);
-        var applied = ax.status === 'applied';
+        var axisName = axisNames[i];
+        var applied  = appliedAxes.indexOf(axisName) !== -1;
+        var skipInfo = null;
+        for (var si = 0; si < skippedAxes.length; si++) {
+            if (skippedAxes[si] && skippedAxes[si].axis === axisName) { skipInfo = skippedAxes[si]; break; }
+        }
+
+        var cur  = current[i]  != null ? current[i]  : null;
+        var base = baseline[i] != null ? baseline[i] : null;
+        var comp = computed[i] != null ? computed[i] : null;
+        var dv   = deltaArr[i] != null ? deltaArr[i] : null;
+        var n    = sampleCount[i] != null ? sampleCount[i] : null;
+
         var deltaStr = '—';
         var deltaCls = 'text-gray-500';
-        if (delta != null) {
-            if (delta > 0) { deltaStr = '+' + delta; deltaCls = 'text-green-400'; }
-            else if (delta < 0) { deltaStr = String(delta); deltaCls = 'text-ufcRed'; }
-            else { deltaStr = '0'; deltaCls = 'text-gray-400'; }
+        if (dv != null) {
+            var dvr = Math.round(dv);
+            if (dvr > 0)      { deltaStr = '+' + dvr; deltaCls = 'text-green-400'; }
+            else if (dvr < 0) { deltaStr = String(dvr); deltaCls = 'text-ufcRed'; }
+            else              { deltaStr = '0'; deltaCls = 'text-gray-400'; }
         }
-        var reasonTxt = applied ? '적용됨' : _statsModifierReasonKo(ax.reason, ax.raw_score);
+
+        var reasonTxt = applied ? '적용됨' : _statsModifierReasonKo(skipInfo && skipInfo.reason, null);
         var reasonCls = applied ? 'text-green-400/70' : 'text-amber-400/70';
-        var sample = (ax.sample_count != null) ? ax.sample_count : '—';
+
         return [
             '<tr class="border-b border-white/5 last:border-0">',
             '  <td class="py-1.5 pr-2 oswald-sharp text-[10px] text-white italic uppercase tracking-widest">' + escapeHtml(label) + '</td>',
-            '  <td class="py-1.5 px-1 text-center oswald-sharp text-[10px] text-gray-400">' + (cur != null ? cur : '—') + '</td>',
-            '  <td class="py-1.5 px-1 text-center oswald-sharp text-[10px] text-gray-500">' + (base != null ? base : '—') + '</td>',
+            '  <td class="py-1.5 px-1 text-center oswald-sharp text-[10px] text-gray-400">'        + (cur  != null ? cur  : '—') + '</td>',
+            '  <td class="py-1.5 px-1 text-center oswald-sharp text-[10px] text-gray-500">'        + (base != null ? base : '—') + '</td>',
             '  <td class="py-1.5 px-1 text-center oswald-sharp text-[10px] text-white font-black">' + (comp != null ? comp : '—') + '</td>',
             '  <td class="py-1.5 px-1 text-center oswald-sharp text-[10px] font-black ' + deltaCls + '">' + deltaStr + '</td>',
-            '  <td class="py-1.5 px-1 text-center oswald-sharp text-[10px] text-gray-500">' + sample + '</td>',
-            '  <td class="py-1.5 pl-2 oswald-sharp text-[9px] italic ' + reasonCls + '">' + escapeHtml(reasonTxt) + '</td>',
+            '  <td class="py-1.5 px-1 text-center oswald-sharp text-[10px] text-gray-500">'        + (n != null ? n : '—') + '</td>',
+            '  <td class="py-1.5 pl-2 oswald-sharp text-[9px] italic ' + reasonCls + '">'          + escapeHtml(reasonTxt) + '</td>',
             '</tr>'
         ].join('');
     }).join('');
 
-    var appliedAxes = Array.isArray(d.applied_axes) ? d.applied_axes : [];
-    var skippedAxes = Array.isArray(d.skipped_axes) ? d.skipped_axes : [];
-    var inp = d.input_summary || {};
-
     var metaHtml = [
         '<div class="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-3">',
-        '  <div class="text-center"><p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest">Rank Factor</p><p class="oswald-sharp text-[11px] text-white font-black italic">' + (d.rank_factor != null ? d.rank_factor : '—') + '</p></div>',
-        '  <div class="text-center"><p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest">Δ Max</p><p class="oswald-sharp text-[11px] text-white font-black italic">' + (d.delta_max != null ? d.delta_max : '—') + '</p></div>',
-        '  <div class="text-center"><p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest">Applied</p><p class="oswald-sharp text-[11px] text-green-400 font-black italic">' + appliedAxes.length + '</p></div>',
-        '  <div class="text-center"><p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest">Skipped</p><p class="oswald-sharp text-[11px] text-amber-400 font-black italic">' + skippedAxes.length + '</p></div>',
+        '  <div class="text-center"><p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest">Rank Factor</p><p class="oswald-sharp text-[11px] text-white font-black italic">'  + (d.rank_factor != null ? d.rank_factor : '—') + '</p></div>',
+        '  <div class="text-center"><p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest">Δ Max</p><p class="oswald-sharp text-[11px] text-white font-black italic">'         + (d.delta_max   != null ? d.delta_max   : '—') + '</p></div>',
+        '  <div class="text-center"><p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest">Applied</p><p class="oswald-sharp text-[11px] text-green-400 font-black italic">'  + appliedAxes.length + '</p></div>',
+        '  <div class="text-center"><p class="oswald-sharp text-[8px] text-gray-600 uppercase tracking-widest">Skipped</p><p class="oswald-sharp text-[11px] text-amber-400 font-black italic">'  + skippedAxes.length + '</p></div>',
         '</div>'
     ].join('');
 
@@ -685,12 +700,13 @@ function _renderStatsModifierPreview(box, d) {
           }).join('') + '</div>'
         : '';
 
+    // RPC input_summary keys: total_mfs_rows, completed_fights, used_in_calculation, fights_with_opponent
     var inputHtml = [
         '<p class="oswald-sharp text-[9px] text-gray-600 italic mt-2">',
-        '입력 표본 — 전체 ' + (inp.total_fights != null ? inp.total_fights : '—'),
-        ' · 상대스탯 ' + (inp.fights_with_opponent_stats != null ? inp.fights_with_opponent_stats : '—'),
-        ' · 완료 ' + (inp.completed_fights != null ? inp.completed_fights : '—'),
-        ' · 표본채택 ' + (inp.sampled_fights != null ? inp.sampled_fights : '—'),
+        '입력 표본 — 저장 ' + (inp.total_mfs_rows       != null ? inp.total_mfs_rows       : '—'),
+        ' · 완료 '         + (inp.completed_fights      != null ? inp.completed_fights      : '—'),
+        ' · 계산사용 '     + (inp.used_in_calculation   != null ? inp.used_in_calculation   : '—'),
+        ' · 상대보유 '     + (inp.fights_with_opponent  != null ? inp.fights_with_opponent  : '—'),
         '</p>'
     ].join('');
 
