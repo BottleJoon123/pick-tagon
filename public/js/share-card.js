@@ -1154,14 +1154,14 @@ function drawPicktagonMatchShareCard(canvas, data) {
 
     var hookText, subText;
     if (data.userPick === 'f1') {
-        hookText = f1Last + ', 간다.';
+        hookText = '나는 ' + f1Last + ' 픽. 너는?';
         subText  = '반박은 픽으로.';
     } else if (data.userPick === 'f2') {
-        hookText = f2Last + ', 간다.';
+        hookText = '나는 ' + f2Last + ' 픽. 너는?';
         subText  = '반박은 픽으로.';
     } else {
         hookText = '이 경기, 누구 보세요?';
-        subText  = '';
+        subText  = '픽타곤에서 의견을 던져보세요.';
     }
 
     // Auto-shrink hook text if too wide
@@ -1204,6 +1204,23 @@ function drawPicktagonMatchShareCard(canvas, data) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
     ctx.fillText(ctaText, W / 2, ctaY);
+    ctx.textAlign = 'left';
+
+    // "무료" pill (right) — 프로필/파이터 카드와 footer 일관성
+    ctx.font = '700 20px ' + F_MONO;
+    var mBadge = '무료';
+    var mbW = ctx.measureText(mBadge).width + 26;
+    var mbH = 36, mbX = W - PAD - mbW, mbY = ctaY - mbH + 4;
+    ctx.fillStyle = 'rgba(52,199,89,0.16)';
+    ctx.strokeStyle = 'rgba(52,199,89,0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    if (ctx.roundRect) { ctx.roundRect(mbX, mbY, mbW, mbH, mbH / 2); }
+    else { ctx.rect(mbX, mbY, mbW, mbH); }
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#34c759';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(mBadge, mbX + mbW / 2, mbY + mbH / 2);
     ctx.textAlign = 'left';
 }
 
