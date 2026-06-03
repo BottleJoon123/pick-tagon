@@ -1118,9 +1118,125 @@ function _renderSeedPolicyBDivisionPreview(box, d, division) {
         countPill('no raw', cnt.no_raw, cnt.no_raw ? 'text-gray-400' : 'text-gray-600'),
         '  </div>',
         '  <div class="space-y-2 max-h-[28rem] overflow-y-auto pr-1">' + rowsHtml + '</div>',
-        '  <p class="oswald-sharp text-[8px] text-gray-700 italic mt-3 pt-2 border-t border-white/10">정렬: 변경량(overall Δ) 큰 순 · 적용은 파이터 수정 모달의 단건 적용에서만 가능합니다</p>',
+        '  <div class="mt-3 pt-3 border-t border-white/10 flex flex-wrap items-center justify-between gap-2">',
+        '    <p class="oswald-sharp text-[8px] text-gray-700 italic">정렬: 변경량(overall Δ) 큰 순 · 변경 대상 <span class="text-emerald-500/80 font-black">' + cnt.changed + '</span>명 적용 예정</p>',
+        (cnt.changed > 0
+            ? '    <button id="seed-b-div-apply-btn" onclick="applySeedPolicyBDivision(this)" data-division="' + escapeHtml(division) + '" data-changed="' + cnt.changed + '" class="oswald-sharp text-[10px] font-black italic uppercase tracking-widest px-4 py-2 rounded-lg border border-ufcRed/50 text-ufcRed hover:bg-ufcRed/10 hover:border-ufcRed transition">⚡ 이 체급 Seed B 적용</button>'
+            : '    <span class="oswald-sharp text-[9px] text-gray-600 italic uppercase tracking-widest">변경 대상 없음</span>'),
+        '  </div>',
+        '  <div id="seed-b-division-apply-result" class="hidden mt-3"></div>',
         '</div>'
     ].join('');
+}
+
+// ─── 체급 단위 Seed B 적용 (2단계 confirm) ─────────────────────────────────
+// 단건 apply(applyFighterSeedPolicyB)와 분리. admin_apply_fighter_seed_policy_b_division 호출.
+function applySeedPolicyBDivision(btn) {
+    if (typeof sb === 'undefined' || !sb) { alert('⚠ Supabase 연결 필요'); return; }
+    var division = btn.getAttribute('data-division');
+    var changed  = parseInt(btn.getAttribute('data-changed') || '0', 10);
+    if (!division) return;
+
+    var divLabel = ADMIN_DIV_LABEL[division] || division;
+
+    // 1차 confirm
+    var c1 = [
+        '[ 체급 Seed B 적용 경고 ]',
+        '',
+        '체급: ' + divLabel + ' (' + division + ')',
+        '변경 대상: ' + changed + '명',
+        '',
+        '해당 체급의 변경 대상 선수 전체의 fighters.stats가 갱신됩니다.',
+        '되돌리려면 audit log 기반 수동 복구가 필요합니다.',
+        '',
+        '계속하시겠습니까?'
+    ].join('\n');
+    if (!window.confirm(c1)) return;
+
+    // 2차 prompt — 정확한 confirm 문자열 입력
+    var expected = 'APPLY_SEED_B_DIVISION:' + division;
+    var typed = window.prompt('최종 확인 — 아래 문자열을 정확히 입력하세요:\n\n' + expected, '');
+    if (typed !== expected) {
+        alert('입력이 일치하지 않아 취소되었습니다.');
+        return;
+    }
+
+    btn.disabled = true;
+    var origText = btn.textContent;
+    btn.textContent = '적용 중...';
+    btn.className = btn.className.replace('text-ufcRed', 'text-gray-500').replace('hover:bg-ufcRed/10', '').replace('hover:border-ufcRed', '');
+
+    sb.rpc('admin_apply_fighter_seed_policy_b_division', {
+        p_division: division,
+        p_confirm: expected
+    }).then(function(res) {
+        var resBox = document.getElementById('seed-b-division-apply-result');
+        if (res.error) {
+            btn.disabled = false;
+            btn.textContent = origText;
+            if (resBox) {
+                resBox.classList.remove('hidden');
+                resBox.innerHTML = '<div class="glass-card rounded-xl p-3 border border-ufcRed/20 oswald-sharp text-[10px] text-ufcRed/70 italic uppercase tracking-widest text-center">⚠ 적용 실패: ' + escapeHtml(res.error.message || String(res.error)) + '</div>';
+            }
+            return;
+        }
+        var d = res.data;
+        if (!d || !d.ok) {
+            btn.disabled = false;
+            btn.textContent = origText;
+            if (resBox) {
+                resBox.classList.remove('hidden');
+                resBox.innerHTML = '<div class="glass-card rounded-xl p-3 border border-ufcRed/20 oswald-sharp text-[10px] text-ufcRed/70 italic uppercase tracking-widest text-center">⚠ 적용 실패: ' + escapeHtml(d && d.error ? String(d.error) : '응답 없음') + '</div>';
+            }
+            return;
+        }
+
+        // fighterDB 메모리 캐시 갱신 (saveFighter() 자동 호출 없음)
+        var updated = Array.isArray(d.updated_fighters) ? d.updated_fighters : [];
+        updated.forEach(function(u) {
+            var idx = fighterDB.findIndex(function(f) { return f.id === u.id; });
+            if (idx !== -1 && Array.isArray(u.after)) {
+                fighterDB[idx].stats = u.after;
+            }
+        });
+        saveAdmin();
+        _allFightersCache = [];
+        if (typeof _renderFighterListFromCache === 'function') _renderFighterListFromCache();
+
+        // 버튼 → 완료 표시
+        var btnRow = btn.parentNode;
+        if (btnRow) {
+            btnRow.innerHTML = '<span class="oswald-sharp text-[10px] font-black italic text-emerald-400 uppercase tracking-widest">✅ ' + escapeHtml(divLabel) + ' 적용 완료 · ' + (d.applied_count || 0) + '명</span>';
+        }
+
+        // 적용 결과 목록 표시
+        if (resBox) {
+            var listHtml = updated.map(function(u) {
+                var nm = escapeHtml(u.name_en || u.name || u.id || '—');
+                var bd = Array.isArray(u.before) ? '[' + u.before.join(',') + ']' : '—';
+                var ad = Array.isArray(u.after)  ? '[' + u.after.join(',')  + ']' : '—';
+                var bo = (u.before_overall != null) ? u.before_overall : '—';
+                var ao = (u.after_overall  != null) ? u.after_overall  : '—';
+                return [
+                    '<div class="flex items-center justify-between gap-2 py-1 border-b border-white/5 last:border-0">',
+                    '  <span class="oswald-sharp text-[10px] font-black italic text-white truncate">' + nm + '</span>',
+                    '  <span class="oswald-sharp text-[9px] text-gray-500 italic whitespace-nowrap">' + bd + ' <span class="text-gray-700">→</span> <span class="text-emerald-400">' + ad + '</span> <span class="text-gray-700">·</span> ' + bo + '→' + ao + '</span>',
+                    '</div>'
+                ].join('');
+            }).join('');
+            resBox.classList.remove('hidden');
+            resBox.innerHTML = [
+                '<div class="glass-card rounded-xl p-3 border border-emerald-500/20">',
+                '  <p class="oswald-sharp text-[10px] text-emerald-400/90 font-black italic uppercase tracking-widest mb-2">적용 완료 · 대상 ' + (d.total_in_scope||0) + ' · 변경 ' + (d.changed_count||0) + ' · 적용 ' + (d.applied_count||0) + ' · 스킵 ' + (d.skipped_count||0) + '</p>',
+                '  <div class="space-y-0.5 max-h-72 overflow-y-auto pr-1">' + listHtml + '</div>',
+                '</div>'
+            ].join('');
+        }
+    }).catch(function(e) {
+        btn.disabled = false;
+        btn.textContent = origText;
+        alert('네트워크 오류: ' + (e && e.message ? e.message : String(e)));
+    });
 }
 
 function buildStatsSliders(stats) {
