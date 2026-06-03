@@ -924,6 +924,15 @@ function applyFighterSeedPolicyB(btn) {
         // 슬라이더 갱신
         if (d && Array.isArray(d.after_stats)) {
             buildStatsSliders(d.after_stats);
+            // fighterDB 메모리 캐시 갱신 (모달 재개방 시 stale stats 방지)
+            var _cidx = fighterDB.findIndex(function(f) { return f.id === editingFighterId; });
+            if (_cidx !== -1) {
+                fighterDB[_cidx].stats = d.after_stats;
+                if (d.stats_updated_at) fighterDB[_cidx].stats_updated_at = d.stats_updated_at;
+            }
+            saveAdmin();
+            _allFightersCache = [];
+            if (typeof _renderFighterListFromCache === 'function') _renderFighterListFromCache();
         }
         // 버튼 → 완료 표시로 교체
         var applyRow = btn.parentNode;
