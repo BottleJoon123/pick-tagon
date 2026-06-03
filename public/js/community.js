@@ -254,12 +254,16 @@
         if (!container) return;
         if (!fights || fights.length === 0) { container.innerHTML = ''; return; }
 
-        // 메인/코메인 우선; 없으면 앞쪽 3경기라도 노출
-        var featured = fights.filter(function(f) {
-            var t = (f.tag || '').toUpperCase();
-            return t.includes('MAIN EVENT') || t.includes('CO-MAIN') || t.includes('CO MAIN');
-        });
+        // 메인 카드 전체 노출: section==='main' 우선 → tag 기반 → 앞 3경기 fallback. 최대 8개로 제한.
+        var featured = fights.filter(function(f) { return f.section === 'main'; });
+        if (featured.length === 0) {
+            featured = fights.filter(function(f) {
+                var t = (f.tag || '').toUpperCase();
+                return t.includes('MAIN EVENT') || t.includes('CO-MAIN') || t.includes('CO MAIN') || t.includes('MAIN CARD');
+            });
+        }
         if (featured.length === 0) featured = fights.slice(0, 3);
+        if (featured.length > 8) featured = featured.slice(0, 8);
         var restCount  = fights.length - featured.length;
         var eventTitle = (fights[0] && fights[0]._eventTitle) || '';
 
@@ -394,7 +398,7 @@
                 : '';
 
             return `
-            <div class="fcard ${isPinned ? 'pinned' : ''} ${isHot ? 'hot' : ''}" id="post-row-${origIdx}" onclick="openPostDetail(${origIdx})">
+            <div class="fcard belt-card-${beltTier} ${isPinned ? 'pinned' : ''} ${isHot ? 'hot' : ''}" id="post-row-${origIdx}" onclick="openPostDetail(${origIdx})">
                 <div class="fc-ava belt-${beltTier}">${initials}</div>
                 <div class="fc-body">
                     <div class="fc-head">

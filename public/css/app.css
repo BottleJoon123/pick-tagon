@@ -1217,6 +1217,28 @@ textarea, select {
     border-color: rgba(245,158,11,0.28);
     background: radial-gradient(120% 120% at 0% 0%, rgba(245,158,11,0.06), transparent 60%), var(--pt-bg-2);
 }
+/* Author belt-tier glow (subtle; White/Blue none, escalates to Black) — separate from .pinned/.hot */
+.fcard.belt-card-white,
+.fcard.belt-card-blue { /* no glow */ }
+.fcard.belt-card-purple {
+    border-color: rgba(139,92,246,0.30);
+    box-shadow: 0 0 0 1px rgba(139,92,246,0.10), 0 4px 18px -8px rgba(139,92,246,0.30);
+}
+.fcard.belt-card-brown {
+    border-color: rgba(181,128,58,0.32);
+    box-shadow: 0 0 0 1px rgba(181,128,58,0.10), 0 4px 18px -8px rgba(181,128,58,0.32);
+}
+.fcard.belt-card-black {
+    border-color: rgba(212,175,55,0.34);
+    box-shadow: 0 0 0 1px rgba(212,175,55,0.14), 0 6px 26px -8px rgba(212,175,55,0.40);
+}
+@media (max-width: 480px) {
+    /* mobile: keep glow restrained */
+    .fcard.belt-card-purple,
+    .fcard.belt-card-brown,
+    .fcard.belt-card-black { box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 3px 12px -8px rgba(0,0,0,0.5); }
+    .fcard.belt-card-black { border-color: rgba(212,175,55,0.30); }
+}
 .fc-title {
     font-family: 'Oswald', sans-serif; font-weight: 900; font-style: italic; font-size: 19px;
     color: var(--pt-ink-0); text-transform: uppercase; line-height: 1.15; margin-bottom: 5px;

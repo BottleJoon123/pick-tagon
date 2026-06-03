@@ -68,7 +68,7 @@ function loadPostsFromDB() {
     if (!sb) return;
     // posts + comments + users(faction) 로드
     sb.from('posts')
-        .select('*, post_comments(id, user_nick, content, created_at), users(factions(id, name, emoji_icon))')
+        .select('*, post_comments(id, user_nick, content, created_at), users(nickname, factions(id, name, emoji_icon))')
         .order('created_at', { ascending: false })
         .limit(100)
         .then(function(res) {
@@ -82,7 +82,7 @@ function loadPostsFromDB() {
                     id: r.id,
                     dbId: r.id,
                     userId: r.user_id,
-                    author: r.nickname || 'UNKNOWN',
+                    author: (r.users && r.users.nickname) || r.nickname || 'UNKNOWN',
                     title: r.title || '',
                     content: r.content || '',
                     likes: r.likes || 0,
