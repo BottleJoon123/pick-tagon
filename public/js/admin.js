@@ -964,6 +964,165 @@ function _seedFlagLine(key, val, label, isNumeric) {
          + '<p class="oswald-sharp text-[10px] font-black italic ' + cls + '">' + display + '</p></div>';
 }
 
+// ─── 체급별 Seed B 미리보기 (read-only dry-run) ──────────────────────────────
+// admin_preview_fighter_seed_policy_b(p_division) 만 호출. 적용 기능 없음.
+function previewSeedPolicyBDivision() {
+    var box = document.getElementById('seed-b-division-preview');
+    if (!box) return;
+
+    var sel = document.getElementById('seed-b-division-select');
+    var division = sel ? sel.value : '';
+
+    if (!division) {
+        box.classList.remove('hidden');
+        box.innerHTML = '<div class="glass-card rounded-xl p-4 border border-white/10 oswald-sharp text-[10px] text-gray-500 italic uppercase tracking-widest text-center">체급을 먼저 선택하세요</div>';
+        return;
+    }
+    if (typeof sb === 'undefined' || !sb) {
+        box.classList.remove('hidden');
+        box.innerHTML = '<div class="glass-card rounded-xl p-4 border border-white/10 oswald-sharp text-[10px] text-gray-500 italic uppercase tracking-widest text-center">⚠ Supabase 연결 필요</div>';
+        return;
+    }
+
+    box.classList.remove('hidden');
+    box.innerHTML = '<div class="glass-card rounded-xl p-4 border border-emerald-500/10 oswald-sharp text-[10px] text-gray-500 italic uppercase tracking-widest text-center animate-pulse">' + escapeHtml((ADMIN_DIV_LABEL[division] || division)) + ' 체급 Seed B 계산 중...</div>';
+
+    sb.rpc('admin_preview_fighter_seed_policy_b', {
+        p_division: division,
+        p_limit: 999,
+        p_include_samples: true
+    }).then(function(res) {
+        if (res.error) {
+            box.innerHTML = '<div class="glass-card rounded-xl p-4 border border-ufcRed/20 oswald-sharp text-[10px] text-ufcRed/70 italic uppercase tracking-widest text-center">⚠ RPC 오류: ' + escapeHtml(res.error.message || String(res.error)) + '</div>';
+            return;
+        }
+        _renderSeedPolicyBDivisionPreview(box, res.data, division);
+    }).catch(function(e) {
+        box.innerHTML = '<div class="glass-card rounded-xl p-4 border border-ufcRed/20 oswald-sharp text-[10px] text-ufcRed/70 italic uppercase tracking-widest text-center">⚠ 네트워크 오류: ' + escapeHtml(e && e.message ? e.message : String(e)) + '</div>';
+    });
+}
+
+function _renderSeedPolicyBDivisionPreview(box, d, division) {
+    if (!d || !d.ok) {
+        var errMsg = (d && d.error) ? escapeHtml(String(d.error)) : '응답 없음';
+        box.innerHTML = '<div class="glass-card rounded-xl p-4 border border-ufcRed/20 oswald-sharp text-[10px] text-ufcRed/70 italic uppercase tracking-widest text-center">⚠ ' + errMsg + '</div>';
+        return;
+    }
+
+    var rows = Array.isArray(d.rows) ? d.rows : [];
+    var divLabel = escapeHtml(ADMIN_DIV_LABEL[division] || division);
+
+    if (!rows.length) {
+        box.innerHTML = '<div class="glass-card rounded-xl p-4 border border-white/10 oswald-sharp text-[10px] text-gray-500 italic uppercase tracking-widest text-center">' + divLabel + ' 체급 대상 선수 없음</div>';
+        return;
+    }
+
+    // ── rows 기반 집계 (summary는 글로벌이므로 division counts는 rows로 직접 계산) ──
+    var cnt = { total: rows.length, changed: 0, flat_floor: 0, fight_cap: 0, slpm: 0, no_raw: 0 };
+    rows.forEach(function(r) {
+        var rf = r.raw_flags || {};
+        var ovd = (r.policy_b_overall != null && r.current_overall != null)
+            ? (r.policy_b_overall - r.current_overall) : 0;
+        if (Math.round(ovd * 10) !== 0) cnt.changed++;
+        if (rf.flat_floor)        cnt.flat_floor++;
+        if (rf.fight_cap_applied) cnt.fight_cap++;
+        if (rf.slpm_capped)       cnt.slpm++;
+        if (rf.no_raw_default)    cnt.no_raw++;
+    });
+
+    // ── 정렬: abs(overall delta) 큰 순 → rank 오름차순 ──
+    var sorted = rows.slice().sort(function(a, b) {
+        var da = Math.abs((a.policy_b_overall || 0) - (a.current_overall || 0));
+        var db = Math.abs((b.policy_b_overall || 0) - (b.current_overall || 0));
+        if (db !== da) return db - da;
+        var ra = (a.rank == null) ? 9999 : a.rank;
+        var rb = (b.rank == null) ? 9999 : b.rank;
+        return ra - rb;
+    });
+
+    var groupColorMap = { Champion: 'text-yellow-400', Top5: 'text-orange-400', Top10: 'text-blue-400', Top15: 'text-gray-300', Unranked: 'text-gray-500' };
+
+    var rowsHtml = sorted.map(function(r) {
+        var rf = r.raw_flags || {};
+        var cur = Array.isArray(r.current_stats)  ? r.current_stats  : [];
+        var pb  = Array.isArray(r.policy_b_stats) ? r.policy_b_stats : [];
+        var ovCur = r.current_overall  != null ? r.current_overall  : '—';
+        var ovPb  = r.policy_b_overall != null ? r.policy_b_overall : '—';
+        var ovd = (r.policy_b_overall != null && r.current_overall != null)
+            ? (r.policy_b_overall - r.current_overall) : 0;
+        var ovdRounded = Math.round(ovd * 10) / 10;
+        var isUnchanged = Math.round(ovd * 10) === 0;
+        var isBigChange = Math.abs(ovd) >= 10;
+
+        // overall delta 표시
+        var ovdStr, ovdCls;
+        if (isUnchanged)      { ovdStr = '변경 없음'; ovdCls = 'text-gray-700'; }
+        else if (ovdRounded > 0) { ovdStr = '+' + ovdRounded; ovdCls = isBigChange ? 'text-amber-400' : 'text-green-400'; }
+        else                  { ovdStr = String(ovdRounded);  ovdCls = isBigChange ? 'text-amber-400' : 'text-ufcRed'; }
+
+        // 카드 테두리: 큰 변경=amber, flat_floor=amber, fight_cap=blue, 그 외 기본
+        var cardBorder = 'border-white/5';
+        if (isBigChange || rf.flat_floor) cardBorder = 'border-amber-500/30';
+        else if (rf.fight_cap_applied)    cardBorder = 'border-blue-500/20';
+
+        var nameStr = escapeHtml(r.name_en || r.name || r.id || '—');
+        var subName = (r.name && r.name_en && r.name !== r.name_en) ? escapeHtml(r.name) : '';
+        var groupLabel = escapeHtml(r.group || 'Unranked');
+        var groupCls = groupColorMap[r.group] || 'text-gray-500';
+        var rankStr = (r.rank != null) ? ('#' + r.rank) : '—';
+
+        // flag chips
+        var chips = [];
+        if (rf.flat_floor)        chips.push('<span class="oswald-sharp text-[7px] font-black italic uppercase tracking-widest px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400">flat floor</span>');
+        if (rf.fight_cap_applied) chips.push('<span class="oswald-sharp text-[7px] font-black italic uppercase tracking-widest px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400">fight cap</span>');
+        if (rf.slpm_capped)       chips.push('<span class="oswald-sharp text-[7px] font-black italic uppercase tracking-widest px-1.5 py-0.5 rounded bg-gray-500/15 text-gray-400">slpm cap</span>');
+        if (rf.no_raw_default)    chips.push('<span class="oswald-sharp text-[7px] font-black italic uppercase tracking-widest px-1.5 py-0.5 rounded bg-gray-500/15 text-gray-500">no raw</span>');
+        var chipsHtml = chips.length ? '<div class="flex flex-wrap gap-1 mt-1">' + chips.join('') + '</div>' : '';
+
+        var statsStr = '[' + cur.join(',') + '] <span class="text-gray-700">→</span> <span class="text-emerald-400 font-black">[' + pb.join(',') + ']</span>';
+
+        return [
+            '<div class="rounded-lg border ' + cardBorder + ' bg-black/20 px-3 py-2' + (isUnchanged ? ' opacity-50' : '') + '">',
+            '  <div class="flex items-center justify-between gap-2">',
+            '    <div class="min-w-0">',
+            '      <p class="oswald-sharp text-[11px] font-black italic text-white truncate">' + nameStr + (subName ? ' <span class="text-[9px] text-gray-600 font-normal">' + subName + '</span>' : '') + '</p>',
+            '      <p class="oswald-sharp text-[8px] uppercase tracking-widest"><span class="' + groupCls + '">' + groupLabel + '</span> <span class="text-gray-700">·</span> <span class="text-gray-600">' + rankStr + '</span></p>',
+            '    </div>',
+            '    <div class="text-right shrink-0">',
+            '      <p class="oswald-sharp text-[10px] text-gray-400 italic">' + ovCur + ' <span class="text-gray-700">→</span> <span class="text-emerald-400 font-black">' + ovPb + '</span></p>',
+            '      <p class="oswald-sharp text-[10px] font-black italic ' + ovdCls + '">' + ovdStr + '</p>',
+            '    </div>',
+            '  </div>',
+            '  <p class="oswald-sharp text-[9px] text-gray-500 italic mt-1 whitespace-nowrap overflow-x-auto">' + statsStr + '</p>',
+            chipsHtml,
+            '</div>'
+        ].join('');
+    }).join('');
+
+    var countPill = function(label, val, cls) {
+        return '<div class="text-center px-2"><p class="oswald-sharp text-[13px] font-black italic ' + cls + '">' + val + '</p><p class="oswald-sharp text-[7px] text-gray-600 uppercase tracking-widest">' + label + '</p></div>';
+    };
+
+    box.innerHTML = [
+        '<div class="glass-card rounded-xl p-4 border border-emerald-500/15">',
+        '  <div class="flex items-center justify-between mb-3">',
+        '    <p class="oswald-sharp text-[11px] text-emerald-400/90 font-black italic uppercase tracking-widest">' + divLabel + ' · Seed B <span class="text-gray-700">· DRY-RUN</span></p>',
+        '    <span class="oswald-sharp text-[8px] text-gray-700 italic uppercase tracking-widest">읽기 전용 · 능력치 변경 없음</span>',
+        '  </div>',
+        '  <div class="flex flex-wrap items-center gap-1 mb-3 pb-3 border-b border-white/10">',
+        countPill('전체', cnt.total, 'text-white'),
+        countPill('변경', cnt.changed, cnt.changed ? 'text-emerald-400' : 'text-gray-600'),
+        countPill('flat floor', cnt.flat_floor, cnt.flat_floor ? 'text-amber-400' : 'text-gray-600'),
+        countPill('fight cap', cnt.fight_cap, cnt.fight_cap ? 'text-blue-400' : 'text-gray-600'),
+        countPill('slpm cap', cnt.slpm, cnt.slpm ? 'text-gray-400' : 'text-gray-600'),
+        countPill('no raw', cnt.no_raw, cnt.no_raw ? 'text-gray-400' : 'text-gray-600'),
+        '  </div>',
+        '  <div class="space-y-2 max-h-[28rem] overflow-y-auto pr-1">' + rowsHtml + '</div>',
+        '  <p class="oswald-sharp text-[8px] text-gray-700 italic mt-3 pt-2 border-t border-white/10">정렬: 변경량(overall Δ) 큰 순 · 적용은 파이터 수정 모달의 단건 적용에서만 가능합니다</p>',
+        '</div>'
+    ].join('');
+}
+
 function buildStatsSliders(stats) {
     const container = document.getElementById('stats-sliders');
     container.innerHTML = STAT_LABELS.map((label, i) => `

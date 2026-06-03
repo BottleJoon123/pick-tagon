@@ -1073,6 +1073,34 @@
                 </div>
                 <!-- Scrape log -->
                 <div id="fighter-scrape-log" class="hidden glass-card rounded-xl p-4 text-xs oswald-sharp italic text-gray-400 uppercase tracking-widest max-h-40 overflow-y-auto whitespace-pre-wrap"></div>
+                <!-- Division Seed B preview (read-only dry-run) -->
+                <div class="glass-card rounded-2xl p-4 border border-emerald-500/15">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <p class="oswald-sharp text-xs lg:text-sm text-emerald-400/90 font-black italic uppercase tracking-widest">🌱 체급별 Seed B 미리보기</p>
+                        <span class="oswald-sharp text-[9px] text-gray-600 italic uppercase tracking-widest">읽기 전용 · 이 화면에서는 능력치를 변경하지 않습니다</span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <select id="seed-b-division-select"
+                            class="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500">
+                            <option value="">체급 선택...</option>
+                            <option value="hw">헤비</option>
+                            <option value="lhw">라이트헤비</option>
+                            <option value="mw">미들</option>
+                            <option value="ww">웰터</option>
+                            <option value="lw">라이트</option>
+                            <option value="fw">페더</option>
+                            <option value="bw">밴텀</option>
+                            <option value="flw">플라이</option>
+                            <option value="wmw">여성 스트로</option>
+                            <option value="wfw">여성 플라이</option>
+                            <option value="wbw">여성 밴텀</option>
+                            <option value="wfe">여성 페더</option>
+                        </select>
+                        <button onclick="previewSeedPolicyBDivision()"
+                            class="oswald-sharp border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-400 font-black px-5 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">🔍 미리보기</button>
+                    </div>
+                    <div id="seed-b-division-preview" class="hidden mt-3"></div>
+                </div>
             </div>
             <div id="fighter-db-list" class="space-y-3"></div>
         </div>
@@ -2406,7 +2434,7 @@
 <script src="/js/news.js"></script>
 <script src="/js/youtube.js?v=1"></script>
 <script src="/js/community.js?v=6"></script>
-<script src="/js/admin.js?v=20"></script>
+<script src="/js/admin.js?v=21"></script>
 <script src="/js/profile.js"></script>
 <script src="/js/archive.js?v=6"></script>
 <script src="/js/season.js"></script>
