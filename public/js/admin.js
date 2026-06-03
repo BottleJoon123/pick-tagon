@@ -843,6 +843,8 @@ function _renderSeedPolicyBPreview(box, d) {
           }).join('') + '</div>'
         : '';
 
+    var pbStatsJson = JSON.stringify(pb);
+
     box.innerHTML = [
         '<div class="glass-card rounded-xl p-4 mt-2 border border-emerald-500/15">',
         '  <div class="flex items-center justify-between mb-2">',
@@ -866,8 +868,78 @@ function _renderSeedPolicyBPreview(box, d) {
         '  </div>',
         flagsHtml,
         warningsHtml,
+        '  <div class="mt-4 pt-3 border-t border-white/10 flex items-center justify-between">',
+        '    <p class="oswald-sharp text-[8px] text-gray-700 italic">적용 시 fighters.stats 및 stats_updated_at이 갱신됩니다</p>',
+        '    <button id="seed-b-apply-btn"',
+        '      onclick="applyFighterSeedPolicyB(this)"',
+        '      data-pb-stats=\'' + pbStatsJson + '\'',
+        '      class="oswald-sharp text-[9px] font-black italic uppercase tracking-widest px-4 py-2 rounded-lg border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-400 transition">',
+        '      ⚡ Seed B 단건 적용',
+        '    </button>',
+        '  </div>',
         '</div>'
     ].join('');
+}
+
+function applyFighterSeedPolicyB(btn) {
+    if (!editingFighterId) return;
+    if (typeof sb === 'undefined' || !sb) return;
+
+    var pbStats;
+    try { pbStats = JSON.parse(btn.getAttribute('data-pb-stats')); } catch(e) { return; }
+
+    var confirmMsg = [
+        '[ Seed B 단건 적용 확인 ]',
+        '',
+        '선수: ' + (editingFighterId),
+        '적용 후 stats: ' + JSON.stringify(pbStats),
+        '',
+        'fighters.stats와 stats_updated_at이 변경됩니다.',
+        '계속하시겠습니까?'
+    ].join('\n');
+
+    if (!window.confirm(confirmMsg)) return;
+
+    btn.disabled = true;
+    btn.textContent = '적용 중...';
+    btn.className = btn.className.replace('text-emerald-400', 'text-gray-500').replace('hover:bg-emerald-500/10', '').replace('hover:border-emerald-400', '');
+
+    sb.rpc('admin_apply_fighter_seed_policy_b', {
+        p_fighter_id: editingFighterId,
+        p_confirm: 'APPLY_SEED_B'
+    }).then(function(res) {
+        if (res.error) {
+            btn.disabled = false;
+            btn.textContent = '⚡ Seed B 단건 적용';
+            var box = document.getElementById('seed-policy-b-preview');
+            if (box) {
+                var errDiv = document.createElement('p');
+                errDiv.className = 'oswald-sharp text-[9px] text-ufcRed/70 italic mt-2 text-center';
+                errDiv.textContent = '⚠ 적용 실패: ' + (res.error.message || String(res.error));
+                btn.parentNode.appendChild(errDiv);
+            }
+            return;
+        }
+        var d = res.data;
+        // 슬라이더 갱신
+        if (d && Array.isArray(d.after_stats)) {
+            buildStatsSliders(d.after_stats);
+        }
+        // 버튼 → 완료 표시로 교체
+        var applyRow = btn.parentNode;
+        applyRow.innerHTML = [
+            '<span class="oswald-sharp text-[9px] text-gray-600 italic">',
+            (d && d.before_overall != null ? 'before ' + d.before_overall : ''),
+            ' → ',
+            (d && d.after_overall  != null ? 'after '  + d.after_overall  : ''),
+            '</span>',
+            '<span class="oswald-sharp text-[10px] font-black italic text-emerald-400">✅ 적용 완료</span>'
+        ].join('');
+    }).catch(function(e) {
+        btn.disabled = false;
+        btn.textContent = '⚡ Seed B 단건 적용';
+        alert('네트워크 오류: ' + (e && e.message ? e.message : String(e)));
+    });
 }
 
 function _seedFlagLine(key, val, label, isNumeric) {
