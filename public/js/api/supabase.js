@@ -91,6 +91,7 @@ function loadPostsFromDB() {
                     belt: r.belt || 'White Belt',
                     isPickShare: r.is_pick_share || false,
                     faction: faction,
+                    viewCount: r.view_count != null ? r.view_count : 0,
                 };
             });
             save();

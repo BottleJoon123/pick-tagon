@@ -208,8 +208,13 @@
 
         // ── 3. 트렌딩 글 (likes*2 + 댓글 수 기준) ──
         var real = (typeof posts !== 'undefined' && posts) ? posts.filter(function(p) { return !p.isPickShare; }) : [];
+        // 트렌딩 점수: likes*2 + 댓글*3 + log10(view_count+1) (조회수는 약하게 반영, 없으면 0)
+        function _trendScore(p) {
+            var vc = p.viewCount != null ? p.viewCount : 0;
+            return (p.likes || 0) * 2 + (p.comments || []).length * 3 + Math.log10(vc + 1);
+        }
         var trend = real.slice().sort(function(a, b) {
-            return ((b.likes || 0) * 2 + (b.comments || []).length) - ((a.likes || 0) * 2 + (a.comments || []).length);
+            return _trendScore(b) - _trendScore(a);
         }).slice(0, 5);
         var trendHtml;
         if (trend.length) {
@@ -361,8 +366,8 @@
             var isLiked  = likedPostIds.has(p.dbId);
             var cntCom   = (p.comments || []).length;
             var likes    = p.likes || 0;
-            // 조회수: DB 미연동 — placeholder (Phase C3에서 view_count 연결 예정). HTML 삽입 값은 escape.
-            var views    = (p.viewCount != null) ? escapeHtml(String(p.viewCount)) : '–';
+            // 조회수: 실제 view_count (C3-1). 없으면 0. 숫자만이므로 _fmtCount로 안전 포맷.
+            var views    = _fmtCount(p.viewCount != null ? p.viewCount : 0);
             // HOT: 추천 임계값 기반 더미 규칙 (Phase C3에서 트렌딩 점수로 대체)
             var isHot    = likes >= 5;
 
@@ -500,6 +505,40 @@
     var _detailPostDbId   = null;
     var _detailEscHandler = null;
 
+    // ── 조회수 증가 (localStorage TTL 중복 방지 + SECURITY DEFINER RPC) ──
+    // TTL 6시간: 빠른 새로고침/연속 클릭으로 인한 중복 집계는 막되, 시간 간격을 둔
+    // 재방문(예: 아침/저녁 재확인)은 정상 집계 → 24h는 하루 재방문을 과소집계하므로 6h 채택.
+    var _VIEW_TTL_MS = 6 * 60 * 60 * 1000;
+    function _shouldCountView(dbId) {
+        try {
+            var key  = 'picktagon_post_viewed_v1_' + dbId;
+            var last = parseInt(localStorage.getItem(key) || '0', 10);
+            var now  = Date.now();
+            if (last && (now - last) < _VIEW_TTL_MS) return false;
+            localStorage.setItem(key, String(now));
+            return true;
+        } catch (e) {
+            return true; // localStorage 불가 → 모달 열림은 막지 않음(중복방지만 포기)
+        }
+    }
+    function _incrementPostView(p) {
+        if (!p || p.dbId == null || typeof sb === 'undefined' || !sb) return;
+        if (!_shouldCountView(p.dbId)) return;
+        sb.rpc('increment_post_view', { p_post_id: p.dbId }).then(function(res) {
+            if (res.error) { console.warn('[view] increment failed:', res.error.message); return; }
+            var nv = res.data;
+            if (typeof nv !== 'number' || nv < 0) return; // 존재하지 않는 글 등 → 무시
+            p.viewCount = nv;
+            // 상세 모달이 같은 글로 열려 있으면 stats 즉시 갱신
+            if (_detailPostDbId === p.dbId) {
+                var statsEl = document.getElementById('pd-stats');
+                if (statsEl) statsEl.textContent = '🔥 ' + (p.likes || 0) + '  💬 ' + (p.comments || []).length + '  👁 ' + _fmtCount(nv);
+            }
+            // 피드 카드 + 사이드바 트렌딩 반영
+            if (typeof renderFeed === 'function') renderFeed();
+        });
+    }
+
     function openPostDetail(origIdx) {
         var p = posts[origIdx];
         if (!p) return;
@@ -566,11 +605,14 @@
         _syncDetailLikeBtn();
 
         var statsEl = document.getElementById('pd-stats');
-        if (statsEl) statsEl.textContent = '🔥 ' + (p.likes || 0) + '  💬 ' + (p.comments || []).length;
+        if (statsEl) statsEl.textContent = '🔥 ' + (p.likes || 0) + '  💬 ' + (p.comments || []).length + '  👁 ' + _fmtCount(p.viewCount != null ? p.viewCount : 0);
 
         var modal = document.getElementById('post-detail-modal');
         if (modal) modal.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
+
+        // 조회수 증가는 모달 열림 이후 fire-and-forget (실패해도 모달 동작에 영향 없음)
+        _incrementPostView(p);
 
         if (_detailEscHandler) document.removeEventListener('keydown', _detailEscHandler);
         _detailEscHandler = function(e) { if (e.key === 'Escape') closePostDetail(); };
