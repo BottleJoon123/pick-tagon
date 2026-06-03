@@ -439,16 +439,9 @@ function _renderFighterListUI(list, count) {
             ? `<img src="${f.image_url}" class="w-10 h-10 lg:w-12 lg:h-12 rounded-full object-cover border border-ufcRed/30 flex-shrink-0" onerror="this.style.display='none'">`
             : `<div class="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-ufcRed/10 border border-ufcRed/30 flex-shrink-0 flex items-center justify-center oswald-sharp text-ufcRed font-black italic text-xs">${(f.name_en || f.name || '?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div>`;
 
-        const profileData = JSON.stringify({
-            id: f.id, name: displayName, name_en: f.name_en,
-            record, height: f.height, reach: f.reach, odds: f.odds,
-            rank: rankLabel, division: divLabel, style: f.style,
-            stats: f.stats, image_url: f.image_url,
-        }).replace(/"/g,'&quot;');
-
         return `
         <div class="glass-card rounded-2xl p-4 lg:p-6 flex items-center justify-between hover:border-ufcRed/30 transition-all">
-            <div class="flex items-center gap-4 lg:gap-6 cursor-pointer group" onclick="openFighterProfile('${profileData}')">
+            <div class="flex items-center gap-4 lg:gap-6 cursor-pointer group" onclick="openFighterProfileById('${f.id}')">
                 ${avatar}
                 <div>
                     <div class="flex items-center gap-2 mb-0.5">
@@ -464,6 +457,30 @@ function _renderFighterListUI(list, count) {
             </div>
         </div>`;
     }).join('');
+}
+
+// apostrophe가 포함된 이름(예: Sean O'Malley, Da'Mon Blackshear)에서 inline JSON
+// 문자열이 깨지던 문제 방지: onclick에는 fighter id만 넘기고, 여기서 fighterDB를
+// 조회해 profile 객체를 구성한 뒤 openFighterProfile(객체)를 호출한다.
+function openFighterProfileById(fighterId) {
+    var f = Array.isArray(fighterDB)
+        ? fighterDB.find(function(x) { return x && x.id === fighterId; })
+        : null;
+    if (!f) return;
+
+    var displayName = f.name || f.name_en || '—';
+    var record = f.record || (
+        (f.wins !== undefined) ? (f.wins + '-' + f.losses + (f.draws ? '-' + f.draws : '')) : '—'
+    );
+    var rankLabel = f.rank === 0 ? 'CHAMP' : (f.rank ? '#' + f.rank : 'NR');
+    var divLabel  = ADMIN_DIV_LABEL[f.division] || (f.division || '—').toUpperCase();
+
+    openFighterProfile({
+        id: f.id, name: displayName, name_en: f.name_en,
+        record: record, height: f.height, reach: f.reach, odds: f.odds,
+        rank: rankLabel, division: divLabel, style: f.style,
+        stats: f.stats, image_url: f.image_url,
+    });
 }
 
 // ----- FIGHTER STAT AUTO-SCORING -----
