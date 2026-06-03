@@ -691,6 +691,7 @@
                     <option value="live">🔴 라이브</option>
                     <option value="news">📰 뉴스</option>
                     <option value="humor">😂 유머</option>
+                    <option value="general">💬 자유</option>
                 </select>
                 <input type="text" id="post-tit"
                     class="flex-1 bg-black/40 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-ufcRed text-sm"
@@ -721,6 +722,7 @@
                 <button onclick="setCommunityFilter('live')"     id="cf-live"     class="comm-filter-btn">🔴 라이브 <span class="chip-count" id="cc-live">0</span></button>
                 <button onclick="setCommunityFilter('news')"     id="cf-news"     class="comm-filter-btn">📰 뉴스 <span class="chip-count" id="cc-news">0</span></button>
                 <button onclick="setCommunityFilter('humor')"    id="cf-humor"    class="comm-filter-btn">😂 유머 <span class="chip-count" id="cc-humor">0</span></button>
+                <button onclick="setCommunityFilter('general')"  id="cf-general"  class="comm-filter-btn">💬 자유 <span class="chip-count" id="cc-general">0</span></button>
             </div>
             <div class="sort-row">
                 <button onclick="setCommunitySort('hot')"     id="cs-hot"       class="comm-sort-btn">🔥 인기</button>
@@ -2437,13 +2439,13 @@
 <script src="/js/storage.js"></script>
 <script src="/js/utils.js?v=3"></script>
 <script src="/js/event-countdown.js"></script>
-<script src="/js/api/supabase.js?v=12"></script>
+<script src="/js/api/supabase.js?v=13"></script>
 <script src="/js/modal-helpers.js"></script>
 <script src="/js/format-helpers.js"></script>
 <script src="/js/news-render-helpers.js"></script>
 <script src="/js/news.js"></script>
 <script src="/js/youtube.js?v=1"></script>
-<script src="/js/community.js?v=15"></script>
+<script src="/js/community.js?v=16"></script>
 <script src="/js/admin.js?v=23"></script>
 <script src="/js/profile.js"></script>
 <script src="/js/archive.js?v=7"></script>
@@ -3365,11 +3367,14 @@ async function publishPost() {
 
     const bName = state.points <= 1000 ? "White Belt" : (state.points <= 2000 ? "Blue Belt" : (state.points <= 5000 ? "Purple Belt" : (state.points <= 10000 ? "Brown Belt" : "Black Belt")));
 
-    // 카테고리 prefix 처리
+    // 카테고리 정규화 (allowed list 외 값은 general fallback) + prefix 처리
     const catEl = document.getElementById('post-cat');
-    const catVal = catEl ? catEl.value : '';
+    const rawCat = catEl ? catEl.value : '';
+    const ALLOWED_CATS = ['analysis', 'fighter', 'live', 'news', 'humor', 'general'];
+    const catVal = ALLOWED_CATS.indexOf(rawCat) !== -1 ? rawCat : 'general';
+    if (rawCat && ALLOWED_CATS.indexOf(rawCat) === -1) console.warn('[publishPost] invalid category, fallback general:', rawCat);
     const catPrefixMap = { analysis: '[분석]', fighter: '[파이터]', live: '[라이브]', news: '[뉴스]', humor: '[유머]' };
-    const catPrefix = catVal && catPrefixMap[catVal] ? catPrefixMap[catVal] + ' ' : '';
+    const catPrefix = catPrefixMap[catVal] ? catPrefixMap[catVal] + ' ' : ''; // general은 prefix 없음
     const titleFinal = (catPrefix + t).slice(0, 120);
 
     // DB에 단 한 번만 INSERT → dbId 즉시 확보
@@ -3381,7 +3386,8 @@ async function publishPost() {
         is_pick_share: false,
         likes: 0,
         belt: bName,
-        comments: []
+        comments: [],
+        category: catVal
     }).select().single();
 
     if (res.error) { showToast("⚠️ 게시 실패: " + res.error.message); return; }
@@ -3397,6 +3403,7 @@ async function publishPost() {
         date: new Date().toISOString().slice(0,10).replace(/-/g, "."),
         comments: [],
         belt: bName,
+        category: catVal,
         isPickShare: false,
     };
 

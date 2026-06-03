@@ -25,6 +25,24 @@
         return '';
     }
 
+    // ── C3-3 normalized category (allowed list) ──
+    var CAT_KEYS  = ['analysis', 'fighter', 'live', 'news', 'humor', 'general'];
+    var CAT_LABEL = {
+        analysis: { cls: 'cat-analysis', lbl: '🔥 분석' },
+        fighter:  { cls: 'cat-fighter',  lbl: '🗣️ 파이터' },
+        live:     { cls: 'cat-live',     lbl: '🔴 라이브' },
+        news:     { cls: 'cat-news',     lbl: '📰 뉴스' },
+        humor:    { cls: 'cat-humor',    lbl: '😂 유머' },
+        general:  { cls: 'cat-post',     lbl: '💬 자유' }
+    };
+    // 정규화된 category 우선, 없으면 title prefix로 유도, 그래도 없으면 general
+    function _postCategory(p) {
+        var c = p && p.category;
+        if (c && CAT_LABEL[c]) return c;
+        var d = _getPostCategory(p && p.title);
+        return (d && CAT_LABEL[d]) ? d : 'general';
+    }
+
     function _stripCatPrefix(title) {
         if (!title) return '';
         for (var k in CAT_PREFIXES) {
@@ -46,7 +64,7 @@
 
     function setCommunityFilter(f) {
         communityFilter = f;
-        _setFilterActive('cf-', ['all','analysis','fighter','live','news','humor'], f);
+        _setFilterActive('cf-', ['all','analysis','fighter','live','news','humor','general'], f);
         renderFeed();
     }
 
@@ -73,9 +91,9 @@
         var realPosts = (typeof posts !== 'undefined' && posts)
             ? posts.filter(function(p) { return !p.isPickShare; })
             : [];
-        var counts = { all: realPosts.length, analysis: 0, fighter: 0, live: 0, news: 0, humor: 0 };
+        var counts = { all: realPosts.length, analysis: 0, fighter: 0, live: 0, news: 0, humor: 0, general: 0 };
         realPosts.forEach(function(p) {
-            var c = _getPostCategory(p.title);
+            var c = _postCategory(p);
             if (counts[c] != null) counts[c]++;
         });
         Object.keys(counts).forEach(function(k) {
@@ -377,18 +395,11 @@
             var isPinned = p.isPinned === true; // C3-2 공지 고정
 
             // Category tag → fc-cat cat-{kind}
-            var cat = _getPostCategory(rawTitle);
-            var catMap = {
-                analysis: { cls: 'cat-analysis', lbl: '🔥 분석' },
-                fighter:  { cls: 'cat-fighter',  lbl: '🗣️ 파이터' },
-                live:     { cls: 'cat-live',     lbl: '🔴 라이브' },
-                news:     { cls: 'cat-news',     lbl: '📰 뉴스' },
-                humor:    { cls: 'cat-humor',    lbl: '😂 유머' }
-            };
+            var cat = _postCategory(p);
             var catCls, catLbl;
-            if (p.isPickShare)      { catCls = 'cat-pick'; catLbl = '🎯 픽'; }
-            else if (catMap[cat])   { catCls = catMap[cat].cls; catLbl = catMap[cat].lbl; }
-            else                    { catCls = 'cat-post'; catLbl = '✍️ 분석'; }
+            if (p.isPickShare)        { catCls = 'cat-pick'; catLbl = '🎯 픽'; }
+            else if (CAT_LABEL[cat])  { catCls = CAT_LABEL[cat].cls; catLbl = CAT_LABEL[cat].lbl; }
+            else                      { catCls = CAT_LABEL.general.cls; catLbl = CAT_LABEL.general.lbl; }
 
             // Faction badge — 모든 유저 (p.faction = DB에서 JOIN한 faction 객체)
             var factionSrc = p.faction
@@ -460,7 +471,7 @@
         var filtered = posts.filter(function(p) {
             if (p.isPickShare) return false;
             if (communityFilter === 'all') return true;
-            return _getPostCategory(p.title) === communityFilter;
+            return _postCategory(p) === communityFilter;
         });
 
         // 3. Time filter

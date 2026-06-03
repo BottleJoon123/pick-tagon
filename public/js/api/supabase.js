@@ -93,6 +93,7 @@ function loadPostsFromDB() {
                     faction: faction,
                     viewCount: r.view_count != null ? r.view_count : 0,
                     isPinned: r.is_pinned === true,
+                    category: r.category || 'general',
                 };
             });
             save();
