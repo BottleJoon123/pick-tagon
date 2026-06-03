@@ -243,7 +243,7 @@
             var beltName = escapeHtml(beltRaw.trim().split(' ')[0] || 'White');
             var beltTier = _beltTier(beltRaw);
             var author   = escapeHtml(p.author || 'UNKNOWN');
-            var initials = ((p.author || '?').trim().charAt(0) || '?').toUpperCase();
+            var initials = escapeHtml(((p.author || '?').trim().charAt(0) || '?').toUpperCase());
             var date     = escapeHtml(p.date || '');
             var rawTitle = p.title || '';
             var title    = escapeHtml(_stripCatPrefix(rawTitle));
@@ -251,8 +251,8 @@
             var isLiked  = likedPostIds.has(p.dbId);
             var cntCom   = (p.comments || []).length;
             var likes    = p.likes || 0;
-            // 조회수: DB 미연동 — placeholder (Phase C3에서 view_count 연결 예정)
-            var views    = (p.viewCount != null) ? p.viewCount : '–';
+            // 조회수: DB 미연동 — placeholder (Phase C3에서 view_count 연결 예정). HTML 삽입 값은 escape.
+            var views    = (p.viewCount != null) ? escapeHtml(String(p.viewCount)) : '–';
             // HOT: 추천 임계값 기반 더미 규칙 (Phase C3에서 트렌딩 점수로 대체)
             var isHot    = likes >= 5;
 
@@ -293,7 +293,7 @@
                     <div class="fc-foot">
                         <span class="fc-react ${likes > 0 ? 'hot' : ''}">🔥 ${likes}</span>
                         <span>💬 ${cntCom}</span>
-                        <span class="fc-share" onclick="event.stopPropagation(); openPostDetail(${origIdx});">↗ 공유</span>
+                        <span class="fc-share" onclick="event.stopPropagation(); openPostDetail(${origIdx});">자세히</span>
                         <button class="fc-rec ${isLiked ? 'on' : ''}" onclick="event.stopPropagation(); likePost(${origIdx});">
                             ${isLiked ? '✓ 추천' : '+ 추천'}
                         </button>
