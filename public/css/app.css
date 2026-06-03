@@ -1041,9 +1041,9 @@ textarea, select {
 .ps-f { flex: 1 1 0; min-width: 0; }
 .ps-f.right { text-align: right; }
 .ps-name {
-    font-family: 'Oswald', sans-serif; font-weight: 900; font-style: italic; font-size: 16px;
-    color: var(--pt-ink-1); text-transform: uppercase; line-height: 1.1;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-family: 'Oswald', sans-serif; font-weight: 900; font-style: italic; font-size: 15px;
+    color: var(--pt-ink-1); text-transform: uppercase; line-height: 1.1; letter-spacing: -0.01em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 2px;
 }
 .ps-rec { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--pt-ink-3); margin-top: 2px; }
 .ps-vs {

@@ -2519,6 +2519,11 @@
         document.querySelectorAll('.section-animate').forEach(s => s.classList.remove('active'));
         el.classList.add('active');
 
+        // 커뮤니티 탭에서는 모바일 이벤트 사이드바 FAB 숨김 (피드 카드와 겹침 방지)
+        // 다른 탭에서는 기존 표시 상태 복구
+        var _msFab = document.getElementById('mobile-sidebar-fab');
+        if (_msFab) _msFab.classList.toggle('hidden', id === 'community');
+
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
         const desktopNav = document.getElementById('nav-' + id);
         if(desktopNav) desktopNav.classList.add('active');
