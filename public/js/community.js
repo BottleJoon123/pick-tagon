@@ -133,6 +133,116 @@
             '<span class="tk-roll">' + items.join(' <span class="tk-mid">·</span> ') + '</span>';
     }
 
+    /* ── Community sidebar (C2 · lg+ only, read-only from existing state) ── */
+    function renderCommunitySidebar() {
+        var aside = document.getElementById('community-sidebar');
+        if (!aside) return;
+
+        var blocks = [];
+
+        // ── 1. 내 Pick-tagon 요약 ──
+        if (typeof currentUser !== 'undefined' && currentUser) {
+            var nick    = escapeHtml((typeof getDisplayUsername === 'function' ? getDisplayUsername() : '') || '나');
+            var initial = escapeHtml(((nick || '?').trim().charAt(0) || '?').toUpperCase());
+            var belt    = (typeof getBeltInfo === 'function') ? getBeltInfo(state.points || 0) : { name: 'White', color: '#ECECEE' };
+            var beltLbl = escapeHtml(belt.name + ' Belt');
+            var pts     = (state && state.points != null) ? state.points : 0;
+            var total   = (state && state.total)   ? state.total   : 0;
+            var success = (state && state.success) ? state.success : 0;
+            var acc     = total > 0 ? (Math.round(success / total * 100) + '%') : '집계 전';
+            blocks.push([
+                '<div class="side-card me">',
+                '  <div class="side-head"><span class="side-title">내 픽타곤</span></div>',
+                '  <div class="side-me-row">',
+                '    <div class="side-me-ava" style="border-color:' + belt.color + '">' + initial + '</div>',
+                '    <div style="min-width:0">',
+                '      <div class="side-me-name">' + nick + '</div>',
+                '      <div class="side-me-belt" style="color:' + belt.color + '">' + beltLbl + '</div>',
+                '    </div>',
+                '  </div>',
+                '  <div class="side-stats">',
+                '    <div class="side-stat"><div class="side-stat-v">' + Number(pts).toLocaleString() + '</div><div class="side-stat-l">포인트</div></div>',
+                '    <div class="side-stat"><div class="side-stat-v">' + acc + '</div><div class="side-stat-l">정확도</div></div>',
+                '    <div class="side-stat"><div class="side-stat-v">' + total + '</div><div class="side-stat-l">픽 수</div></div>',
+                '  </div>',
+                '</div>'
+            ].join(''));
+        } else {
+            blocks.push([
+                '<div class="side-card me">',
+                '  <div class="side-head"><span class="side-title">내 픽타곤</span></div>',
+                '  <p class="side-empty">로그인하면 내 랭킹과 픽 기록을 볼 수 있어요.</p>',
+                '  <button class="side-cta" onclick="navigateTo(\'profile\')">로그인 / 프로필 →</button>',
+                '</div>'
+            ].join(''));
+        }
+
+        // ── 2. 오늘의 픽 요약 ──
+        var fights = (typeof _dbMatchups !== 'undefined' && _dbMatchups) ? _dbMatchups : [];
+        var main = null;
+        for (var i = 0; i < fights.length; i++) {
+            if ((fights[i].tag || '').toUpperCase().indexOf('MAIN EVENT') !== -1) { main = fights[i]; break; }
+        }
+        if (!main && fights.length) main = fights[0];
+        var pickHtml;
+        if (main) {
+            var lp = 50, rp = 50;
+            var ec = (typeof eventPickCounts !== 'undefined') && eventPickCounts[main.id];
+            if (ec && (ec.c0 + ec.c1) > 0) { lp = Math.round(ec.c0 / (ec.c0 + ec.c1) * 100); rp = 100 - lp; }
+            else if (main.leftBias != null) { lp = Math.round(main.leftBias * 100); rp = 100 - lp; }
+            var ev = escapeHtml(main._eventTitle || '');
+            pickHtml = [
+                '<div class="side-head"><span class="side-title">오늘의 픽</span>' + (ev ? '<span class="side-meta">' + ev + '</span>' : '') + '</div>',
+                '<div class="side-pick-names">',
+                '  <span class="side-pick-n">' + escapeHtml(main.f1.name) + '</span>',
+                '  <span class="side-pick-vs">VS</span>',
+                '  <span class="side-pick-n r">' + escapeHtml(main.f2.name) + '</span>',
+                '</div>',
+                '<div class="side-pick-bar"><i style="width:' + lp + '%;background:#e10600"></i><i style="width:' + rp + '%;background:#2f7bf0"></i></div>',
+                '<div class="side-pick-pct"><span style="color:#FF5D55">' + lp + '%</span><span style="color:#6FA8FF">' + rp + '%</span></div>'
+            ].join('');
+        } else {
+            pickHtml = '<div class="side-head"><span class="side-title">오늘의 픽</span></div><p class="side-empty">예정된 경기가 없어요.</p>';
+        }
+        blocks.push('<div class="side-card">' + pickHtml + '</div>');
+
+        // ── 3. 트렌딩 글 (likes*2 + 댓글 수 기준) ──
+        var real = (typeof posts !== 'undefined' && posts) ? posts.filter(function(p) { return !p.isPickShare; }) : [];
+        var trend = real.slice().sort(function(a, b) {
+            return ((b.likes || 0) * 2 + (b.comments || []).length) - ((a.likes || 0) * 2 + (a.comments || []).length);
+        }).slice(0, 5);
+        var trendHtml;
+        if (trend.length) {
+            trendHtml = '<div class="side-trend">' + trend.map(function(p, i) {
+                var idx = posts.indexOf(p);
+                var title = escapeHtml(_stripCatPrefix(p.title || '') || '(제목 없음)');
+                return '<div class="side-trow" onclick="openPostDetail(' + idx + ')">'
+                     + '<span class="side-trow-rank' + (i < 3 ? ' top' : '') + '">' + (i + 1) + '</span>'
+                     + '<span class="side-trow-t">' + title + '</span>'
+                     + '<span class="side-trow-c">🔥 ' + (p.likes || 0) + '</span>'
+                     + '</div>';
+            }).join('') + '</div>';
+        } else {
+            trendHtml = '<p class="side-empty">아직 글이 없어요.</p>';
+        }
+        blocks.push('<div class="side-card"><div class="side-head"><span class="side-title">트렌딩 글</span></div>' + trendHtml + '</div>');
+
+        // ── 4. 빠른 액션 (기존 함수 재사용) ──
+        blocks.push([
+            '<div class="side-card">',
+            '  <div class="side-head"><span class="side-title">빠른 액션</span></div>',
+            '  <div class="side-actions">',
+            '    <button class="side-act full" onclick="toggleWriter()">✍ 글쓰기</button>',
+            '    <button class="side-act" onclick="setCommunitySort(\'hot\')">🔥 인기</button>',
+            '    <button class="side-act" onclick="setCommunitySort(\'latest\')">🕘 최신</button>',
+            '    <button class="side-act full" onclick="navigateTo(\'matchups\')">전체 대진표 →</button>',
+            '  </div>',
+            '</div>'
+        ].join(''));
+
+        aside.innerHTML = blocks.join('');
+    }
+
     /* ── Matchup Board ── */
     function renderMatchups(fights) {
         var container = document.getElementById('matchup-board');
@@ -311,9 +421,10 @@
 
     /* ── Main renderFeed ── */
     function renderFeed() {
-        // 0. Activity ticker + category chip counts
+        // 0. Activity ticker + category chip counts + sidebar (C2)
         renderActivityTicker();
         renderFilterCounts();
+        renderCommunitySidebar();
 
         // 1. Matchup board — use DB data only; avoid legacy FIGHTS fallback
         var boardEl = document.getElementById('matchup-board');

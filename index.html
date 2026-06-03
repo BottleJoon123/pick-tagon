@@ -648,7 +648,7 @@
     </section>
 
     <!-- [SECTION: COMMUNITY] -->
-    <section id="community" class="section-animate max-w-5xl mx-auto px-4 lg:px-6 pt-5 pb-16">
+    <section id="community" class="section-animate max-w-5xl lg:max-w-7xl mx-auto px-4 lg:px-6 pt-5 pb-16">
 
         <!-- 헤더 -->
         <div class="flex items-center justify-between mb-4">
@@ -735,7 +735,11 @@
             </div>
         </div>
 
-        <div id="post-list" class="post-list-container"></div>
+        <!-- ── 2-column body (lg+): main feed + right sidebar (C2) ── -->
+        <div class="community-body">
+            <div id="post-list" class="post-list-container"></div>
+            <aside id="community-sidebar" class="community-aside" aria-label="커뮤니티 사이드바"></aside>
+        </div>
     </section>
 
     <!-- [SECTION: OCTAGON BATTLE ROOM] -->
@@ -2437,7 +2441,7 @@
 <script src="/js/news-render-helpers.js"></script>
 <script src="/js/news.js"></script>
 <script src="/js/youtube.js?v=1"></script>
-<script src="/js/community.js?v=11"></script>
+<script src="/js/community.js?v=12"></script>
 <script src="/js/admin.js?v=23"></script>
 <script src="/js/profile.js"></script>
 <script src="/js/archive.js?v=6"></script>
