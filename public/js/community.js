@@ -645,10 +645,12 @@
 
         // Own-post controls
         var isOwn = !!(currentUser && p.userId && p.userId === currentUser.id);
+        var isAdmin = (typeof adminUnlocked !== 'undefined' && adminUnlocked);
         var editBtn = document.getElementById('pd-edit-btn');
         var delBtn  = document.getElementById('pd-delete-btn');
+        // edit: author only. delete (C3-5): author or admin.
         if (editBtn) { if (isOwn) editBtn.classList.remove('hidden'); else editBtn.classList.add('hidden'); }
-        if (delBtn)  { if (isOwn) delBtn.classList.remove('hidden');  else delBtn.classList.add('hidden'); }
+        if (delBtn)  { if (isOwn || isAdmin) delBtn.classList.remove('hidden'); else delBtn.classList.add('hidden'); }
         // Admin pin/unpin control (admin 전용 — adminUnlocked는 UX 게이트, 서버 admin_required가 최종 방어)
         _syncPinBtn(p);
         var editForm = document.getElementById('pd-edit-form');
@@ -707,6 +709,7 @@
             listEl.innerHTML = '<p style="font-size:13px;color:#555;font-style:italic;text-align:center;padding:12px 0;">첫 댓글을 남겨주세요</p>';
             return;
         }
+        var isAdmin = (typeof adminUnlocked !== 'undefined' && adminUnlocked);
         listEl.innerHTML = comments.map(function(c) {
             var isSelf = c.user === getDisplayUsername();
             var safeUser = escapeHtml(c.user || '').replace(/'/g, "\\'");
@@ -716,8 +719,18 @@
                        onmouseover="this.style.color='#e8000d';this.style.borderColor='rgba(232,0,13,.4)'"
                        onmouseout="this.style.color='#444';this.style.borderColor='#222'">⚡ 옥타곤</button>`
                 : '';
+            // C3-5: delete button — own comment (user_id match) or admin; legacy (no userId) admin-only.
+            // Only on persisted comments (commentId present); server enforces via delete_post_comment.
+            var isOwnComment = !!(currentUser && c.userId && c.userId === currentUser.id);
+            var canDelete = (c.commentId != null) && (isOwnComment || isAdmin);
+            var delBtn = canDelete
+                ? `<button onclick="deleteDetailComment(${c.commentId})"
+                       style="font-family:'Oswald',sans-serif;font-size:10px;font-weight:900;background:transparent;border:1px solid #3a1416;color:#a33;padding:2px 7px;border-radius:5px;cursor:pointer;letter-spacing:.05em;transition:color .12s,border-color .12s;"
+                       onmouseover="this.style.color='#fff';this.style.borderColor='#e8000d'"
+                       onmouseout="this.style.color='#a33';this.style.borderColor='#3a1416'">✕</button>`
+                : '';
             return `<div class="post-comment-block">
-                <div class="post-comment-nick"><span>${escapeHtml(c.user || '')}</span>${battleBtn}</div>
+                <div class="post-comment-nick"><span>${escapeHtml(c.user || '')}</span>${battleBtn}${delBtn}</div>
                 <p class="post-comment-txt">${escapeHtml(c.text || '')}</p>
             </div>`;
         }).join('');
@@ -740,6 +753,31 @@
         _renderDetailComments(p.comments);
         var statsEl = document.getElementById('pd-stats');
         if (statsEl) statsEl.textContent = '🔥 ' + (p.likes || 0) + '  💬 ' + p.comments.length;
+    }
+
+    // C3-5: soft delete a comment via RPC. Own comment or admin; server enforces.
+    async function deleteDetailComment(commentId) {
+        if (commentId == null || _detailPostIdx < 0) return;
+        var p = posts[_detailPostIdx];
+        if (!p || p.dbId !== _detailPostDbId) return;
+        if (!currentUser) return;
+        if (!confirm('이 댓글을 삭제하시겠습니까?')) return;
+        if (!sb) { showToast('⚠ 연결 오류'); return; }
+
+        var res = await sb.rpc('delete_post_comment', { p_comment_id: commentId });
+        if (res.error) {
+            var msg = res.error.message || '';
+            showToast(msg.indexOf('not_authorized') !== -1 ? '⚠ 삭제 권한이 없습니다' : '⚠ 댓글 삭제 실패');
+            return;
+        }
+
+        p.comments = (p.comments || []).filter(function(c) { return c.commentId !== commentId; });
+        save();
+        _renderDetailComments(p.comments);
+        var statsEl = document.getElementById('pd-stats');
+        if (statsEl) statsEl.textContent = '🔥 ' + (p.likes || 0) + '  💬 ' + p.comments.length + '  👁 ' + _fmtCount(p.viewCount != null ? p.viewCount : 0);
+        if (typeof renderFeed === 'function') renderFeed();
+        showToast('🗑 댓글을 삭제했어요');
     }
 
     function likePostFromDetail() {
@@ -837,22 +875,27 @@
         showToast('✅ 수정되었습니다');
     }
 
+    // C3-5: soft delete via RPC. Author or admin; server enforces (delete_post).
     async function deleteOwnPost() {
         var p = posts[_detailPostIdx];
-        if (!p || !currentUser || p.userId !== currentUser.id) return;
+        if (!p || p.dbId == null) return;
+        var isOwn   = !!(currentUser && p.userId && p.userId === currentUser.id);
+        var isAdmin = (typeof adminUnlocked !== 'undefined' && adminUnlocked);
+        if (!currentUser || (!isOwn && !isAdmin)) return; // UX gate; server is final defense
         if (!confirm('이 게시글을 삭제하시겠습니까?')) return;
 
         if (!sb) { showToast('⚠ 연결 오류'); return; }
-        var res = await sb.from('posts')
-            .delete()
-            .eq('id', p.dbId)
-            .eq('user_id', currentUser.id);
-        if (res.error) { showToast('⚠ 삭제 실패: ' + res.error.message); return; }
+        var res = await sb.rpc('delete_post', { p_post_id: p.dbId });
+        if (res.error) {
+            var msg = res.error.message || '';
+            showToast(msg.indexOf('not_authorized') !== -1 ? '⚠ 삭제 권한이 없습니다' : '⚠ 삭제 실패');
+            return;
+        }
 
         var idx = posts.indexOf(p);
         if (idx > -1) posts.splice(idx, 1);
         save();
         closePostDetail();
         renderFeed();
-        showToast('🗑 게시글이 삭제되었습니다');
+        showToast('🗑 게시글을 삭제했어요');
     }

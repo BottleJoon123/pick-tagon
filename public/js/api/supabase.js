@@ -69,6 +69,8 @@ function loadPostsFromDB() {
     // posts + comments + users(faction) 로드
     sb.from('posts')
         .select('*, post_comments(id, user_id, user_nick, content, created_at), users(nickname, factions(id, name, emoji_icon))')
+        .is('deleted_at', null)                  // C3-5: exclude soft-deleted posts
+        .is('post_comments.deleted_at', null)    // C3-5: exclude soft-deleted comments (embedded filter)
         .order('created_at', { ascending: false })
         .limit(100)
         .then(function(res) {
@@ -83,7 +85,7 @@ function loadPostsFromDB() {
                             && c.user_id === currentUser.id && typeof getDisplayUsername === 'function') {
                             displayUser = getDisplayUsername() || c.user_nick;
                         }
-                        return { user: displayUser, userId: c.user_id || null, text: c.content };
+                        return { user: displayUser, userId: c.user_id || null, text: c.content, commentId: c.id };
                     });
                 var faction = (r.users && r.users.factions) ? r.users.factions : null;
                 return {
