@@ -732,7 +732,7 @@
         if (!text) return;
         if (!currentUser) { showToast('⚠ 댓글은 로그인 후 작성할 수 있습니다'); return; }
         var nick    = getDisplayUsername();
-        var comment = { user: nick, text: text.slice(0, 300) };
+        var comment = { user: nick, userId: currentUser.id, text: text.slice(0, 300) };
         p.comments.push(comment);
         if (input) input.value = '';
         await addCommentToDB(p.dbId, nick, text.slice(0, 300));

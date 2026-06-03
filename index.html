@@ -2439,13 +2439,13 @@
 <script src="/js/storage.js"></script>
 <script src="/js/utils.js?v=3"></script>
 <script src="/js/event-countdown.js"></script>
-<script src="/js/api/supabase.js?v=13"></script>
+<script src="/js/api/supabase.js?v=14"></script>
 <script src="/js/modal-helpers.js"></script>
 <script src="/js/format-helpers.js"></script>
 <script src="/js/news-render-helpers.js"></script>
 <script src="/js/news.js"></script>
 <script src="/js/youtube.js?v=1"></script>
-<script src="/js/community.js?v=16"></script>
+<script src="/js/community.js?v=17"></script>
 <script src="/js/admin.js?v=23"></script>
 <script src="/js/profile.js"></script>
 <script src="/js/archive.js?v=7"></script>
@@ -2499,9 +2499,12 @@
             sb.rpc('sync_my_post_nickname').then(function(r) {
                 if (r && r.error) console.warn('[nickname sync] ' + r.error.message);
             }, function(e) { console.warn('[nickname sync]', e); });
-            // 로컬 posts 배열 즉시 반영 + 커뮤니티 화면이면 재렌더
+            // 로컬 posts 배열 즉시 반영(본인 글 작성자 + 본인 댓글 작성자) + 커뮤니티 화면이면 재렌더
             if (typeof posts !== 'undefined' && Array.isArray(posts)) {
-                posts.forEach(function(p) { if (p.userId === currentUser.id) p.author = val; });
+                posts.forEach(function(p) {
+                    if (p.userId === currentUser.id) p.author = val;
+                    (p.comments || []).forEach(function(c) { if (c.userId === currentUser.id) c.user = val; });
+                });
                 if (typeof renderFeed === 'function') renderFeed();
             }
         }
@@ -3345,7 +3348,7 @@ async function postCom(i) {
     if(!text) return;
     if (!currentUser) { showToast('⚠ 댓글은 로그인 후 작성할 수 있습니다'); return; }
     const nick = getDisplayUsername();
-    const comment = { user: nick, text: text.slice(0, 300) };
+    const comment = { user: nick, userId: currentUser.id, text: text.slice(0, 300) };
     posts[i].comments.push(comment);
     input.value = "";
     // [A안] post_comments 테이블에 INSERT
@@ -5027,10 +5030,12 @@ async function publishPost() {
 async function addCommentToDB(postDbId, userNick, text) {
     if (!sb || !postDbId) return { ok: true };
     return runSupabaseMutation(function() {
+        // user_id는 DB trigger가 auth.uid()로 강제 세팅(스푸핑 방지). 명시 전달은 참고용.
         return sb.from('post_comments').insert({
             post_id: postDbId,
             user_nick: userNick,
-            content: text
+            content: text,
+            user_id: (currentUser && currentUser.id) || null
         });
     }, '⚠ 댓글 저장에 실패했습니다.');
 }

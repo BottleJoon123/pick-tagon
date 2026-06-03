@@ -68,7 +68,7 @@ function loadPostsFromDB() {
     if (!sb) return;
     // posts + comments + users(faction) 로드
     sb.from('posts')
-        .select('*, post_comments(id, user_nick, content, created_at), users(nickname, factions(id, name, emoji_icon))')
+        .select('*, post_comments(id, user_id, user_nick, content, created_at), users(nickname, factions(id, name, emoji_icon))')
         .order('created_at', { ascending: false })
         .limit(100)
         .then(function(res) {
@@ -76,7 +76,15 @@ function loadPostsFromDB() {
             posts = res.data.map(function(r) {
                 var comments = (r.post_comments || [])
                     .sort(function(a, b) { return new Date(a.created_at) - new Date(b.created_at); })
-                    .map(function(c) { return { user: c.user_nick, text: c.content }; });
+                    .map(function(c) {
+                        // 기본은 user_nick snapshot. 본인(user_id) 댓글이면 현재 닉네임으로 표시.
+                        var displayUser = c.user_nick;
+                        if (c.user_id && typeof currentUser !== 'undefined' && currentUser
+                            && c.user_id === currentUser.id && typeof getDisplayUsername === 'function') {
+                            displayUser = getDisplayUsername() || c.user_nick;
+                        }
+                        return { user: displayUser, userId: c.user_id || null, text: c.content };
+                    });
                 var faction = (r.users && r.users.factions) ? r.users.factions : null;
                 return {
                     id: r.id,
