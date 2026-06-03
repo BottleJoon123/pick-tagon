@@ -1743,6 +1743,7 @@
                         <span id="fp-division-badge" class="oswald-sharp text-[9px] lg:text-[10px] bg-white/5 border border-white/10 text-gray-400 px-2 py-0.5 rounded-full font-black italic uppercase tracking-widest"></span>
                     </div>
                     <h2 id="fp-name" class="oswald-sharp text-[22px] lg:text-5xl font-black italic uppercase tracking-tighter text-white leading-none"></h2>
+                    <p id="fp-nickname" class="hidden oswald-sharp text-[11px] lg:text-sm font-bold italic uppercase tracking-[0.18em] text-ufcRed/80 leading-none mt-1.5"></p>
                 </div>
             </div>
             <!-- Compact Stats: 5-col grid on mobile, flex row on desktop -->
@@ -2444,13 +2445,13 @@
 <script src="/js/community.js?v=12"></script>
 <script src="/js/admin.js?v=23"></script>
 <script src="/js/profile.js"></script>
-<script src="/js/archive.js?v=6"></script>
+<script src="/js/archive.js?v=7"></script>
 <script src="/js/season.js"></script>
 <script src="/js/fights-render.js?v=23"></script>
 <script src="/js/h2h.js?v=21e"></script>
 <script src="/js/news-admin.js?v=6"></script>
 <script src="/js/home.js?v=6"></script>
-<script src="/js/share-card.js?v=13"></script>
+<script src="/js/share-card.js?v=14"></script>
 <script>
     /* ==============================
        FIGHT CARD DATA
@@ -3617,11 +3618,12 @@ async function publishPost() {
         if (!fighter.record && !fighter.height && fighter.name && typeof sb !== 'undefined' && sb) {
             try {
                 const { data: dbF } = await sb.from('fighters')
-                    .select('name, name_en, division, wins, losses, draws, rank, height, reach, weight_kg, ko_rate, sub_rate, dec_rate, stats, image_url')
+                    .select('name, name_en, division, wins, losses, draws, rank, height, reach, weight_kg, ko_rate, sub_rate, dec_rate, stats, image_url, nickname')
                     .ilike('name', fighter.name)
                     .maybeSingle();
                 if (dbF) {
                     fighter = Object.assign({}, fighter, {
+                        nickname:  dbF.nickname || fighter.nickname || null,
                         record:    `${dbF.wins||0}-${dbF.losses||0}-${dbF.draws||0}`,
                         height:    dbF.height || null,
                         reach:     dbF.reach  || null,
@@ -3661,6 +3663,18 @@ async function publishPost() {
 
         // Basic info
         document.getElementById('fp-name').textContent = fighter.name;
+        // Nickname (fighter.nickname): show only when present, fully hidden otherwise
+        const fpNickEl = document.getElementById('fp-nickname');
+        if (fpNickEl) {
+            const fpNick = (fighter.nickname || '').trim();
+            if (fpNick) {
+                fpNickEl.textContent = '"' + fpNick + '"';
+                fpNickEl.classList.remove('hidden');
+            } else {
+                fpNickEl.textContent = '';
+                fpNickEl.classList.add('hidden');
+            }
+        }
         document.getElementById('fp-record').textContent = fighter.record || '—';
         document.getElementById('fp-height').textContent = fighter.height || '—';
         document.getElementById('fp-reach').textContent = fighter.reach || '—';

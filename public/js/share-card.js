@@ -1359,6 +1359,7 @@ function buildFighterShareCardData(fighter) {
 
     return {
         name:         name,
+        nickname:     f.nickname || null,
         record:       f.record   || null,
         rank:         f.rank     || null,
         division:     f.division || null,
@@ -1457,6 +1458,7 @@ function _scDrawRadar(ctx, cx, cy, R, values, labels, opts) {
 function _scDrawFighterNameBlock(ctx, opts) {
     var firstName = opts.firstName || '';
     var lastName  = opts.lastName  || '?';
+    var nickname  = opts.nickname  || null;
     var record    = opts.record    || null;
     var x         = opts.x;
     var topY      = opts.topY;
@@ -1468,8 +1470,10 @@ function _scDrawFighterNameBlock(ctx, opts) {
     var RED       = opts.RED;
     var MUTED2    = opts.MUTED2;
 
-    var GAP_FN_LN  = 12; // firstName 하단 ~ lastName 상단 최소 간격
-    var GAP_LN_REC = 16; // lastName 하단 ~ record 상단 최소 간격
+    var GAP_FN_LN   = 12; // firstName 하단 ~ lastName 상단 최소 간격
+    var GAP_LN_REC  = 16; // lastName 하단 ~ record 상단 최소 간격
+    var GAP_LN_NICK = 10; // lastName 하단 ~ nickname 상단
+    var GAP_NICK_REC = 14; // nickname 하단 ~ record 상단
 
     // 1. lastName 크기 결정
     var lnSize = 90;
@@ -1495,11 +1499,25 @@ function _scDrawFighterNameBlock(ctx, opts) {
     // 3. record 크기
     var recSize = 40, recLineH = record ? Math.round(recSize * 1.05) : 0;
 
-    // 4. 전체 높이 체크, maxH 초과 시 firstName 축소 → 생략 순으로 처리
+    // 3b. nickname 크기 + 폭 맞춤 (있을 때만, 따옴표로 감싼 이탤릭)
+    var nickText = nickname ? ('"' + String(nickname).toUpperCase() + '"') : '';
+    var nickSize = 0, nickLineH = 0;
+    if (nickText) {
+        nickSize = 26;
+        ctx.font = 'italic 700 ' + nickSize + 'px ' + F_BLK;
+        while (ctx.measureText(nickText).width > maxW && nickSize > 14) {
+            nickSize -= 2;
+            ctx.font = 'italic 700 ' + nickSize + 'px ' + F_BLK;
+        }
+        nickLineH = Math.round(nickSize * 1.15);
+    }
+
+    // 4. 전체 높이 체크, maxH 초과 시 firstName → nickname 순으로 축소/생략
     function totalH() {
         return (fnLineH > 0 ? fnLineH + GAP_FN_LN : 0)
              + lnLineH
-             + (recLineH > 0 ? GAP_LN_REC + recLineH : 0);
+             + (nickLineH > 0 ? GAP_LN_NICK + nickLineH : 0)
+             + (recLineH > 0 ? (nickLineH > 0 ? GAP_NICK_REC : GAP_LN_REC) + recLineH : 0);
     }
     if (firstName) {
         while (fnSize > 14 && totalH() > maxH) {
@@ -1507,6 +1525,13 @@ function _scDrawFighterNameBlock(ctx, opts) {
             fnLineH = Math.round(fnSize * 1.05);
         }
         if (totalH() > maxH) { fnSize = 0; fnLineH = 0; } // firstName 생략
+    }
+    if (nickText) {
+        while (nickSize > 14 && totalH() > maxH) {
+            nickSize -= 2;
+            nickLineH = Math.round(nickSize * 1.15);
+        }
+        if (totalH() > maxH) { nickSize = 0; nickLineH = 0; nickText = ''; } // nickname 생략
     }
 
     // 5. 그리기 (textBaseline = 'top')
@@ -1523,7 +1548,17 @@ function _scDrawFighterNameBlock(ctx, opts) {
     ctx.font = '700 ' + lnSize + 'px ' + F_BLK;
     ctx.fillStyle = WHITE;
     ctx.fillText(lastName.toUpperCase(), x, curY);
-    curY += lnLineH + GAP_LN_REC;
+    curY += lnLineH;
+
+    if (nickText && nickSize > 0) {
+        curY += GAP_LN_NICK;
+        ctx.font = 'italic 700 ' + nickSize + 'px ' + F_BLK;
+        ctx.fillStyle = 'rgba(244,244,245,0.78)';
+        ctx.fillText(nickText, x, curY);
+        curY += nickLineH + GAP_NICK_REC;
+    } else {
+        curY += GAP_LN_REC;
+    }
 
     if (record) {
         ctx.font = '700 ' + recSize + 'px ' + F_BLK;
@@ -1721,6 +1756,7 @@ function drawPicktagonFighterShareCard(canvas, data) {
     _scDrawFighterNameBlock(ctx, {
         firstName: firstName,
         lastName:  lastName,
+        nickname:  data.nickname || null,
         record:    data.record,
         x:         rightX,
         topY:      200,

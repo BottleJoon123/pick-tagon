@@ -608,6 +608,7 @@ function _buildFighterForProfile(f) {
         style: f.style,
         stats,
         image_url: f.image_url || null,
+        nickname: f.nickname || null,
     };
 }
 
@@ -622,7 +623,7 @@ async function fetchFighterArchive() {
     try {
         const [fightersRes, rankingsRes] = await Promise.all([
             sb.from('fighters')
-              .select('id, name, name_en, division, wins, losses, draws, rank, height, reach, height_cm, weight_kg, reach_cm, ko_rate, sub_rate, dec_rate, stats, image_url, style')
+              .select('id, name, name_en, division, wins, losses, draws, rank, height, reach, height_cm, weight_kg, reach_cm, ko_rate, sub_rate, dec_rate, stats, image_url, style, nickname')
               .order('division', { ascending: true })
               .order('rank', { ascending: true, nullsFirst: false })
               .limit(5000),
