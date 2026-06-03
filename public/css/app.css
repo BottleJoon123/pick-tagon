@@ -1206,6 +1206,17 @@ textarea, select {
     margin-left: auto; font-family: 'Oswald', sans-serif; font-size: 10px; font-weight: 900;
     font-style: italic; color: var(--red); text-transform: uppercase; letter-spacing: 0.05em;
 }
+/* C3-2 pinned post (공지) — amber, distinct from red HOT */
+.fc-pin {
+    font-family: 'Oswald', sans-serif; font-size: 9px; font-weight: 900; font-style: italic;
+    text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 7px; border-radius: 4px;
+    white-space: nowrap; background: rgba(245,158,11,0.12);
+    border: 1px solid rgba(245,158,11,0.30); color: #fcd34d;
+}
+.fcard.pinned {
+    border-color: rgba(245,158,11,0.28);
+    background: radial-gradient(120% 120% at 0% 0%, rgba(245,158,11,0.06), transparent 60%), var(--pt-bg-2);
+}
 .fc-title {
     font-family: 'Oswald', sans-serif; font-weight: 900; font-style: italic; font-size: 19px;
     color: var(--pt-ink-0); text-transform: uppercase; line-height: 1.15; margin-bottom: 5px;

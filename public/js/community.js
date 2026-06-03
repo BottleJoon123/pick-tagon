@@ -370,6 +370,7 @@
             var views    = _fmtCount(p.viewCount != null ? p.viewCount : 0);
             // HOT: 추천 임계값 기반 더미 규칙 (Phase C3에서 트렌딩 점수로 대체)
             var isHot    = likes >= 5;
+            var isPinned = p.isPinned === true; // C3-2 공지 고정
 
             // Category tag → fc-cat cat-{kind}
             var cat = _getPostCategory(rawTitle);
@@ -393,10 +394,11 @@
                 : '';
 
             return `
-            <div class="fcard ${isHot ? 'hot' : ''}" id="post-row-${origIdx}" onclick="openPostDetail(${origIdx})">
+            <div class="fcard ${isPinned ? 'pinned' : ''} ${isHot ? 'hot' : ''}" id="post-row-${origIdx}" onclick="openPostDetail(${origIdx})">
                 <div class="fc-ava belt-${beltTier}">${initials}</div>
                 <div class="fc-body">
                     <div class="fc-head">
+                        ${isPinned ? '<span class="fc-pin">📌 공지</span>' : ''}
                         <span class="fc-user">${factionBadge}${author}</span>
                         <span class="fc-belt belt-${beltTier}">${beltName}</span>
                         <span class="fc-cat ${catCls}">${catLbl}</span>
@@ -485,6 +487,14 @@
                 return (b.date || '').localeCompare(a.date || '');
             });
         }
+
+        // 4b. Pinned(공지) 항상 상단. pinned끼리는 최신순, 일반글은 위 정렬(최신/인기) 그대로 유지(안정 정렬).
+        filtered.sort(function(a, b) {
+            var ap = a.isPinned === true, bp = b.isPinned === true;
+            if (ap !== bp) return ap ? -1 : 1;
+            if (ap && bp) return (b.date || '').localeCompare(a.date || '');
+            return 0;
+        });
 
         renderPosts(filtered);
     }
@@ -624,8 +634,41 @@
         var delBtn  = document.getElementById('pd-delete-btn');
         if (editBtn) { if (isOwn) editBtn.classList.remove('hidden'); else editBtn.classList.add('hidden'); }
         if (delBtn)  { if (isOwn) delBtn.classList.remove('hidden');  else delBtn.classList.add('hidden'); }
+        // Admin pin/unpin control (admin 전용 — adminUnlocked는 UX 게이트, 서버 admin_required가 최종 방어)
+        _syncPinBtn(p);
         var editForm = document.getElementById('pd-edit-form');
         if (editForm) editForm.classList.add('hidden');
+    }
+
+    // ── C3-2 공지 고정 (admin 전용) ──
+    function _syncPinBtn(p) {
+        var btn = document.getElementById('pd-pin-btn');
+        if (!btn) return;
+        if (typeof adminUnlocked === 'undefined' || !adminUnlocked) { btn.classList.add('hidden'); return; }
+        btn.classList.remove('hidden');
+        btn.textContent = (p && p.isPinned === true) ? '📌 고정 해제' : '📌 고정';
+    }
+    function togglePinCurrentPost() {
+        if (typeof adminUnlocked === 'undefined' || !adminUnlocked) return; // UX 게이트
+        var p = posts[_detailPostIdx];
+        if (!p || p.dbId == null) return;
+        if (typeof sb === 'undefined' || !sb) { showToast('⚠ 연결 오류'); return; }
+        var next = !(p.isPinned === true);
+        var btn = document.getElementById('pd-pin-btn');
+        if (btn) btn.disabled = true;
+        sb.rpc('admin_set_post_pinned', { p_post_id: p.dbId, p_is_pinned: next }).then(function(res) {
+            if (btn) btn.disabled = false;
+            if (res.error) {
+                console.warn('[pin] failed:', res.error.message);
+                showToast((res.error.message || '').indexOf('admin_required') !== -1 ? '⚠ 관리자 권한 필요' : '⚠ 고정 변경 실패');
+                return;
+            }
+            var d = res.data || {};
+            p.isPinned = (d.is_pinned === true);
+            _syncPinBtn(p);
+            if (typeof renderFeed === 'function') renderFeed();
+            showToast(p.isPinned ? '📌 게시글을 상단 고정했습니다' : '고정을 해제했습니다');
+        });
     }
 
     function closePostDetail() {

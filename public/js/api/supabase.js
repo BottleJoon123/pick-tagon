@@ -92,6 +92,7 @@ function loadPostsFromDB() {
                     isPickShare: r.is_pick_share || false,
                     faction: faction,
                     viewCount: r.view_count != null ? r.view_count : 0,
+                    isPinned: r.is_pinned === true,
                 };
             });
             save();
