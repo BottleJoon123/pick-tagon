@@ -68,14 +68,16 @@
         if (!container) return;
         if (!fights || fights.length === 0) { container.innerHTML = ''; return; }
 
-        // 메인/코메인만 표시, 나머지는 카운트만
+        // 메인/코메인 우선; 없으면 앞쪽 3경기라도 노출
         var featured = fights.filter(function(f) {
             var t = (f.tag || '').toUpperCase();
             return t.includes('MAIN EVENT') || t.includes('CO-MAIN') || t.includes('CO MAIN');
         });
-        var restCount = fights.length - featured.length;
+        if (featured.length === 0) featured = fights.slice(0, 3);
+        var restCount  = fights.length - featured.length;
+        var eventTitle = (fights[0] && fights[0]._eventTitle) || '';
 
-        container.innerHTML = featured.map(function(fight) {
+        var cards = featured.map(function(fight) {
             // Live pick percentages — eventPickCounts: { c0: red, c1: blue } (index.html var)
             var ec = (typeof eventPickCounts !== 'undefined') && eventPickCounts[fight.id];
             var leftPct = 50, rightPct = 50;
@@ -98,59 +100,53 @@
             var isSettled  = state.settled  && state.settled[fight.id];
             var hasPick    = !!(isPending || isSettled);
 
-            var f1  = escapeHtml(fight.f1.name);
-            var f2  = escapeHtml(fight.f2.name);
-            var div = escapeHtml(fight.weight || fight.division || '');
-            var fid = escapeHtml(fight.id);
+            var f1   = escapeHtml(fight.f1.name);
+            var f2   = escapeHtml(fight.f2.name);
+            var rec1 = escapeHtml((fight.f1 && fight.f1.record) || '');
+            var rec2 = escapeHtml((fight.f2 && fight.f2.record) || '');
+            var fid  = escapeHtml(fight.id);
 
-            // Two-color bar gradient: left=red, right=blue
-            var barGradient = 'linear-gradient(90deg,#e8000d ' + leftPct + '%,#2563eb ' + leftPct + '%)';
-            var leftColor  = leftPct >= rightPct ? '#e8000d' : '#666';
-            var rightColor = rightPct > leftPct  ? '#2563eb' : '#666';
+            // Two-color community-pick bar: left red → right blue (handoff colors)
+            var barGradient = 'linear-gradient(90deg,#e10600 ' + leftPct + '%,#2f7bf0 ' + leftPct + '%)';
 
             return `
             <div class="matchup-card ${tagCls === 'matchup-tag-main' ? 'card-main' : ''}" onclick="navigateTo('matchups'); setTimeout(function(){ var el=document.getElementById('card-${fid}'); if(el) el.scrollIntoView({behavior:'smooth',block:'center'}); },350);">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
+                <div class="ps-top">
                     <span class="matchup-tag ${tagCls}">${escapeHtml(fight.tag || 'BOUT')}</span>
-                    ${hasPick ? `<span style="font-family:'Oswald',sans-serif;font-size:10px;font-style:italic;font-weight:900;color:#e8000d;text-transform:uppercase;letter-spacing:.06em;">✓ PICKED</span>` : ''}
+                    <span class="ps-pick ${hasPick ? 'picked' : 'unpicked'}">${hasPick ? '✓ PICKED' : '미픽'}</span>
                 </div>
-                <div class="matchup-names">
-                    <div class="matchup-fighter-name">${f1}</div>
-                    <div class="matchup-vs-label">VS</div>
-                    <div class="matchup-fighter-name right">${f2}</div>
+                <div class="ps-fighters">
+                    <div class="ps-f">
+                        <div class="ps-name">${f1}</div>
+                        ${rec1 ? `<div class="ps-rec">${rec1}</div>` : ''}
+                    </div>
+                    <div class="ps-vs">VS</div>
+                    <div class="ps-f right">
+                        <div class="ps-name">${f2}</div>
+                        ${rec2 ? `<div class="ps-rec">${rec2}</div>` : ''}
+                    </div>
                 </div>
-                <div class="matchup-bar-wrap">
-                    <div class="matchup-bar-fill" style="background:${barGradient}"></div>
+                <div class="ps-bar">
+                    <div class="ps-bar-fill" style="background:${barGradient}"></div>
                 </div>
-                <div class="matchup-pct-row">
-                    <span style="color:${leftColor};font-weight:900;">${leftPct}%</span>
-                    <span style="font-size:9px;color:#2a2a2a;letter-spacing:.05em;">커뮤니티 픽</span>
-                    <span style="color:${rightColor};font-weight:900;">${rightPct}%</span>
-                </div>
-                <div class="matchup-card-foot">
-                    <span class="matchup-weight-lbl">${div}</span>
-                    <button class="matchup-go-btn ${hasPick ? 'picked' : ''}" onclick="event.stopPropagation(); navigateTo('matchups');">
-                        ${hasPick ? '✓ PICKED' : '→ PICK'}
-                    </button>
+                <div class="ps-pct">
+                    <span style="color:#FF5D55;">${leftPct}%</span>
+                    <span class="ps-pct-lbl">커뮤니티 픽</span>
+                    <span style="color:#6FA8FF;">${rightPct}%</span>
                 </div>
             </div>`;
         }).join('');
 
-        // 나머지 경기 수가 있으면 "전체 대진표 보기" 버튼 추가
-        if (restCount > 0) {
-            container.innerHTML += `
-            <div style="display:flex;align-items:center;justify-content:center;">
-                <button onclick="navigateTo('matchups')"
-                    style="font-family:'Oswald',sans-serif;font-size:12px;font-weight:900;font-style:italic;
-                           text-transform:uppercase;letter-spacing:.1em;background:transparent;
-                           border:1px solid #2a2a2a;color:#555;padding:10px 20px;border-radius:8px;
-                           cursor:pointer;transition:all .15s;width:100%;"
-                    onmouseover="this.style.borderColor='rgba(232,0,13,.4)';this.style.color='#e8000d';"
-                    onmouseout="this.style.borderColor='#2a2a2a';this.style.color='#555';">
-                    + ${restCount}경기 더 보기 → 전체 대진표
-                </button>
-            </div>`;
-        }
+        var moreLabel = restCount > 0
+            ? '+ ' + restCount + '경기 더 보기 → 전체 대진표'
+            : '전체 대진표 →';
+
+        container.innerHTML =
+            '<div class="pick-strip-head">' +
+                '<span class="pick-strip-title">🥊 오늘의 픽' + (eventTitle ? ' · ' + escapeHtml(eventTitle) : '') + '</span>' +
+                '<button class="pick-strip-more" onclick="navigateTo(\'matchups\')">' + moreLabel + '</button>' +
+            '</div>' +
+            '<div class="pick-strip">' + cards + '</div>';
     }
 
     /* ── Belt tier helper (post.belt "White Belt" → "white") ── */

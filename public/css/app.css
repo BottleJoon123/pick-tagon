@@ -1009,6 +1009,55 @@ textarea, select {
 .matchup-go-btn:hover { background: rgba(232,0,13,0.1); }
 .matchup-go-btn.picked { background: rgba(232,0,13,0.15); border-color: var(--red); color: #fff; }
 
+/* ── Pick strip (community redesign · horizontal scroller) ── */
+.pick-strip-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin-bottom: 10px; flex-wrap: wrap;
+}
+.pick-strip-title {
+    font-family: 'Oswald', sans-serif; font-weight: 900; font-style: italic; font-size: 14px;
+    color: var(--pt-ink-1); text-transform: uppercase; letter-spacing: 0.04em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 62%;
+}
+.pick-strip-more {
+    font-family: 'Oswald', sans-serif; font-weight: 900; font-style: italic; font-size: 11px;
+    color: var(--pt-ink-3); background: transparent; border: none; cursor: pointer;
+    text-transform: uppercase; letter-spacing: 0.05em; transition: color 0.12s; white-space: nowrap;
+}
+.pick-strip-more:hover { color: var(--red); }
+.pick-strip {
+    display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x proximity;
+    padding-bottom: 8px; -webkit-overflow-scrolling: touch;
+}
+.pick-strip > .matchup-card { flex: 0 0 340px; scroll-snap-align: start; margin: 0; }
+.ps-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.ps-pick {
+    font-family: 'Oswald', sans-serif; font-size: 10px; font-weight: 900; font-style: italic;
+    text-transform: uppercase; letter-spacing: 0.06em;
+}
+.ps-pick.picked { color: var(--pt-win); }
+.ps-pick.unpicked { color: var(--pt-ink-4); }
+.ps-fighters { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.ps-f { flex: 1 1 0; min-width: 0; }
+.ps-f.right { text-align: right; }
+.ps-name {
+    font-family: 'Oswald', sans-serif; font-weight: 900; font-style: italic; font-size: 16px;
+    color: var(--pt-ink-1); text-transform: uppercase; line-height: 1.1;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ps-rec { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--pt-ink-3); margin-top: 2px; }
+.ps-vs {
+    font-family: 'Oswald', sans-serif; font-size: 13px; font-weight: 900; font-style: italic;
+    color: var(--red); flex-shrink: 0; padding: 0 4px;
+}
+.ps-bar { height: 8px; background: var(--pt-bg-4); border-radius: 999px; overflow: hidden; margin-bottom: 6px; }
+.ps-bar-fill { height: 100%; width: 100%; border-radius: 999px; transition: background 0.6s ease; }
+.ps-pct {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: 'Oswald', sans-serif; font-size: 12px; font-weight: 900; font-style: italic;
+}
+.ps-pct-lbl { font-size: 9px; color: var(--pt-ink-4); letter-spacing: 0.05em; text-transform: uppercase; }
+
 /* Post list — dense table */
 .post-list-container {
     border: 1px solid #1a1a1a;
