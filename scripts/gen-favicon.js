@@ -89,9 +89,9 @@ function drawLine(buf, size, ax, ay, bx, by, color, sw) {
 }
 
 // ── Octagon + Checkmark ───────────────────────────────────────────────
-function drawOctagon(buf, size, sw) {
+function drawOctagon(buf, size, sw, rRatio) {
     const cx = size / 2, cy = size / 2;
-    const r  = size * 0.43;
+    const r  = size * (rRatio || 0.43);
     const pts = [];
     for (let i = 0; i < 8; i++) {
         const a = (22.5 + 45 * i) * Math.PI / 180;
@@ -174,25 +174,29 @@ function createICO(png32buf) {
 }
 
 // ── Generate ──────────────────────────────────────────────────────────
-function generate(size, octSwRatio, chkSwRatio) {
+function generate(size, octSwRatio, chkSwRatio, rRatio) {
     const canvas = makeCanvas(size);
-    drawOctagon(canvas, size, size * octSwRatio);
+    drawOctagon(canvas, size, size * octSwRatio, rRatio);
     drawCheck(canvas, size, size * chkSwRatio);
     return encodePNG(canvas, size);
 }
 
 const OUT = path.join(__dirname, '..', 'public');
 
-const png32  = generate(32,  0.13, 0.115);
-const png192 = generate(192, 0.057, 0.052);
-const png180 = generate(180, 0.057, 0.052);
+// rRatio: 32px favicon은 가시성 위해 0.42, maskable(192/512/180)은 안전영역(~80%) 위해 0.40
+const png32  = generate(32,  0.13,  0.115, 0.42);
+const png192 = generate(192, 0.057, 0.052, 0.40);
+const png512 = generate(512, 0.057, 0.052, 0.40);
+const png180 = generate(180, 0.057, 0.052, 0.40);
 
 fs.writeFileSync(path.join(OUT, 'favicon-32x32.png'),    png32);
 fs.writeFileSync(path.join(OUT, 'favicon-192x192.png'),  png192);
+fs.writeFileSync(path.join(OUT, 'favicon-512x512.png'),  png512);
 fs.writeFileSync(path.join(OUT, 'apple-touch-icon.png'), png180);
 fs.writeFileSync(path.join(OUT, 'favicon.ico'),          createICO(png32));
 
 console.log('✓ public/favicon-32x32.png');
 console.log('✓ public/favicon-192x192.png');
+console.log('✓ public/favicon-512x512.png');
 console.log('✓ public/apple-touch-icon.png');
 console.log('✓ public/favicon.ico');
