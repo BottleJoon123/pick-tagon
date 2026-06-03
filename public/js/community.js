@@ -153,7 +153,14 @@
         }
     }
 
-    /* ── Dense Post List ── */
+    /* ── Belt tier helper (post.belt "White Belt" → "white") ── */
+    function _beltTier(beltStr) {
+        var first = (beltStr || 'White').trim().split(' ')[0].toLowerCase();
+        if (['white','blue','purple','brown','black'].indexOf(first) === -1) return 'white';
+        return first;
+    }
+
+    /* ── Feed cards (handoff .fcard redesign) ── */
     function renderPosts(filtered) {
         var container = document.getElementById('post-list');
         if (!container) return;
@@ -163,42 +170,38 @@
             return;
         }
 
-        var header = `
-        <div class="post-list-head">
-            <div>Type</div>
-            <div>Title / Author</div>
-            <div class="plh-stats">Stats</div>
-            <div class="plh-date">Date</div>
-            <div class="plh-act">Action</div>
-        </div>`;
-
-        var rows = filtered.map(function(p) {
-            var origIdx = posts.indexOf(p);
-            var belt    = escapeHtml(p.belt || 'White Belt');
-            var author  = escapeHtml(p.author || 'UNKNOWN');
-            var date    = escapeHtml(p.date || '');
+        var cards = filtered.map(function(p) {
+            var origIdx  = posts.indexOf(p);
+            var beltRaw  = p.belt || 'White Belt';
+            var beltName = escapeHtml(beltRaw.trim().split(' ')[0] || 'White');
+            var beltTier = _beltTier(beltRaw);
+            var author   = escapeHtml(p.author || 'UNKNOWN');
+            var initials = ((p.author || '?').trim().charAt(0) || '?').toUpperCase();
+            var date     = escapeHtml(p.date || '');
             var rawTitle = p.title || '';
-            var title   = escapeHtml(_stripCatPrefix(rawTitle));
-            var isLiked = likedPostIds.has(p.dbId);
-            var cntCom  = (p.comments || []).length;
+            var title    = escapeHtml(_stripCatPrefix(rawTitle));
+            var snippet  = escapeHtml(p.content || '');
+            var isLiked  = likedPostIds.has(p.dbId);
+            var cntCom   = (p.comments || []).length;
+            var likes    = p.likes || 0;
+            // 조회수: DB 미연동 — placeholder (Phase C3에서 view_count 연결 예정)
+            var views    = (p.viewCount != null) ? p.viewCount : '–';
+            // HOT: 추천 임계값 기반 더미 규칙 (Phase C3에서 트렌딩 점수로 대체)
+            var isHot    = likes >= 5;
 
-            // Category tag
+            // Category tag → fc-cat cat-{kind}
             var cat = _getPostCategory(rawTitle);
-            var catDisplay = {
+            var catMap = {
                 analysis: { cls: 'cat-analysis', lbl: '🔥 분석' },
                 fighter:  { cls: 'cat-fighter',  lbl: '🗣️ 파이터' },
-                live:     { cls: 'cat-live',      lbl: '🔴 라이브' },
-                news:     { cls: 'cat-news',      lbl: '📰 뉴스' },
-                humor:    { cls: 'cat-humor',     lbl: '😂 유머' }
+                live:     { cls: 'cat-live',     lbl: '🔴 라이브' },
+                news:     { cls: 'cat-news',     lbl: '📰 뉴스' },
+                humor:    { cls: 'cat-humor',    lbl: '😂 유머' }
             };
-            var tagCls, tagLbl;
-            if (p.isPickShare) {
-                tagCls = 'pick'; tagLbl = '🎯 픽';
-            } else if (catDisplay[cat]) {
-                tagCls = catDisplay[cat].cls; tagLbl = catDisplay[cat].lbl;
-            } else {
-                tagCls = 'post'; tagLbl = '✍️ 분석';
-            }
+            var catCls, catLbl;
+            if (p.isPickShare)      { catCls = 'cat-pick'; catLbl = '🎯 픽'; }
+            else if (catMap[cat])   { catCls = catMap[cat].cls; catLbl = catMap[cat].lbl; }
+            else                    { catCls = 'cat-post'; catLbl = '✍️ 분석'; }
 
             // Faction badge — 모든 유저 (p.faction = DB에서 JOIN한 faction 객체)
             var factionSrc = p.faction
@@ -208,32 +211,31 @@
                 : '';
 
             return `
-            <div class="post-row" id="post-row-${origIdx}" onclick="openPostDetail(${origIdx})">
-                <div><span class="post-type-tag ${tagCls}">${tagLbl}</span></div>
-                <div style="min-width:0;">
-                    <div class="post-row-title">${title}</div>
-                    <div class="post-row-author">${factionBadge}${author} · ${belt}</div>
-                    <div class="post-row-mobile-meta">
-                        <span>${date}</span>
-                        <span>🔥 ${p.likes || 0}</span>
-                        <span>💬 ${cntCom}</span>
+            <div class="fcard ${isHot ? 'hot' : ''}" id="post-row-${origIdx}" onclick="openPostDetail(${origIdx})">
+                <div class="fc-ava belt-${beltTier}">${initials}</div>
+                <div class="fc-body">
+                    <div class="fc-head">
+                        <span class="fc-user">${factionBadge}${author}</span>
+                        <span class="fc-belt belt-${beltTier}">${beltName}</span>
+                        <span class="fc-cat ${catCls}">${catLbl}</span>
+                        <span class="fc-meta">· ${date} · 👁 ${views}</span>
+                        ${isHot ? '<span class="fc-hot">🔥 HOT</span>' : ''}
                     </div>
-                </div>
-                <div class="post-row-stats">
-                    <span class="${(p.likes || 0) > 0 ? 'stat-hot' : ''}">🔥 ${p.likes || 0}</span>
-                    <span>💬 ${cntCom}</span>
-                </div>
-                <div class="post-row-date">${date}</div>
-                <div class="post-row-act">
-                    <button onclick="event.stopPropagation(); likePost(${origIdx});"
-                        class="post-act-btn ${isLiked ? 'liked' : ''}" title="${isLiked ? '이미 추천함' : '추천'}">
-                        ${isLiked ? '✅ 추천' : '🔥 추천'}
-                    </button>
+                    <div class="fc-title">${title}</div>
+                    <div class="fc-snippet">${snippet}</div>
+                    <div class="fc-foot">
+                        <span class="fc-react ${likes > 0 ? 'hot' : ''}">🔥 ${likes}</span>
+                        <span>💬 ${cntCom}</span>
+                        <span class="fc-share" onclick="event.stopPropagation(); openPostDetail(${origIdx});">↗ 공유</span>
+                        <button class="fc-rec ${isLiked ? 'on' : ''}" onclick="event.stopPropagation(); likePost(${origIdx});">
+                            ${isLiked ? '✓ 추천' : '+ 추천'}
+                        </button>
+                    </div>
                 </div>
             </div>`;
         }).join('');
 
-        container.innerHTML = header + '<div>' + rows + '</div>';
+        container.innerHTML = '<div class="feed-list">' + cards + '</div>';
     }
 
     function togglePostExpand(origIdx) { /* no-op: replaced by openPostDetail */ }
