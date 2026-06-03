@@ -2493,6 +2493,15 @@
             }, '⚠ 닉네임 저장에 실패했습니다.');
             if (!res.ok) return;
             sb.auth.updateUser({ data: { nickname: val } }).then(function() {});
+            // 기존 커뮤니티 글 작성자명도 새 닉네임으로 동기화 (server: 본인 글만, users RLS 무관)
+            sb.rpc('sync_my_post_nickname').then(function(r) {
+                if (r && r.error) console.warn('[nickname sync] ' + r.error.message);
+            }, function(e) { console.warn('[nickname sync]', e); });
+            // 로컬 posts 배열 즉시 반영 + 커뮤니티 화면이면 재렌더
+            if (typeof posts !== 'undefined' && Array.isArray(posts)) {
+                posts.forEach(function(p) { if (p.userId === currentUser.id) p.author = val; });
+                if (typeof renderFeed === 'function') renderFeed();
+            }
         }
         document.getElementById('nickname-modal').classList.add('hidden');
         updateNicknameDisplay();
