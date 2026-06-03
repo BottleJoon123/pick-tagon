@@ -62,6 +62,48 @@
 
     function toggleWriter() { document.getElementById('write-panel').classList.toggle('hidden'); }
 
+    /* ── Activity ticker (recent activity, not live presence) ── */
+    function renderActivityTicker() {
+        var el = document.getElementById('activity-ticker');
+        if (!el) return;
+
+        var realPosts = (typeof posts !== 'undefined' && posts)
+            ? posts.filter(function(p) { return !p.isPickShare; })
+            : [];
+        if (!realPosts.length) { el.classList.add('hidden'); el.innerHTML = ''; return; }
+
+        var sorted = realPosts.slice().sort(function(a, b) {
+            return (b.date || '').localeCompare(a.date || '');
+        });
+        var latest = sorted[0];
+
+        // 오늘 작성된 글 수
+        var now = new Date();
+        var todayCount = realPosts.filter(function(p) {
+            if (!p.date) return false;
+            var dt = new Date(String(p.date).replace(/\./g, '-'));
+            return dt.getFullYear() === now.getFullYear()
+                && dt.getMonth() === now.getMonth()
+                && dt.getDate() === now.getDate();
+        }).length;
+
+        var items = [];
+        if (latest) {
+            items.push('방금 <span class="tk-name">' + escapeHtml(latest.author || '익명') + '</span>님이 글을 올렸어요');
+        }
+        var withCom = sorted.find(function(p) { return (p.comments || []).length > 0; });
+        if (withCom) {
+            items.push('<span class="tk-name">' + escapeHtml(withCom.author || '익명') + '</span>님 글에 새 댓글');
+        }
+        items.push('오늘 새 글 <span class="tk-name">' + todayCount + '</span>');
+
+        el.classList.remove('hidden');
+        el.innerHTML =
+            '<span class="tk-label"><span class="tk-dot"></span>새 소식</span>' +
+            '<span class="tk-sep"></span>' +
+            '<span class="tk-roll">' + items.join(' <span class="tk-mid">·</span> ') + '</span>';
+    }
+
     /* ── Matchup Board ── */
     function renderMatchups(fights) {
         var container = document.getElementById('matchup-board');
@@ -240,6 +282,9 @@
 
     /* ── Main renderFeed ── */
     function renderFeed() {
+        // 0. Activity ticker (recent activity roll)
+        renderActivityTicker();
+
         // 1. Matchup board — use DB data only; avoid legacy FIGHTS fallback
         var boardEl = document.getElementById('matchup-board');
         if (typeof _dbMatchups !== 'undefined' && _dbMatchups && _dbMatchups.length > 0) {
