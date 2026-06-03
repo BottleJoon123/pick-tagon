@@ -1269,9 +1269,34 @@ textarea, select {
 
 /* Community filter bar */
 .comm-filter-bar {
-    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
     padding: 8px 0; margin-bottom: 10px;
 }
+/* Category chip row — horizontal scroll on mobile, hidden scrollbar */
+.chip-row {
+    display: flex; align-items: center; gap: 6px;
+    flex: 1 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px;
+}
+.chip-row::-webkit-scrollbar { display: none; }
+.chip-row .comm-filter-btn { flex-shrink: 0; }
+.chip-count {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--pt-ink-4);
+    margin-left: 3px; letter-spacing: 0;
+}
+.comm-filter-btn.active .chip-count { color: rgba(255,255,255,0.7); }
+/* Sort toggle row */
+.sort-row { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.comm-sort-btn {
+    font-family: 'Oswald', sans-serif; font-size: 10px; font-weight: 900; font-style: italic;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 5px 10px; border-radius: 5px; border: 1px solid transparent;
+    background: transparent; color: var(--pt-ink-3); cursor: pointer; transition: all 0.12s;
+    white-space: nowrap;
+}
+.comm-sort-btn:hover { color: var(--pt-ink-1); }
+.comm-sort-btn.active { background: var(--pt-bg-3); color: #fff; }
+.comm-sort-btn.disabled { opacity: 0.45; cursor: default; }
+.comm-sort-btn.disabled:hover { color: var(--pt-ink-3); }
 .comm-filter-btn {
     font-family: 'Oswald', sans-serif; font-size: 10px; font-weight: 900; font-style: italic;
     text-transform: uppercase; letter-spacing: 0.06em;

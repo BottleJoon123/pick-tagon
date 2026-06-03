@@ -712,26 +712,27 @@
         <!-- ── Matchup Board ── -->
         <div id="matchup-board" class="matchup-grid mb-5"></div>
 
-        <!-- 통합 필터 바 (카테고리 | 정렬 드롭다운 | 시간 드롭다운) -->
+        <!-- 통합 필터 바 (카테고리 칩+카운트 | 정렬 토글 | 시간 드롭다운) -->
         <div class="comm-filter-bar">
-            <button onclick="setCommunityFilter('all')"      id="cf-all"      class="comm-filter-btn active">전체</button>
-            <button onclick="setCommunityFilter('analysis')" id="cf-analysis" class="comm-filter-btn">🔥 분석</button>
-            <button onclick="setCommunityFilter('fighter')"  id="cf-fighter"  class="comm-filter-btn">🗣️ 파이터</button>
-            <button onclick="setCommunityFilter('live')"     id="cf-live"     class="comm-filter-btn">🔴 라이브</button>
-            <button onclick="setCommunityFilter('news')"     id="cf-news"     class="comm-filter-btn">📰 뉴스</button>
-            <button onclick="setCommunityFilter('humor')"    id="cf-humor"    class="comm-filter-btn">😂 유머</button>
-            <div style="flex:1"></div>
-            <select id="sort-select" onchange="setCommunitySort(this.value)" class="comm-dropdown">
-                <option value="latest">최신순</option>
-                <option value="recommend">추천순</option>
-                <option value="hot">인기순</option>
-            </select>
-            <select id="time-select" onchange="setCommunityTime(this.value)" class="comm-dropdown">
-                <option value="all">전체</option>
-                <option value="day">일간</option>
-                <option value="week">주간</option>
-                <option value="month">월간</option>
-            </select>
+            <div class="chip-row">
+                <button onclick="setCommunityFilter('all')"      id="cf-all"      class="comm-filter-btn active">전체 <span class="chip-count" id="cc-all">0</span></button>
+                <button onclick="setCommunityFilter('analysis')" id="cf-analysis" class="comm-filter-btn">🔥 분석 <span class="chip-count" id="cc-analysis">0</span></button>
+                <button onclick="setCommunityFilter('fighter')"  id="cf-fighter"  class="comm-filter-btn">🗣️ 파이터 <span class="chip-count" id="cc-fighter">0</span></button>
+                <button onclick="setCommunityFilter('live')"     id="cf-live"     class="comm-filter-btn">🔴 라이브 <span class="chip-count" id="cc-live">0</span></button>
+                <button onclick="setCommunityFilter('news')"     id="cf-news"     class="comm-filter-btn">📰 뉴스 <span class="chip-count" id="cc-news">0</span></button>
+                <button onclick="setCommunityFilter('humor')"    id="cf-humor"    class="comm-filter-btn">😂 유머 <span class="chip-count" id="cc-humor">0</span></button>
+            </div>
+            <div class="sort-row">
+                <button onclick="setCommunitySort('hot')"     id="cs-hot"       class="comm-sort-btn">🔥 인기</button>
+                <button onclick="setCommunitySort('latest')"  id="cs-latest"    class="comm-sort-btn active">최신</button>
+                <button onclick="setCommunitySortFollowing()" id="cs-following"  class="comm-sort-btn disabled">팔로잉</button>
+                <select id="time-select" onchange="setCommunityTime(this.value)" class="comm-dropdown">
+                    <option value="all">전체</option>
+                    <option value="day">일간</option>
+                    <option value="week">주간</option>
+                    <option value="month">월간</option>
+                </select>
+            </div>
         </div>
 
         <div id="post-list" class="post-list-container"></div>
@@ -2436,7 +2437,7 @@
 <script src="/js/news-render-helpers.js"></script>
 <script src="/js/news.js"></script>
 <script src="/js/youtube.js?v=1"></script>
-<script src="/js/community.js?v=9"></script>
+<script src="/js/community.js?v=10"></script>
 <script src="/js/admin.js?v=23"></script>
 <script src="/js/profile.js"></script>
 <script src="/js/archive.js?v=6"></script>

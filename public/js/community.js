@@ -52,7 +52,36 @@
 
     function setCommunitySort(s) {
         communitySortMode = s;
+        _setFilterActive('cs-', ['hot','latest','following'], s);
         renderFeed();
+    }
+
+    // 팔로잉 정렬 — follow 관계 데이터 필요 (Phase C3에서 연결 예정)
+    function setCommunitySortFollowing() {
+        if (typeof showToast === 'function') {
+            showToast('⚡ 팔로잉 정렬은 준비 중입니다 (팔로우 기능 출시 예정)');
+        }
+    }
+
+    function _fmtCount(n) {
+        if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+        return String(n);
+    }
+
+    // 카테고리별 글 수 (실데이터) → 칩 카운트
+    function renderFilterCounts() {
+        var realPosts = (typeof posts !== 'undefined' && posts)
+            ? posts.filter(function(p) { return !p.isPickShare; })
+            : [];
+        var counts = { all: realPosts.length, analysis: 0, fighter: 0, live: 0, news: 0, humor: 0 };
+        realPosts.forEach(function(p) {
+            var c = _getPostCategory(p.title);
+            if (counts[c] != null) counts[c]++;
+        });
+        Object.keys(counts).forEach(function(k) {
+            var el = document.getElementById('cc-' + k);
+            if (el) el.textContent = _fmtCount(counts[k]);
+        });
     }
 
     function setCommunityTime(t) {
@@ -282,8 +311,9 @@
 
     /* ── Main renderFeed ── */
     function renderFeed() {
-        // 0. Activity ticker (recent activity roll)
+        // 0. Activity ticker + category chip counts
         renderActivityTicker();
+        renderFilterCounts();
 
         // 1. Matchup board — use DB data only; avoid legacy FIGHTS fallback
         var boardEl = document.getElementById('matchup-board');
