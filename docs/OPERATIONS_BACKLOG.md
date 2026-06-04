@@ -130,6 +130,14 @@
 - **단점**: 이미지 추가/삭제 시 manifest를 수동 갱신해야 함
 - **추후**: asset 운영이 안정화되면 `fighters.pixel_image_path` 컬럼으로 이관 검토
 
+### Asset size policy
+- 1차 샘플은 PNG 1024×1024로 시작.
+- 다음 batch부터 목표 용량: **1장당 1MB 이하 권장**, 가능하면 500KB~1MB.
+- 1024 PNG가 1.5MB 이상이면 압축 또는 **WebP 후보** 검토.
+- repo에 대량 누적 전 **Supabase Storage / R2** 등 외부 asset storage 검토.
+- WebP 전환 시 canvas/share-card 로딩 QA 필수 (same-origin·디코딩·toBlob taint 확인).
+- 원본 고해상도 파일은 repo 밖 inbox/archive에 보관, repo에는 **서비스용 최적화본만** 커밋.
+
 ### 구현 순서 (도입 시)
 1. 1차 샘플 10장 검수 (Intake checklist + Reject 기준)
 2. `public/fighters/pixel/` 폴더 추가

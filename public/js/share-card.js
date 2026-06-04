@@ -1323,6 +1323,38 @@ async function _scShareMatchImage(data, shareText, shareTitle) {
 ============================== */
 
 // ── 데이터 수집 ────────────────────────────────────────
+// ── Pixel portrait manifest (lazy, cached once) ──────────
+// /fighters/pixel/manifest.json maps fighters.id → same-origin PNG path.
+// Used only by the fighter share card; failure is silent (falls back to placeholder).
+var _scPixelManifest = null;        // cached parsed object once loaded
+var _scPixelManifestPromise = null; // in-flight fetch promise
+function _scLoadPixelManifest() {
+    if (_scPixelManifest) return Promise.resolve(_scPixelManifest);
+    if (_scPixelManifestPromise) return _scPixelManifestPromise;
+    _scPixelManifestPromise = fetch('/fighters/pixel/manifest.json', { cache: 'force-cache' })
+        .then(function(r) { return r.ok ? r.json() : {}; })
+        .then(function(j) { _scPixelManifest = (j && typeof j === 'object') ? j : {}; return _scPixelManifest; })
+        .catch(function() { _scPixelManifest = {}; return _scPixelManifest; });
+    return _scPixelManifestPromise;
+}
+// Sync lookup against the cached manifest. Returns same-origin path or null.
+function _scGetFighterPixelPath(fighter) {
+    if (!fighter || !fighter.id || !_scPixelManifest) return null;
+    var p = _scPixelManifest[fighter.id];
+    return (typeof p === 'string' && p) ? p : null;
+}
+// Load a same-origin image; resolves to HTMLImageElement or null (never rejects).
+// No crossOrigin: pixel PNGs are same-origin, so the canvas stays untainted.
+function _scLoadImage(src) {
+    return new Promise(function(resolve) {
+        if (!src) { resolve(null); return; }
+        var img = new Image();
+        img.onload  = function() { resolve(img); };
+        img.onerror = function() { resolve(null); };
+        img.src = src;
+    });
+}
+
 function buildFighterShareCardData(fighter) {
     var f = fighter || {};
     var name = f.name || '?';
@@ -1358,6 +1390,7 @@ function buildFighterShareCardData(fighter) {
     var statsDefault = !(Array.isArray(f.stats) && f.stats.length === 5);
 
     return {
+        id:           f.id || null,
         name:         name,
         nickname:     f.nickname || null,
         record:       f.record   || null,
@@ -1686,35 +1719,58 @@ function drawPicktagonFighterShareCard(canvas, data) {
     /* ── ZONE 2: Fighter Hero (y: 140–490) ── */
     var photoX = PAD, photoY = 140, photoW = 290, photoH = 315, photoR = 20;
 
-    // Photo placeholder box
-    ctx.fillStyle = 'rgba(225,6,0,0.06)';
-    ctx.strokeStyle = 'rgba(225,6,0,0.30)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    if (ctx.roundRect) {
-        ctx.roundRect(photoX, photoY, photoW, photoH, photoR);
+    // Pixel portrait (same-origin) preloaded into data._pixelImg by the share flow.
+    var _pxImg = data._pixelImg;
+    if (_pxImg && _pxImg.width) {
+        // Draw pixel portrait cover-fit into the rounded photo box.
+        ctx.save();
+        ctx.beginPath();
+        if (ctx.roundRect) { ctx.roundRect(photoX, photoY, photoW, photoH, photoR); }
+        else { ctx.rect(photoX, photoY, photoW, photoH); }
+        ctx.clip();
+        var iw = _pxImg.width, ih = _pxImg.height;
+        var cover = Math.max(photoW / iw, photoH / ih);
+        var dw = iw * cover, dh = ih * cover;
+        ctx.drawImage(_pxImg, photoX + (photoW - dw) / 2, photoY + (photoH - dh) / 2, dw, dh);
+        ctx.restore();
+        // Keep the same red-tinted frame as the placeholder for layout consistency.
+        ctx.strokeStyle = 'rgba(225,6,0,0.30)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        if (ctx.roundRect) { ctx.roundRect(photoX, photoY, photoW, photoH, photoR); }
+        else { ctx.rect(photoX, photoY, photoW, photoH); }
+        ctx.stroke();
     } else {
-        ctx.rect(photoX, photoY, photoW, photoH);
-    }
-    ctx.fill(); ctx.stroke();
+        // Photo placeholder box
+        ctx.fillStyle = 'rgba(225,6,0,0.06)';
+        ctx.strokeStyle = 'rgba(225,6,0,0.30)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        if (ctx.roundRect) {
+            ctx.roundRect(photoX, photoY, photoW, photoH, photoR);
+        } else {
+            ctx.rect(photoX, photoY, photoW, photoH);
+        }
+        ctx.fill(); ctx.stroke();
 
-    // Initials in photo placeholder
-    var initials = (data.name || '?').split(/\s+/).map(function(w) { return w[0] || ''; }).join('').slice(0, 2).toUpperCase();
-    var initFontSize = 88;
-    ctx.font = '700 ' + initFontSize + 'px ' + F_BLK;
-    while (ctx.measureText(initials).width > photoW - 32 && initFontSize > 40) {
-        initFontSize -= 6;
+        // Initials in photo placeholder
+        var initials = (data.name || '?').split(/\s+/).map(function(w) { return w[0] || ''; }).join('').slice(0, 2).toUpperCase();
+        var initFontSize = 88;
         ctx.font = '700 ' + initFontSize + 'px ' + F_BLK;
-    }
-    ctx.fillStyle = 'rgba(225,6,0,0.22)';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(initials, photoX + photoW / 2, photoY + photoH / 2);
+        while (ctx.measureText(initials).width > photoW - 32 && initFontSize > 40) {
+            initFontSize -= 6;
+            ctx.font = '700 ' + initFontSize + 'px ' + F_BLK;
+        }
+        ctx.fillStyle = 'rgba(225,6,0,0.22)';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(initials, photoX + photoW / 2, photoY + photoH / 2);
 
-    // "선수 사진" label bottom of placeholder
-    ctx.font = '400 17px ' + F_MONO;
-    ctx.fillStyle = 'rgba(255,255,255,0.18)';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    ctx.fillText('선수 사진', photoX + photoW / 2, photoY + photoH - 18);
+        // "선수 사진" label bottom of placeholder
+        ctx.font = '400 17px ' + F_MONO;
+        ctx.fillStyle = 'rgba(255,255,255,0.18)';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+        ctx.fillText('선수 사진', photoX + photoW / 2, photoY + photoH - 18);
+    }
 
     // ── Right: rank + division pills ──
     var rightX = photoX + photoW + 36;
@@ -2024,6 +2080,12 @@ async function _scShareFighterImage(data, shareText, shareTitle) {
         if (typeof document.fonts !== 'undefined' && document.fonts.ready) {
             try { await document.fonts.ready; } catch(e) {}
         }
+        // Pixel portrait: preload same-origin PNG (silent fallback to placeholder).
+        try {
+            await _scLoadPixelManifest();
+            var _pxPath = _scGetFighterPixelPath(data);
+            data._pixelImg = _pxPath ? await _scLoadImage(_pxPath) : null;
+        } catch(e) { data._pixelImg = null; }
         drawPicktagonFighterShareCard(canvas, data);
 
         await new Promise(function(resolve, reject) {
