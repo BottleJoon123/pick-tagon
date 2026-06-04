@@ -1,7 +1,7 @@
 // GET /share/fighter/:id — dynamic OG for a fighter share link (Stage 1).
 // og:image stays static (/og-pickt-v3.png); title/description/url are dynamic.
 // Read-only Supabase REST SELECT. Falls back to a safe home OG (never 500).
-import { restSelectOne, ogHtml, htmlResponse, divisionLabel, rankLabel, SITE_URL } from '../../_utils/og.js';
+import { restSelectOne, ogHtml, htmlResponse, divisionLabel, rankLabel, fighterOgImage, SITE_URL } from '../../_utils/og.js';
 
 function homeFallback() {
   return htmlResponse(ogHtml({
@@ -34,6 +34,7 @@ export async function onRequest(context) {
     return htmlResponse(ogHtml({
       title: title,
       description: description,
+      image: fighterOgImage(id),
       appUrl: SITE_URL + '/?fighter=' + encodeURIComponent(id) + '&og=v2',
       canonical: SITE_URL + '/share/fighter/' + encodeURIComponent(id)
     }));

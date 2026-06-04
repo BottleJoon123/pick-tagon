@@ -3,8 +3,24 @@
 // OG image stays the static /og-pickt-v3.png in this stage; only title/description/url
 // are dynamic. Clicking the link meta-refreshes into the existing in-app deep link.
 
+import { OG_FIGHTER_IDS, OG_FIGHT_IDS } from './og-image-manifest.js';
+
 const SITE = 'https://pick-tagon.com';
 const OG_IMAGE = SITE + '/og-pickt-v3.png';
+
+// Per-target static OG image (Stage 2). If a generated JPG exists for this id
+// (tracked in og-image-manifest.js), use it; otherwise the static fallback.
+// Files live at public/og/{fighters,fights}/{id}.jpg — all 1200x630.
+export function fighterOgImage(id) {
+  return (id && OG_FIGHTER_IDS.has(String(id)))
+    ? SITE + '/og/fighters/' + encodeURIComponent(String(id)) + '.jpg'
+    : OG_IMAGE;
+}
+export function fightOgImage(id) {
+  return (id && OG_FIGHT_IDS.has(String(id)))
+    ? SITE + '/og/fights/' + encodeURIComponent(String(id)) + '.jpg'
+    : OG_IMAGE;
+}
 
 export function escapeHtml(s) {
   return String(s == null ? '' : s)
@@ -101,6 +117,8 @@ export function ogHtml(opts) {
     + '<meta property="og:title" content="' + title + '">'
     + '<meta property="og:description" content="' + desc + '">'
     + '<meta property="og:image" content="' + image + '">'
+    + '<meta property="og:image:width" content="1200">'
+    + '<meta property="og:image:height" content="630">'
     + '<meta property="og:url" content="' + canonical + '">'
     + '<meta name="twitter:card" content="summary_large_image">'
     + '<meta name="twitter:title" content="' + title + '">'
