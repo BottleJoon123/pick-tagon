@@ -1503,3 +1503,93 @@ textarea, select {
     animation: ticker-scroll 38s linear infinite;
 }
 .animate-ticker:hover { animation-play-state: paused; }
+
+/* ════════════════════════════════════════════════════════════
+   Leaderboard redesign (1st pass — presentation only)
+   ════════════════════════════════════════════════════════════ */
+
+/* Header flag bar */
+.lb-flag-bar {
+    width: 5px;
+    border-radius: 3px;
+    background: var(--pt-red-500, #E10600);
+    box-shadow: 0 0 14px rgba(225, 6, 0, 0.55);
+    flex-shrink: 0;
+}
+
+/* Belt progression rail */
+.lb-belt-seg {
+    position: relative;
+    background: var(--pt-bg-2, #14161B);
+    border: 1px solid var(--pt-line-1, rgba(255,255,255,0.08));
+    border-radius: var(--pt-r-md, 12px);
+    padding: 10px 8px 12px;
+    overflow: hidden;
+    transition: border-color 120ms ease, background 120ms ease;
+}
+.lb-belt-seg.is-current {
+    border-color: rgba(255,255,255,0.18);
+    background: var(--pt-bg-3, #1B1E25);
+}
+.lb-belt-seg .lb-belt-underbar {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+}
+.lb-belt-youbar {
+    height: 5px; border-radius: 999px;
+    background: var(--pt-bg-4, #232730);
+    overflow: hidden; margin-top: 8px;
+}
+.lb-belt-youbar > div { height: 100%; border-radius: 999px; }
+@media (min-width: 1024px) { .lb-belt-seg { padding: 14px 14px 16px; } }
+
+/* Hero card */
+.lb-hero { box-shadow: 0 14px 40px rgba(225, 6, 0, 0.12); position: relative; }
+.lb-hero-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
+.lb-hero-avatar {
+    width: 52px; height: 52px; border-radius: 999px;
+    font-size: 14px; color: #fff;
+    background: var(--pt-bg-3, #1B1E25);
+}
+.lb-belt-progress {
+    height: 7px; border-radius: 999px;
+    background: var(--pt-bg-4, #232730); overflow: hidden;
+}
+.lb-belt-progress-fill { height: 100%; border-radius: 999px; width: 0%; transition: width 300ms ease; }
+@media (min-width: 1024px) {
+    .lb-hero-grid { grid-template-columns: auto 1fr auto; align-items: center; gap: 28px; }
+    .lb-hero-avatar { width: 60px; height: 60px; font-size: 18px; }
+    .lb-hero-pts { border-left: 1px solid var(--pt-line-1, rgba(255,255,255,0.08)); padding-left: 28px; min-width: 240px; }
+}
+
+/* Table rows — responsive (grid on desktop, card on mobile) */
+.lb-row {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--pt-line-1, rgba(255,255,255,0.06));
+}
+.lb-thead { padding-top: 14px; padding-bottom: 14px; background: rgba(255,255,255,0.02); }
+.lb-cell-belt, .lb-cell-acc, .lb-cell-picks { display: none; }
+.lb-acc-bar { height: 5px; border-radius: 999px; background: var(--pt-bg-4, #232730); overflow: hidden; margin-top: 4px; }
+.lb-acc-bar > div { height: 100%; border-radius: 999px; background: var(--pt-red-500, #E10600); }
+.lb-row:hover { background: rgba(255,255,255,0.03); }
+@media (min-width: 1024px) {
+    .lb-row {
+        grid-template-columns: 56px 1fr 92px 116px 150px 56px;
+        gap: 14px;
+        padding: 14px 24px;
+    }
+    .lb-cell-belt, .lb-cell-acc { display: block; }
+    .lb-cell-picks { display: block; }
+}
+
+/* Neighbors + belt distribution (sidebar) */
+.lb-neighbor-row {
+    display: grid; grid-template-columns: 24px 1fr auto; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 10px; background: var(--pt-bg-2, #14161B);
+}
+.lb-neighbor-row.is-me { background: linear-gradient(90deg, rgba(225,6,0,0.14), rgba(225,6,0,0.02)); border: 1px solid var(--pt-line-red, rgba(225,6,0,0.55)); }
+.lb-dist-bar { height: 7px; border-radius: 999px; background: var(--pt-bg-4, #232730); overflow: hidden; }
+.lb-dist-bar > div { height: 100%; border-radius: 999px; }

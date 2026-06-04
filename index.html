@@ -77,7 +77,7 @@
 <link href="/css/tokens.css" rel="stylesheet">
 <link href="/css/theme-bridge.css" rel="stylesheet">
 <link rel="stylesheet" href="./src/tailwind.css">
-<link href="/css/app.css?v=4" rel="stylesheet">
+<link href="/css/app.css?v=5" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 <!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -507,69 +507,57 @@
 
     <!-- [SECTION: RANKINGS] -->
     <section id="rankings" class="section-animate max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-20 lg:pt-8 lg:pb-20">
-        <div class="sx-head mb-6 lg:mb-10">
-            <h3 class="oswald-sharp text-3xl lg:text-6xl font-black italic tracking-tighter uppercase">World Leaderboard</h3>
-            <p class="text-gray-500 oswald-sharp uppercase tracking-widest mt-1 lg:mt-2 italic text-[10px] lg:text-sm">글로벌 파이터 IQ 랭킹 <span id="rankings-season-subtitle"></span></p>
-        </div>
-
-        <!-- Belt Legend -->
-        <div id="lb-belt-legend" class="grid grid-cols-5 gap-2 lg:gap-4 mb-6 lg:mb-10">
-            <div class="glass-card rounded-2xl p-3 lg:p-5 text-center border border-white/10">
-                <div class="w-5 h-5 lg:w-7 lg:h-7 rounded-full bg-white mx-auto mb-2 shadow-lg"></div>
-                <p class="oswald-sharp text-[8px] lg:text-xs font-black italic text-gray-300 uppercase">White</p>
-                <p class="oswald-sharp text-[8px] lg:text-[10px] italic text-gray-600 uppercase">0–1,000P</p>
+        <div class="lb-head flex items-end justify-between gap-4 mb-6 lg:mb-9">
+            <div class="flex items-stretch gap-3 lg:gap-4 min-w-0">
+                <span class="lb-flag-bar"></span>
+                <div class="min-w-0">
+                    <h3 class="oswald-sharp text-3xl lg:text-6xl font-black italic tracking-tighter uppercase leading-[0.9]">World <span class="text-ufcRed">Leader</span>board</h3>
+                    <p class="text-gray-500 oswald-sharp uppercase tracking-widest mt-1 lg:mt-2 italic text-[10px] lg:text-sm">글로벌 파이터 IQ 랭킹 <span id="rankings-season-subtitle"></span> · 픽 포인트가 쌓일수록 벨트가 올라갑니다</p>
+                </div>
             </div>
-            <div class="glass-card rounded-2xl p-3 lg:p-5 text-center border border-blue-500/30">
-                <div class="w-5 h-5 lg:w-7 lg:h-7 rounded-full bg-blue-600 mx-auto mb-2 shadow-lg shadow-blue-900/50"></div>
-                <p class="oswald-sharp text-[8px] lg:text-xs font-black italic text-blue-400 uppercase">Blue</p>
-                <p class="oswald-sharp text-[8px] lg:text-[10px] italic text-gray-600 uppercase">1,001–2,000P</p>
-            </div>
-            <div class="glass-card rounded-2xl p-3 lg:p-5 text-center border border-purple-500/30">
-                <div class="w-5 h-5 lg:w-7 lg:h-7 rounded-full bg-purple-600 mx-auto mb-2 shadow-lg shadow-purple-900/50"></div>
-                <p class="oswald-sharp text-[8px] lg:text-xs font-black italic text-purple-400 uppercase">Purple</p>
-                <p class="oswald-sharp text-[8px] lg:text-[10px] italic text-gray-600 uppercase">2,001–5,000P</p>
-            </div>
-            <div class="glass-card rounded-2xl p-3 lg:p-5 text-center border border-yellow-600/30">
-                <div class="w-5 h-5 lg:w-7 lg:h-7 rounded-full bg-yellow-700 mx-auto mb-2 shadow-lg shadow-yellow-900/50"></div>
-                <p class="oswald-sharp text-[8px] lg:text-xs font-black italic text-yellow-500 uppercase">Brown</p>
-                <p class="oswald-sharp text-[8px] lg:text-[10px] italic text-gray-600 uppercase">5,001–10,000P</p>
-            </div>
-            <div class="glass-card rounded-2xl p-3 lg:p-5 text-center border border-ufcRed/40" style="box-shadow: 0 0 20px rgba(225,6,0,0.15);">
-                <div class="w-5 h-5 lg:w-7 lg:h-7 rounded-full bg-ufcRed mx-auto mb-2 shadow-lg shadow-red-900/50"></div>
-                <p class="oswald-sharp text-[8px] lg:text-xs font-black italic text-ufcRed uppercase">Black</p>
-                <p class="oswald-sharp text-[8px] lg:text-[10px] italic text-gray-600 uppercase">10,001P+</p>
+            <div class="hidden sm:flex flex-col items-end gap-1.5 flex-shrink-0">
+                <span id="current-season-badge" class="oswald-sharp text-[9px] lg:text-[10px] bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 px-3 py-1 rounded-full font-black italic uppercase tracking-widest"></span>
+                <span class="oswald-sharp text-[8px] lg:text-[9px] text-gray-600 italic uppercase tracking-widest">표시 범위 기준 집계</span>
             </div>
         </div>
-        <p class="oswald-sharp text-[9px] text-gray-600 italic uppercase tracking-widest -mt-3 lg:-mt-6 mb-6 lg:mb-10">픽 포인트 기반 · 예측 기록이 쌓일수록 등급이 올라갑니다</p>
 
-        <!-- My Rank Card -->
-        <div id="my-rank-card" class="glass-card rounded-[2rem] p-6 lg:p-10 mb-5 lg:mb-8 border border-ufcRed/30" style="box-shadow: 0 0 30px rgba(225,6,0,0.1);">
-            <div class="flex items-center justify-between flex-wrap gap-4">
-                <div class="flex items-center space-x-4 lg:space-x-6">
-                    <div class="oswald-sharp text-ufcRed font-black italic text-2xl lg:text-4xl tracking-tighter">#<span id="my-rank-num">—</span></div>
-                    <div>
-                        <div class="flex items-center gap-2 mb-1">
-                            <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 uppercase tracking-widest italic">내 순위</p>
-                            <span id="current-season-badge" class="oswald-sharp text-[8px] bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 px-2 py-0.5 rounded font-black italic uppercase tracking-widest"></span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <p class="oswald-sharp text-lg lg:text-2xl font-black italic text-white uppercase tracking-tight" id="my-rank-nickname">—</p>
-                            <span id="my-rank-faction"></span>
-                        </div>
-                        <p id="my-rank-analyst" class="oswald-sharp text-[9px] italic tracking-widest mt-0.5 text-gray-400"></p>
-                        <p id="my-rolling-info" class="oswald-sharp text-[9px] text-gray-600 italic uppercase tracking-widest mt-0.5"></p>
+        <!-- Belt Progression Rail (counts = 표시 범위 기준, filled by renderLeaderboard) -->
+        <div id="lb-belt-rail" class="grid grid-cols-5 gap-2 lg:gap-3 mb-2 lg:mb-3"></div>
+        <p id="lb-belt-hint" class="oswald-sharp text-[9px] lg:text-[10px] text-gray-500 italic uppercase tracking-widest mb-6 lg:mb-9">픽 포인트 기반 · 예측 기록이 쌓일수록 등급이 올라갑니다</p>
+
+        <!-- My Rank Hero Card -->
+        <div id="my-rank-card" class="lb-hero glass-card rounded-[1.75rem] lg:rounded-[2rem] p-5 lg:p-8 mb-5 lg:mb-8 border border-ufcRed/30">
+            <div class="lb-hero-grid">
+                <!-- MY RANK -->
+                <div class="lb-hero-rank flex items-center gap-4 lg:gap-5">
+                    <div class="leading-none">
+                        <p class="oswald-sharp text-[8px] lg:text-[10px] text-gray-500 uppercase tracking-[0.18em] italic mb-1">My Rank</p>
+                        <div class="oswald-sharp text-ufcRed font-black italic text-4xl lg:text-6xl tracking-tighter leading-none"><span id="my-rank-num">—</span><span class="text-lg lg:text-2xl">위</span></div>
+                        <p id="my-rolling-info" class="oswald-sharp text-[9px] text-gray-500 italic uppercase tracking-widest mt-1.5"></p>
                     </div>
                 </div>
-                <div class="flex items-center space-x-4 lg:space-x-8">
-                    <div class="text-center">
-                        <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 uppercase tracking-widest italic">Points</p>
-                        <p id="my-rank-pts" class="oswald-sharp text-xl lg:text-3xl font-black italic text-ufcRed">—</p>
+                <!-- IDENTITY -->
+                <div class="lb-hero-id flex items-center gap-3 lg:gap-4 min-w-0">
+                    <div id="my-rank-avatar" class="lb-hero-avatar oswald-sharp font-black italic flex items-center justify-center flex-shrink-0">—</div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <p class="oswald-sharp text-base lg:text-2xl font-black italic text-white uppercase tracking-tight truncate" id="my-rank-nickname">—</p>
+                            <span id="my-rank-faction"></span>
+                        </div>
+                        <div class="flex items-center gap-2 mt-1.5 flex-wrap">
+                            <span id="my-belt-badge" class="oswald-sharp text-[9px] lg:text-[11px] bg-white text-black px-3 py-1 rounded-full font-black italic uppercase">White Belt</span>
+                            <span class="oswald-sharp text-[10px] lg:text-xs text-gray-400 italic uppercase tracking-wide"><span id="my-rank-acc" class="text-white font-black">—</span> 정확도 · <span id="my-rank-picks" class="text-white font-black">0</span> 픽</span>
+                        </div>
+                        <p id="my-rank-analyst" class="oswald-sharp text-[9px] italic tracking-widest mt-1 text-gray-400"></p>
                     </div>
-                    <div class="text-center">
-                        <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 uppercase tracking-widest italic">Accuracy</p>
-                        <p id="my-rank-acc" class="oswald-sharp text-xl lg:text-3xl font-black italic text-white">—</p>
-                    </div>
-                    <div id="my-belt-badge" class="oswald-sharp text-[10px] lg:text-xs bg-white text-black px-3 lg:px-4 py-1 lg:py-2 rounded-full font-black italic uppercase">White Belt</div>
+                </div>
+                <!-- MY POINTS / PROGRESS -->
+                <div class="lb-hero-pts">
+                    <p class="oswald-sharp text-[8px] lg:text-[10px] text-gray-500 uppercase tracking-[0.18em] italic text-right">My Points</p>
+                    <p class="oswald-sharp text-2xl lg:text-4xl font-black italic text-yellow-400 text-right leading-none mt-0.5"><span id="my-rank-pts">—</span></p>
+                    <p id="lb-gap-next" class="oswald-sharp text-[10px] lg:text-xs italic text-gray-400 text-right mt-1.5"></p>
+                    <div class="lb-belt-progress mt-2.5"><div id="lb-belt-progress-fill" class="lb-belt-progress-fill"></div></div>
+                    <p id="lb-belt-dist" class="oswald-sharp text-[9px] lg:text-[10px] italic text-gray-500 uppercase tracking-widest text-right mt-1.5"></p>
                 </div>
             </div>
         </div>
@@ -586,20 +574,41 @@
             </button>
         </div>
 
-        <!-- Leaderboard Table (개인) -->
-        <div id="leaderboard-player-panel" class="glass-card rounded-[2rem] overflow-hidden">
-            <div class="grid grid-cols-12 px-6 lg:px-10 py-4 lg:py-5 border-b border-white/6 bg-white/2">
-                <span class="col-span-1 oswald-sharp text-[8px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest text-center">#</span>
-                <span class="col-span-5 oswald-sharp text-[8px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest pl-2">Fighter</span>
-                <span class="col-span-3 oswald-sharp text-[8px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest text-center">Points</span>
-                <span class="col-span-2 oswald-sharp text-[8px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest text-center hidden lg:block">Accuracy</span>
-                <span class="col-span-1 oswald-sharp text-[8px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest text-center">Belt</span>
+        <!-- Main grid: table + sidebar (desktop) -->
+        <div id="lb-main" class="lg:grid lg:grid-cols-[1fr_300px] lg:gap-5 lg:items-start">
+            <!-- Leaderboard Table (개인) -->
+            <div id="leaderboard-player-panel" class="glass-card rounded-[1.75rem] lg:rounded-[2rem] overflow-hidden">
+                <div class="lb-row lb-thead">
+                    <span class="oswald-sharp text-[9px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest text-center">#</span>
+                    <span class="oswald-sharp text-[9px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest">Fighter</span>
+                    <span class="oswald-sharp text-[9px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest text-center lb-cell-belt">Belt</span>
+                    <span class="oswald-sharp text-[9px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest text-right">Points</span>
+                    <span class="oswald-sharp text-[9px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest lb-cell-acc">Accuracy</span>
+                    <span class="oswald-sharp text-[9px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest text-center lb-cell-picks">픽</span>
+                </div>
+                <div id="leaderboard-list"></div>
             </div>
-            <div id="leaderboard-list"></div>
+            <!-- Sidebar (desktop only) -->
+            <aside id="lb-sidebar" class="hidden lg:flex flex-col gap-4">
+                <div class="glass-card rounded-2xl p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <p class="oswald-sharp text-sm font-black italic uppercase tracking-widest text-white">내 주변</p>
+                        <span class="oswald-sharp text-[9px] text-gray-600 italic uppercase tracking-widest">±2위</span>
+                    </div>
+                    <div id="lb-neighbors" class="flex flex-col gap-1.5"></div>
+                </div>
+                <div class="glass-card rounded-2xl p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <p class="oswald-sharp text-sm font-black italic uppercase tracking-widest text-white">벨트 분포</p>
+                        <span class="oswald-sharp text-[9px] text-gray-600 italic uppercase tracking-widest">표시 범위 기준</span>
+                    </div>
+                    <div id="lb-belt-dist-list" class="flex flex-col gap-2"></div>
+                </div>
+            </aside>
         </div>
 
         <!-- Faction Ranking Panel -->
-        <div id="leaderboard-faction-panel" class="hidden">
+        <div id="leaderboard-faction-panel" class="hidden mt-5">
             <div id="faction-ranking-board" class="space-y-3"></div>
         </div>
 
@@ -3502,45 +3511,55 @@ async function publishPost() {
     /* [🏆 RANKINGS SYSTEM] */
 
 
+    // 벨트 등급 구간 (getBeltInfo와 동일 임계값) + 아바타 그라데이션(핸드오프 토큰)
+    const _LB_TIERS = [
+        { key: 'white',  name: 'White',  min: 0,     max: 1000,     color: '#ECECEE', grad: 'linear-gradient(135deg,#3a3d44,#1b1e25)' },
+        { key: 'blue',   name: 'Blue',   min: 1001,  max: 2000,     color: '#1F6FEB', grad: 'linear-gradient(135deg,#1F6FEB,#0A2A66)' },
+        { key: 'purple', name: 'Purple', min: 2001,  max: 5000,     color: '#8B3FE3', grad: 'linear-gradient(135deg,#8B3FE3,#4A1B7B)' },
+        { key: 'brown',  name: 'Brown',  min: 5001,  max: 10000,    color: '#B5803A', grad: 'linear-gradient(135deg,#B5803A,#6B4A1F)' },
+        { key: 'black',  name: 'Black',  min: 10001, max: Infinity, color: '#E10600', grad: 'linear-gradient(135deg,#E10600,#6B0200)' }
+    ];
+    function _lbTier(pts) {
+        for (let i = 0; i < _LB_TIERS.length; i++) { if (pts <= _LB_TIERS[i].max) return Object.assign({ idx: i }, _LB_TIERS[i]); }
+        return Object.assign({ idx: 4 }, _LB_TIERS[4]);
+    }
+    function _lbInitials(nm) { return (nm || '?').replace(/\s+/g, '').slice(0, 2).toUpperCase(); }
+
     function renderLeaderboard() {
         const list = document.getElementById('leaderboard-list');
         if(!list) return;
 
-        const rollingScore = getRollingScore();
         const recentFights = state.history.filter(h => h.res !== 'PENDING').slice(0, 10);
         const recentWins = recentFights.filter(h => h.res === 'WIN').length;
         const myNickname = getDisplayUsername();
 
-        // My rank card 업데이트
-        const myAcc = state.total === 0 ? '0%' : Math.round((state.success/state.total)*100) + '%';
+        // 내 순위 히어로 — 정적 필드 (실데이터만)
+        const myAcc = state.total === 0 ? '—' : Math.round((state.success/state.total)*100) + '%';
         const myBelt = getBeltInfo(state.points);
-        const myRankNum = document.getElementById('my-rank-num');
-        const myRankPts = document.getElementById('my-rank-pts');
-        const myRankAcc = document.getElementById('my-rank-acc');
+        const myTier = _lbTier(state.points);
+        const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+        set('my-rank-pts', state.points.toLocaleString() + ' P');
+        set('my-rank-acc', myAcc);
+        set('my-rank-picks', state.total);
+
+        const avatarEl = document.getElementById('my-rank-avatar');
+        if (avatarEl) { avatarEl.textContent = _lbInitials(myNickname); avatarEl.style.background = myTier.grad; }
+
         const myBeltBadge = document.getElementById('my-belt-badge');
-        const rollingEl = document.getElementById('my-rolling-info');
-        if(myRankPts) myRankPts.innerText = state.points.toLocaleString() + ' P';
-        if(myRankAcc) myRankAcc.innerText = myAcc;
-        if(myBeltBadge) {
-            myBeltBadge.className = `oswald-sharp text-[10px] lg:text-xs px-3 lg:px-4 py-1 lg:py-2 rounded-full font-black italic uppercase ${myBelt.bg} ${myBelt.text}`;
+        if (myBeltBadge) {
+            myBeltBadge.className = `oswald-sharp text-[9px] lg:text-[11px] px-3 py-1 rounded-full font-black italic uppercase ${myBelt.bg} ${myBelt.text}`;
             myBeltBadge.innerText = myBelt.name + ' Belt';
         }
-        if (rollingEl) rollingEl.textContent = recentFights.length > 0
-            ? `최근 ${recentFights.length}경기 · ${recentWins}승`
-            : '예측 기록 없음';
+        const rollingEl = document.getElementById('my-rolling-info');
+        if (rollingEl) rollingEl.textContent = recentFights.length > 0 ? `최근 ${recentFights.length}경기 · ${recentWins}승` : '예측 기록 없음';
 
         const badge = document.getElementById('current-season-badge');
-        if (badge) badge.textContent = seasonData.current?.name || 'Season 1';
+        if (badge && !badge.textContent) badge.textContent = seasonData.current?.name || 'Season 1';
 
-        // my-rank-nickname
-        const nickEl = document.getElementById('my-rank-nickname');
-        if (nickEl) nickEl.textContent = myNickname;
-
-        // faction badge
+        set('my-rank-nickname', myNickname);
         const factionEl = document.getElementById('my-rank-faction');
         if (factionEl) factionEl.innerHTML = getFactionBadge(currentFaction, 'sm');
 
-        // analyst type
         const analystEl = document.getElementById('my-rank-analyst');
         if (analystEl) {
             const stateSettled = Object.values(state.settled || {});
@@ -3549,80 +3568,99 @@ async function publishPost() {
             const upsetWins = stateSettled.filter(function(s) { return s.hadUpsetBonus && s.result === 'WIN'; }).length;
             const analyst = getAnalystType(analystAcc, state.total, state.total, methodBonusCount, upsetWins);
             analystEl.textContent = analyst.title;
-            analystEl.className = 'oswald-sharp text-[9px] italic tracking-widest mt-0.5 ' + analyst.color;
+            analystEl.className = 'oswald-sharp text-[9px] italic tracking-widest mt-1 ' + analyst.color;
         }
 
-        // DB 랭킹 불러오기 시도
+        // 다음 벨트까지 진행바 (실데이터: 내 포인트 / 현재 등급 구간)
+        const fill = document.getElementById('lb-belt-progress-fill');
+        const distEl = document.getElementById('lb-belt-dist');
+        if (myTier.key === 'black') {
+            if (fill) { fill.style.width = '100%'; fill.style.background = myTier.color; }
+            if (distEl) distEl.textContent = '최고 등급 도달';
+        } else {
+            const next = _LB_TIERS[myTier.idx + 1];
+            const span = myTier.max - myTier.min;
+            const pct = Math.max(0, Math.min(100, Math.round(((state.points - myTier.min) / (span || 1)) * 100)));
+            if (fill) { fill.style.width = pct + '%'; fill.style.background = `linear-gradient(90deg, ${myTier.color}, ${next.color})`; }
+            if (distEl) distEl.innerHTML = `${next.name} 벨트까지 <span class="text-gray-300 font-black">${(myTier.max + 1 - state.points).toLocaleString()} P</span>`;
+        }
+
+        // DB 랭킹 불러오기
         if (sb) {
             loadRealRankings().then(function(res) {
                 var dbUsers = (res && res.data) ? res.data : [];
-                renderLeaderboardList(list, dbUsers, myNickname, myRankNum);
+                renderLeaderboardList(list, dbUsers, myNickname);
             });
         } else {
-            renderLeaderboardList(list, [], myNickname, myRankNum);
+            renderLeaderboardList(list, [], myNickname);
         }
     }
 
-    function renderLeaderboardList(list, dbUsers, myNickname, myRankNumEl) {
-        const myEntry = {
-            name: myNickname,
-            points: state.points,
-            total: state.total,
-            success: state.success,
-            isUser: true
-        };
+    function renderLeaderboardList(list, dbUsers, myNickname) {
+        const myEntry = { name: myNickname, points: state.points, total: state.total, success: state.success, isUser: true };
 
-        // DB 유저 + 내 데이터 병합 (중복 제거)
         var all = dbUsers.map(function(u) {
-            return {
-                name: u.nickname || '익명',
-                points: u.points || 0,
-                total: u.total_picks || 0,
-                success: u.success_picks || 0,
-                isUser: u.nickname === myNickname
-            };
+            return { name: u.nickname || '익명', points: u.points || 0, total: u.total_picks || 0, success: u.success_picks || 0, isUser: u.nickname === myNickname };
         });
-
-        // 내 데이터가 DB에 없으면 추가
         if (!all.find(u => u.isUser)) all.push(myEntry);
         else all = all.map(u => u.isUser ? myEntry : u);
 
         all.sort(function(a,b) { return b.points - a.points; });
-        const userRank = all.findIndex(u => u.isUser) + 1;
+        const myIdx = all.findIndex(u => u.isUser);
+        const userRank = myIdx + 1;
+        const myRankNumEl = document.getElementById('my-rank-num');
         if (myRankNumEl) myRankNumEl.innerText = userRank;
+
+        // 추월 거리 (히어로) — 바로 위 순위와의 실제 포인트 차
+        const gapEl = document.getElementById('lb-gap-next');
+        if (gapEl) {
+            if (myIdx === 0) {
+                const lead = all.length > 1 ? state.points - all[1].points : 0;
+                gapEl.innerHTML = all.length > 1 ? `2위 대비 <span class="text-green-400 font-black">+${lead.toLocaleString()} P</span> 리드` : '표시 범위 1위';
+            } else if (myIdx > 0) {
+                const gap = all[myIdx - 1].points - state.points;
+                gapEl.innerHTML = `${userRank - 1}위까지 <span class="text-ufcRed font-black">+${gap.toLocaleString()} P</span>`;
+            }
+        }
+
+        // 벨트 진행 레일 (인원수 = 표시 범위 기준)
+        _renderBeltRail(all, state.points);
+        // 사이드바: 내 주변 ±2, 벨트 분포
+        _renderLbNeighbors(all, myIdx);
+        _renderBeltDistribution(all);
 
         const medals = ['🥇','🥈','🥉'];
         list.innerHTML = all.map(function(u, i) {
             const rank = i + 1;
             const acc = u.total === 0 ? 0 : Math.round((u.success / u.total) * 100);
-            const belt = getBeltInfo(u.points);
+            const tier = _lbTier(u.points);
             const isUser = u.isUser;
+            const gapSub = (i > 0) ? `${rank-1}위까지 +${(all[i-1].points - u.points).toLocaleString()} P` : '표시 범위 1위';
             return `
-            <div class="grid grid-cols-12 px-6 lg:px-10 py-5 lg:py-7 border-b border-white/6 items-center transition-all hover:bg-white/3 ${rank<=3?`border-l-4 lb-row-top${rank}`:''} ${isUser?'lb-row-me':''}">
-                <div class="col-span-1 text-center">
-                    ${rank <= 3 ? `<span class="text-lg lg:text-2xl">${medals[rank-1]}</span>` : `<span class="oswald-sharp text-gray-500 font-black italic text-sm lg:text-xl">${rank}</span>`}
+            <div class="lb-row ${rank<=3?`lb-row-top${rank}`:''} ${isUser?'lb-row-me':''}">
+                <div class="text-center">
+                    ${rank <= 3 ? `<span class="text-base lg:text-xl">${medals[rank-1]}</span>` : `<span class="oswald-sharp text-gray-500 font-black italic text-sm lg:text-lg">${rank}</span>`}
                 </div>
-                <div class="col-span-5 flex items-center space-x-3 pl-2 min-w-0">
-                    <div class="w-8 h-8 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-[10px] lg:text-xs font-black oswald-sharp italic flex-shrink-0 ${belt.bg} ${belt.text}">
-                        ${u.name.slice(0,2).toUpperCase()}
-                    </div>
+                <div class="flex items-center gap-2.5 lg:gap-3 min-w-0">
+                    <div class="w-8 h-8 lg:w-9 lg:h-9 rounded-full flex items-center justify-center text-[9px] lg:text-[11px] font-black oswald-sharp italic text-white flex-shrink-0" style="background:${tier.grad}">${_lbInitials(u.name)}</div>
                     <div class="min-w-0">
-                        <p class="oswald-sharp font-black italic text-xs lg:text-base text-white tracking-tight uppercase truncate ${isUser?'text-ufcRed':''}">
-                            ${isUser ? '★ ' : ''}${u.name}
-                            ${isUser && sb && currentUser ? '<span class="text-[8px] text-green-500 ml-1">●실시간</span>' : ''}
-                        </p>
-                        <p class="oswald-sharp text-[8px] lg:text-[10px] italic text-gray-600 uppercase tracking-widest">${u.total} picks</p>
-                        <p class="oswald-sharp text-[10px] italic uppercase tracking-widest lg:hidden ${acc >= 70 ? 'text-ufcRed' : acc >= 50 ? 'text-white' : 'text-gray-500'}">${u.total === 0 ? '—' : acc + '%'} ACC</p>
+                        <p class="oswald-sharp font-black italic text-xs lg:text-sm text-white tracking-tight uppercase truncate ${isUser?'text-ufcRed':''}">${isUser ? '★ ' : ''}${escapeHtml(u.name)}</p>
+                        <p class="oswald-sharp text-[9px] lg:text-[10px] italic text-gray-500 tracking-widest">${gapSub}</p>
+                        <p class="oswald-sharp text-[9px] italic uppercase tracking-widest lg:hidden ${tierTextClass(tier.key)}">${tier.name} · ${u.total===0?'—':acc+'%'} · ${u.total}픽</p>
                     </div>
                 </div>
-                <div class="col-span-3 text-center">
-                    <span class="oswald-sharp font-black italic text-sm lg:text-xl text-white">${u.points.toLocaleString()}<span class="text-gray-600 text-[8px] lg:text-[10px] ml-1">P</span></span>
+                <div class="text-center lb-cell-belt">
+                    <span class="oswald-sharp text-[9px] lg:text-[10px] font-black italic uppercase px-2.5 py-1 rounded-full" style="background:${tier.color}1f;color:${tier.color};">${tier.name}</span>
                 </div>
-                <div class="col-span-2 text-center hidden lg:block">
-                    <span class="oswald-sharp font-black italic text-sm lg:text-lg ${acc >= 70 ? 'text-ufcRed' : acc >= 50 ? 'text-white' : 'text-gray-500'}">${acc}%</span>
+                <div class="text-right">
+                    <span class="oswald-sharp font-black italic text-sm lg:text-base text-yellow-400">${u.points.toLocaleString()}<span class="text-gray-600 text-[8px] lg:text-[10px] ml-0.5">P</span></span>
                 </div>
-                <div class="col-span-1 text-center">
-                    <div class="w-4 h-4 lg:w-5 lg:h-5 rounded-full mx-auto" style="background:${belt.color}; box-shadow: 0 0 8px ${belt.color}55;"></div>
+                <div class="lb-cell-acc">
+                    <span class="oswald-sharp font-black italic text-xs lg:text-sm ${acc >= 70 ? 'text-ufcRed' : acc >= 50 ? 'text-white' : 'text-gray-500'}">${u.total===0?'—':acc+'%'}</span>
+                    <div class="lb-acc-bar"><div style="width:${u.total===0?0:acc}%"></div></div>
+                </div>
+                <div class="text-center lb-cell-picks">
+                    <span class="oswald-sharp font-black italic text-xs lg:text-sm text-gray-300">${u.total}</span>
                 </div>
             </div>`;
         }).join('');
@@ -3630,6 +3668,92 @@ async function publishPost() {
         if (dbUsers.length === 0) {
             list.innerHTML += '<div class="px-6 lg:px-10 py-8 text-center"><p class="oswald-sharp text-xs text-gray-600 italic uppercase tracking-widest">더 많은 파이터를 기다리는 중…</p></div>';
         }
+    }
+
+    function tierTextClass(key) {
+        return key === 'black' ? 'text-ufcRed' : key === 'brown' ? 'text-yellow-500' : key === 'purple' ? 'text-purple-400' : key === 'blue' ? 'text-blue-400' : 'text-gray-300';
+    }
+
+    function _renderBeltRail(all, myPoints) {
+        const rail = document.getElementById('lb-belt-rail');
+        if (!rail) return;
+        const counts = [0,0,0,0,0];
+        all.forEach(function(u) { counts[_lbTier(u.points).idx]++; });
+        const myTier = _lbTier(myPoints);
+        rail.innerHTML = _LB_TIERS.map(function(t, i) {
+            const isCur = i === myTier.idx;
+            let youBar = '';
+            if (isCur && t.key !== 'black') {
+                const span = t.max - t.min;
+                const pct = Math.max(4, Math.min(100, Math.round(((myPoints - t.min) / (span || 1)) * 100)));
+                youBar = `<div class="lb-belt-youbar"><div style="width:${pct}%;background:linear-gradient(90deg,${t.color},${_LB_TIERS[i+1].color})"></div></div>`;
+            } else if (isCur) {
+                youBar = `<div class="lb-belt-youbar"><div style="width:100%;background:${t.color}"></div></div>`;
+            }
+            const rangeTxt = t.key === 'black' ? '10,001P +' : `${t.min.toLocaleString()}–${t.max.toLocaleString()}P`;
+            return `
+            <div class="lb-belt-seg ${isCur?'is-current':''}">
+                <div class="flex items-center gap-1.5 mb-1">
+                    <span class="w-2.5 h-2.5 lg:w-3 lg:h-3 rounded-full flex-shrink-0" style="background:${t.color};box-shadow:0 0 8px ${t.color}66;${t.key==='white'?'border:1px solid #71757F;':''}"></span>
+                    <span class="oswald-sharp text-[9px] lg:text-xs font-black italic uppercase text-white truncate">${t.name}</span>
+                    <span class="oswald-sharp text-[9px] lg:text-[11px] font-black italic text-gray-400 ml-auto">${counts[i]}<span class="text-gray-600 text-[8px] ml-0.5">명</span></span>
+                </div>
+                <p class="oswald-sharp text-[8px] lg:text-[10px] italic text-gray-600 uppercase tracking-wide">${rangeTxt}</p>
+                ${youBar}
+                ${isCur?`<span class="lb-belt-underbar" style="background:${t.color}"></span>`:''}
+            </div>`;
+        }).join('');
+
+        // 힌트 라인
+        const hint = document.getElementById('lb-belt-hint');
+        if (hint) {
+            if (myTier.key === 'black') {
+                hint.innerHTML = `현재 등급 <span class="text-white font-black">블랙 벨트</span> · 최고 등급에 도달했습니다`;
+            } else {
+                const next = _LB_TIERS[myTier.idx + 1];
+                hint.innerHTML = `현재 등급 <span class="text-white font-black">${myTier.name} 벨트</span> · ${next.name} 벨트 승급까지 <span class="text-ufcRed font-black">${(myTier.max + 1 - myPoints).toLocaleString()} P</span> · 표시 범위 기준 인원`;
+            }
+        }
+    }
+
+    function _renderLbNeighbors(all, myIdx) {
+        const el = document.getElementById('lb-neighbors');
+        if (!el) return;
+        const start = Math.max(0, myIdx - 2);
+        const end = Math.min(all.length, myIdx + 3);
+        const slice = all.slice(start, end);
+        el.innerHTML = slice.map(function(u) {
+            const rank = all.indexOf(u) + 1;
+            const tier = _lbTier(u.points);
+            const isMe = u.isUser;
+            return `
+            <div class="lb-neighbor-row ${isMe?'is-me':''}">
+                <span class="oswald-sharp text-[11px] font-black italic ${isMe?'text-ufcRed':'text-gray-500'} text-center">${rank}</span>
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="w-6 h-6 rounded-full flex items-center justify-center text-[8px] font-black oswald-sharp italic text-white flex-shrink-0" style="background:${tier.grad}">${_lbInitials(u.name)}</span>
+                    <span class="oswald-sharp text-[11px] font-black italic text-white uppercase truncate ${isMe?'text-ufcRed':''}">${isMe?'★ ':''}${escapeHtml(u.name)}</span>
+                </div>
+                <span class="oswald-sharp text-[11px] font-black italic text-yellow-400 whitespace-nowrap">${u.points.toLocaleString()}<span class="text-gray-600 text-[8px] ml-0.5">P</span></span>
+            </div>`;
+        }).join('');
+    }
+
+    function _renderBeltDistribution(all) {
+        const el = document.getElementById('lb-belt-dist-list');
+        if (!el) return;
+        const counts = [0,0,0,0,0];
+        all.forEach(function(u) { counts[_lbTier(u.points).idx]++; });
+        const total = all.length || 1;
+        el.innerHTML = _LB_TIERS.slice().reverse().map(function(t) {
+            const i = _LB_TIERS.indexOf(t);
+            const pct = Math.round((counts[i] / total) * 100);
+            return `
+            <div class="flex items-center gap-2">
+                <span class="oswald-sharp text-[10px] italic uppercase tracking-wide w-12 flex-shrink-0" style="color:${t.color}">${t.name}</span>
+                <div class="lb-dist-bar flex-1"><div style="width:${pct}%;background:${t.color}"></div></div>
+                <span class="oswald-sharp text-[10px] font-black italic text-gray-400 w-8 text-right">${pct}%</span>
+            </div>`;
+        }).join('');
     }
     /* ==============================
        FIGHTER PROFILE MODAL
@@ -6350,12 +6474,12 @@ async function addCommentToDB(postDbId, userNick, text) {
 
     // 랭킹 탭 전환
     function setRankTab(tab) {
-        var playerPanel  = document.getElementById('leaderboard-player-panel');
+        var mainGrid     = document.getElementById('lb-main');
         var factionPanel = document.getElementById('leaderboard-faction-panel');
         var tabPlayer    = document.getElementById('rank-tab-player');
         var tabFaction   = document.getElementById('rank-tab-faction');
         var isPlayer = (tab === 'player');
-        if (playerPanel)  playerPanel.classList.toggle('hidden', !isPlayer);
+        if (mainGrid)     mainGrid.classList.toggle('hidden', !isPlayer);
         if (factionPanel) factionPanel.classList.toggle('hidden', isPlayer);
         if (tabPlayer) {
             tabPlayer.className  = tabPlayer.className.replace(isPlayer  ? 'border-white/10 text-gray-500' : 'bg-ufcRed/15 border-ufcRed/50 text-white', isPlayer  ? 'bg-ufcRed/15 border-ufcRed/50 text-white' : 'border-white/10 text-gray-500');
