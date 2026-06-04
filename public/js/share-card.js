@@ -1266,7 +1266,9 @@ function sharePicktagonMatchCard(fightId) {
     var shareText  = pickedName
         ? '나는 ' + pickedName + ' 픽! 너는? · UFC 픽은 PICK-TAGON'
         : data.f1.name + ' vs ' + data.f2.name + ', 너는 누구 보세요? · UFC 픽은 PICK-TAGON';
-    var shareUrl   = 'https://pick-tagon.com/?fight=' + encodeURIComponent(fightId) + '&og=v2';
+    // Dynamic OG link → /share/fight/:id Pages Function serves per-matchup og:title/description,
+    // then meta-refreshes into the in-app deep link (?fight=id&og=v2).
+    var shareUrl   = 'https://pick-tagon.com/share/fight/' + encodeURIComponent(fightId);
     var shareTitle = 'PICK-TAGON';
 
     _scShowSharePicker({
@@ -2049,10 +2051,10 @@ function sharePicktagonFighterCard(fighter) {
     }
     var data = buildFighterShareCardData(fighter);
     var shareText  = data.name + ' · ' + (data.record || '—') + ' · UFC 픽은 PICK-TAGON · pick-tagon.com';
-    // Deep link → opens this fighter's profile modal in-app after click (handled in index.html onload).
-    // NOTE: OG preview is still static on GitHub Pages; this only fixes the in-app deep link, not OG.
+    // Dynamic OG link → /share/fighter/:id Pages Function serves per-fighter og:title/description,
+    // then meta-refreshes into the in-app deep link (?fighter=id&og=v2). id 없으면 기존 fallback.
     var shareUrl   = data.id
-        ? 'https://pick-tagon.com/?fighter=' + encodeURIComponent(data.id) + '&og=v2'
+        ? 'https://pick-tagon.com/share/fighter/' + encodeURIComponent(data.id)
         : 'https://pick-tagon.com/#fighter';
     var shareTitle = 'PICK-TAGON — ' + data.name;
 
