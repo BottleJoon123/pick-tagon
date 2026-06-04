@@ -77,7 +77,7 @@
 <link href="/css/tokens.css" rel="stylesheet">
 <link href="/css/theme-bridge.css" rel="stylesheet">
 <link rel="stylesheet" href="./src/tailwind.css">
-<link href="/css/app.css?v=5" rel="stylesheet">
+<link href="/css/app.css?v=6" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 <!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -526,13 +526,13 @@
         <p id="lb-belt-hint" class="oswald-sharp text-[9px] lg:text-[10px] text-gray-500 italic uppercase tracking-widest mb-6 lg:mb-9">픽 포인트 기반 · 예측 기록이 쌓일수록 등급이 올라갑니다</p>
 
         <!-- My Rank Hero Card -->
-        <div id="my-rank-card" class="lb-hero glass-card rounded-[1.75rem] lg:rounded-[2rem] p-5 lg:p-8 mb-5 lg:mb-8 border border-ufcRed/30">
+        <div id="my-rank-card" class="lb-hero glass-card rounded-[1.75rem] lg:rounded-[2rem] p-5 lg:p-6 mb-5 lg:mb-7 border border-ufcRed/30">
             <div class="lb-hero-grid">
                 <!-- MY RANK -->
                 <div class="lb-hero-rank flex items-center gap-4 lg:gap-5">
                     <div class="leading-none">
                         <p class="oswald-sharp text-[8px] lg:text-[10px] text-gray-500 uppercase tracking-[0.18em] italic mb-1">My Rank</p>
-                        <div class="oswald-sharp text-ufcRed font-black italic text-4xl lg:text-6xl tracking-tighter leading-none"><span id="my-rank-num">—</span><span class="text-lg lg:text-2xl">위</span></div>
+                        <div class="oswald-sharp text-ufcRed font-black italic text-4xl lg:text-5xl tracking-tighter leading-none"><span id="my-rank-num">—</span><span class="text-lg lg:text-xl">위</span></div>
                         <p id="my-rolling-info" class="oswald-sharp text-[9px] text-gray-500 italic uppercase tracking-widest mt-1.5"></p>
                     </div>
                 </div>
@@ -575,16 +575,16 @@
         </div>
 
         <!-- Main grid: table + sidebar (desktop) -->
-        <div id="lb-main" class="lg:grid lg:grid-cols-[1fr_300px] lg:gap-5 lg:items-start">
+        <div id="lb-main" class="lg:grid lg:grid-cols-[1fr_260px] lg:gap-4 lg:items-start">
             <!-- Leaderboard Table (개인) -->
             <div id="leaderboard-player-panel" class="glass-card rounded-[1.75rem] lg:rounded-[2rem] overflow-hidden">
                 <div class="lb-row lb-thead">
-                    <span class="oswald-sharp text-[9px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest text-center">#</span>
-                    <span class="oswald-sharp text-[9px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest">Fighter</span>
-                    <span class="oswald-sharp text-[9px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest text-center lb-cell-belt">Belt</span>
-                    <span class="oswald-sharp text-[9px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest text-right">Points</span>
-                    <span class="oswald-sharp text-[9px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest lb-cell-acc">Accuracy</span>
-                    <span class="oswald-sharp text-[9px] lg:text-xs text-gray-600 font-black italic uppercase tracking-widest text-center lb-cell-picks">픽</span>
+                    <span class="oswald-sharp text-[10px] lg:text-[11px] text-gray-400 font-black italic uppercase tracking-widest text-center">#</span>
+                    <span class="oswald-sharp text-[10px] lg:text-[11px] text-gray-400 font-black italic uppercase tracking-widest">Fighter</span>
+                    <span class="oswald-sharp text-[10px] lg:text-[11px] text-gray-400 font-black italic uppercase tracking-widest text-center lb-cell-belt">Belt</span>
+                    <span class="oswald-sharp text-[10px] lg:text-[11px] text-gray-400 font-black italic uppercase tracking-widest text-right">Points</span>
+                    <span class="oswald-sharp text-[10px] lg:text-[11px] text-gray-400 font-black italic uppercase tracking-widest lb-cell-acc">Accuracy</span>
+                    <span class="oswald-sharp text-[10px] lg:text-[11px] text-gray-400 font-black italic uppercase tracking-widest text-center lb-cell-picks">픽</span>
                 </div>
                 <div id="leaderboard-list"></div>
             </div>
@@ -607,9 +607,18 @@
             </aside>
         </div>
 
-        <!-- Faction Ranking Panel -->
-        <div id="leaderboard-faction-panel" class="hidden mt-5">
-            <div id="faction-ranking-board" class="space-y-3"></div>
+        <!-- Faction Ranking Modal (집단 랭킹) — centered on desktop, bottom-sheet on mobile -->
+        <div id="leaderboard-faction-panel" class="hidden fixed inset-0 z-[640] flex items-end lg:items-center justify-center lg:p-4" style="background:rgba(0,0,0,0.9)" onclick="if(event.target===this)closeFactionModal()">
+            <div class="lb-faction-sheet w-full lg:max-w-3xl flex flex-col max-h-[88vh] lg:max-h-[85vh]">
+                <div class="flex items-center justify-between px-5 lg:px-7 py-4 border-b border-white/10 flex-shrink-0">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl">🏴</span>
+                        <h3 class="oswald-sharp text-lg lg:text-2xl font-black italic uppercase tracking-tight text-white">집단 랭킹</h3>
+                    </div>
+                    <button onclick="closeFactionModal()" aria-label="닫기" class="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition text-xl leading-none">✕</button>
+                </div>
+                <div id="faction-ranking-board" class="space-y-3 overflow-y-auto px-5 lg:px-7 py-5"></div>
+            </div>
         </div>
 
         <!-- Hall of Fame -->
@@ -3639,28 +3648,28 @@ async function publishPost() {
             return `
             <div class="lb-row ${rank<=3?`lb-row-top${rank}`:''} ${isUser?'lb-row-me':''}">
                 <div class="text-center">
-                    ${rank <= 3 ? `<span class="text-base lg:text-xl">${medals[rank-1]}</span>` : `<span class="oswald-sharp text-gray-500 font-black italic text-sm lg:text-lg">${rank}</span>`}
+                    ${rank <= 3 ? `<span class="text-lg lg:text-xl">${medals[rank-1]}</span>` : `<span class="oswald-sharp text-gray-400 font-black italic text-base lg:text-lg">${rank}</span>`}
                 </div>
                 <div class="flex items-center gap-2.5 lg:gap-3 min-w-0">
-                    <div class="w-8 h-8 lg:w-9 lg:h-9 rounded-full flex items-center justify-center text-[9px] lg:text-[11px] font-black oswald-sharp italic text-white flex-shrink-0" style="background:${tier.grad}">${_lbInitials(u.name)}</div>
+                    <div class="w-9 h-9 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-[10px] lg:text-xs font-black oswald-sharp italic text-white flex-shrink-0" style="background:${tier.grad}">${_lbInitials(u.name)}</div>
                     <div class="min-w-0">
-                        <p class="oswald-sharp font-black italic text-xs lg:text-sm text-white tracking-tight uppercase truncate ${isUser?'text-ufcRed':''}">${isUser ? '★ ' : ''}${escapeHtml(u.name)}</p>
-                        <p class="oswald-sharp text-[9px] lg:text-[10px] italic text-gray-500 tracking-widest">${gapSub}</p>
-                        <p class="oswald-sharp text-[9px] italic uppercase tracking-widest lg:hidden ${tierTextClass(tier.key)}">${tier.name} · ${u.total===0?'—':acc+'%'} · ${u.total}픽</p>
+                        <p class="oswald-sharp font-black italic text-sm lg:text-[15px] text-white tracking-tight uppercase truncate ${isUser?'text-ufcRed':''}">${isUser ? '★ ' : ''}${escapeHtml(u.name)}</p>
+                        <p class="oswald-sharp text-[10px] lg:text-[11px] italic text-gray-500 tracking-wide">${gapSub}</p>
+                        <p class="oswald-sharp text-[10px] italic uppercase tracking-wide lg:hidden ${tierTextClass(tier.key)}">${tier.name} · ${u.total===0?'—':acc+'%'} · ${u.total}픽</p>
                     </div>
                 </div>
                 <div class="text-center lb-cell-belt">
-                    <span class="oswald-sharp text-[9px] lg:text-[10px] font-black italic uppercase px-2.5 py-1 rounded-full" style="background:${tier.color}1f;color:${tier.color};">${tier.name}</span>
+                    <span class="oswald-sharp text-[10px] lg:text-[11px] font-black italic uppercase px-2.5 py-1 rounded-full" style="background:${tier.color}1f;color:${tier.color};">${tier.name}</span>
                 </div>
                 <div class="text-right">
-                    <span class="oswald-sharp font-black italic text-sm lg:text-base text-yellow-400">${u.points.toLocaleString()}<span class="text-gray-600 text-[8px] lg:text-[10px] ml-0.5">P</span></span>
+                    <span class="oswald-sharp font-black italic text-base lg:text-lg text-yellow-400">${u.points.toLocaleString()}<span class="text-gray-500 text-[9px] lg:text-[11px] ml-0.5">P</span></span>
                 </div>
                 <div class="lb-cell-acc">
-                    <span class="oswald-sharp font-black italic text-xs lg:text-sm ${acc >= 70 ? 'text-ufcRed' : acc >= 50 ? 'text-white' : 'text-gray-500'}">${u.total===0?'—':acc+'%'}</span>
+                    <span class="oswald-sharp font-black italic text-sm lg:text-[15px] ${acc >= 70 ? 'text-ufcRed' : acc >= 50 ? 'text-white' : 'text-gray-400'}">${u.total===0?'—':acc+'%'}</span>
                     <div class="lb-acc-bar"><div style="width:${u.total===0?0:acc}%"></div></div>
                 </div>
                 <div class="text-center lb-cell-picks">
-                    <span class="oswald-sharp font-black italic text-xs lg:text-sm text-gray-300">${u.total}</span>
+                    <span class="oswald-sharp font-black italic text-sm lg:text-[15px] text-gray-300">${u.total}</span>
                 </div>
             </div>`;
         }).join('');
@@ -3728,12 +3737,12 @@ async function publishPost() {
             const isMe = u.isUser;
             return `
             <div class="lb-neighbor-row ${isMe?'is-me':''}">
-                <span class="oswald-sharp text-[11px] font-black italic ${isMe?'text-ufcRed':'text-gray-500'} text-center">${rank}</span>
+                <span class="oswald-sharp text-xs font-black italic ${isMe?'text-ufcRed':'text-gray-400'} text-center">${rank}</span>
                 <div class="flex items-center gap-2 min-w-0">
-                    <span class="w-6 h-6 rounded-full flex items-center justify-center text-[8px] font-black oswald-sharp italic text-white flex-shrink-0" style="background:${tier.grad}">${_lbInitials(u.name)}</span>
-                    <span class="oswald-sharp text-[11px] font-black italic text-white uppercase truncate ${isMe?'text-ufcRed':''}">${isMe?'★ ':''}${escapeHtml(u.name)}</span>
+                    <span class="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-black oswald-sharp italic text-white flex-shrink-0" style="background:${tier.grad}">${_lbInitials(u.name)}</span>
+                    <span class="oswald-sharp text-xs font-black italic text-white uppercase truncate ${isMe?'text-ufcRed':''}">${isMe?'★ ':''}${escapeHtml(u.name)}</span>
                 </div>
-                <span class="oswald-sharp text-[11px] font-black italic text-yellow-400 whitespace-nowrap">${u.points.toLocaleString()}<span class="text-gray-600 text-[8px] ml-0.5">P</span></span>
+                <span class="oswald-sharp text-xs font-black italic text-yellow-400 whitespace-nowrap">${u.points.toLocaleString()}<span class="text-gray-500 text-[9px] ml-0.5">P</span></span>
             </div>`;
         }).join('');
     }
@@ -3749,9 +3758,9 @@ async function publishPost() {
             const pct = Math.round((counts[i] / total) * 100);
             return `
             <div class="flex items-center gap-2">
-                <span class="oswald-sharp text-[10px] italic uppercase tracking-wide w-12 flex-shrink-0" style="color:${t.color}">${t.name}</span>
+                <span class="oswald-sharp text-[11px] italic uppercase tracking-wide w-12 flex-shrink-0" style="color:${t.color}">${t.name}</span>
                 <div class="lb-dist-bar flex-1"><div style="width:${pct}%;background:${t.color}"></div></div>
-                <span class="oswald-sharp text-[10px] font-black italic text-gray-400 w-8 text-right">${pct}%</span>
+                <span class="oswald-sharp text-[11px] font-black italic text-gray-300 w-8 text-right">${pct}%</span>
             </div>`;
         }).join('');
     }
@@ -6473,21 +6482,27 @@ async function addCommentToDB(postDbId, userNick, text) {
     ============================== */
 
     // 랭킹 탭 전환
+    // 개인 랭킹은 항상 메인에 노출. 집단 랭킹은 모달/바텀시트로 연다.
     function setRankTab(tab) {
-        var mainGrid     = document.getElementById('lb-main');
-        var factionPanel = document.getElementById('leaderboard-faction-panel');
-        var tabPlayer    = document.getElementById('rank-tab-player');
-        var tabFaction   = document.getElementById('rank-tab-faction');
-        var isPlayer = (tab === 'player');
-        if (mainGrid)     mainGrid.classList.toggle('hidden', !isPlayer);
-        if (factionPanel) factionPanel.classList.toggle('hidden', isPlayer);
-        if (tabPlayer) {
-            tabPlayer.className  = tabPlayer.className.replace(isPlayer  ? 'border-white/10 text-gray-500' : 'bg-ufcRed/15 border-ufcRed/50 text-white', isPlayer  ? 'bg-ufcRed/15 border-ufcRed/50 text-white' : 'border-white/10 text-gray-500');
+        if (tab === 'faction') { openFactionModal(); return; }
+        closeFactionModal();
+    }
+
+    function openFactionModal() {
+        var modal = document.getElementById('leaderboard-faction-panel');
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        renderFactionRanking();                 // 즉시 렌더(데이터 없으면 로딩 표시)
+        if ((!factions || factions.length === 0) && typeof loadFactions === 'function') {
+            loadFactions();                     // 완료 시 내부적으로 renderFactionRanking() 재호출
         }
-        if (tabFaction) {
-            tabFaction.className = tabFaction.className.replace(!isPlayer ? 'border-white/10 text-gray-500' : 'bg-ufcRed/15 border-ufcRed/50 text-white', !isPlayer ? 'bg-ufcRed/15 border-ufcRed/50 text-white' : 'border-white/10 text-gray-500');
-        }
-        if (!isPlayer && factions.length > 0) renderFactionRanking();
+    }
+
+    function closeFactionModal() {
+        var modal = document.getElementById('leaderboard-faction-panel');
+        if (modal) modal.classList.add('hidden');
+        document.body.style.overflow = '';
     }
 
     // 집단 랭킹 렌더링

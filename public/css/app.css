@@ -1544,9 +1544,9 @@ textarea, select {
 
 /* Hero card */
 .lb-hero { box-shadow: 0 14px 40px rgba(225, 6, 0, 0.12); position: relative; }
-.lb-hero-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
+.lb-hero-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
 .lb-hero-avatar {
-    width: 52px; height: 52px; border-radius: 999px;
+    width: 48px; height: 48px; border-radius: 999px;
     font-size: 14px; color: #fff;
     background: var(--pt-bg-3, #1B1E25);
 }
@@ -1556,9 +1556,9 @@ textarea, select {
 }
 .lb-belt-progress-fill { height: 100%; border-radius: 999px; width: 0%; transition: width 300ms ease; }
 @media (min-width: 1024px) {
-    .lb-hero-grid { grid-template-columns: auto 1fr auto; align-items: center; gap: 28px; }
-    .lb-hero-avatar { width: 60px; height: 60px; font-size: 18px; }
-    .lb-hero-pts { border-left: 1px solid var(--pt-line-1, rgba(255,255,255,0.08)); padding-left: 28px; min-width: 240px; }
+    .lb-hero-grid { grid-template-columns: auto 1fr auto; align-items: center; gap: 22px; }
+    .lb-hero-avatar { width: 54px; height: 54px; font-size: 17px; }
+    .lb-hero-pts { border-left: 1px solid var(--pt-line-1, rgba(255,255,255,0.08)); padding-left: 22px; min-width: 200px; }
 }
 
 /* Table rows — responsive (grid on desktop, card on mobile) */
@@ -1567,22 +1567,36 @@ textarea, select {
     grid-template-columns: 40px 1fr auto;
     align-items: center;
     gap: 10px;
-    padding: 12px 16px;
+    padding: 9px 14px;
     border-bottom: 1px solid var(--pt-line-1, rgba(255,255,255,0.06));
 }
-.lb-thead { padding-top: 14px; padding-bottom: 14px; background: rgba(255,255,255,0.02); }
+.lb-thead { padding-top: 11px; padding-bottom: 11px; background: rgba(255,255,255,0.02); }
 .lb-cell-belt, .lb-cell-acc, .lb-cell-picks { display: none; }
 .lb-acc-bar { height: 5px; border-radius: 999px; background: var(--pt-bg-4, #232730); overflow: hidden; margin-top: 4px; }
 .lb-acc-bar > div { height: 100%; border-radius: 999px; background: var(--pt-red-500, #E10600); }
 .lb-row:hover { background: rgba(255,255,255,0.03); }
 @media (min-width: 1024px) {
     .lb-row {
-        grid-template-columns: 56px 1fr 92px 116px 150px 56px;
-        gap: 14px;
-        padding: 14px 24px;
+        grid-template-columns: 44px 1fr 70px 100px 104px 40px;
+        gap: 10px;
+        padding: 8px 18px;
     }
     .lb-cell-belt, .lb-cell-acc { display: block; }
     .lb-cell-picks { display: block; }
+}
+@media (min-width: 1280px) {
+    .lb-row { grid-template-columns: 52px 1fr 84px 116px 140px 52px; gap: 14px; padding: 8px 22px; }
+}
+
+/* Faction ranking modal / bottom-sheet */
+.lb-faction-sheet {
+    background: var(--pt-bg-1, #0E0F12);
+    border: 1px solid var(--pt-line-2, rgba(255,255,255,0.10));
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -12px 40px rgba(0,0,0,0.6);
+}
+@media (min-width: 1024px) {
+    .lb-faction-sheet { border-radius: 20px; box-shadow: 0 24px 60px rgba(0,0,0,0.6); }
 }
 
 /* Neighbors + belt distribution (sidebar) */
