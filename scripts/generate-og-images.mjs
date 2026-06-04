@@ -38,17 +38,42 @@ const EVENT_LABEL = 'FREEDOM 250'; // UFC mark intentionally dropped (no tradema
 
 // --- Embedded display data (from Supabase read-only SELECT) -----------------
 
+// Full pixel-portrait roster (32). Display data sourced from a read-only
+// Supabase SELECT. The fighter render loop is driven by the pixel manifest keys;
+// this array supplies each fighter's text. `--rest` refreshes these from the DB.
 const FIGHTERS = [
-  { id: 'alexander-volkanovski', name: 'Alexander Volkanovski', nickname: 'The Great', division: 'fw', rank: 0, wins: 28, losses: 4, draws: 0 },
-  { id: 'ilia-topuria', name: 'Ilia Topuria', nickname: 'El Matador', division: 'lw', rank: 0, wins: 17, losses: 0, draws: 0 },
-  { id: 'charles-oliveira', name: 'Charles Oliveira', nickname: 'do Bronx', division: 'lw', rank: 3, wins: 37, losses: 11, draws: 0 },
-  { id: 'islam-makhachev', name: 'Islam Makhachev', nickname: '', division: 'ww', rank: 0, wins: 28, losses: 1, draws: 0 },
-  { id: 'sean-omalley', name: "Sean O'Malley", nickname: 'Suga', division: 'bw', rank: 3, wins: 19, losses: 3, draws: 0 },
+  { id: 'aiemann-zahabi', name: 'Aiemann Zahabi', nickname: '', division: 'bw', rank: 6, wins: 14, losses: 2, draws: 0 },
   { id: 'alex-pereira', name: 'Alex Pereira', nickname: 'Poatan', division: 'hw', rank: 2, wins: 13, losses: 3, draws: 0 },
+  { id: 'alexander-volkanovski', name: 'Alexander Volkanovski', nickname: 'The Great', division: 'fw', rank: 0, wins: 28, losses: 4, draws: 0 },
+  { id: 'aljamain-sterling', name: 'Aljamain Sterling', nickname: 'Funk Master', division: 'fw', rank: 4, wins: 26, losses: 5, draws: 0 },
+  { id: 'bo-nickal', name: 'Bo Nickal', nickname: '', division: 'mw', rank: null, wins: 8, losses: 1, draws: 0 },
+  { id: 'charles-oliveira', name: 'Charles Oliveira', nickname: 'do Bronx', division: 'lw', rank: 3, wins: 37, losses: 11, draws: 0 },
+  { id: 'ciryl-gane', name: 'Ciryl Gane', nickname: 'Bon Gamin', division: 'hw', rank: 1, wins: 13, losses: 2, draws: 0 },
+  { id: 'derrick-lewis', name: 'Derrick Lewis', nickname: 'The Black Beast', division: 'hw', rank: 9, wins: 29, losses: 13, draws: 0 },
+  { id: 'diego-lopes', name: 'Diego Lopes', nickname: '', division: 'fw', rank: 2, wins: 27, losses: 8, draws: 0 },
+  { id: 'dricus-du-plessis', name: 'Dricus Du Plessis', nickname: 'Stillknocks', division: 'mw', rank: 2, wins: 23, losses: 3, draws: 0 },
+  { id: 'ilia-topuria', name: 'Ilia Topuria', nickname: 'El Matador', division: 'lw', rank: 0, wins: 17, losses: 0, draws: 0 },
+  { id: 'islam-makhachev', name: 'Islam Makhachev', nickname: '', division: 'ww', rank: 0, wins: 28, losses: 1, draws: 0 },
+  { id: 'israel-adesanya', name: 'Israel Adesanya', nickname: 'The Last Stylebender', division: 'mw', rank: 9, wins: 24, losses: 6, draws: 0 },
+  { id: 'jiri-prochazka', name: 'Jiří Procházka', nickname: 'Denisa', division: 'lhw', rank: 3, wins: 32, losses: 6, draws: 1 },
+  { id: 'josh-hokit', name: 'Josh Hokit', nickname: 'The Incredible Hok', division: 'hw', rank: 5, wins: 9, losses: 0, draws: 0 },
+  { id: 'justin-gaethje', name: 'Justin Gaethje', nickname: 'The Highlight', division: 'lw', rank: 1, wins: 27, losses: 5, draws: 0 },
+  { id: 'khamzat-chimaev', name: 'Khamzat Chimaev', nickname: 'Borz', division: 'mw', rank: 1, wins: 15, losses: 0, draws: 0 },
+  { id: 'kyle-daukaus', name: 'Kyle Daukaus', nickname: '', division: 'mw', rank: null, wins: 17, losses: 4, draws: 0 },
+  { id: 'leon-edwards', name: 'Leon Edwards', nickname: 'Rocky', division: 'ww', rank: 7, wins: 22, losses: 6, draws: 0 },
+  { id: 'mauricio-ruffy', name: 'Mauricio Ruffy', nickname: 'One Shot', division: 'lw', rank: 10, wins: 13, losses: 2, draws: 0 },
   { id: 'max-holloway', name: 'Max Holloway', nickname: 'Blessed', division: 'lw', rank: 4, wins: 27, losses: 9, draws: 0 },
+  { id: 'merab-dvalishvili', name: 'Merab Dvalishvili', nickname: 'The Machine', division: 'bw', rank: 1, wins: 21, losses: 5, draws: 0 },
+  { id: 'michael-chandler', name: 'Michael Chandler', nickname: 'Iron', division: 'lw', rank: 13, wins: 23, losses: 10, draws: 0 },
+  { id: 'petr-yan', name: 'Petr Yan', nickname: 'No Mercy', division: 'bw', rank: 0, wins: 20, losses: 5, draws: 0 },
+  { id: 'robert-whittaker', name: 'Robert Whittaker', nickname: 'The Reaper', division: 'lhw', rank: 10, wins: 27, losses: 9, draws: 0 },
+  { id: 'sean-omalley', name: "Sean O'Malley", nickname: 'Suga', division: 'bw', rank: 3, wins: 19, losses: 3, draws: 0 },
+  { id: 'sean-strickland', name: 'Sean Strickland', nickname: 'Tarzan', division: 'mw', rank: 0, wins: 31, losses: 7, draws: 0 },
+  { id: 'shavkat-rakhmonov', name: 'Shavkat Rakhmonov', nickname: '', division: 'ww', rank: null, wins: 19, losses: 0, draws: 0 },
+  { id: 'steve-garcia', name: 'Steve Garcia', nickname: 'Mean Machine', division: 'fw', rank: 9, wins: 19, losses: 5, draws: 0 },
   { id: 'tom-aspinall', name: 'Tom Aspinall', nickname: '', division: 'hw', rank: 0, wins: 15, losses: 3, draws: 0 },
-  { id: 'weili-zhang', name: 'Zhang Weili', nickname: 'Magnum', division: 'wfw', rank: 1, wins: 26, losses: 4, draws: 0 },
-  { id: 'valentina-shevchenko', name: 'Valentina Shevchenko', nickname: 'Bullet', division: 'wfw', rank: 0, wins: 26, losses: 4, draws: 1 }
+  { id: 'valentina-shevchenko', name: 'Valentina Shevchenko', nickname: 'Bullet', division: 'wfw', rank: 0, wins: 26, losses: 4, draws: 1 },
+  { id: 'weili-zhang', name: 'Zhang Weili', nickname: 'Magnum', division: 'wfw', rank: 1, wins: 26, losses: 4, draws: 0 }
 ];
 
 const FIGHTS = [
@@ -239,9 +264,11 @@ function pageRender(spec) {
       // nickname
       let y = nameBottom + 56;
       if (spec.nickname) {
-        ctx.font = 'italic 700 34px system-ui, Arial';
+        const nickText = '"' + spec.nickname + '"';
+        const npx = fitFont(nickText, 'italic 700', 34, 22, 600);
+        ctx.font = 'italic 700 ' + npx + 'px system-ui, Arial';
         ctx.fillStyle = '#cfcfd4';
-        ctx.fillText('"' + spec.nickname + '"', lx, y);
+        ctx.fillText(nickText, lx, y);
         y += 56;
       } else {
         y += 8;
@@ -329,22 +356,29 @@ async function main() {
   const doneFights = [];
   const sizes = [];
 
-  for (const f of FIGHTERS) {
+  // Drive the fighter roster from the pixel manifest (every portrait gets an OG card).
+  const dataById = Object.fromEntries(FIGHTERS.map((f) => [f.id, f]));
+  const fighterIds = Object.keys(PIXEL_MANIFEST).sort();
+  const missingData = fighterIds.filter((id) => !dataById[id]);
+  if (missingData.length) console.warn('[og] WARNING: no display data for: ' + missingData.join(', '));
+
+  for (const id of fighterIds) {
+    const f = dataById[id] || { id, name: id.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()), nickname: '', division: '', rank: null, wins: null, losses: null, draws: 0 };
     const spec = {
       type: 'fighter',
       name: f.name,
       nickname: f.nickname || '',
       tag: [divisionLabel(f.division), rankLabel(f.rank)].filter(Boolean).join('  ·  '),
-      record: recordOf(f),
-      portrait: await pixelDataUrl(f.id)
+      record: (f.wins != null) ? recordOf(f) : '',
+      portrait: await pixelDataUrl(id)
     };
     const dataUrl = await page.evaluate(pageRender, spec);
     const buf = Buffer.from(dataUrl.split(',')[1], 'base64');
-    const out = path.join(OUT_FIGHTERS, f.id + '.jpg');
+    const out = path.join(OUT_FIGHTERS, id + '.jpg');
     await writeFile(out, buf);
-    doneFighters.push(f.id);
-    sizes.push(['fighters/' + f.id + '.jpg', buf.length]);
-    console.log('  fighter', f.id, (buf.length / 1024).toFixed(0) + 'KB', spec.portrait ? '' : '(no portrait)');
+    doneFighters.push(id);
+    sizes.push(['fighters/' + id + '.jpg', buf.length]);
+    console.log('  fighter', id, (buf.length / 1024).toFixed(0) + 'KB', spec.portrait ? '' : '(no portrait)');
   }
 
   for (const m of FIGHTS) {
