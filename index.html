@@ -1054,7 +1054,7 @@
                         <button onclick="syncAllFighters()" id="btn-sync-all-fighters" class="oswald-sharp border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 hover:border-emerald-400 font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">🌐 전체 파이터 동기화</button>
                         <button onclick="syncFighterStats()" id="btn-sync-fighter-stats" class="oswald-sharp border border-blue-500/30 text-blue-400 hover:text-blue-300 hover:border-blue-400 font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">📊 스탯 동기화</button>
                         <button onclick="syncRankFromUFCRankings()" id="btn-sync-rank" class="oswald-sharp border border-purple-500/30 text-purple-400 hover:text-purple-300 hover:border-purple-400 font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">🏆 랭킹 동기화</button>
-                        <button onclick="purgeInactiveFighters(true)" class="oswald-sharp border border-yellow-500/30 text-yellow-400 hover:text-yellow-300 hover:border-yellow-400 font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">🔍 드라이런</button>
+                        <button onclick="purgeInactiveFighters(true)" title="읽기 전용 미리보기 — 삭제 예정 수만 확인 (실제 삭제 없음)" class="oswald-sharp border border-yellow-500/30 text-yellow-400 hover:text-yellow-300 hover:border-yellow-400 font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">🔍 드라이런 (읽기 전용)</button>
                         <button onclick="purgeInactiveFighters(false)" id="btn-purge-inactive" class="oswald-sharp border border-red-500/30 text-red-400 hover:text-red-300 hover:border-red-400 font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all">🗑 비활성 파이터 삭제</button>
                         <button onclick="openFighterModal()" class="oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black px-6 lg:px-10 py-2 rounded-xl italic text-xs lg:text-sm uppercase tracking-widest transition-all">+ 파이터 추가</button>
                     </div>
@@ -2446,7 +2446,7 @@
 <script src="/js/news.js"></script>
 <script src="/js/youtube.js?v=1"></script>
 <script src="/js/community.js?v=18"></script>
-<script src="/js/admin.js?v=23"></script>
+<script src="/js/admin.js?v=24"></script>
 <script src="/js/profile.js"></script>
 <script src="/js/archive.js?v=7"></script>
 <script src="/js/season.js"></script>
@@ -3262,6 +3262,14 @@
                 showToast('강제 재정산 취소');
                 return;
             }
+        } else {
+            // 최초 결과 확정 (P0): 포인트 정산이 발생하므로 영향 범위 명시 후 확인
+            const summary = winner === 'DRAW' ? '무승부 (DRAW)'
+                          : winner === 'NC'   ? '경기 취소 (NC)'
+                          : `${winner} 승 (${method}, R${round})`;
+            if (!confirm('🏆 경기 결과 확정\n\n결과: ' + summary + '\n영향: 이 경기 픽이 일괄 정산되고 사용자 포인트가 지급/차감됩니다.\n\n확정할까요?')) {
+                return;
+            }
         }
 
         const hasStats = _mfsHasAnyInput();
@@ -3901,6 +3909,12 @@ async function publishPost() {
     async function syncRankFromUFCRankings() {
         if (!sb) { showToast('⚠ Supabase 연결 필요'); return; }
         var btn = document.getElementById('btn-sync-rank');
+        if (btn && btn.disabled) return; // 중복 클릭 방지
+        if (typeof adminTypedConfirm === 'function' && !adminTypedConfirm({
+            title: '[ 랭킹 동기화 ]',
+            impact: 'ufc_rankings 기준으로 fighters 다수 row의 rank 값을 대량 업데이트합니다.',
+            keyword: 'SYNC'
+        })) return;
         if (btn) { btn.textContent = '동기화 중...'; btn.disabled = true; }
         try {
             var res = await sb.from('ufc_rankings').select('division,rank_position,fighter_name');

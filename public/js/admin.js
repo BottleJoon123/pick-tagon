@@ -1148,6 +1148,29 @@ function _renderSeedPolicyBDivisionPreview(box, d, division) {
 
 // ─── 체급 단위 Seed B 적용 (2단계 confirm) ─────────────────────────────────
 // 단건 apply(applyFighterSeedPolicyB)와 분리. admin_apply_fighter_seed_policy_b_division 호출.
+// ── 위험 액션 공통 가드 ────────────────────────────────────────────
+// accidental click 방지용 typed confirmation. 실제 DB 로직은 호출부에서 그대로 수행.
+// opts: { title, impact, keyword }  → keyword(예: 'SYNC','DELETE','SETTLE')를 정확히 입력해야 true.
+function adminTypedConfirm(opts) {
+    opts = opts || {};
+    var kw = opts.keyword || 'CONFIRM';
+    var lines = [];
+    if (opts.title) lines.push(opts.title);
+    if (opts.impact) { lines.push(''); lines.push('⚠ 영향 범위: ' + opts.impact); }
+    lines.push('');
+    lines.push('실행하려면 아래 입력창에  ' + kw + '  를 정확히 입력하세요. (취소하면 실행되지 않습니다)');
+    var typed = window.prompt(lines.join('\n'), '');
+    if (typed === null) return false;
+    if (typed.trim() !== kw) {
+        alert('입력이 "' + kw + '" 와 일치하지 않아 취소되었습니다.');
+        return false;
+    }
+    return true;
+}
+
+// purgeInactiveFighters: 실제 삭제는 드라이런 1회 성공 후에만 허용
+var _adminPurgeDryRunOk = false;
+
 function applySeedPolicyBDivision(btn) {
     if (typeof sb === 'undefined' || !sb) { alert('⚠ Supabase 연결 필요'); return; }
     var division = btn.getAttribute('data-division');
@@ -1408,7 +1431,7 @@ function saveFighter() {
 function deleteFighter(fighterId) {
     const f = fighterDB.find(x => x.id === fighterId);
     if (!f) return;
-    if (!confirm(`"${f.name}"을(를) 파이터 DB에서 삭제하시겠습니까?`)) return;
+    if (!confirm(`🗑 파이터 삭제 — 단건\n\n대상: "${f.name}" (id: ${fighterId})\n영향: fighters 테이블에서 이 선수 1명을 삭제합니다.\n\n삭제하시겠습니까?`)) return;
     if (sb) {
         sb.rpc('admin_delete_fighter', { p_fighter_id: fighterId }).then(function(res) {
             if (res.error) console.warn('파이터 DB 삭제 실패:', res.error.message);
@@ -1429,6 +1452,13 @@ async function syncAllFighters() {
     const sessionRes = await sb.auth.getSession();
     const session = sessionRes?.data?.session;
     if (!session?.access_token) { showToast('⚠ 어드민 로그인 필요'); return; }
+
+    if (btn && btn.disabled) return; // 중복 클릭 방지
+    if (!adminTypedConfirm({
+        title: '[ 전체 파이터 동기화 ]',
+        impact: 'kr.ufc.com 전체 로스터를 스크래핑해 fighters 테이블을 대량 insert/update 합니다.',
+        keyword: 'SYNC'
+    })) return;
 
     btn.textContent = '⏳ 동기화 중...';
     btn.disabled = true;
@@ -1486,8 +1516,21 @@ async function purgeInactiveFighters(dryRun = false) {
     const session = sessionRes?.data?.session;
     if (!session?.access_token) { showToast('⚠ 어드민 로그인 필요'); return; }
 
-    if (!dryRun && !confirm('⚠ 비활성/은퇴 파이터를 DB에서 영구 삭제합니다.\n먼저 드라이런으로 확인 후 실행하세요.\n\n계속하시겠습니까?')) return;
+    if (!dryRun) {
+        // 실제 삭제는 드라이런 1회 성공 이후에만 허용
+        if (!_adminPurgeDryRunOk) {
+            showToast('⚠ 먼저 "드라이런"으로 삭제 예정 수를 확인하세요');
+            if (log) { log.classList.remove('hidden'); log.textContent = '[ 차단 ] 드라이런을 먼저 실행해야 실제 삭제가 가능합니다.\n'; }
+            return;
+        }
+        if (!adminTypedConfirm({
+            title: '[ 비활성 파이터 영구 삭제 ]',
+            impact: 'fighters 테이블에서 비활성/은퇴 선수를 영구 삭제합니다 (드라이런 결과 기준).',
+            keyword: 'PURGE'
+        })) return;
+    }
 
+    if (btn && btn.disabled) return; // 중복 클릭 방지
     if (btn) { btn.textContent = '⏳ 처리 중...'; btn.disabled = true; }
     log.classList.remove('hidden');
     log.textContent = dryRun
@@ -1508,9 +1551,11 @@ async function purgeInactiveFighters(dryRun = false) {
         }
 
         if (dryRun) {
-            log.textContent += `✅ 드라이런 완료\n활성 파이터: ${data.collected}명\n삭제 예정: ${data.wouldDelete}명\n\n실제 삭제하려면 "비활성 삭제 실행" 버튼을 누르세요.`;
+            _adminPurgeDryRunOk = true; // 실제 삭제 잠금 해제
+            log.textContent += `✅ 드라이런 완료\n활성 파이터: ${data.collected}명\n삭제 예정: ${data.wouldDelete}명\n\n실제 삭제하려면 "비활성 파이터 삭제" 버튼을 누른 뒤 PURGE 를 입력하세요.`;
             showToast(`드라이런: ${data.wouldDelete}명 삭제 예정`);
         } else {
+            _adminPurgeDryRunOk = false; // 1회성 — 삭제 후 다시 드라이런 필요
             log.textContent += `✅ 완료\n활성 파이터: ${data.collected}명 유지\n삭제됨: ${data.deleted}명`;
             showToast(`✅ ${data.deleted}명 삭제 완료`);
             renderAdminFighterList();
@@ -1532,6 +1577,16 @@ async function syncFighterStats(options = {}) {
     const sessionRes = await sb.auth.getSession();
     const session = sessionRes?.data?.session;
     if (!session?.access_token) { showToast('⚠ 어드민 로그인 필요'); return; }
+
+    // 대량(전체) 동기화 경로만 typed confirmation — 단건(slug) 경로는 영향 범위가 1명
+    if (!options.slug) {
+        if (btn && btn.disabled) return; // 중복 클릭 방지
+        if (!adminTypedConfirm({
+            title: '[ 파이터 스탯 동기화 (전체) ]',
+            impact: 'ESPN API 기반으로 fighters 다수 row의 신체정보/KO·SUB·DEC율을 대량 업데이트합니다. (stats 배열은 보존)',
+            keyword: 'SYNC'
+        })) return;
+    }
 
     if (btn) { btn.textContent = '⏳ 동기화 중...'; btn.disabled = true; }
     if (log) { log.classList.remove('hidden'); log.textContent = '[ 파이터 스탯 동기화 시작 ] ESPN API (신체정보 + KO/SUB/DEC율)...\n'; }
@@ -2347,7 +2402,7 @@ async function deleteMatchupFromModal() {
     if (!id) return;
     const m = _builderMatchups.find(x => x.id === id);
     const label = m ? `${m.red_fighter_name} vs ${m.blue_fighter_name}` : '이 경기';
-    if (!confirm(`"${label}"를 삭제할까요?`)) return;
+    if (!confirm(`🗑 경기 삭제 — 단건\n\n대상: "${label}" (id: ${id})\n영향: 이 매치업 1건을 삭제합니다.\n\n삭제할까요?`)) return;
     const { error } = await sb.rpc('admin_delete_matchup', { p_matchup_id: id });
     if (error) { showToast('❌ 삭제 실패: ' + (error.message || error)); return; }
     showToast('🗑 삭제 완료');
@@ -2359,6 +2414,11 @@ async function deleteMatchupFromModal() {
 
 async function deleteBuilderEvent(eventId, eventTitle) {
     if (!confirm(`"${eventTitle}" 이벤트를 삭제할까요?\n(이 이벤트의 모든 대진표도 함께 삭제됩니다)`)) return;
+    if (!adminTypedConfirm({
+        title: '[ 이벤트 삭제 ] ' + eventTitle,
+        impact: '이 이벤트와 소속된 모든 matchups(대진표)를 삭제합니다. 되돌릴 수 없습니다.',
+        keyword: 'DELETE'
+    })) return;
     const { error } = await sb.rpc('admin_delete_event', { p_event_id: eventId });
     if (error) { showToast('❌ 이벤트 삭제 실패: ' + (error.message || error)); return; }
     showToast('🗑 이벤트 삭제 완료');
@@ -2848,6 +2908,11 @@ async function onLifecycleSettle(eventId) {
         return;
     }
     if (!confirm('모든 경기 결과 입력을 확인했나요?\n이벤트를 정산할까요?')) return;
+    if (!adminTypedConfirm({
+        title: '[ 이벤트 정산 ]',
+        impact: '이 이벤트의 모든 픽을 확정 정산하고 사용자 포인트를 일괄 지급/차감합니다. 미결 픽은 환급됩니다.',
+        keyword: 'SETTLE'
+    })) return;
     await adminSettleEvent(eventId);
     await Promise.all([fetchBuilderPickSummary(), fetchBuilderQA()]);
     renderBuilderWorkspace();  // adminSettleEvent는 fetchBuilderMatchups를 호출하지 않으므로 직접 갱신
@@ -2855,6 +2920,11 @@ async function onLifecycleSettle(eventId) {
 
 async function onLifecycleArchive(eventId) {
     if (!confirm('정산 완료 이벤트를 아카이브할까요?')) return;
+    if (!adminTypedConfirm({
+        title: '[ 이벤트 아카이브 ]',
+        impact: '정산 완료된 이벤트를 아카이브 상태로 종료합니다 (활성 목록에서 내려감).',
+        keyword: 'ARCHIVE'
+    })) return;
     await adminArchiveEvent(eventId);
     renderBuilderWorkspace();  // adminArchiveEvent는 fetchBuilderMatchups를 호출하지 않으므로 직접 갱신
 }
