@@ -82,3 +82,58 @@
 - 이미지 존재 여부를 런타임 fetch로 매번 체크하지 말 것 → manifest/json 또는 DB flag 방식 검토
   - 예: `public/fighters/pixel/manifest.json` (id 목록) 또는 `fighters.pixel_image_path` 컬럼
 - 빌드/배포 시 자산이 dist에 포함되는지(public 정적 경로) 확인 필요
+
+### 1차 샘플 대상 10명
+검수용 첫 배치. 파일명은 `fighters.id` 기준 (`public/fighters/pixel/{id}.png`).
+
+1. `alexander-volkanovski`
+2. `ilia-topuria`
+3. `charles-oliveira`
+4. `islam-makhachev`
+5. `sean-omalley`
+6. `alex-pereira`
+7. `max-holloway`
+8. `tom-aspinall`
+9. `zhang-weili`
+10. `valentina-shevchenko`
+
+> 참고: 실제 `fighters.id` 표기(예: Zhang Weili = `weili-zhang`)와 다를 수 있으니, asset intake 시 DB의 `fighters.id`로 최종 확인 후 파일명을 맞춘다.
+
+### Intake checklist (repo 반영 전)
+- [ ] 파일명이 `fighters.id`와 정확히 일치
+- [ ] 1024×1024 PNG
+- [ ] 배경이 검은색 또는 `#08090b` 계열
+- [ ] 상반신 중심 구도
+- [ ] 16-bit / pixel-art 스타일
+- [ ] no text / no UFC logo / no brand logo / no sponsor logo / no watermark
+- [ ] 작은 카드 크기(공유카드 썸네일)에서도 얼굴/실루엣 식별 가능
+- [ ] repo에 넣기 전 로컬 inbox(예: 미추적 임시 폴더)에서 1차 검수 완료
+
+### Reject 기준 (하나라도 해당 시 반려)
+- 공식 UFC / 브랜드 / 스폰서 로고가 보임
+- 실사 사진을 단순 필터 처리한 느낌 (저작권 위험)
+- 배경이 너무 밝거나 색상이 제각각 (검은 배경 통일 위반)
+- 선수 특징이 거의 없음 (누군지 식별 불가)
+- 얼굴 / 손 / 글러브가 심하게 깨짐
+- 공유카드 크기에서 식별 불가
+
+### Manifest 방식 제안
+초기 구현은 DB 컬럼보다 `public/fighters/pixel/manifest.json`을 추천.
+
+```json
+{
+  "alexander-volkanovski": "/fighters/pixel/alexander-volkanovski.png"
+}
+```
+
+- **장점**: DB migration 없이 빠르게 적용 가능, asset 존재 여부를 명시적으로 관리 (런타임 fetch 404 체크 불필요)
+- **단점**: 이미지 추가/삭제 시 manifest를 수동 갱신해야 함
+- **추후**: asset 운영이 안정화되면 `fighters.pixel_image_path` 컬럼으로 이관 검토
+
+### 구현 순서 (도입 시)
+1. 1차 샘플 10장 검수 (Intake checklist + Reject 기준)
+2. `public/fighters/pixel/` 폴더 추가
+3. `manifest.json` 추가
+4. `getFighterPixelImage(fighter)` 헬퍼 추가 (manifest 조회 → 있으면 pixel 경로, 없으면 `image_url` fallback)
+5. fighter share card에서 우선 사용
+6. profile modal / H2H compare는 다음 단계, match card는 추후 검토
