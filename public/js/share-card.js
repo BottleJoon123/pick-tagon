@@ -1323,25 +1323,21 @@ async function _scShareMatchImage(data, shareText, shareTitle) {
 ============================== */
 
 // ── 데이터 수집 ────────────────────────────────────────
-// ── Pixel portrait manifest (lazy, cached once) ──────────
-// /fighters/pixel/manifest.json maps fighters.id → same-origin PNG path.
-// Used only by the fighter share card; failure is silent (falls back to placeholder).
-var _scPixelManifest = null;        // cached parsed object once loaded
-var _scPixelManifestPromise = null; // in-flight fetch promise
+// ── Pixel portrait manifest ──────────────────────────────
+// Delegates to the shared window.PicktagonPixelFighters helper (pixel-fighters.js).
+// Kept as thin wrappers so the existing share-card call sites are unchanged;
+// both degrade silently (placeholder) if the helper is unavailable.
 function _scLoadPixelManifest() {
-    if (_scPixelManifest) return Promise.resolve(_scPixelManifest);
-    if (_scPixelManifestPromise) return _scPixelManifestPromise;
-    _scPixelManifestPromise = fetch('/fighters/pixel/manifest.json', { cache: 'force-cache' })
-        .then(function(r) { return r.ok ? r.json() : {}; })
-        .then(function(j) { _scPixelManifest = (j && typeof j === 'object') ? j : {}; return _scPixelManifest; })
-        .catch(function() { _scPixelManifest = {}; return _scPixelManifest; });
-    return _scPixelManifestPromise;
+    if (window.PicktagonPixelFighters && window.PicktagonPixelFighters.load) {
+        return window.PicktagonPixelFighters.load();
+    }
+    return Promise.resolve({});
 }
-// Sync lookup against the cached manifest. Returns same-origin path or null.
 function _scGetFighterPixelPath(fighter) {
-    if (!fighter || !fighter.id || !_scPixelManifest) return null;
-    var p = _scPixelManifest[fighter.id];
-    return (typeof p === 'string' && p) ? p : null;
+    if (window.PicktagonPixelFighters && window.PicktagonPixelFighters.getPath) {
+        return window.PicktagonPixelFighters.getPath(fighter);
+    }
+    return null;
 }
 // Load a same-origin image; resolves to HTMLImageElement or null (never rejects).
 // No crossOrigin: pixel PNGs are same-origin, so the canvas stays untainted.

@@ -207,6 +207,10 @@ async function openH2H() {
         '<div class="text-center py-12 text-gray-600 oswald-sharp text-xs italic uppercase tracking-widest">선수 목록 로딩 중...</div>';
 
     await _ensureH2HFighters();
+    // Preload pixel portrait manifest so the (sync) compare render can look up paths.
+    if (window.PicktagonPixelFighters && window.PicktagonPixelFighters.load) {
+        try { await window.PicktagonPixelFighters.load(); } catch(e) {}
+    }
     _populateF1Select();
     _populateF2Select();
     _showH2HPrompt();
@@ -301,7 +305,15 @@ function _doRenderH2H(content, f1, f2) {
 
     var fighterCardsHtml = sides.map(function(item) {
         var f = item.f, col = item.col, side = item.side, rank = item.rank;
+        // Pixel portrait (same-origin) — shown only when this fighter has one; else current layout.
+        var pxPath = (typeof window.getFighterPixelPath === 'function') ? window.getFighterPixelPath(f) : null;
+        var pxHtml = pxPath
+            ? '<div class="mx-auto mb-3 rounded-xl overflow-hidden border border-' + col + '/30" style="width:96px;height:104px;background:#08090b">' +
+                  '<img src="' + escapeHtml(pxPath) + '" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block">' +
+              '</div>'
+            : '';
         return '<div class="glass-card rounded-2xl p-4 lg:p-6 border border-' + col + '/20 text-center">' +
+            pxHtml +
             '<span class="oswald-sharp text-[8px] text-' + col + ' font-black italic uppercase tracking-widest">' + side + ' CORNER</span>' +
             '<h4 class="oswald-sharp text-base lg:text-2xl font-black italic text-white uppercase tracking-tighter mt-2 mb-1 leading-tight">' + (f.name || '?') + '</h4>' +
             '<p class="oswald-sharp text-[10px] text-gray-500 italic uppercase">' + (f.record || '—') + '</p>' +
