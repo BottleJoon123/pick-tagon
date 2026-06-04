@@ -109,6 +109,11 @@ Deno.serve(async (req) => {
   if (authErr || !user) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders })
   }
+  // Admin check — service_role upsert는 admin만 (로그인만으로는 불가)
+  const { data: userRow } = await supabase.from('users').select('is_admin').eq('id', user.id).single()
+  if (!userRow?.is_admin) {
+    return new Response(JSON.stringify({ error: 'Admin only' }), { status: 403, headers: corsHeaders })
+  }
 
   const body = await req.json().catch(() => ({}))
   const startPage: number = typeof body.startPage === 'number' ? body.startPage : 0

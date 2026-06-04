@@ -236,6 +236,17 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: false, error: 'Unauthorized' }, 401)
     }
 
+    // 로그인 확인만으로는 부족 — service_role delete/insert 전에 admin 검증
+    const { data: adminRow } = await authSupabase
+      .from('users')
+      .select('is_admin')
+      .eq('id', authData.user.id)
+      .single()
+
+    if (!adminRow?.is_admin) {
+      return jsonResponse({ success: false, error: 'Admin only' }, 403)
+    }
+
     const html = await fetchSourceHtml(source_url)
     const parsedPairs = parseMatchups(html)
 

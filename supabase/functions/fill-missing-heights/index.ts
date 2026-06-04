@@ -109,22 +109,38 @@ Deno.serve(async (req: Request) => {
     return new Response('Method Not Allowed', { status: 405, headers: corsHeaders })
   }
 
-  // 내부 전용 시크릿 검증 (ADMIN_SECRET env var 설정 시)
-  const secret = Deno.env.get('ADMIN_SECRET')
-  if (secret) {
-    const authHeader = req.headers.get('x-admin-secret')
-    if (authHeader !== secret) {
-      return new Response(JSON.stringify({ ok: false, error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-  }
-
   const admin = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   )
+
+  // ── 인증 (fail closed) ──────────────────────────────────────────────
+  // 경로 1: 서버 전용 ADMIN_SECRET (cron/수동) — env가 설정되고 헤더가 일치할 때만.
+  // 경로 2: 관리자 JWT (users.is_admin).
+  // 둘 다 아니면 거부. ADMIN_SECRET 미설정이어도 공개 실행되지 않는다.
+  const adminSecret = Deno.env.get('ADMIN_SECRET')
+  const secretOk = !!adminSecret && req.headers.get('x-admin-secret') === adminSecret
+
+  if (!secretOk) {
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(JSON.stringify({ ok: false, error: 'Missing auth' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    const { data: { user }, error: authErr } = await admin.auth.getUser(authHeader.replace('Bearer ', ''))
+    if (authErr || !user) {
+      return new Response(JSON.stringify({ ok: false, error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    const { data: userRow } = await admin.from('users').select('is_admin').eq('id', user.id).single()
+    if (!userRow?.is_admin) {
+      return new Response(JSON.stringify({ ok: false, error: 'Admin only' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+  }
 
   const body = await req.json().catch(() => ({})) as Record<string, unknown>
 

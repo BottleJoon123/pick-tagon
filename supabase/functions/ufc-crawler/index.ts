@@ -101,6 +101,27 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   )
 
+  // ── 관리자 인증 (service_role write 보호) ───────────────────────────
+  // 플랫폼 verify_jwt가 꺼져 있으므로 함수 내부에서 반드시 admin을 검증한다.
+  const authHeader = req.headers.get('Authorization')
+  if (!authHeader) {
+    return new Response(JSON.stringify({ success: false, error: 'Missing auth' }), {
+      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+  const { data: { user }, error: authErr } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''))
+  if (authErr || !user) {
+    return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
+      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+  const { data: userRow } = await supabase.from('users').select('is_admin').eq('id', user.id).single()
+  if (!userRow?.is_admin) {
+    return new Response(JSON.stringify({ success: false, error: 'Admin only' }), {
+      status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+
   const errors: string[] = []
 
   // 1. Sherdog 페이지 fetch
