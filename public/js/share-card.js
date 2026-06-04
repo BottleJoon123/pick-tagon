@@ -2049,7 +2049,11 @@ function sharePicktagonFighterCard(fighter) {
     }
     var data = buildFighterShareCardData(fighter);
     var shareText  = data.name + ' · ' + (data.record || '—') + ' · UFC 픽은 PICK-TAGON · pick-tagon.com';
-    var shareUrl   = 'https://pick-tagon.com/#fighter';
+    // Deep link → opens this fighter's profile modal in-app after click (handled in index.html onload).
+    // NOTE: OG preview is still static on GitHub Pages; this only fixes the in-app deep link, not OG.
+    var shareUrl   = data.id
+        ? 'https://pick-tagon.com/?fighter=' + encodeURIComponent(data.id) + '&og=v2'
+        : 'https://pick-tagon.com/#fighter';
     var shareTitle = 'PICK-TAGON — ' + data.name;
 
     _scShowSharePicker({

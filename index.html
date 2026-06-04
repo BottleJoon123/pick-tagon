@@ -2455,7 +2455,7 @@
 <script src="/js/h2h.js?v=22"></script>
 <script src="/js/news-admin.js?v=6"></script>
 <script src="/js/home.js?v=6"></script>
-<script src="/js/share-card.js?v=16"></script>
+<script src="/js/share-card.js?v=17"></script>
 <script>
     /* ==============================
        FIGHT CARD DATA
@@ -5074,6 +5074,41 @@ async function addCommentToDB(postDbId, userNick, text) {
         clearTimeout(_pickReloadTimer);
     }
 
+    // Fighter share deep link (?fighter={id}): fetch the fighters row by id and open the
+    // profile modal in-app. Fails soft (console.warn) so home/matchups never break.
+    // NOTE: OG preview is still static on GitHub Pages; this only fixes the in-app deep link.
+    function _openFighterDeepLink(fid) {
+        if (!fid) return;
+        if (typeof sb === 'undefined' || !sb) { console.warn('[deeplink] fighter: Supabase not ready', fid); return; }
+        sb.from('fighters')
+            .select('id, name, name_en, division, wins, losses, draws, rank, height, reach, weight_kg, ko_rate, sub_rate, dec_rate, stats, image_url, nickname, odds, style')
+            .eq('id', fid)
+            .maybeSingle()
+            .then(function(res) {
+                var f = res && res.data;
+                if (!f) { console.warn('[deeplink] fighter not found:', fid); return; }
+                try {
+                    openFighterProfile({
+                        id:        f.id,
+                        name:      f.name || f.name_en,
+                        name_en:   f.name_en,
+                        nickname:  f.nickname || null,
+                        record:    (f.wins != null) ? ((f.wins||0) + '-' + (f.losses||0) + (f.draws ? '-' + f.draws : '')) : '—',
+                        height:    f.height || null,
+                        reach:     f.reach || null,
+                        weight:    f.weight_kg ? (Math.round(f.weight_kg) + ' kg') : null,
+                        rank:      (f.rank === 0) ? 'CHAMPION' : (f.rank != null ? '#' + f.rank : null),
+                        division:  f.division || null,
+                        odds:      f.odds || null,
+                        style:     f.style || null,
+                        ko_rate:   f.ko_rate, sub_rate: f.sub_rate, dec_rate: f.dec_rate,
+                        stats:     Array.isArray(f.stats) ? f.stats : null,
+                        image_url: f.image_url || null
+                    });
+                } catch(e) { console.warn('[deeplink] openFighterProfile failed:', e); }
+            }, function(err) { console.warn('[deeplink] fighter fetch failed:', err && err.message); });
+    }
+
     window.onload = function() {
         // Preserve Supabase auth callback URLs before SPA hash routing rewrites them.
         // Password reset links arrive as #access_token=...&type=recovery or ?code=...
@@ -5096,10 +5131,24 @@ async function addCommentToDB(postDbId, userNick, text) {
         var hashPage = isSupabaseAuthCallback ? '' : window.location.hash.replace('#', '');
         var initPage = validPages.indexOf(hashPage) !== -1 ? hashPage : 'home';
 
-        // ?fight={id} 딥링크: matchups 강제 이동 후 해당 카드 스크롤
-        var _deepFightId = null;
-        try { _deepFightId = new URLSearchParams(window.location.search).get('fight') || null; } catch(e) {}
-        if (_deepFightId && !isSupabaseAuthCallback) initPage = 'matchups';
+        // Deep links (read query params BEFORE replaceState strips them):
+        //   ?fight={id}   → matchups, scroll to that card
+        //   ?fighter={id} → open that fighter's profile modal
+        // NOTE: OG preview is still static on GitHub Pages; this only fixes the in-app
+        // deep link behavior after click. Dynamic OG is a separate, out-of-scope task.
+        var _deepFightId = null, _deepFighterId = null;
+        try {
+            var _qs = new URLSearchParams(window.location.search);
+            _deepFightId   = _qs.get('fight')   || null;
+            _deepFighterId = _qs.get('fighter') || null;
+        } catch(e) {}
+        // persist so the deep link survives the replaceState URL rewrite below
+        window.__deepFightId   = _deepFightId;
+        window.__deepFighterId = _deepFighterId;
+        if (!isSupabaseAuthCallback) {
+            if (_deepFightId) initPage = 'matchups';
+            else if (_deepFighterId) initPage = 'archive'; // safe backdrop; modal opens on top
+        }
 
         if (!isSupabaseAuthCallback) {
             history.replaceState({ page: initPage }, '', '#' + initPage);
@@ -5107,10 +5156,10 @@ async function addCommentToDB(postDbId, userNick, text) {
         _currentPage = initPage;
         navigateTo(initPage, true);
 
-        // 딥링크 카드 스크롤: 비동기 렌더 완료 대기 (최대 4초, 400ms 간격)
+        // 딥링크 카드 스크롤: 비동기 렌더 완료 대기 (최대 8초, 400ms 간격)
         if (_deepFightId) {
             (function _tryScrollToFight(n) {
-                var el = document.getElementById('card-' + _deepFightId);
+                var el = document.getElementById('card-' + (window.__deepFightId || _deepFightId));
                 if (el) {
                     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     el.style.transition = 'box-shadow 0.5s ease';
@@ -5118,9 +5167,14 @@ async function addCommentToDB(postDbId, userNick, text) {
                     setTimeout(function() { el.style.boxShadow = ''; el.style.transition = ''; }, 2500);
                     return;
                 }
-                if (n < 10) setTimeout(function() { _tryScrollToFight(n + 1); }, 400);
+                if (n < 20) setTimeout(function() { _tryScrollToFight(n + 1); }, 400);
                 else console.warn('[deeplink] fight card not found:', _deepFightId);
             })(0);
+        }
+
+        // ?fighter={id} 딥링크: fighters row 조회 후 프로필 모달 자동 오픈
+        if (_deepFighterId) {
+            _openFighterDeepLink(_deepFighterId);
         }
         fetchArchive();
         setTimeout(initHome, 400);
