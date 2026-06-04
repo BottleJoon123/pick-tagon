@@ -119,7 +119,7 @@ async function _ensureH2HFighters() {
 
     try {
         var res = await sb.from('fighters')
-            .select('id, name, name_en, division, wins, losses, draws, height, reach, ko_rate, sub_rate, dec_rate, stats, style, image_url')
+            .select('id, name, name_en, division, wins, losses, draws, height, reach, height_cm, reach_cm, ko_rate, sub_rate, dec_rate, stats, style, image_url')
             .order('name', { ascending: true });
         if (res.error || !res.data || !res.data.length) return;
 
@@ -299,31 +299,42 @@ function _doRenderH2H(content, f1, f2) {
     try { rank2 = findUFCRank(f2.name); } catch(e) {}
 
     var sides = [
-        { f: f1, col: 'ufcRed',  side: 'RED',  rank: rank1 },
-        { f: f2, col: 'ufcBlue', side: 'BLUE', rank: rank2 }
+        { f: f1, col: 'ufcRed',  side: 'RED',  rank: rank1, rgb: '225,6,0'   },
+        { f: f2, col: 'ufcBlue', side: 'BLUE', rank: rank2, rgb: '59,130,246' }
     ];
 
-    var fighterCardsHtml = sides.map(function(item) {
-        var f = item.f, col = item.col, side = item.side, rank = item.rank;
+    var fighterCards = sides.map(function(item) {
+        var f = item.f, col = item.col, side = item.side, rank = item.rank, rgb = item.rgb;
         // Pixel portrait (same-origin) — shown only when this fighter has one; else current layout.
         var pxPath = (typeof window.getFighterPixelPath === 'function') ? window.getFighterPixelPath(f) : null;
         var pxHtml = pxPath
-            ? '<div class="mx-auto mb-3 rounded-xl overflow-hidden border border-' + col + '/30" style="width:96px;height:104px;background:#08090b">' +
+            ? '<div class="mx-auto mb-3 rounded-xl overflow-hidden border border-' + col + '/40" ' +
+              'style="width:96px;height:104px;background:radial-gradient(circle at 50% 28%, rgba(' + rgb + ',0.30), rgba(8,9,11,0) 72%), #08090b;box-shadow:0 0 22px rgba(' + rgb + ',0.35)">' +
                   '<img src="' + escapeHtml(pxPath) + '" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block">' +
               '</div>'
             : '';
-        return '<div class="glass-card rounded-2xl p-4 lg:p-6 border border-' + col + '/20 text-center">' +
+        // subtle red/blue corner glow + top radial accent (polish only)
+        var cardStyle = 'position:relative;box-shadow:0 0 26px rgba(' + rgb + ',0.10);' +
+                        'background-image:radial-gradient(120% 70% at 50% 0%, rgba(' + rgb + ',0.10), rgba(8,8,10,0) 62%)';
+        return '<div class="glass-card rounded-2xl p-4 lg:p-6 border border-' + col + '/30 text-center" style="' + cardStyle + '">' +
             pxHtml +
             '<span class="oswald-sharp text-[8px] text-' + col + ' font-black italic uppercase tracking-widest">' + side + ' CORNER</span>' +
             '<h4 class="oswald-sharp text-base lg:text-2xl font-black italic text-white uppercase tracking-tighter mt-2 mb-1 leading-tight">' + (f.name || '?') + '</h4>' +
             '<p class="oswald-sharp text-[10px] text-gray-500 italic uppercase">' + (f.record || '—') + '</p>' +
             (rank ? '<div class="mt-2 inline-block oswald-sharp text-[9px] bg-white/5 border border-white/10 px-2 py-1 rounded-lg font-black italic text-gray-400 uppercase">' + rank.label + '</div>' : '') +
             '<div class="grid grid-cols-2 gap-2 mt-3 text-left">' +
-                '<div><p class="oswald-sharp text-[8px] text-gray-600 uppercase">신장</p><p class="oswald-sharp text-sm font-black italic text-white">' + (f.height || '—') + '</p></div>' +
-                '<div><p class="oswald-sharp text-[8px] text-gray-600 uppercase">리치</p><p class="oswald-sharp text-sm font-black italic text-white">' + (f.reach || '—') + '</p></div>' +
+                '<div><p class="oswald-sharp text-[8px] text-gray-600 uppercase">신장</p><p class="oswald-sharp text-sm font-black italic text-white">' + _h2hSpec(f.height, f.height_cm) + '</p></div>' +
+                '<div><p class="oswald-sharp text-[8px] text-gray-600 uppercase">리치</p><p class="oswald-sharp text-sm font-black italic text-white">' + _h2hSpec(f.reach, f.reach_cm) + '</p></div>' +
             '</div>' +
         '</div>';
-    }).join('');
+    });
+
+    // Center VS chip (red V / blue S split) — game-matchup feel, no nested cards.
+    var vsBadge = '<div class="flex items-center justify-center shrink-0 py-1 sm:py-0">' +
+        '<div class="oswald-sharp font-black italic leading-none px-3 py-1.5 rounded-xl" ' +
+        'style="font-size:22px;letter-spacing:0.04em;background:rgba(8,8,10,0.85);border:1px solid rgba(255,255,255,0.10);' +
+        'box-shadow:0 0 18px rgba(225,6,0,0.22),0 0 18px rgba(59,130,246,0.18)">' +
+        '<span style="color:#E10600">V</span><span style="color:#3b82f6">S</span></div></div>';
 
     var statBarsHtml = STAT_LABELS.map(function(label, i) {
         var v1 = stats1[i] || 0, v2 = stats2[i] || 0;
@@ -348,7 +359,11 @@ function _doRenderH2H(content, f1, f2) {
     var f2Last = (f2.name || '').split(' ').pop();
 
     content.innerHTML =
-        '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">' + fighterCardsHtml + '</div>' +
+        '<div class="flex flex-col sm:flex-row items-stretch gap-3 sm:gap-4 mb-6">' +
+            '<div class="flex-1 min-w-0">' + fighterCards[0] + '</div>' +
+            vsBadge +
+            '<div class="flex-1 min-w-0">' + fighterCards[1] + '</div>' +
+        '</div>' +
         '<div class="glass-card rounded-2xl p-5 lg:p-7 mb-6 border border-white/5">' +
             '<p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[0.3em] font-black italic mb-4">🔍 스탯 기반 관전 포인트</p>' +
             '<div class="grid grid-cols-3 gap-3 mb-4">' +
@@ -405,6 +420,17 @@ function _doRenderH2H(content, f1, f2) {
 function _getDisplayStats(f) {
     var s = f && f.stats;
     return (Array.isArray(s) && s.length === 5) ? s : [75, 75, 75, 75, 75];
+}
+
+// Height/reach display: prefer existing text column; fall back to the numeric
+// *_cm column (rounded) when the text is empty; else em-dash. Display-only —
+// no DB write, no change to comparison/stat logic.
+function _h2hSpec(text, cm) {
+    var t = (text == null) ? '' : String(text).trim();
+    if (t) return escapeHtml(t);
+    var n = parseFloat(cm);
+    if (!isNaN(n) && n > 0) return Math.round(n) + ' cm';
+    return '—';
 }
 
 // ── Archive-based matchup records ─────────────────────────────────────
