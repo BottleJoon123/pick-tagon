@@ -77,7 +77,7 @@
 <link href="/css/tokens.css" rel="stylesheet">
 <link href="/css/theme-bridge.css" rel="stylesheet">
 <link rel="stylesheet" href="./src/tailwind.css">
-<link href="/css/app.css?v=6" rel="stylesheet">
+<link href="/css/app.css?v=7" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 <!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -522,18 +522,18 @@
         </div>
 
         <!-- Belt Progression Rail (counts = 표시 범위 기준, filled by renderLeaderboard) -->
-        <div id="lb-belt-rail" class="grid grid-cols-5 gap-2 lg:gap-3 mb-2 lg:mb-3"></div>
+        <div id="lb-belt-rail" class="grid grid-cols-5 gap-1.5 lg:gap-3 mb-2 lg:mb-3"></div>
         <p id="lb-belt-hint" class="oswald-sharp text-[9px] lg:text-[10px] text-gray-500 italic uppercase tracking-widest mb-6 lg:mb-9">픽 포인트 기반 · 예측 기록이 쌓일수록 등급이 올라갑니다</p>
 
         <!-- My Rank Hero Card -->
-        <div id="my-rank-card" class="lb-hero glass-card rounded-[1.75rem] lg:rounded-[2rem] p-5 lg:p-6 mb-5 lg:mb-7 border border-ufcRed/30">
+        <div id="my-rank-card" class="lb-hero glass-card rounded-[1.75rem] lg:rounded-[2rem] p-4 lg:p-6 mb-5 lg:mb-7 border border-ufcRed/30">
             <div class="lb-hero-grid">
                 <!-- MY RANK -->
                 <div class="lb-hero-rank flex items-center gap-4 lg:gap-5">
                     <div class="leading-none">
                         <p class="oswald-sharp text-[8px] lg:text-[10px] text-gray-500 uppercase tracking-[0.18em] italic mb-1">My Rank</p>
                         <div class="oswald-sharp text-ufcRed font-black italic text-4xl lg:text-5xl tracking-tighter leading-none"><span id="my-rank-num">—</span><span class="text-lg lg:text-xl">위</span></div>
-                        <p id="my-rolling-info" class="oswald-sharp text-[9px] text-gray-500 italic uppercase tracking-widest mt-1.5"></p>
+                        <p id="my-rolling-info" class="oswald-sharp text-[9px] text-gray-500 italic uppercase tracking-widest mt-1.5 hidden lg:block"></p>
                     </div>
                 </div>
                 <!-- IDENTITY -->
@@ -548,7 +548,7 @@
                             <span id="my-belt-badge" class="oswald-sharp text-[9px] lg:text-[11px] bg-white text-black px-3 py-1 rounded-full font-black italic uppercase">White Belt</span>
                             <span class="oswald-sharp text-[10px] lg:text-xs text-gray-400 italic uppercase tracking-wide"><span id="my-rank-acc" class="text-white font-black">—</span> 정확도 · <span id="my-rank-picks" class="text-white font-black">0</span> 픽</span>
                         </div>
-                        <p id="my-rank-analyst" class="oswald-sharp text-[9px] italic tracking-widest mt-1 text-gray-400"></p>
+                        <p id="my-rank-analyst" class="oswald-sharp text-[9px] italic tracking-widest mt-1 text-gray-400 hidden lg:block"></p>
                     </div>
                 </div>
                 <!-- MY POINTS / PROGRESS -->
@@ -557,7 +557,7 @@
                     <p class="oswald-sharp text-2xl lg:text-4xl font-black italic text-yellow-400 text-right leading-none mt-0.5"><span id="my-rank-pts">—</span></p>
                     <p id="lb-gap-next" class="oswald-sharp text-[10px] lg:text-xs italic text-gray-400 text-right mt-1.5"></p>
                     <div class="lb-belt-progress mt-2.5"><div id="lb-belt-progress-fill" class="lb-belt-progress-fill"></div></div>
-                    <p id="lb-belt-dist" class="oswald-sharp text-[9px] lg:text-[10px] italic text-gray-500 uppercase tracking-widest text-right mt-1.5"></p>
+                    <p id="lb-belt-dist" class="oswald-sharp text-[9px] lg:text-[10px] italic text-gray-500 uppercase tracking-widest text-right mt-1.5 hidden lg:block"></p>
                 </div>
             </div>
         </div>
@@ -3577,7 +3577,7 @@ async function publishPost() {
             const upsetWins = stateSettled.filter(function(s) { return s.hadUpsetBonus && s.result === 'WIN'; }).length;
             const analyst = getAnalystType(analystAcc, state.total, state.total, methodBonusCount, upsetWins);
             analystEl.textContent = analyst.title;
-            analystEl.className = 'oswald-sharp text-[9px] italic tracking-widest mt-1 ' + analyst.color;
+            analystEl.className = 'oswald-sharp text-[9px] italic tracking-widest mt-1 hidden lg:block ' + analyst.color;
         }
 
         // 다음 벨트까지 진행바 (실데이터: 내 포인트 / 현재 등급 구간)
@@ -3650,12 +3650,12 @@ async function publishPost() {
                 <div class="text-center">
                     ${rank <= 3 ? `<span class="text-lg lg:text-xl">${medals[rank-1]}</span>` : `<span class="oswald-sharp text-gray-400 font-black italic text-base lg:text-lg">${rank}</span>`}
                 </div>
-                <div class="flex items-center gap-2.5 lg:gap-3 min-w-0">
-                    <div class="w-9 h-9 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-[10px] lg:text-xs font-black oswald-sharp italic text-white flex-shrink-0" style="background:${tier.grad}">${_lbInitials(u.name)}</div>
-                    <div class="min-w-0">
-                        <p class="oswald-sharp font-black italic text-sm lg:text-[15px] text-white tracking-tight uppercase truncate ${isUser?'text-ufcRed':''}">${isUser ? '★ ' : ''}${escapeHtml(u.name)}</p>
-                        <p class="oswald-sharp text-[10px] lg:text-[11px] italic text-gray-500 tracking-wide">${gapSub}</p>
-                        <p class="oswald-sharp text-[10px] italic uppercase tracking-wide lg:hidden ${tierTextClass(tier.key)}">${tier.name} · ${u.total===0?'—':acc+'%'} · ${u.total}픽</p>
+                <div class="flex items-center gap-2 lg:gap-3 min-w-0">
+                    <div class="w-8 h-8 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-[10px] lg:text-xs font-black oswald-sharp italic text-white flex-shrink-0" style="background:${tier.grad}">${_lbInitials(u.name)}</div>
+                    <div class="min-w-0 leading-tight">
+                        <p class="oswald-sharp font-black italic text-sm lg:text-[15px] text-white tracking-tight uppercase truncate leading-tight ${isUser?'text-ufcRed':''}">${isUser ? '★ ' : ''}${escapeHtml(u.name)}</p>
+                        <p class="oswald-sharp text-[10px] lg:text-[11px] italic text-gray-500 tracking-wide leading-tight mt-0.5 hidden lg:block">${gapSub}</p>
+                        <p class="oswald-sharp text-[10px] italic uppercase tracking-wide leading-tight mt-0.5 lg:hidden ${tierTextClass(tier.key)}">${tier.name} · ${u.total===0?'—':acc+'%'} · ${u.total}픽</p>
                     </div>
                 </div>
                 <div class="text-center lb-cell-belt">
@@ -3702,12 +3702,14 @@ async function publishPost() {
             const rangeTxt = t.key === 'black' ? '10,001P +' : `${t.min.toLocaleString()}–${t.max.toLocaleString()}P`;
             return `
             <div class="lb-belt-seg ${isCur?'is-current':''}">
-                <div class="flex items-center gap-1.5 mb-1">
-                    <span class="w-2.5 h-2.5 lg:w-3 lg:h-3 rounded-full flex-shrink-0" style="background:${t.color};box-shadow:0 0 8px ${t.color}66;${t.key==='white'?'border:1px solid #71757F;':''}"></span>
-                    <span class="oswald-sharp text-[9px] lg:text-xs font-black italic uppercase text-white truncate">${t.name}</span>
-                    <span class="oswald-sharp text-[9px] lg:text-[11px] font-black italic text-gray-400 ml-auto">${counts[i]}<span class="text-gray-600 text-[8px] ml-0.5">명</span></span>
+                <div class="flex items-center gap-1 lg:gap-1.5">
+                    <span class="w-2 h-2 lg:w-3 lg:h-3 rounded-full flex-shrink-0" style="background:${t.color};box-shadow:0 0 8px ${t.color}66;${t.key==='white'?'border:1px solid #71757F;':''}"></span>
+                    <span class="oswald-sharp text-[9px] lg:text-xs font-black italic uppercase text-white truncate flex-1 min-w-0">${t.name}</span>
                 </div>
-                <p class="oswald-sharp text-[8px] lg:text-[10px] italic text-gray-600 uppercase tracking-wide">${rangeTxt}</p>
+                <div class="flex items-center justify-between gap-1 mt-1">
+                    <span class="oswald-sharp text-[8px] lg:text-[10px] italic text-gray-600 uppercase tracking-wide truncate hidden lg:inline">${rangeTxt}</span>
+                    <span class="oswald-sharp text-[9px] lg:text-[11px] font-black italic text-gray-400 flex-shrink-0">${counts[i]}<span class="text-gray-600 text-[8px] ml-0.5">명</span></span>
+                </div>
                 ${youBar}
                 ${isCur?`<span class="lb-belt-underbar" style="background:${t.color}"></span>`:''}
             </div>`;

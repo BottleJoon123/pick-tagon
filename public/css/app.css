@@ -1523,7 +1523,7 @@ textarea, select {
     background: var(--pt-bg-2, #14161B);
     border: 1px solid var(--pt-line-1, rgba(255,255,255,0.08));
     border-radius: var(--pt-r-md, 12px);
-    padding: 10px 8px 12px;
+    padding: 8px 6px 10px;
     overflow: hidden;
     transition: border-color 120ms ease, background 120ms ease;
 }
@@ -1537,16 +1537,25 @@ textarea, select {
 .lb-belt-youbar {
     height: 5px; border-radius: 999px;
     background: var(--pt-bg-4, #232730);
-    overflow: hidden; margin-top: 8px;
+    overflow: hidden; margin-top: 6px;
 }
 .lb-belt-youbar > div { height: 100%; border-radius: 999px; }
 @media (min-width: 1024px) { .lb-belt-seg { padding: 14px 14px 16px; } }
 
 /* Hero card */
 .lb-hero { box-shadow: 0 14px 40px rgba(225, 6, 0, 0.12); position: relative; }
-.lb-hero-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+.lb-hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, auto) 1fr;
+    grid-template-areas: "rank pts" "id id";
+    align-items: center;
+    column-gap: 12px; row-gap: 12px;
+}
+.lb-hero-rank { grid-area: rank; }
+.lb-hero-id  { grid-area: id; }
+.lb-hero-pts { grid-area: pts; }
 .lb-hero-avatar {
-    width: 48px; height: 48px; border-radius: 999px;
+    width: 44px; height: 44px; border-radius: 999px;
     font-size: 14px; color: #fff;
     background: var(--pt-bg-3, #1B1E25);
 }
@@ -1556,7 +1565,7 @@ textarea, select {
 }
 .lb-belt-progress-fill { height: 100%; border-radius: 999px; width: 0%; transition: width 300ms ease; }
 @media (min-width: 1024px) {
-    .lb-hero-grid { grid-template-columns: auto 1fr auto; align-items: center; gap: 22px; }
+    .lb-hero-grid { grid-template-columns: auto 1fr auto; grid-template-areas: "rank id pts"; align-items: center; column-gap: 22px; row-gap: 0; }
     .lb-hero-avatar { width: 54px; height: 54px; font-size: 17px; }
     .lb-hero-pts { border-left: 1px solid var(--pt-line-1, rgba(255,255,255,0.08)); padding-left: 22px; min-width: 200px; }
 }
@@ -1564,10 +1573,10 @@ textarea, select {
 /* Table rows — responsive (grid on desktop, card on mobile) */
 .lb-row {
     display: grid;
-    grid-template-columns: 40px 1fr auto;
+    grid-template-columns: 34px 1fr auto;
     align-items: center;
-    gap: 10px;
-    padding: 9px 14px;
+    gap: 9px;
+    padding: 7px 12px;
     border-bottom: 1px solid var(--pt-line-1, rgba(255,255,255,0.06));
 }
 .lb-thead { padding-top: 11px; padding-bottom: 11px; background: rgba(255,255,255,0.02); }
