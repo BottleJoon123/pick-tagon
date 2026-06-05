@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192-v2.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon-v2.png">
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#08090b">
 <meta name="mobile-web-app-capable" content="yes">
@@ -3780,11 +3780,12 @@ async function publishPost() {
         if (!fighter.record && !fighter.height && fighter.name && typeof sb !== 'undefined' && sb) {
             try {
                 const { data: dbF } = await sb.from('fighters')
-                    .select('name, name_en, division, wins, losses, draws, rank, height, reach, weight_kg, ko_rate, sub_rate, dec_rate, stats, image_url, nickname')
+                    .select('id, name, name_en, division, wins, losses, draws, rank, height, reach, weight_kg, ko_rate, sub_rate, dec_rate, stats, image_url, nickname')
                     .ilike('name', fighter.name)
                     .maybeSingle();
                 if (dbF) {
                     fighter = Object.assign({}, fighter, {
+                        id:        fighter.id || dbF.id || null,
                         nickname:  dbF.nickname || fighter.nickname || null,
                         record:    `${dbF.wins||0}-${dbF.losses||0}-${dbF.draws||0}`,
                         height:    dbF.height || null,

@@ -533,6 +533,7 @@ async function fetchUpcomingMatchups() {
                 _resultMethod: m.result_method || null,
                 _resultRound: m.result_round || null,
                 f1: {
+                    id:      m.red_fighter_id || (_f1db && _f1db.id) || null,
                     name:    m.red_fighter_name || '?',
                     nameEn:  (_f1db && _f1db.name_en) || '',
                     record:  (_f1db && _f1db.record)  || '',
@@ -555,6 +556,7 @@ async function fetchUpcomingMatchups() {
                     decRate: _fs(_f1db, 'decRate', 'dec_rate'),
                 },
                 f2: {
+                    id:      m.blue_fighter_id || (_f2db && _f2db.id) || null,
                     name:    m.blue_fighter_name || '?',
                     nameEn:  (_f2db && _f2db.name_en) || '',
                     record:  (_f2db && _f2db.record)  || '',
