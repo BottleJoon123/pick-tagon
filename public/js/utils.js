@@ -29,11 +29,25 @@
         return getNickname() || ('PLAYER_' + (localStorage.getItem('picktagon_display_name') || Math.random().toString(36).slice(2,6).toUpperCase()));
     }
 
+    // 국기(regional-indicator) 이모지는 Windows 데스크톱(Segoe UI Emoji)에서 렌더되지 않아
+    // 모바일과 표시가 어긋난다. 렌더 경로에서만 단색(single-codepoint) 이모지로 치환해
+    // 데이터 변경 없이 desktop/mobile 표시를 통일한다.
+    var _FACTION_EMOJI_FALLBACK = {
+        '🇧🇷': '🥋', // 브라질
+        '🇺🇸': '🦅', // 미국
+        '🇬🇧': '🦁', // 영국
+        '🇰🇷': '🐯'  // 한국
+    };
+    function factionEmoji(raw) {
+        if (!raw) return raw;
+        return _FACTION_EMOJI_FALLBACK[raw] || raw;
+    }
+
     // 집단 이모지 + 닉네임 조합 (e.g. "🐻 하빕킹")
     function getDisplayUsernameWithFaction() {
         var nick = getDisplayUsername();
         if (currentFaction && currentFaction.emoji_icon) {
-            return currentFaction.emoji_icon + ' ' + nick;
+            return factionEmoji(currentFaction.emoji_icon) + ' ' + nick;
         }
         return nick;
     }
@@ -45,7 +59,7 @@
         var sz = (size === 'md')
             ? 'text-base px-2 py-0.5'
             : 'text-[11px] px-1.5 py-0';
-        return '<span class="oswald-sharp ' + sz + ' rounded-md border border-white/10 bg-white/5 text-white/70 font-black italic select-none" title="' + escapeHtml(factionObj.name) + '">' + factionObj.emoji_icon + '</span>';
+        return '<span class="oswald-sharp ' + sz + ' rounded-md border border-white/10 bg-white/5 text-white/70 font-black italic select-none" title="' + escapeHtml(factionObj.name) + '">' + factionEmoji(factionObj.emoji_icon) + '</span>';
     }
 
     // 닉네임으로 faction 검색 (posts의 author 기준 — DB 조인 없이 factions 캐시 활용)

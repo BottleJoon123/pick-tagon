@@ -795,10 +795,10 @@
         </div>
 
         <!-- 프로필 아이덴티티 카드 -->
-        <div class="profile-hero-card rounded-2xl p-5 lg:p-7 mb-5 flex items-center gap-4 flex-wrap">
+        <div class="profile-hero-card rounded-2xl p-4 lg:p-7 mb-4 lg:mb-5 flex items-center gap-3 lg:gap-4 flex-wrap">
             <!-- 아바타 -->
-            <div id="profile-avatar-wrap" class="prof-avatar-wrap w-16 h-16 lg:w-20 lg:h-20 rounded-2xl flex items-center justify-center flex-shrink-0" style="background:#1a0a0a;border:1px solid rgba(225,6,0,0.3);">
-                <span id="profile-avatar-label" class="oswald-sharp text-3xl lg:text-4xl font-black italic select-none" style="color:#E10600;">⚡</span>
+            <div id="profile-avatar-wrap" class="prof-avatar-wrap w-14 h-14 lg:w-20 lg:h-20 rounded-2xl flex items-center justify-center flex-shrink-0" style="background:#1a0a0a;border:1px solid rgba(225,6,0,0.3);">
+                <span id="profile-avatar-label" class="oswald-sharp text-2xl lg:text-4xl font-black italic select-none" style="color:#E10600;">⚡</span>
             </div>
             <!-- 닉네임 + 팩션 + 벨트 -->
             <div class="flex-1 min-w-0">
@@ -806,7 +806,7 @@
                     <p id="profile-nickname-display" class="oswald-sharp text-lg lg:text-xl font-black italic text-white tracking-tight leading-none"></p>
                     <div id="profile-faction-display" class="flex items-center gap-1"></div>
                 </div>
-                <p class="oswald-sharp text-xs text-gray-600 italic uppercase tracking-widest">픽태곤 커뮤니티 멤버</p>
+                <p class="oswald-sharp text-xs text-gray-600 italic uppercase tracking-widest hidden lg:block">픽태곤 커뮤니티 멤버</p>
             </div>
             <!-- 액션 버튼 -->
             <div class="w-full sm:w-auto grid grid-cols-2 gap-1.5 sm:flex sm:items-center sm:gap-2 sm:flex-shrink-0 sm:flex-wrap">
@@ -834,8 +834,8 @@
         </div>
 
         <!-- 벨트 승급 트래커 -->
-        <div id="belt-tracker-panel" class="pt-belt-tracker rounded-2xl p-5 lg:p-6 mb-5">
-            <div class="flex items-center justify-between mb-5">
+        <div id="belt-tracker-panel" class="pt-belt-tracker rounded-2xl p-4 lg:p-6 mb-4 lg:mb-5">
+            <div class="flex items-center justify-between mb-4 lg:mb-5">
                 <h4 class="oswald-sharp text-xs lg:text-sm font-black italic uppercase text-white tracking-widest">Belt Progression</h4>
                 <span id="bt-next-label" class="oswald-sharp text-[11px] text-gray-500 italic uppercase tracking-widest"></span>
             </div>
@@ -852,20 +852,20 @@
         </div>
 
         <!-- 4 핵심 지표 카드 -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-            <div class="glass-card p-5 lg:p-7 flex flex-col justify-between h-28 lg:h-36 rounded-2xl border border-white/10">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5 lg:mb-6">
+            <div class="glass-card p-4 lg:p-7 flex flex-col justify-between h-24 lg:h-36 rounded-2xl border border-white/10">
                 <span class="oswald-sharp text-[11px] tracking-[.2em] italic font-black uppercase text-gray-500">Balance</span>
                 <h4 id="prof-pts" class="oswald-sharp text-2xl lg:text-3xl text-yellow-400 font-black italic tracking-tighter leading-none">1,000 P</h4>
             </div>
-            <div class="glass-card p-5 lg:p-7 flex flex-col justify-between h-28 lg:h-36 rounded-2xl border border-white/10">
+            <div class="glass-card p-4 lg:p-7 flex flex-col justify-between h-24 lg:h-36 rounded-2xl border border-white/10">
                 <span class="oswald-sharp text-[11px] tracking-[.2em] italic font-black uppercase text-gray-500">Forecasts</span>
                 <h4 id="prof-tot" class="oswald-sharp text-2xl lg:text-3xl font-black italic tracking-tighter text-white leading-none">0 회</h4>
             </div>
-            <div class="glass-card p-5 lg:p-7 flex flex-col justify-between h-28 lg:h-36 rounded-2xl border border-white/10">
+            <div class="glass-card p-4 lg:p-7 flex flex-col justify-between h-24 lg:h-36 rounded-2xl border border-white/10">
                 <span class="oswald-sharp text-[11px] tracking-[.2em] italic font-black uppercase text-gray-500">Accuracy</span>
                 <h4 id="prof-acc" class="oswald-sharp text-2xl lg:text-3xl font-black italic tracking-tighter text-ufcRed leading-none">0 %</h4>
             </div>
-            <div id="belt-box" class="bg-white text-black p-5 lg:p-7 rounded-2xl flex flex-col justify-between h-28 lg:h-36 transition-all duration-700 shadow-2xl">
+            <div id="belt-box" class="bg-white text-black p-4 lg:p-7 rounded-2xl flex flex-col justify-between h-24 lg:h-36 transition-all duration-700 shadow-2xl">
                 <span class="text-gray-600 oswald-sharp text-[11px] tracking-[.2em] font-black uppercase italic">Belt Rank</span>
                 <h4 id="belt-name" class="oswald-sharp text-xl lg:text-2xl font-black italic uppercase leading-none tracking-tighter">White Belt</h4>
             </div>
@@ -2467,7 +2467,7 @@
 <script src="/js/data/constants.js"></script>
 <script src="/js/state.js"></script>
 <script src="/js/storage.js"></script>
-<script src="/js/utils.js?v=3"></script>
+<script src="/js/utils.js?v=4"></script>
 <script src="/js/event-countdown.js"></script>
 <script src="/js/api/supabase.js?v=16"></script>
 <script src="/js/modal-helpers.js"></script>
@@ -6590,7 +6590,7 @@ async function addCommentToDB(postDbId, userNick, text) {
             return '<div class="glass-card rounded-[2rem] p-5 lg:p-8 border ' + (isMyFaction ? 'border-ufcRed/50' : 'border-white/5') + ' ' + (isMyFaction ? 'faction-ranking-mine' : '') + ' cursor-pointer" onclick="toggleFactionMemberRanking(' + f.id + ')">' +
                 '<div class="flex items-center gap-4 mb-4">' +
                   '<div class="text-2xl lg:text-3xl w-10 text-center">' + medalEmoji + '</div>' +
-                  '<div class="text-3xl lg:text-4xl">' + f.emoji_icon + '</div>' +
+                  '<div class="text-3xl lg:text-4xl">' + (typeof factionEmoji === 'function' ? factionEmoji(f.emoji_icon) : f.emoji_icon) + '</div>' +
                   '<div class="flex-1">' +
                     '<div class="flex items-center justify-between mb-1">' +
                       '<span class="oswald-sharp text-base lg:text-xl font-black italic text-white uppercase">' + escapeHtml(f.name) + (isMyFaction ? ' <span class="text-ufcRed text-xs">◀ 내 집단</span>' : '') + '</span>' +
@@ -6646,7 +6646,7 @@ async function addCommentToDB(postDbId, userNick, text) {
         grid.innerHTML = factions.map(function(f, i) {
             var isSelected = currentFaction && currentFaction.id === f.id;
             return '<div class="faction-card ' + (isSelected ? 'selected' : '') + '" onclick="selectFaction(' + f.id + ')" style="animation-delay:' + (i * 0.04) + 's">' +
-                '<div class="text-4xl lg:text-5xl mb-3">' + f.emoji_icon + '</div>' +
+                '<div class="text-4xl lg:text-5xl mb-3">' + (typeof factionEmoji === 'function' ? factionEmoji(f.emoji_icon) : f.emoji_icon) + '</div>' +
                 '<div class="oswald-sharp text-sm lg:text-base font-black italic text-white uppercase tracking-tight mb-1">' + escapeHtml(f.name) + '</div>' +
                 '<div class="oswald-sharp text-[9px] text-gray-500 italic uppercase leading-tight">' + escapeHtml(f.representative_fighters) + '</div>' +
             '</div>';
@@ -6663,7 +6663,7 @@ async function addCommentToDB(postDbId, userNick, text) {
         });
         setUserFaction(factionId).then(function(r) {
             if (r && r.ok) {
-                showToast('✅ ' + (currentFaction ? currentFaction.emoji_icon + ' ' + currentFaction.name : '') + ' 집단에 합류했습니다!');
+                showToast('✅ ' + (currentFaction ? factionEmoji(currentFaction.emoji_icon) + ' ' + currentFaction.name : '') + ' 집단에 합류했습니다!');
                 closeFactionSelectModal();
                 updateFactionBadgeUI();
                 loadFactions(); // 랭킹 최신화
