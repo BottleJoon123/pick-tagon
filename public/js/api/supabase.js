@@ -368,6 +368,11 @@ function loadPostsFromDB() {
                 updateAuthUI();
                 if (typeof updateFactionBadgeUI === 'function') updateFactionBadgeUI();
                 reconcileHistoryFromDB();
+                // 모바일 등에서 세션 복원 전에 프로필을 먼저 연 경우: currentUser/state 확정 후
+                // 프로필 통계를 다시 렌더해 RPC 정답으로 갱신 (현재 페이지가 profile일 때만).
+                if (typeof renderProfileStats === 'function' && window._currentPage === 'profile') {
+                    renderProfileStats();
+                }
                 if (showWelcome) showToast('✅ ' + (res.data.nickname || '유저') + ' 님 환영해요!');
                 // 집단 미선택 유저 → 세션당 1회만 모달 표시 (매 페이지 로드마다 방해 방지)
                 if (!res.data.faction_id && typeof openFactionSelectModal === 'function'
@@ -747,9 +752,15 @@ async function reconcileHistoryFromDB() {
 
         save();
 
-        if (typeof renderHistoryList   === 'function') renderHistoryList();
-        if (typeof renderFormChart     === 'function') renderFormChart();
-        if (typeof renderProfileReport === 'function') renderProfileReport();
+        // history 동기화 완료 후: 프로필 화면이면 전체 재렌더(RPC + 폼/최근/보너스 동기화),
+        // 아니면 기존 부분 렌더만 (불필요한 RPC 호출 방지).
+        if (typeof renderProfileStats === 'function' && window._currentPage === 'profile') {
+            renderProfileStats();
+        } else {
+            if (typeof renderHistoryList   === 'function') renderHistoryList();
+            if (typeof renderFormChart     === 'function') renderFormChart();
+            if (typeof renderProfileReport === 'function') renderProfileReport();
+        }
     } catch(e) {
         console.warn('[reconcileHistoryFromDB]', e);
     }

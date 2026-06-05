@@ -101,13 +101,17 @@ function renderProfileReport() {
         upsetPicks   = _rpcStats.upset_picks || 0;
         methodBonusCount = stateSettled.filter(s => s.hadMethodBonus).length;
     } else {
-        winCount     = state.success;
-        loseCount    = state.total - state.success;
-        pendingCount = Object.keys(state.pendings || {}).length;
-        settledCount = state.total;
-        totalAll     = state.total + pendingCount;
-        acc          = state.total === 0 ? null : Math.min(100, Math.round(state.success / state.total * 100));
-        totalEarned  = state.history.filter(h => h.res === 'WIN').reduce((s, h) => s + (h.payout || 0), 0);
+        // RPC 미로드 시 fallback — 정산 데이터(state.history) 기준으로 계산해 RPC와 의미 일치.
+        // state.total(=users.total_picks)은 pending/cancel 포함 전체수라 정산 분모로 쓰면 안 됨.
+        const hist = Array.isArray(state.history) ? state.history : [];
+        winCount     = hist.filter(h => h.res === 'WIN').length;
+        loseCount    = hist.filter(h => h.res === 'LOSE').length;
+        const cancelFromHist = hist.filter(h => h.res === 'CANCEL').length;
+        pendingCount = Object.keys(state.pendings || {}).length || hist.filter(h => h.res === 'PENDING').length;
+        settledCount = winCount + loseCount;                       // accuracy 분모 = 정산수(win+lose), cancel 제외
+        totalAll     = settledCount + pendingCount + cancelFromHist;
+        acc          = settledCount === 0 ? null : Math.min(100, Math.round(winCount / settledCount * 100));
+        totalEarned  = hist.filter(h => h.res === 'WIN').reduce((s, h) => s + (h.payout || 0), 0);
         upsetWins    = stateSettled.filter(s => s.hadUpsetBonus && s.result === 'WIN').length;
         upsetPicks   = stateSettled.filter(s => s.hadUpsetBonus).length;
         methodBonusCount = stateSettled.filter(s => s.hadMethodBonus).length;
