@@ -517,7 +517,7 @@
             </div>
             <div class="hidden sm:flex flex-col items-end gap-1.5 flex-shrink-0">
                 <span id="current-season-badge" class="oswald-sharp text-[9px] lg:text-[10px] bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 px-3 py-1 rounded-full font-black italic uppercase tracking-widest"></span>
-                <span class="oswald-sharp text-[8px] lg:text-[9px] text-gray-600 italic uppercase tracking-widest">표시 범위 기준 집계</span>
+                <span id="lb-scope-label" class="oswald-sharp text-[8px] lg:text-[9px] text-gray-600 italic uppercase tracking-widest">표시 범위 기준 집계</span>
             </div>
         </div>
 
@@ -600,7 +600,7 @@
                 <div class="glass-card rounded-2xl p-5">
                     <div class="flex items-center justify-between mb-3">
                         <p class="oswald-sharp text-sm font-black italic uppercase tracking-widest text-white">벨트 분포</p>
-                        <span class="oswald-sharp text-[9px] text-gray-600 italic uppercase tracking-widest">표시 범위 기준</span>
+                        <span id="lb-dist-scope-label" class="oswald-sharp text-[9px] text-gray-600 italic uppercase tracking-widest">표시 범위 기준</span>
                     </div>
                     <div id="lb-belt-dist-list" class="flex flex-col gap-2"></div>
                 </div>
@@ -3544,6 +3544,26 @@ async function publishPost() {
         for (let i = 0; i < _LB_TIERS.length; i++) { if (pts <= _LB_TIERS[i].max) return Object.assign({ idx: i }, _LB_TIERS[i]); }
         return Object.assign({ idx: 4 }, _LB_TIERS[4]);
     }
+    // 전체 유저 기준 요약(get_leaderboard_summary). 성공 시 벨트 레일/분포를 전체 기준으로 교체.
+    let _lbSummary = null, _lbAllCache = [], _lbMyPointsCache = 0;
+    function loadLeaderboardSummary() {
+        if (!sb) return;
+        sb.rpc('get_leaderboard_summary').then(function(res) {
+            if (res && !res.error && res.data) {
+                _lbSummary = Array.isArray(res.data) ? res.data[0] : res.data;
+                _applyLbScopeLabels();
+                if (typeof _renderBeltRail === 'function') _renderBeltRail(_lbAllCache, _lbMyPointsCache);
+                if (typeof _renderBeltDistribution === 'function') _renderBeltDistribution(_lbAllCache);
+            }
+        }).catch(function(){ /* summary 실패 시 표시 범위 기준 fallback 유지 */ });
+    }
+    function _applyLbScopeLabels() {
+        if (!_lbSummary) return;
+        var a = document.getElementById('lb-scope-label');
+        if (a) a.textContent = '전체 기준 집계';
+        var b = document.getElementById('lb-dist-scope-label');
+        if (b) b.textContent = '전체 기준';
+    }
     function _lbInitials(nm) { return (nm || '?').replace(/\s+/g, '').slice(0, 2).toUpperCase(); }
 
     function renderLeaderboard() {
@@ -3606,24 +3626,39 @@ async function publishPost() {
             if (distEl) distEl.innerHTML = `${next.name} 벨트까지 <span class="text-gray-300 font-black">${(myTier.max + 1 - state.points).toLocaleString()} P</span>`;
         }
 
-        // DB 랭킹 불러오기
+        // DB 랭킹 불러오기 (get_leaderboard_v2 우선, 실패 시 get_leaderboard fallback)
         if (sb) {
-            loadRealRankings().then(function(res) {
-                var dbUsers = (res && res.data) ? res.data : [];
-                renderLeaderboardList(list, dbUsers, myNickname);
+            loadRealRankings().then(function(rows) {
+                renderLeaderboardList(list, rows || [], myNickname);
             });
+            loadLeaderboardSummary();
         } else {
             renderLeaderboardList(list, [], myNickname);
         }
     }
 
     function renderLeaderboardList(list, dbUsers, myNickname) {
-        const myEntry = { name: myNickname, points: state.points, total: state.total, success: state.success, isUser: true };
-
         var all = dbUsers.map(function(u) {
-            return { name: u.nickname || '익명', points: u.points || 0, total: u.total_picks || 0, success: u.success_picks || 0, isUser: u.nickname === myNickname };
+            return {
+                name: u.nickname || 'UNKNOWN',
+                points: u.points || 0,
+                total: u.total_picks || 0,
+                success: u.success_picks || 0,
+                accuracy: (typeof u.accuracy === 'number') ? u.accuracy : null,
+                isUser: u.nickname === myNickname
+            };
         });
-        if (!all.find(u => u.isUser)) all.push(myEntry);
+        // 내 행: 라이브 포인트는 state, settled 정확도는 RPC 행에서 보존
+        const myDbRow = all.find(function(u) { return u.isUser; });
+        const myEntry = {
+            name: myNickname,
+            points: state.points,
+            total: myDbRow ? myDbRow.total : state.total,
+            success: myDbRow ? myDbRow.success : state.success,
+            accuracy: (myDbRow && typeof myDbRow.accuracy === 'number') ? myDbRow.accuracy : null,
+            isUser: true
+        };
+        if (!myDbRow) all.push(myEntry);
         else all = all.map(u => u.isUser ? myEntry : u);
 
         all.sort(function(a,b) { return b.points - a.points; });
@@ -3644,7 +3679,8 @@ async function publishPost() {
             }
         }
 
-        // 벨트 진행 레일 (인원수 = 표시 범위 기준)
+        // 벨트 진행 레일 — summary 있으면 전체 기준, 없으면 표시 범위 기준 fallback
+        _lbAllCache = all; _lbMyPointsCache = state.points;
         _renderBeltRail(all, state.points);
         // 사이드바: 내 주변 ±2, 벨트 분포
         _renderLbNeighbors(all, myIdx);
@@ -3653,7 +3689,8 @@ async function publishPost() {
         const medals = ['🥇','🥈','🥉'];
         list.innerHTML = all.map(function(u, i) {
             const rank = i + 1;
-            const acc = u.total === 0 ? 0 : Math.round((u.success / u.total) * 100);
+            // accuracy: RPC(settled 기준) 우선, 없을 때만 success/total fallback
+            const acc = (typeof u.accuracy === 'number') ? u.accuracy : (u.total === 0 ? 0 : Math.round((u.success / u.total) * 100));
             const tier = _lbTier(u.points);
             const isUser = u.isUser;
             const gapSub = (i > 0) ? `${rank-1}위까지 +${(all[i-1].points - u.points).toLocaleString()} P` : '표시 범위 1위';
@@ -3698,8 +3735,14 @@ async function publishPost() {
     function _renderBeltRail(all, myPoints) {
         const rail = document.getElementById('lb-belt-rail');
         if (!rail) return;
-        const counts = [0,0,0,0,0];
-        all.forEach(function(u) { counts[_lbTier(u.points).idx]++; });
+        let counts;
+        if (_lbSummary && _lbSummary.belt_distribution) {
+            const d = _lbSummary.belt_distribution;
+            counts = [d.white||0, d.blue||0, d.purple||0, d.brown||0, d.black||0];
+        } else {
+            counts = [0,0,0,0,0];
+            (all || []).forEach(function(u) { counts[_lbTier(u.points).idx]++; });
+        }
         const myTier = _lbTier(myPoints);
         rail.innerHTML = _LB_TIERS.map(function(t, i) {
             const isCur = i === myTier.idx;
@@ -3734,7 +3777,7 @@ async function publishPost() {
                 hint.innerHTML = `현재 등급 <span class="text-white font-black">블랙 벨트</span> · 최고 등급에 도달했습니다`;
             } else {
                 const next = _LB_TIERS[myTier.idx + 1];
-                hint.innerHTML = `현재 등급 <span class="text-white font-black">${myTier.name} 벨트</span> · ${next.name} 벨트 승급까지 <span class="text-ufcRed font-black">${(myTier.max + 1 - myPoints).toLocaleString()} P</span> · 표시 범위 기준 인원`;
+                hint.innerHTML = `현재 등급 <span class="text-white font-black">${myTier.name} 벨트</span> · ${next.name} 벨트 승급까지 <span class="text-ufcRed font-black">${(myTier.max + 1 - myPoints).toLocaleString()} P</span> · ${_lbSummary ? '전체' : '표시 범위'} 기준 인원`;
             }
         }
     }
@@ -3764,9 +3807,16 @@ async function publishPost() {
     function _renderBeltDistribution(all) {
         const el = document.getElementById('lb-belt-dist-list');
         if (!el) return;
-        const counts = [0,0,0,0,0];
-        all.forEach(function(u) { counts[_lbTier(u.points).idx]++; });
-        const total = all.length || 1;
+        let counts, total;
+        if (_lbSummary && _lbSummary.belt_distribution) {
+            const d = _lbSummary.belt_distribution;
+            counts = [d.white||0, d.blue||0, d.purple||0, d.brown||0, d.black||0];
+            total = _lbSummary.total_users || counts.reduce(function(a,b){return a+b;}, 0) || 1;
+        } else {
+            counts = [0,0,0,0,0];
+            (all || []).forEach(function(u) { counts[_lbTier(u.points).idx]++; });
+            total = (all ? all.length : 0) || 1;
+        }
         el.innerHTML = _LB_TIERS.slice().reverse().map(function(t) {
             const i = _LB_TIERS.indexOf(t);
             const pct = Math.round((counts[i] / total) * 100);
@@ -5168,9 +5218,41 @@ async function publishPost() {
         if (tEl) tEl.textContent = total + '명 참여';
     }
 
-    function loadRealRankings() {
-        if (!sb) return null;
-        return sb.rpc('get_leaderboard', { p_limit: 20 });
+    async function loadRealRankings() {
+        if (!sb) return [];
+        // get_leaderboard_v2 우선 (전체 기준 + settled accuracy + faction/belt)
+        try {
+            const v2 = await sb.rpc('get_leaderboard_v2', { p_limit: 50 });
+            if (v2 && !v2.error && Array.isArray(v2.data)) {
+                return v2.data.map(function(r) {
+                    return {
+                        nickname: r.nickname || 'UNKNOWN',
+                        points: r.points || 0,
+                        total_picks: r.settled_picks || 0,   // 표시 픽 수 = settled 기준
+                        success_picks: r.wins || 0,
+                        accuracy: (typeof r.accuracy === 'number') ? r.accuracy : null,
+                        faction_emoji: r.faction_emoji || null,
+                        faction_name: r.faction_name || null
+                    };
+                });
+            }
+        } catch (e) { /* fall through to legacy */ }
+        // fallback: 기존 get_leaderboard (top-N, accuracy 추정은 렌더에서 fallback 처리)
+        try {
+            const v1 = await sb.rpc('get_leaderboard', { p_limit: 20 });
+            if (v1 && !v1.error && Array.isArray(v1.data)) {
+                return v1.data.map(function(r) {
+                    return {
+                        nickname: r.nickname || 'UNKNOWN',
+                        points: r.points || 0,
+                        total_picks: r.total_picks || 0,
+                        success_picks: r.success_picks || 0,
+                        accuracy: null
+                    };
+                });
+            }
+        } catch (e) { /* noop */ }
+        return [];
     }
 
     async function savePostToDB(post) {
