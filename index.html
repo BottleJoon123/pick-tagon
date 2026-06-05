@@ -3931,17 +3931,23 @@ async function publishPost() {
 
     function renderFighterHistory(name) {
         const el = document.getElementById('fp-history');
-        const nameLower = name.toLowerCase();
+        const nameLower = String(name || '').toLowerCase();
 
         const results = [];
-        (archiveDB || []).forEach(ev => {
-            (ev.fights || []).forEach(f => {
-                const isF1 = f.f1.toLowerCase().includes(nameLower) || nameLower.includes(f.f1.toLowerCase().split(' ').pop());
-                const isF2 = f.f2.toLowerCase().includes(nameLower) || nameLower.includes(f.f2.toLowerCase().split(' ').pop());
+        if (nameLower) (archiveDB || []).forEach(ev => {
+            ((ev && ev.fights) || []).forEach(f => {
+                if (!f) return;
+                // 불완전 아카이브 row 방어: f.f1/f.f2가 없으면 safe string 처리, 둘 다 비면 skip
+                const n1 = String(f.f1 || '').toLowerCase();
+                const n2 = String(f.f2 || '').toLowerCase();
+                if (!n1 && !n2) return;
+                const isF1 = !!n1 && (n1.includes(nameLower) || nameLower.includes(n1.split(' ').pop()));
+                const isF2 = !!n2 && (n2.includes(nameLower) || nameLower.includes(n2.split(' ').pop()));
                 if (!isF1 && !isF2) return;
-                const won = f.winner.toLowerCase().includes(nameLower) || nameLower.includes(f.winner.toLowerCase().split(' ').pop());
-                const opp = isF1 ? f.f2 : f.f1;
-                results.push({ ev: ev.name, date: ev.date, opp, method: f.method, round: f.round, time: f.time, won });
+                const wn = String(f.winner || '').toLowerCase();
+                const won = !!wn && (wn.includes(nameLower) || nameLower.includes(wn.split(' ').pop()));
+                const opp = (isF1 ? f.f2 : f.f1) || '—';
+                results.push({ ev: ev.name, date: ev.date, opp, method: f.method || '', round: f.round || '', time: f.time || '', won });
             });
         });
 
