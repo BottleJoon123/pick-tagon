@@ -1082,6 +1082,23 @@ textarea, select {
 .tk-name { color: var(--pt-red-300); font-weight: 600; }
 .tk-mid { color: var(--pt-ink-4); margin: 0 2px; }
 @media (prefers-reduced-motion: reduce) { .tk-dot { animation: none; } }
+/* Mobile: wrap the ticker so long news isn't clipped behind ellipsis */
+@media (max-width: 1023px) {
+    .ticker { flex-wrap: wrap; align-items: flex-start; gap: 6px 10px; padding: 10px 14px; }
+    .ticker .tk-sep { display: none; }
+    .tk-roll { white-space: normal; overflow: visible; text-overflow: clip; flex-basis: 100%; line-height: 1.5; }
+}
+
+/* Community composer — desktop centered modal / mobile bottom sheet */
+.comm-composer-sheet {
+    background: var(--pt-bg-1, #0E0F12);
+    border: 1px solid var(--pt-line-2, rgba(255,255,255,0.10));
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -12px 40px rgba(0,0,0,0.6);
+}
+@media (min-width: 1024px) {
+    .comm-composer-sheet { border-radius: 20px; box-shadow: 0 24px 60px rgba(0,0,0,0.6); }
+}
 
 /* Post list — dense table */
 .post-list-container {

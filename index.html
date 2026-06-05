@@ -77,7 +77,7 @@
 <link href="/css/tokens.css" rel="stylesheet">
 <link href="/css/theme-bridge.css" rel="stylesheet">
 <link rel="stylesheet" href="./src/tailwind.css">
-<link href="/css/app.css?v=7" rel="stylesheet">
+<link href="/css/app.css?v=8" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 <!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -699,29 +699,41 @@
             <div id="my-battle-list" class="space-y-2"></div>
         </div>
 
-        <!-- 글쓰기 패널 -->
-        <div id="write-panel" class="hidden mb-4 glass-card p-4 lg:p-6 rounded-xl">
-            <div class="flex gap-2 mb-3 flex-wrap">
-                <select id="post-cat" class="comm-dropdown" style="min-width:110px;">
-                    <option value="">카테고리</option>
-                    <option value="analysis">🔥 분석</option>
-                    <option value="fighter">🗣️ 파이터</option>
-                    <option value="live">🔴 라이브</option>
-                    <option value="news">📰 뉴스</option>
-                    <option value="humor">😂 유머</option>
-                    <option value="general">💬 자유</option>
-                </select>
-                <input type="text" id="post-tit"
-                    class="flex-1 bg-black/40 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-ufcRed text-sm"
-                    style="min-width:180px;"
-                    placeholder="제목을 입력하세요">
-            </div>
-            <textarea id="post-con" rows="3"
-                class="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-white mb-3 focus:outline-none focus:border-ufcRed font-light text-sm resize-none"
-                placeholder="옥타곤의 승자를 예측하는 분석을 남겨주세요"></textarea>
-            <div class="flex justify-end gap-3">
-                <button onclick="toggleWriter()" class="oswald-sharp text-gray-500 hover:text-white transition italic uppercase text-xs">Cancel</button>
-                <button onclick="publishPost()" class="oswald-sharp bg-white text-black font-black px-6 py-2 rounded-lg italic transition-all uppercase text-xs">Publish</button>
+        <!-- 글쓰기 Composer — desktop centered modal / mobile bottom sheet -->
+        <div id="write-panel" class="hidden fixed inset-0 z-[640] flex items-end lg:items-center justify-center lg:p-4" style="background:rgba(0,0,0,0.9)" onclick="if(event.target===this)toggleWriter()">
+            <div class="comm-composer-sheet w-full lg:max-w-2xl flex flex-col max-h-[92vh] lg:max-h-[88vh]">
+                <div class="flex items-center justify-between px-5 lg:px-7 py-4 border-b border-white/10 flex-shrink-0">
+                    <div class="flex items-center gap-2">
+                        <span class="text-ufcRed">✍</span>
+                        <h4 class="oswald-sharp text-base lg:text-lg font-black italic text-white uppercase tracking-tight">글쓰기</h4>
+                    </div>
+                    <button onclick="toggleWriter()" aria-label="닫기" class="oswald-sharp text-gray-400 hover:text-white text-2xl leading-none px-2 transition">×</button>
+                </div>
+                <div class="px-5 lg:px-7 py-4 overflow-y-auto flex-1">
+                    <div class="flex gap-2 mb-3 flex-wrap">
+                        <select id="post-cat" class="comm-dropdown" style="min-width:110px;">
+                            <option value="">카테고리</option>
+                            <option value="analysis">🔥 분석</option>
+                            <option value="fighter">🗣️ 파이터</option>
+                            <option value="live">🔴 라이브</option>
+                            <option value="news">📰 뉴스</option>
+                            <option value="humor">😂 유머</option>
+                            <option value="general">💬 자유</option>
+                        </select>
+                        <input type="text" id="post-tit"
+                            class="flex-1 bg-black/40 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-ufcRed text-sm"
+                            style="min-width:180px;"
+                            placeholder="제목을 입력하세요">
+                    </div>
+                    <textarea id="post-con" rows="8"
+                        class="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-ufcRed font-light text-sm resize-y"
+                        style="min-height:200px;"
+                        placeholder="옥타곤의 승자를 예측하는 분석을 남겨주세요"></textarea>
+                </div>
+                <div class="flex justify-end gap-3 px-5 lg:px-7 py-4 border-t border-white/10 flex-shrink-0">
+                    <button onclick="toggleWriter()" class="oswald-sharp text-gray-500 hover:text-white transition italic uppercase text-xs">Cancel</button>
+                    <button onclick="publishPost()" class="oswald-sharp bg-white text-black font-black px-6 py-2 rounded-lg italic transition-all uppercase text-xs">Publish</button>
+                </div>
             </div>
         </div>
 
