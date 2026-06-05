@@ -548,6 +548,8 @@
                             <span id="my-belt-badge" class="oswald-sharp text-[9px] lg:text-[11px] bg-white text-black px-3 py-1 rounded-full font-black italic uppercase">White Belt</span>
                             <span class="oswald-sharp text-[10px] lg:text-xs text-gray-400 italic uppercase tracking-wide"><span id="my-rank-acc" class="text-white font-black">—</span> 정확도 · <span id="my-rank-picks" class="text-white font-black">0</span> 픽</span>
                         </div>
+                        <!-- 최근 5픽 form (get_my_leaderboard_context, 로그인 시) -->
+                        <div id="my-recent-form" class="flex items-center gap-1 mt-1.5"></div>
                         <p id="my-rank-analyst" class="oswald-sharp text-[9px] italic tracking-widest mt-1 text-gray-400 hidden lg:block"></p>
                     </div>
                 </div>
@@ -3564,6 +3566,70 @@ async function publishPost() {
         var b = document.getElementById('lb-dist-scope-label');
         if (b) b.textContent = '전체 기준';
     }
+
+    // My Rank 히어로 / 내 주변 / 최근 5픽 — 로그인 + RPC 성공 시 전체 기준 실데이터로 교체.
+    let _myLbContext = null;
+    function loadMyLeaderboardContext() {
+        _myLbContext = null; // 매 렌더 시작 시 초기화(없으면 리스트가 gap-next 제어)
+        if (!sb || !currentUser) { _applyMyContext(null); return; }
+        sb.rpc('get_my_leaderboard_context').then(function(res) {
+            if (res && !res.error && res.data && res.data.my_rank != null) {
+                _myLbContext = res.data;
+                _applyMyContext(res.data);
+            } else {
+                _applyMyContext(null); // 깨지지 않게 기존 표시 유지
+            }
+        }).catch(function() { _applyMyContext(null); });
+    }
+    function _applyMyContext(ctx) {
+        var formEl = document.getElementById('my-recent-form');
+        if (!ctx) { _myLbContext = null; if (formEl) formEl.innerHTML = ''; return; } // 비로그인/실패 → 기존 fallback 유지
+        var numEl = document.getElementById('my-rank-num');
+        if (numEl && ctx.my_rank != null) numEl.innerText = ctx.my_rank;
+        var gapEl = document.getElementById('lb-gap-next');
+        if (gapEl) {
+            if (!ctx.points_to_next_rank || ctx.points_to_next_rank <= 0) {
+                // 선두: 바로 아래 랭커 대비 리드 (nearby에서 계산)
+                var below = (ctx.nearby_rankers || []).filter(function(n){ return n.rank > ctx.my_rank; })
+                                                      .sort(function(a,b){ return a.rank - b.rank; })[0];
+                gapEl.innerHTML = below
+                    ? below.rank + '위 대비 <span class="text-green-400 font-black">+' + Number((ctx.my_points||0) - (below.points||0)).toLocaleString() + ' P</span> 리드'
+                    : '전체 1위';
+            } else {
+                gapEl.innerHTML = (ctx.my_rank - 1) + '위까지 <span class="text-ufcRed font-black">+' + Number(ctx.points_to_next_rank).toLocaleString() + ' P</span>';
+            }
+        }
+        var rollEl = document.getElementById('my-rolling-info');
+        if (rollEl && ctx.percentile != null) rollEl.textContent = '전체 상위 ' + ctx.percentile + '%';
+        if (Array.isArray(ctx.nearby_rankers) && ctx.nearby_rankers.length) _renderLbNeighborsFromContext(ctx.nearby_rankers);
+        if (formEl) {
+            var form = Array.isArray(ctx.recent_form) ? ctx.recent_form : [];
+            if (!form.length) { formEl.innerHTML = ''; return; }
+            formEl.innerHTML = '<span class="oswald-sharp text-[8px] text-gray-500 uppercase tracking-widest mr-0.5">최근</span>' +
+                form.map(function(f) {
+                    var win = f.status === 'W';
+                    return '<span class="inline-flex items-center justify-center w-4 h-4 rounded-full text-[9px] font-black oswald-sharp italic ' +
+                        (win ? 'bg-ufcRed/20 text-ufcRed' : 'bg-white/10 text-gray-400') + '">' + (win ? 'W' : 'L') + '</span>';
+                }).join('');
+        }
+    }
+    function _renderLbNeighborsFromContext(list) {
+        var el = document.getElementById('lb-neighbors');
+        if (!el || !Array.isArray(list)) return;
+        el.innerHTML = list.map(function(u) {
+            var tier = _lbTier(u.points || 0);
+            var isMe = !!u.is_me;
+            var nm = u.nickname || 'UNKNOWN';
+            return '<div class="lb-neighbor-row ' + (isMe ? 'is-me' : '') + '">' +
+                '<span class="oswald-sharp text-xs font-black italic ' + (isMe ? 'text-ufcRed' : 'text-gray-400') + ' text-center">' + (u.rank != null ? u.rank : '—') + '</span>' +
+                '<div class="flex items-center gap-2 min-w-0">' +
+                    '<span class="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-black oswald-sharp italic text-white flex-shrink-0" style="background:' + tier.grad + '">' + _lbInitials(nm) + '</span>' +
+                    '<span class="oswald-sharp text-xs font-black italic text-white uppercase truncate ' + (isMe ? 'text-ufcRed' : '') + '">' + (isMe ? '★ ' : '') + escapeHtml(nm) + '</span>' +
+                '</div>' +
+                '<span class="oswald-sharp text-xs font-black italic text-yellow-400 whitespace-nowrap">' + Number(u.points || 0).toLocaleString() + '<span class="text-gray-500 text-[9px] ml-0.5">P</span></span>' +
+            '</div>';
+        }).join('');
+    }
     function _lbInitials(nm) { return (nm || '?').replace(/\s+/g, '').slice(0, 2).toUpperCase(); }
 
     function renderLeaderboard() {
@@ -3632,6 +3698,7 @@ async function publishPost() {
                 renderLeaderboardList(list, rows || [], myNickname);
             });
             loadLeaderboardSummary();
+            loadMyLeaderboardContext();
         } else {
             renderLeaderboardList(list, [], myNickname);
         }
@@ -3667,9 +3734,9 @@ async function publishPost() {
         const myRankNumEl = document.getElementById('my-rank-num');
         if (myRankNumEl) myRankNumEl.innerText = userRank;
 
-        // 추월 거리 (히어로) — 바로 위 순위와의 실제 포인트 차
+        // 추월 거리 (히어로) — context 있으면 그쪽이 권위값, 없을 때만 리스트가 채움
         const gapEl = document.getElementById('lb-gap-next');
-        if (gapEl) {
+        if (gapEl && !_myLbContext) {
             if (myIdx === 0) {
                 const lead = all.length > 1 ? state.points - all[1].points : 0;
                 gapEl.innerHTML = all.length > 1 ? `2위 대비 <span class="text-green-400 font-black">+${lead.toLocaleString()} P</span> 리드` : '표시 범위 1위';
