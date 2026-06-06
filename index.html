@@ -5248,23 +5248,9 @@ async function publishPost() {
         if (result.data) result.data.forEach(function(p) { myEventPicks[p.fight_id] = p.fighter_index; });
     }
 
-    async function saveEventPick(fightId, fighterIdx) {
-        if (!sb || !currentUser) return;
-        // DB 매치업이면 실제 event_id 사용, 레거시이면 상수 폴백
-        const fight = getActiveFights().find(function(f) { return f.id === fightId; });
-        const eventId = (fight && fight._eventId) ? fight._eventId : EVENT_ID;
-        await sb.from('event_picks').upsert({
-            user_id: currentUser.id,
-            event_id: eventId,
-            fight_id: fightId,
-            fighter_index: fighterIdx,
-        }, { onConflict: 'user_id,fight_id' });
-        myEventPicks[fightId] = fighterIdx;
-        if (!eventPickCounts[fightId]) eventPickCounts[fightId] = { c0: 0, c1: 0 };
-        if (fighterIdx === 0) eventPickCounts[fightId].c0++;
-        else eventPickCounts[fightId].c1++;
-        updateLivePickBar(fightId);
-    }
+    // [보안 P2] event_picks 직접 쓰기 제거 — 픽 동기화는 place_pick/change_pick RPC(정의자) 단일 경로로만.
+    // 기존 saveEventPick()은 호출처 없는 dead code였고 직접 upsert를 포함해 제거함.
+    // (로컬 커뮤니티 카운터 갱신은 픽 등록/변경 플로우에서 인라인으로 이미 처리됨)
 
     function updateLivePickBar(fightId) {
         var counts = eventPickCounts[fightId];
