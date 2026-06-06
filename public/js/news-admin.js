@@ -286,15 +286,17 @@
         if (sb) {
             var ncUrl = data.link || ('picktagon-admin://' + data.id);
             var publishedAt = data.date ? new Date(data.date + 'T12:00:00').toISOString() : new Date().toISOString();
-            sb.from('news_cache').upsert({
-                title: data.title,
-                summary: data.desc || '',
-                url: ncUrl,
-                image_url: data.img || null,
-                category: data.tag || 'NEWS',
-                source: 'admin',
-                published_at: publishedAt
-            }, { onConflict: 'url' }).then(function(res) {
+            // 직접 테이블 쓰기 → 관리자 RPC(SECURITY DEFINER + is_admin 가드). source는 서버가 강제.
+            sb.rpc('admin_upsert_news', {
+                p_payload: {
+                    title: data.title,
+                    summary: data.desc || '',
+                    url: ncUrl,
+                    image_url: data.img || null,
+                    category: data.tag || 'NEWS',
+                    published_at: publishedAt
+                }
+            }).then(function(res) {
                 if (res.error) console.warn('뉴스 DB 저장 실패:', res.error.message);
                 else renderHomeNews();
             });
@@ -311,7 +313,8 @@
         // Supabase news_cache에서도 삭제
         if (sb) {
             var ncUrl = n.link || ('picktagon-admin://' + n.id);
-            sb.from('news_cache').delete().eq('url', ncUrl).then(function(res) {
+            // 직접 테이블 삭제 → 관리자 RPC(SECURITY DEFINER + is_admin 가드). url 기준 admin 행만 삭제.
+            sb.rpc('admin_delete_news', { p_url: ncUrl }).then(function(res) {
                 if (res.error) console.warn('뉴스 DB 삭제 실패:', res.error.message);
             });
         }
