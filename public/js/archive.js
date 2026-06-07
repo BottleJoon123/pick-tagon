@@ -4,7 +4,8 @@
    의존성: supabase.js (sb), utils.js (showToast, escapeHtml)
 ============================== */
 
-var archiveDB = [];         // { id, name, event_date, venue, source_url, status, fights: [...] }
+var archiveDB = [];         // { id, name, event_date, venue, source_url, status, fights: [...] } — archive_events (admin CRUD source)
+var archiveUpcomingDB = []; // display-only: live `events`(status=upcoming) mapped to archive shape (read-merge, no DB write)
 var archiveFightRowCount = 0;
 var editingArchiveId = null;
 var _archiveFetching = false;   // in-flight guard
@@ -43,6 +44,54 @@ function switchArchiveTab(tab) {
     }
 }
 
+// ── 라이브 events(upcoming) → archive 표시용 행 (read-only merge, DB write 없음) ──
+async function _fetchUpcomingArchiveRows() {
+    try {
+        const { data: evs, error } = await sb
+            .from('events')
+            .select('id, title, event_date, venue, status')
+            .eq('status', 'upcoming')
+            .order('event_date', { ascending: true });
+        if (error || !evs || !evs.length) return [];
+
+        const ids = evs.map(e => e.id);
+        const { data: mus } = await sb
+            .from('matchups')
+            .select('event_id, red_fighter_name, blue_fighter_name, red_image_url, blue_image_url, is_main_event, card_segment, sort_order')
+            .in('event_id', ids)
+            .order('sort_order', { ascending: true });
+
+        const byEvent = {};
+        (mus || []).forEach(m => { (byEvent[m.event_id] = byEvent[m.event_id] || []).push(m); });
+
+        return evs.map(ev => {
+            const fights = (byEvent[ev.id] || []).map((m, i) => ({
+                f1_name: m.red_fighter_name || '',
+                f2_name: m.blue_fighter_name || '',
+                f1_name_ko: '', f2_name_ko: '',
+                f1_image_url: m.red_image_url || '',
+                f2_image_url: m.blue_image_url || '',
+                tag: (m.is_main_event === true || (m.card_segment === 'main' && i === 0)) ? 'MAIN EVENT'
+                     : (m.card_segment === 'main' ? 'MAIN CARD' : 'PRELIM'),
+                winner: null, method: null, round: null, fight_time: null,
+                sort_order: m.sort_order
+            }));
+            return {
+                id: 'evt-' + ev.id,                 // 표시 전용 id (admin archive CRUD와 분리)
+                name: ev.title || '',
+                event_date: ev.event_date ? String(ev.event_date).slice(0, 10) : null,
+                venue: ev.venue || '',
+                status: 'upcoming',
+                fights,
+                _source: 'events'
+            };
+        });
+    } catch (e) {
+        console.warn('[_fetchUpcomingArchiveRows]', e);
+        return [];
+    }
+}
+
 // ── DB 로딩 ───────────────────────────────────────────────────────────
 async function fetchArchive() {
     if (!sb) {
@@ -54,10 +103,15 @@ async function fetchArchive() {
     if (_archiveFetching) return; // 중복 호출 방지
     _archiveFetching = true;
     try {
-        const { data: events, error: evErr } = await sb
-            .from('archive_events')
-            .select('*')
-            .order('event_date', { ascending: false });
+        // archive_events(수동/과거)와 라이브 events(upcoming)를 병렬 로드.
+        // events→archive read-merge는 DB write 없이 "예정" 필터에 라이브 예정 이벤트를 노출하기 위함.
+        const [evRes, upcomingRows] = await Promise.all([
+            sb.from('archive_events').select('*').order('event_date', { ascending: false }),
+            _fetchUpcomingArchiveRows()   // never throws — returns [] on failure
+        ]);
+        archiveUpcomingDB = upcomingRows || [];
+
+        const { data: events, error: evErr } = evRes;
 
         if (evErr) throw evErr;
         if (!events || events.length === 0) {
@@ -112,7 +166,15 @@ function renderArchive() {
     const yearFilter = document.getElementById('archive-filter')?.value || 'all';
     const statusFilter = document.getElementById('archive-status-filter')?.value || 'all';
 
-    let filtered = [...archiveDB].filter(ev => {
+    // archive_events(과거/수동) + 라이브 events(upcoming) 병합 표시.
+    // 같은 이름이 양쪽에 있으면 archive_events(수동/결과 보유)를 우선(중복 제거).
+    const _upcoming = (typeof archiveUpcomingDB !== 'undefined' ? archiveUpcomingDB : []);
+    const _archiveNames = new Set(archiveDB.map(e => (e.name || '').toLowerCase().trim()));
+    const _combined = archiveDB.concat(
+        _upcoming.filter(e => !_archiveNames.has((e.name || '').toLowerCase().trim()))
+    );
+
+    let filtered = _combined.filter(ev => {
         const nameMatch = (ev.name || '').toLowerCase().includes(query) ||
             (ev.venue || '').toLowerCase().includes(query);
         const yearMatch = yearFilter === 'all' || (ev.event_date || '').startsWith(yearFilter);
@@ -282,7 +344,8 @@ function toggleArchiveDetail(evId) {
     if (!panel || !label) return;
     const isHidden = panel.classList.contains('hidden');
     panel.classList.toggle('hidden');
-    const ev = archiveDB.find(e => e.id === evId);
+    const ev = archiveDB.find(e => e.id === evId)
+        || (typeof archiveUpcomingDB !== 'undefined' ? archiveUpcomingDB.find(e => e.id === evId) : null);
     const isUpcoming = ev?.status === 'upcoming';
     label.textContent = isHidden ? `▲ 접기` : `▼ ${isUpcoming ? '대진표 보기' : '결과 보기'}`;
 }

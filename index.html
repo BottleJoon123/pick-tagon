@@ -2488,7 +2488,7 @@
 <script src="/js/community.js?v=18"></script>
 <script src="/js/admin.js?v=24"></script>
 <script src="/js/profile.js?v=2"></script>
-<script src="/js/archive.js?v=7"></script>
+<script src="/js/archive.js?v=8"></script>
 <script src="/js/season.js"></script>
 <script src="/js/fights-render.js?v=23"></script>
 <script src="/js/pixel-fighters.js?v=1"></script>
@@ -2654,8 +2654,91 @@
         refreshUI();
     }
 
-    // 뒤로/앞으로 버튼 처리
+    // ── Modal ↔ history layer (모바일 뒤로가기) ──────────────────────────────
+    // 모달은 페이지 라우트가 아닌 오버레이다. history와 연동해, 하드웨어/브라우저 Back이
+    // 페이지를 이동시키지 않고 "열린 모달을 먼저 닫도록" 한다. 모달이 없을 때만 기존 페이지 뒤로가기.
+    var _modalDepth = 0;            // push한 모달 history 엔트리 수
+    var _suppressModalPop = false;  // 수동 close 동기화를 위해 우리가 부른 history.back() 가드
+    var _closingViaPop = false;     // popstate 안에서 모달을 닫는 중 가드
+
+    // 정리 로직(차트 destroy 등)이 있는 모달만 전용 close 함수로 위임, 나머지는 hide.
+    var MODAL_CLOSE_FN = {
+        'fighter-profile-modal': 'closeFighterProfile',
+        'avatar-modal':          'closeAvatarModal',
+        'result-modal':          'closeResultModal',
+        'pw-update-modal':       'closePasswordUpdateModal'
+    };
+
+    function _openModalEls() {
+        return Array.prototype.slice.call(document.querySelectorAll('[id$="-modal"]'))
+            .filter(function(el){ return el && !el.classList.contains('hidden'); });
+    }
+    function _topModalEl() {
+        var list = _openModalEls();
+        if (!list.length) return null;
+        list.sort(function(a, b){
+            var za = parseInt(getComputedStyle(a).zIndex, 10) || 0;
+            var zb = parseInt(getComputedStyle(b).zIndex, 10) || 0;
+            return za - zb;
+        });
+        return list[list.length - 1];   // 최상위(z-index 최대) 모달
+    }
+    function _closeModalEl(el) {
+        if (!el) return;
+        var fn = MODAL_CLOSE_FN[el.id];
+        if (fn && typeof window[fn] === 'function') {
+            try { window[fn](); } catch (e) { el.classList.add('hidden'); }
+        } else {
+            el.classList.add('hidden');
+        }
+    }
+
+    // 정적 모달 각각의 class 변화를 감지해 open/close 시 history를 push/sync (모달별 코드 수정 불필요).
+    (function _initModalHistory() {
+        var modals = document.querySelectorAll('[id$="-modal"]');
+        if (!modals.length || typeof MutationObserver === 'undefined') return;
+        var obs = new MutationObserver(function(muts){
+            muts.forEach(function(m){
+                var el = m.target;
+                var open = !el.classList.contains('hidden');
+                var was = el.__modalOpen === true;
+                if (open === was) return;
+                el.__modalOpen = open;
+                if (open) {
+                    // 모달 열림 → 다음 Back을 흡수할 history 엔트리 추가
+                    history.pushState({ __modal: true, page: _currentPage }, '');
+                    _modalDepth++;
+                } else {
+                    // 모달 닫힘
+                    if (_closingViaPop) return;        // Back으로 닫힘: history 이미 pop됨
+                    if (_modalDepth > 0) {             // 수동 close(X/배경/Esc): 우리가 push한 엔트리 소비
+                        _modalDepth--;
+                        _suppressModalPop = true;
+                        history.back();
+                    }
+                }
+            });
+        });
+        modals.forEach(function(el){
+            el.__modalOpen = !el.classList.contains('hidden');
+            obs.observe(el, { attributes: true, attributeFilter: ['class'] });
+        });
+    })();
+
+    // 뒤로/앞으로 버튼 처리 (모달 우선)
     window.addEventListener('popstate', function(e) {
+        if (_suppressModalPop) {            // 우리가 부른 수동-close 동기화 pop
+            _suppressModalPop = false;
+            return;
+        }
+        var top = _topModalEl();
+        if (top) {                          // 모달 열린 채 Back → 모달만 닫고 페이지 유지
+            _closingViaPop = true;
+            _closeModalEl(top);
+            _modalDepth = Math.max(0, _modalDepth - 1);
+            setTimeout(function(){ _closingViaPop = false; }, 0);
+            return;
+        }
         var page = (e.state && e.state.page) || 'home';
         navigateTo(page, true);
     });
@@ -3922,28 +4005,53 @@ async function publishPost() {
         // Normalize imgUrl → image_url for DB-sourced fighters
         if (!fighter.image_url && fighter.imgUrl) fighter.image_url = fighter.imgUrl;
 
-        // If minimal data (no record/height), fetch full profile from fighters table
-        if (!fighter.record && !fighter.height && fighter.name && typeof sb !== 'undefined' && sb) {
+        // Enrich from fighters table when profile-critical fields are missing.
+        // Match-card fighters (fight.f1/f2) carry record/height but lack rank/division/weight,
+        // and store finish rates in camelCase — so the old (!record && !height) gate skipped them,
+        // leaving rank/리치/신체정보 blank. Broaden the trigger and look up by id first.
+        var _missingCore = (!fighter.record || fighter.record === '—')
+                        || (!fighter.height || fighter.height === '—')
+                        || (fighter.rank == null)
+                        || (fighter.division == null || fighter.division === '')
+                        || (fighter.weight == null || fighter.weight === '—');
+        if (_missingCore && (fighter.id || fighter.name) && typeof sb !== 'undefined' && sb) {
             try {
-                const { data: dbF } = await sb.from('fighters')
-                    .select('id, name, name_en, division, wins, losses, draws, rank, height, reach, weight_kg, ko_rate, sub_rate, dec_rate, stats, image_url, nickname')
-                    .ilike('name', fighter.name)
-                    .maybeSingle();
+                var _cols = 'id, name, name_en, division, wins, losses, draws, rank, height, reach, height_cm, reach_cm, weight_kg, ko_rate, sub_rate, dec_rate, stats, image_url, nickname, style';
+                var dbF = null;
+                if (fighter.id) {
+                    var _r1 = await sb.from('fighters').select(_cols).eq('id', fighter.id).maybeSingle();
+                    dbF = _r1.data || null;
+                }
+                if (!dbF && fighter.name) {
+                    var _r2 = await sb.from('fighters').select(_cols).ilike('name', fighter.name).maybeSingle();
+                    dbF = _r2.data || null;
+                }
                 if (dbF) {
+                    var _heightStr = dbF.height_cm ? Math.round(dbF.height_cm) + ' cm' : (dbF.height || fighter.height || null);
+                    var _reachStr  = dbF.reach_cm  ? Math.round(dbF.reach_cm)  + ' cm' : (dbF.reach  || fighter.reach  || null);
+                    var _weightStr = dbF.weight_kg ? Math.round(dbF.weight_kg) + ' kg' : (fighter.weight || null);
+                    var _rankStr   = (dbF.rank != null && dbF.rank !== 0) ? '#' + dbF.rank
+                                     : (dbF.rank === 0 ? 'CHAMPION' : (fighter.rank || null));
+                    var _divStr    = (typeof UFC_DIVISION_FULL_LABELS !== 'undefined' && UFC_DIVISION_FULL_LABELS[dbF.division])
+                                       ? UFC_DIVISION_FULL_LABELS[dbF.division]
+                                       : (fighter.division || dbF.division || null);
                     fighter = Object.assign({}, fighter, {
                         id:        fighter.id || dbF.id || null,
+                        name_en:   dbF.name_en || fighter.name_en,
                         nickname:  dbF.nickname || fighter.nickname || null,
-                        record:    `${dbF.wins||0}-${dbF.losses||0}-${dbF.draws||0}`,
-                        height:    dbF.height || null,
-                        reach:     dbF.reach  || null,
-                        weight:    dbF.weight_kg ? dbF.weight_kg + ' kg' : null,
-                        rank:      dbF.rank    ? '#' + dbF.rank : null,
-                        division:  dbF.division || fighter.division || null,
-                        ko_rate:   dbF.ko_rate,
-                        sub_rate:  dbF.sub_rate,
-                        dec_rate:  dbF.dec_rate,
-                        stats:     dbF.stats   || fighter.stats,
-                        image_url: dbF.image_url || fighter.image_url,
+                        record:    (dbF.wins != null || dbF.losses != null || dbF.draws != null)
+                                     ? `${dbF.wins||0}-${dbF.losses||0}${dbF.draws ? '-' + dbF.draws : ''}`
+                                     : (fighter.record || '—'),
+                        height:    _heightStr,
+                        reach:     _reachStr,
+                        weight:    _weightStr,
+                        rank:      _rankStr,
+                        division:  _divStr,
+                        ko_rate:   dbF.ko_rate  != null ? dbF.ko_rate  : (fighter.ko_rate  != null ? fighter.ko_rate  : null),
+                        sub_rate:  dbF.sub_rate != null ? dbF.sub_rate : (fighter.sub_rate != null ? fighter.sub_rate : null),
+                        dec_rate:  dbF.dec_rate != null ? dbF.dec_rate : (fighter.dec_rate != null ? fighter.dec_rate : null),
+                        stats:     Array.isArray(dbF.stats) ? dbF.stats : fighter.stats,
+                        image_url: fighter.image_url || dbF.image_url,   // preserve incoming photo (사진 URL 정책 유지)
                     });
                 }
             } catch (_) {}
