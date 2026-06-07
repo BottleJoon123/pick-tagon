@@ -4820,6 +4820,13 @@ async function publishPost() {
     var _tsProfileWidgetId = null;  // 프로필 재설정 execute-on-demand
     var _tsProfileCb = null;        // execute 1회용 콜백 핸들
 
+    // [보안] Turnstile 게이트 모드.
+    //   false = soft : 토큰 없어도 Auth 진행(서버 CAPTCHA OFF 동안 — 위젯 미렌더여도 인증 차단 안 함).
+    //   true  = hard : 토큰 없으면 차단. Supabase CAPTCHA 토글 ON 시점에 true 로 전환.
+    var PICKTAGON_TURNSTILE_HARD_GATE = false;
+    function _captchaBlocked(token) { return !token && PICKTAGON_TURNSTILE_HARD_GATE; }
+    function _withCaptcha(opts, token) { if (token) opts.captchaToken = token; return opts; }
+
     function _tsRenderAuth() {
         if (typeof turnstile === 'undefined' || _tsAuthWidgetId !== null) return;
         var el = document.getElementById('turnstile-auth');
@@ -4941,9 +4948,9 @@ async function publishPost() {
 
         if (!sb) { showToast('⚠ 서버 연결 중입니다'); return; }
 
-        // [보안] Turnstile 토큰 필수 — 없으면 Auth 요청 차단(서버 CAPTCHA OFF여도 게이트 준비).
+        // [보안] Turnstile soft/hard 게이트. soft(기본): 토큰 없어도 진행. hard: 없으면 차단.
         var _capToken = _getAuthCaptchaToken();
-        if (!_capToken) {
+        if (_captchaBlocked(_capToken)) {
             errEl.textContent = (typeof turnstile === 'undefined')
                 ? '보안 확인을 불러오지 못했습니다. 새로고침 후 다시 시도해주세요'
                 : '보안 확인(CAPTCHA)을 완료해주세요';
@@ -4956,7 +4963,7 @@ async function publishPost() {
         submitBtn.disabled = true;
 
         if (authTab === 'login') {
-            sb.auth.signInWithPassword({ email: email, password: password, options: { captchaToken: _capToken } })
+            sb.auth.signInWithPassword({ email: email, password: password, options: _withCaptcha({}, _capToken) })
             .then(function(res) {
                 submitBtn.disabled = false;
                 submitBtn.textContent = '로그인';
@@ -4979,11 +4986,10 @@ async function publishPost() {
             sb.auth.signUp({
                 email: email,
                 password: password,
-                options: {
+                options: _withCaptcha({
                     emailRedirectTo: getAuthRedirectUrl(),
-                    data: { nickname: nickname },
-                    captchaToken: _capToken
-                }
+                    data: { nickname: nickname }
+                }, _capToken)
             })
             .then(function(res) {
                 submitBtn.disabled = false;
@@ -5042,9 +5048,9 @@ async function publishPost() {
         }
         if (!sb) { showToast('⚠ 서버 연결 중입니다'); return; }
 
-        // [보안] Turnstile 토큰 필수 — auth-modal 공용 위젯 토큰 사용.
+        // [보안] Turnstile soft/hard 게이트 — auth-modal 공용 위젯 토큰 사용.
         var _capToken = _getAuthCaptchaToken();
-        if (!_capToken) {
+        if (_captchaBlocked(_capToken)) {
             errEl.textContent = (typeof turnstile === 'undefined')
                 ? '보안 확인을 불러오지 못했습니다. 새로고침 후 다시 시도해주세요'
                 : '보안 확인(CAPTCHA)을 완료해주세요';
@@ -5054,7 +5060,7 @@ async function publishPost() {
 
         var resetBtn = document.getElementById('auth-reset-link');
         if (resetBtn) { resetBtn.disabled = true; resetBtn.textContent = '발송 중...'; }
-        sb.auth.resetPasswordForEmail(email, { redirectTo: getAuthRedirectUrl(), captchaToken: _capToken })
+        sb.auth.resetPasswordForEmail(email, _withCaptcha({ redirectTo: getAuthRedirectUrl() }, _capToken))
         .then(function(res) {
             if (resetBtn) { resetBtn.disabled = false; resetBtn.textContent = '비밀번호를 잊으셨나요?'; }
             _resetAuthTurnstile();
@@ -5090,12 +5096,12 @@ async function publishPost() {
         if (btn) { btn.textContent = '발송 중...'; btn.disabled = true; }
         // [보안] 프로필 재설정은 액션그리드라 상시 위젯 불가 → execute-on-demand 숨김 위젯으로 토큰 획득.
         _getProfileCaptchaToken().then(function(_capToken) {
-            if (!_capToken) {
+            if (_captchaBlocked(_capToken)) {
                 if (btn) { btn.textContent = '비밀번호 재설정'; btn.disabled = false; }
                 showToast('⚠ 보안 확인을 완료하지 못했습니다. 다시 시도해주세요');
                 return;
             }
-            sb.auth.resetPasswordForEmail(currentUser.email, { redirectTo: getAuthRedirectUrl(), captchaToken: _capToken })
+            sb.auth.resetPasswordForEmail(currentUser.email, _withCaptcha({ redirectTo: getAuthRedirectUrl() }, _capToken))
             .then(function(res) {
                 if (btn) { btn.textContent = '비밀번호 재설정'; btn.disabled = false; }
                 if (res.error) {
