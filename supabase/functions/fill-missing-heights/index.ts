@@ -1,10 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import * as cheerio from 'https://esm.sh/cheerio@1.0.0-rc.12'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { buildCorsHeaders, handleCorsPreflight } from '../_shared/cors.ts'
 
 const UFC_STATS_BASE   = 'https://www.ufcstats.com/statistics/fighters?char='
 const UFC_STATS_SUFFIX = '&page=all'
@@ -102,7 +98,8 @@ async function pMap<T, R>(items: T[], fn: (item: T) => Promise<R>, concurrency: 
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  if (req.method === 'OPTIONS') return handleCorsPreflight(req)
+  const corsHeaders = buildCorsHeaders(req)
 
   // POST만 허용
   if (req.method !== 'POST') {

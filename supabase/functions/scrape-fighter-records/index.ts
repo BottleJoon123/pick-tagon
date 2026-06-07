@@ -1,11 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import * as cheerio from 'https://esm.sh/cheerio@1.0.0-rc.12'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-}
+import { buildCorsHeaders, handleCorsPreflight } from '../_shared/cors.ts'
 
 const UFCSTATS_BASE = 'http://www.ufcstats.com'
 
@@ -55,7 +50,8 @@ async function scrapeLetter(letter: string): Promise<ScrapedFighter[]> {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  if (req.method === 'OPTIONS') return handleCorsPreflight(req)
+  const corsHeaders = buildCorsHeaders(req)
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',

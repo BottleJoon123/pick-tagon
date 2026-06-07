@@ -1,16 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import * as cheerio from 'https://esm.sh/cheerio@1.0.0-rc.12'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
-
-const jsonHeaders = {
-  ...corsHeaders,
-  'Content-Type': 'application/json',
-}
+import { buildCorsHeaders, handleCorsPreflight } from '../_shared/cors.ts'
 
 const INVALID_NAMES = new Set(['TBA', 'TBD'])
 const ALLOWED_HOSTS = new Set(['www.sherdog.com', 'sherdog.com'])
@@ -29,13 +19,6 @@ interface MatchupInsertRow extends FighterPair {
   event_id: string
   is_main_event: boolean
   left_bias: number
-}
-
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: jsonHeaders,
-  })
 }
 
 function normalizeText(value: string): string {
@@ -169,9 +152,11 @@ async function fetchSourceHtml(sourceUrl: string): Promise<string> {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  if (req.method === 'OPTIONS') return handleCorsPreflight(req)
+  const corsHeaders = buildCorsHeaders(req)
+  const jsonHeaders = { ...corsHeaders, 'Content-Type': 'application/json' }
+  const jsonResponse = (body: unknown, status = 200): Response =>
+    new Response(JSON.stringify(body), { status, headers: jsonHeaders })
 
   if (req.method !== 'POST') {
     return jsonResponse({ success: false, error: 'Method not allowed' }, 405)
