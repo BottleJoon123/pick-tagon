@@ -81,6 +81,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 <!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Cloudflare Turnstile (CAPTCHA) — explicit render; Site Key는 프론트 공개값, Secret Key 미사용 -->
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onloadTurnstileCallback&render=explicit" async defer></script>
 
 </head>
 <body class="antialiased font-roboto">
@@ -2136,6 +2138,9 @@
 
         <p id="auth-error" class="text-red-400 text-xs mb-4 hidden"></p>
 
+        <!-- Turnstile: 로그인/회원가입/비로그인 재설정 공용 1개 (음수마진으로 375px 폭 확보) -->
+        <div id="turnstile-auth" class="-mx-3 sm:mx-0 mb-4 flex justify-center min-h-[65px]"></div>
+
         <button onclick="submitAuth()" id="auth-submit-btn"
             class="w-full btn-red py-4 text-base mb-3">로그인</button>
 
@@ -2174,6 +2179,9 @@
         </button>
     </div>
 </div>
+
+<!-- Turnstile: 로그인 상태 프로필 비밀번호 재설정 전용 (execute-on-demand 숨김 위젯) -->
+<div id="turnstile-profile" style="position:fixed;left:-9999px;top:-9999px"></div>
 
 <!-- ================================
      NICKNAME SETUP MODAL
@@ -4804,6 +4812,66 @@ async function publishPost() {
         return window.location.origin + window.location.pathname;
     }
 
+    // ── Cloudflare Turnstile (CAPTCHA) — 프론트 1단계 연동 ──
+    // Site Key는 프론트 공개값. Secret Key 미사용(서버 검증은 Supabase 담당, 현재 toggle OFF).
+    // 토큰은 위젯 메모리에만 보관 — DOM hidden value/log 노출 금지. 단일 사용 → 요청 후 reset.
+    var TURNSTILE_SITE_KEY = '0x4AAAAAADgTQ0lOkkG6CZ7U';
+    var _tsAuthWidgetId = null;     // auth-modal 공용(로그인/회원가입/비로그인 재설정)
+    var _tsProfileWidgetId = null;  // 프로필 재설정 execute-on-demand
+    var _tsProfileCb = null;        // execute 1회용 콜백 핸들
+
+    function _tsRenderAuth() {
+        if (typeof turnstile === 'undefined' || _tsAuthWidgetId !== null) return;
+        var el = document.getElementById('turnstile-auth');
+        if (!el) return;
+        try {
+            _tsAuthWidgetId = turnstile.render(el, {
+                sitekey: TURNSTILE_SITE_KEY, theme: 'dark', size: 'flexible',
+                'expired-callback': function() { try { turnstile.reset(_tsAuthWidgetId); } catch (e) {} },
+                'error-callback': function() { try { turnstile.reset(_tsAuthWidgetId); } catch (e) {} return true; }
+            });
+        } catch (e) { _tsAuthWidgetId = null; }
+    }
+    function _tsRenderProfile() {
+        if (typeof turnstile === 'undefined' || _tsProfileWidgetId !== null) return;
+        var el = document.getElementById('turnstile-profile');
+        if (!el) return;
+        try {
+            _tsProfileWidgetId = turnstile.render(el, {
+                sitekey: TURNSTILE_SITE_KEY, theme: 'dark', size: 'flexible',
+                execution: 'execute', appearance: 'execute',  // execute() 전까지 비표시
+                callback: function(token) { if (_tsProfileCb) { var cb = _tsProfileCb; _tsProfileCb = null; cb(token || ''); } },
+                'expired-callback': function() { try { turnstile.reset(_tsProfileWidgetId); } catch (e) {} },
+                'error-callback': function() { if (_tsProfileCb) { var cb = _tsProfileCb; _tsProfileCb = null; cb(''); } return true; }
+            });
+        } catch (e) { _tsProfileWidgetId = null; }
+    }
+    // api.js?onload=onloadTurnstileCallback 진입점
+    window.onloadTurnstileCallback = function() { _tsRenderAuth(); _tsRenderProfile(); };
+
+    // auth-modal 토큰 — 호출 시점에 즉시 읽기(stale 전역 캐시 금지)
+    function _getAuthCaptchaToken() {
+        if (typeof turnstile === 'undefined' || _tsAuthWidgetId === null) return '';
+        try { return turnstile.getResponse(_tsAuthWidgetId) || ''; } catch (e) { return ''; }
+    }
+    function _resetAuthTurnstile() {
+        if (typeof turnstile === 'undefined' || _tsAuthWidgetId === null) return;
+        try { turnstile.reset(_tsAuthWidgetId); } catch (e) {}
+    }
+    // 프로필 재설정 토큰(execute-on-demand) → Promise<string>('' = 실패/타임아웃)
+    function _getProfileCaptchaToken() {
+        return new Promise(function(resolve) {
+            if (typeof turnstile === 'undefined') { resolve(''); return; }
+            _tsRenderProfile();
+            if (_tsProfileWidgetId === null) { resolve(''); return; }
+            var done = false;
+            _tsProfileCb = function(token) { if (done) return; done = true; resolve(token || ''); };
+            setTimeout(function() { if (!done) { done = true; _tsProfileCb = null; resolve(''); } }, 8000);
+            try { turnstile.reset(_tsProfileWidgetId); turnstile.execute(_tsProfileWidgetId); }
+            catch (e) { if (!done) { done = true; _tsProfileCb = null; resolve(''); } }
+        });
+    }
+
     // ── AUTH UI ──
     function setAuthTab(tab) {
         authTab = tab;
@@ -4833,6 +4901,8 @@ async function publishPost() {
             // 회원가입 탭: 강한 비밀번호 정책 힌트 표시
             if (pwInput) pwInput.placeholder = '비밀번호 (10자+ 대·소문자·숫자·특수문자)';
         }
+        // 탭 전환 시 CAPTCHA 토큰 reset(경로 간 토큰 공유 방지)
+        _resetAuthTurnstile();
         var errEl = document.getElementById('auth-error');
         errEl.classList.add('hidden');
         errEl.style.color = '';
@@ -4871,15 +4941,26 @@ async function publishPost() {
 
         if (!sb) { showToast('⚠ 서버 연결 중입니다'); return; }
 
+        // [보안] Turnstile 토큰 필수 — 없으면 Auth 요청 차단(서버 CAPTCHA OFF여도 게이트 준비).
+        var _capToken = _getAuthCaptchaToken();
+        if (!_capToken) {
+            errEl.textContent = (typeof turnstile === 'undefined')
+                ? '보안 확인을 불러오지 못했습니다. 새로고침 후 다시 시도해주세요'
+                : '보안 확인(CAPTCHA)을 완료해주세요';
+            errEl.classList.remove('hidden');
+            return;
+        }
+
         var submitBtn = document.getElementById('auth-submit-btn');
         submitBtn.textContent = '처리 중...';
         submitBtn.disabled = true;
 
         if (authTab === 'login') {
-            sb.auth.signInWithPassword({ email: email, password: password })
+            sb.auth.signInWithPassword({ email: email, password: password, options: { captchaToken: _capToken } })
             .then(function(res) {
                 submitBtn.disabled = false;
                 submitBtn.textContent = '로그인';
+                _resetAuthTurnstile();
                 if (res.error) {
                     errEl.textContent = '이메일 또는 비밀번호가 틀렸어요';
                     errEl.classList.remove('hidden');
@@ -4889,6 +4970,7 @@ async function publishPost() {
             }).catch(function() {
                 submitBtn.disabled = false;
                 submitBtn.textContent = '로그인';
+                _resetAuthTurnstile();
                 errEl.textContent = '네트워크 오류가 발생했습니다. 다시 시도해주세요';
                 errEl.classList.remove('hidden');
             });
@@ -4899,12 +4981,14 @@ async function publishPost() {
                 password: password,
                 options: {
                     emailRedirectTo: getAuthRedirectUrl(),
-                    data: { nickname: nickname }
+                    data: { nickname: nickname },
+                    captchaToken: _capToken
                 }
             })
             .then(function(res) {
                 submitBtn.disabled = false;
                 submitBtn.textContent = '회원가입';
+                _resetAuthTurnstile();
                 if (res.error) {
                     errEl.textContent = res.error.message;
                     errEl.classList.remove('hidden');
@@ -4924,6 +5008,7 @@ async function publishPost() {
             }).catch(function() {
                 submitBtn.disabled = false;
                 submitBtn.textContent = '회원가입';
+                _resetAuthTurnstile();
                 errEl.textContent = '네트워크 오류가 발생했습니다. 다시 시도해주세요';
                 errEl.classList.remove('hidden');
             });
@@ -4956,11 +5041,23 @@ async function publishPost() {
             return;
         }
         if (!sb) { showToast('⚠ 서버 연결 중입니다'); return; }
+
+        // [보안] Turnstile 토큰 필수 — auth-modal 공용 위젯 토큰 사용.
+        var _capToken = _getAuthCaptchaToken();
+        if (!_capToken) {
+            errEl.textContent = (typeof turnstile === 'undefined')
+                ? '보안 확인을 불러오지 못했습니다. 새로고침 후 다시 시도해주세요'
+                : '보안 확인(CAPTCHA)을 완료해주세요';
+            errEl.classList.remove('hidden');
+            return;
+        }
+
         var resetBtn = document.getElementById('auth-reset-link');
         if (resetBtn) { resetBtn.disabled = true; resetBtn.textContent = '발송 중...'; }
-        sb.auth.resetPasswordForEmail(email, { redirectTo: getAuthRedirectUrl() })
+        sb.auth.resetPasswordForEmail(email, { redirectTo: getAuthRedirectUrl(), captchaToken: _capToken })
         .then(function(res) {
             if (resetBtn) { resetBtn.disabled = false; resetBtn.textContent = '비밀번호를 잊으셨나요?'; }
+            _resetAuthTurnstile();
             if (res.error) {
                 errEl.textContent = _isRateLimitError(res.error.message)
                     ? '메일 발송 한도에 도달했습니다. 잠시 후 다시 시도하거나 관리자에게 문의해주세요.'
@@ -4974,6 +5071,7 @@ async function publishPost() {
             }
         }).catch(function() {
             if (resetBtn) { resetBtn.disabled = false; resetBtn.textContent = '비밀번호를 잊으셨나요?'; }
+            _resetAuthTurnstile();
             errEl.textContent = '네트워크 오류가 발생했습니다. 다시 시도해주세요';
             errEl.classList.remove('hidden');
         });
@@ -4990,17 +5088,28 @@ async function publishPost() {
         }
         var btn = document.getElementById('profile-reset-pw-btn');
         if (btn) { btn.textContent = '발송 중...'; btn.disabled = true; }
-        sb.auth.resetPasswordForEmail(currentUser.email, { redirectTo: getAuthRedirectUrl() })
-        .then(function(res) {
-            if (btn) { btn.textContent = '비밀번호 재설정'; btn.disabled = false; }
-            if (res.error) {
-                showToast(_isRateLimitError(res.error.message)
-                    ? '⚠ 메일 발송 한도에 도달했습니다. 잠시 후 다시 시도하거나 관리자에게 문의해주세요.'
-                    : '⚠ 재설정 메일 발송 실패: ' + res.error.message);
-            } else {
-                _pwResetCooldownUntil = Date.now() + 60000;
-                showToast('📧 ' + currentUser.email + ' 로 재설정 메일을 발송했습니다');
+        // [보안] 프로필 재설정은 액션그리드라 상시 위젯 불가 → execute-on-demand 숨김 위젯으로 토큰 획득.
+        _getProfileCaptchaToken().then(function(_capToken) {
+            if (!_capToken) {
+                if (btn) { btn.textContent = '비밀번호 재설정'; btn.disabled = false; }
+                showToast('⚠ 보안 확인을 완료하지 못했습니다. 다시 시도해주세요');
+                return;
             }
+            sb.auth.resetPasswordForEmail(currentUser.email, { redirectTo: getAuthRedirectUrl(), captchaToken: _capToken })
+            .then(function(res) {
+                if (btn) { btn.textContent = '비밀번호 재설정'; btn.disabled = false; }
+                if (res.error) {
+                    showToast(_isRateLimitError(res.error.message)
+                        ? '⚠ 메일 발송 한도에 도달했습니다. 잠시 후 다시 시도하거나 관리자에게 문의해주세요.'
+                        : '⚠ 재설정 메일 발송 실패: ' + res.error.message);
+                } else {
+                    _pwResetCooldownUntil = Date.now() + 60000;
+                    showToast('📧 ' + currentUser.email + ' 로 재설정 메일을 발송했습니다');
+                }
+            }).catch(function() {
+                if (btn) { btn.textContent = '비밀번호 재설정'; btn.disabled = false; }
+                showToast('⚠ 네트워크 오류가 발생했습니다. 다시 시도해주세요');
+            });
         });
     }
 
@@ -5091,6 +5200,7 @@ async function publishPost() {
 
     function skipAuth() {
         document.getElementById('auth-modal').classList.add('hidden');
+        _resetAuthTurnstile(); // 모달 닫힘 시 토큰 reset
         showToast('비로그인 모드 — 데이터가 이 기기에만 저장돼요');
     }
 
