@@ -4768,12 +4768,9 @@ async function publishPost() {
         grid.innerHTML = '';
         loading.classList.remove('hidden');
 
-        // Edge Function 호출 (12h 쿨다운 내장 — 캐시 신선하면 즉시 반환)
-        // 응답 후 DB에서 최신 뉴스 로드
-        var edgeUrl = SUPABASE_URL + '/functions/v1/fetch-mma-news';
-        fetch(edgeUrl, { method: 'GET' })
-            .then(function() { loadNewsFromDB(); })
-            .catch(function() { loadNewsFromDB(); });
+        // [보안 P2] fetch-mma-news Edge Function 직접 호출 제거(무인증 트리거 차단).
+        // 뉴스 갱신은 cron(매시/일 2회)이 담당. 홈은 news_cache SELECT 만으로 렌더.
+        loadNewsFromDB();
     }
 
     // ── Gemini API 번역 ──

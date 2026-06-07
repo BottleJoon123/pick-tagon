@@ -112,6 +112,35 @@ Deno.serve(async (req) => {
   const url = new URL(req.url)
   const force = url.searchParams.get('force') === 'true'
 
+  // [보안 P2] force=true(12h 캐시 우회)는 관리자 전용 — 무인증 강제 갱신 차단(fail-closed).
+  //   경로 1: ADMIN_SECRET(env) 설정 + 요청 x-admin-secret 일치
+  //   경로 2: 유효한 admin JWT(users.is_admin=true)
+  //   force=false(일반/cron)는 기존 공개 경로 + 12h 캐시 가드 그대로 유지.
+  if (force) {
+    const adminSecret = Deno.env.get('ADMIN_SECRET')
+    const secretOk = !!adminSecret && req.headers.get('x-admin-secret') === adminSecret
+    if (!secretOk) {
+      const authHeader = req.headers.get('Authorization')
+      if (!authHeader) {
+        return new Response(JSON.stringify({ success: false, error: 'Missing auth' }), {
+          status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      const { data: { user }, error: authErr } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''))
+      if (authErr || !user) {
+        return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
+          status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      const { data: userRow } = await supabase.from('users').select('is_admin').eq('id', user.id).single()
+      if (!userRow?.is_admin) {
+        return new Response(JSON.stringify({ success: false, error: 'Admin only' }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+    }
+  }
+
   if (!force) {
     const { data: latest } = await supabase
       .from('news_cache')
