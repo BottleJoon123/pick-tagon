@@ -2124,7 +2124,7 @@
         <div class="space-y-3 mb-5">
             <input id="auth-email" type="email" placeholder="이메일"
                 class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500 text-sm">
-            <input id="auth-password" type="password" placeholder="비밀번호 (6자 이상)"
+            <input id="auth-password" type="password" placeholder="비밀번호"
                 class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500 text-sm"
                 onkeydown="if(event.key==='Enter') submitAuth()">
             <input id="auth-password-confirm" type="password" placeholder="비밀번호 확인"
@@ -2159,7 +2159,7 @@
         <h3 class="barlow text-2xl font-black italic text-white uppercase tracking-tight mb-1">새 비밀번호 설정</h3>
         <p class="text-gray-500 text-sm mb-8">재설정 링크로 접근하셨습니다.<br>새로운 비밀번호를 입력하세요.</p>
         <div class="space-y-3 mb-5">
-            <input id="pw-update-new" type="password" placeholder="새 비밀번호 (6자 이상)"
+            <input id="pw-update-new" type="password" placeholder="새 비밀번호 (10자+ 대·소문자·숫자·특수문자)"
                 class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500 text-sm"
                 onkeydown="if(event.key==='Enter') submitPasswordUpdate()">
             <input id="pw-update-confirm" type="password" placeholder="새 비밀번호 확인"
@@ -4813,6 +4813,7 @@ async function publishPost() {
         var confirmInput = document.getElementById('auth-password-confirm');
         var resetLink = document.getElementById('auth-reset-link');
         var submitBtn = document.getElementById('auth-submit-btn');
+        var pwInput = document.getElementById('auth-password');
         if (tab === 'login') {
             loginBtn.className = loginBtn.className.replace('text-gray-500', 'bg-ufcRed text-white');
             signupBtn.className = signupBtn.className.replace('bg-ufcRed text-white', 'text-gray-500');
@@ -4820,6 +4821,8 @@ async function publishPost() {
             if (confirmInput) confirmInput.classList.add('hidden');
             if (resetLink) resetLink.classList.remove('hidden');
             submitBtn.textContent = '로그인';
+            // 로그인 탭: 기존 사용자 오해 방지 — 정책 힌트 미표시(로그인은 validator 미적용)
+            if (pwInput) pwInput.placeholder = '비밀번호';
         } else {
             signupBtn.className = signupBtn.className.replace('text-gray-500', 'bg-ufcRed text-white');
             loginBtn.className = loginBtn.className.replace('bg-ufcRed text-white', 'text-gray-500');
@@ -4827,10 +4830,26 @@ async function publishPost() {
             if (confirmInput) confirmInput.classList.remove('hidden');
             if (resetLink) resetLink.classList.add('hidden');
             submitBtn.textContent = '회원가입';
+            // 회원가입 탭: 강한 비밀번호 정책 힌트 표시
+            if (pwInput) pwInput.placeholder = '비밀번호 (10자+ 대·소문자·숫자·특수문자)';
         }
         var errEl = document.getElementById('auth-error');
         errEl.classList.add('hidden');
         errEl.style.color = '';
+    }
+
+    // [보안] 강한 비밀번호 정책 — 신규 가입/새 비밀번호 설정 전용 공용 validator.
+    // 로그인(signInWithPassword)에는 적용하지 않아 기존 약한 비밀번호 사용자도 로그인 가능.
+    // 프론트 검증은 우회 가능 → 최종 보안 경계가 아니라 서버 HIBP/CAPTCHA 도입 전 UX·정책 정합 단계.
+    // 비밀번호 값을 trim/변형하거나 로그에 남기지 않는다.
+    function validateStrongPassword(pw) {
+        pw = pw || '';
+        if (pw.length < 10) return { ok: false, msg: '비밀번호는 10자 이상이어야 합니다' };
+        if (!/[a-z]/.test(pw)) return { ok: false, msg: '영문 소문자를 1개 이상 포함해주세요' };
+        if (!/[A-Z]/.test(pw)) return { ok: false, msg: '영문 대문자를 1개 이상 포함해주세요' };
+        if (!/[0-9]/.test(pw)) return { ok: false, msg: '숫자를 1개 이상 포함해주세요' };
+        if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(pw)) return { ok: false, msg: '특수문자(!@#$%^&* 등)를 1개 이상 포함해주세요' };
+        return { ok: true, msg: '' };
     }
 
     function submitAuth() {
@@ -4846,7 +4865,8 @@ async function publishPost() {
             if (!nickname) { errEl.textContent = '닉네임을 입력하세요'; errEl.classList.remove('hidden'); return; }
             var confirmPw = document.getElementById('auth-password-confirm').value;
             if (password !== confirmPw) { errEl.textContent = '비밀번호가 일치하지 않습니다'; errEl.classList.remove('hidden'); return; }
-            if (password.length < 6) { errEl.textContent = '비밀번호는 6자 이상이어야 합니다'; errEl.classList.remove('hidden'); return; }
+            var _pwChk = validateStrongPassword(password);
+            if (!_pwChk.ok) { errEl.textContent = _pwChk.msg; errEl.classList.remove('hidden'); return; }
         }
 
         if (!sb) { showToast('⚠ 서버 연결 중입니다'); return; }
@@ -5016,8 +5036,9 @@ async function publishPost() {
         errEl.classList.add('hidden');
         errEl.style.color = '';
 
-        if (newPw.length < 6) {
-            errEl.textContent = '비밀번호는 6자 이상이어야 합니다';
+        var _pwChk = validateStrongPassword(newPw);
+        if (!_pwChk.ok) {
+            errEl.textContent = _pwChk.msg;
             errEl.classList.remove('hidden');
             return;
         }
