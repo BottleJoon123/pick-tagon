@@ -13,6 +13,34 @@ if (req.method === 'OPTIONS') {
 }
 
   const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
+
+  // [보안 P3] smart-service는 서버/관리자 전용 — 무인증 실행 차단(fail-closed).
+  //   경로 1: ADMIN_SECRET(env) 설정 + 요청 x-admin-secret 일치
+  //   경로 2: 유효한 admin JWT(users.is_admin=true)
+  //   둘 다 아니면 거부. OPTIONS는 위에서 이미 통과. service_role 키는 인증 수단으로 받지 않음.
+  const adminSecret = Deno.env.get('ADMIN_SECRET')
+  const secretOk = !!adminSecret && req.headers.get('x-admin-secret') === adminSecret
+  if (!secretOk) {
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(JSON.stringify({ success: false, error: 'Missing auth' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    const { data: { user }, error: authErr } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''))
+    if (authErr || !user) {
+      return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    const { data: userRow } = await supabase.from('users').select('is_admin').eq('id', user.id).single()
+    if (!userRow?.is_admin) {
+      return new Response(JSON.stringify({ success: false, error: 'Admin only' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+  }
+
   const geminiKey = Deno.env.get('GEMINI_API_KEY') ?? ''
 
   // ✅ 7일 캐시 체크
