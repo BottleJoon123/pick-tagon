@@ -1,16 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': '*',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-  'Access-Control-Max-Age': '86400',
-}
+import { serverCorsHeaders, handleServerCorsPreflight } from '../_shared/cors-server.ts'
 
 Deno.serve(async (req) => {
-if (req.method === 'OPTIONS') {
-  return new Response(null, { status: 204, headers: corsHeaders })
-}
+  if (req.method === 'OPTIONS') return handleServerCorsPreflight()
+  const corsHeaders = serverCorsHeaders()
 
   const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
 

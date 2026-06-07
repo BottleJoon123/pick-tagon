@@ -1,10 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-}
+import { serverCorsHeaders, handleServerCorsPreflight } from '../_shared/cors-server.ts'
 
 function classifyCategory(title: string): string {
   if (/KO|TKO|서브미션|판정|결과|승|패|우승|타이틀 방어|타이틀 획득/.test(title)) return 'result'
@@ -102,7 +97,8 @@ function parseRssItems(xml: string, source: string): any[] {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  if (req.method === 'OPTIONS') return handleServerCorsPreflight()
+  const corsHeaders = serverCorsHeaders()
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
