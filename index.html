@@ -4823,7 +4823,7 @@ async function publishPost() {
     // [보안] Turnstile 게이트 모드.
     //   false = soft : 토큰 없어도 Auth 진행(서버 CAPTCHA OFF 동안 — 위젯 미렌더여도 인증 차단 안 함).
     //   true  = hard : 토큰 없으면 차단. Supabase CAPTCHA 토글 ON 시점에 true 로 전환.
-    var PICKTAGON_TURNSTILE_HARD_GATE = false;
+    var PICKTAGON_TURNSTILE_HARD_GATE = true;
     function _captchaBlocked(token) { return !token && PICKTAGON_TURNSTILE_HARD_GATE; }
     function _withCaptcha(opts, token) { if (token) opts.captchaToken = token; return opts; }
 
