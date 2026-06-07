@@ -5363,13 +5363,14 @@ async function addCommentToDB(postDbId, userNick, text) {
         // 기존 채널 제거 (중복 방지)
         if (realtimeChannel) { sb.removeChannel(realtimeChannel); realtimeChannel = null; }
 
-        // event_picks INSERT/UPDATE 구독 → 디바운스 후 전체 집계 새로고침
-        realtimeChannel = sb.channel('event-picks-live-' + Date.now())
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: 'event_picks'
-            }, function() {
+        // [보안 P2] event_picks 원자료 구독 제거 → 비식별 신호(event_pick_signals) 구독.
+        // 신호(event_id/version/updated_at)만 수신, 개인 선택정보 미수신. 수신 시 집계 RPC 재조회.
+        var _fights = (typeof getActiveFights === 'function') ? getActiveFights() : [];
+        var _eventId = _fights[0] && _fights[0]._eventId;
+        var _sub = { event: '*', schema: 'public', table: 'event_pick_signals' };
+        if (_eventId) _sub.filter = 'event_id=eq.' + _eventId;  // 현재 이벤트만 필터
+        realtimeChannel = sb.channel('event-pick-signals-' + Date.now())
+            .on('postgres_changes', _sub, function() {
                 clearTimeout(_pickReloadTimer);
                 _pickReloadTimer = setTimeout(function() { loadAllEventPickCounts(); }, 600);
             })
