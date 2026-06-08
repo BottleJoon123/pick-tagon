@@ -1752,3 +1752,21 @@ textarea, select {
 .lb-neighbor-row.is-me { background: linear-gradient(90deg, rgba(225,6,0,0.14), rgba(225,6,0,0.02)); border: 1px solid var(--pt-line-red, rgba(225,6,0,0.55)); }
 .lb-dist-bar { height: 7px; border-radius: 999px; background: var(--pt-bg-4, #232730); overflow: hidden; }
 .lb-dist-bar > div { height: 100%; border-radius: 999px; }
+
+/* ════════════════════════════════════════════════════════════════
+   Mobile compact surfaces — common header + rankings + archive
+   (Polish 1차) — 표현계층 전용. 데스크톱(≥1024px) 미적용.
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 1023px) {
+    /* 공통 섹션 헤더: 대형 타이틀(text-3xl)을 커뮤니티/프로필 기준(text-2xl)으로 통일.
+       커뮤니티·프로필은 이미 1.5rem이라 무변경. */
+    .sx-head h3 { font-size: 1.5rem; }
+    /* 아카이브 타이틀은 leading-none이 없어 줄높이가 커서 보정 */
+    #archive .sx-head h3 { line-height: 1.05; }
+
+    /* UFC 랭킹·아카이브 좌우 여백/상단 간격을 커뮤니티(px-3 / pt-5) 기준으로 축소 */
+    #ufc-rankings, #archive { padding-left: 0.75rem; padding-right: 0.75rem; padding-top: 1.25rem; }
+
+    /* 헤더↔콘텐츠 과한 간격 축소 (체급 탭 아래 여백) */
+    #ufc-rankings #division-tabs { margin-bottom: 1rem; }
+}

@@ -77,7 +77,7 @@
 <link href="/css/tokens.css" rel="stylesheet">
 <link href="/css/theme-bridge.css" rel="stylesheet">
 <link rel="stylesheet" href="./src/tailwind.css">
-<link href="/css/app.css?v=12" rel="stylesheet">
+<link href="/css/app.css?v=13" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 <!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -395,7 +395,7 @@
             <div class="sx-head">
                 <p class="oswald-sharp text-ufcRed text-[10px] lg:text-sm tracking-[0.3em] font-black italic uppercase mb-1">OFFICIAL</p>
                 <h3 class="oswald-sharp text-3xl lg:text-6xl font-black italic tracking-tighter uppercase leading-none">UFC 랭킹</h3>
-                <p class="text-gray-500 oswald-sharp uppercase tracking-widest mt-2 text-[10px] lg:text-sm italic" id="ufc-rank-updated">어드민에서 랭킹을 직접 편집할 수 있습니다</p>
+                <p class="text-gray-500 oswald-sharp uppercase tracking-widest mt-2 text-[10px] lg:text-sm italic" id="ufc-rank-updated">공식 UFC 랭킹 데이터</p>
             </div>
             <!-- Search + 자동 갱신 -->
             <div class="flex gap-3 flex-wrap">
@@ -403,7 +403,7 @@
                     class="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed placeholder-gray-600 w-full lg:w-56"
                     oninput="renderUFCRankings()">
                 <button id="btn-fetch-rankings" onclick="fetchAndSyncUFCRankings()"
-                    class="oswald-sharp bg-white/5 hover:bg-ufcRed/20 border border-white/10 hover:border-ufcRed/50 text-gray-400 hover:text-white font-black px-5 py-3 rounded-xl italic uppercase text-[10px] tracking-widest transition-all whitespace-nowrap">
+                    class="hidden oswald-sharp bg-white/5 hover:bg-ufcRed/20 border border-white/10 hover:border-ufcRed/50 text-gray-400 hover:text-white font-black px-5 py-3 rounded-xl italic uppercase text-[10px] tracking-widest transition-all whitespace-nowrap">
                     🔄 UFC 랭킹 자동 갱신
                 </button>
             </div>
@@ -971,20 +971,22 @@
                 <input id="archive-search" type="text" placeholder="이벤트 검색..."
                     class="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed placeholder-gray-600 w-full lg:w-60"
                     oninput="renderArchive()">
-                <select id="archive-filter" class="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed"
-                    onchange="renderArchive()">
-                    <option value="all">전체 연도</option>
-                    <option value="2026">2026</option>
-                    <option value="2025">2025</option>
-                    <option value="2024">2024</option>
-                    <option value="2023">2023</option>
-                </select>
-                <select id="archive-status-filter" class="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed"
-                    onchange="renderArchive()">
-                    <option value="all">전체</option>
-                    <option value="upcoming">예정</option>
-                    <option value="past">지난 이벤트</option>
-                </select>
+                <div class="grid grid-cols-2 gap-3 sm:flex sm:gap-3">
+                    <select id="archive-filter" class="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed w-full sm:w-auto"
+                        onchange="renderArchive()">
+                        <option value="all">전체 연도</option>
+                        <option value="2026">2026</option>
+                        <option value="2025">2025</option>
+                        <option value="2024">2024</option>
+                        <option value="2023">2023</option>
+                    </select>
+                    <select id="archive-status-filter" class="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed w-full sm:w-auto"
+                        onchange="renderArchive()">
+                        <option value="all">전체</option>
+                        <option value="upcoming">예정</option>
+                        <option value="past">지난 이벤트</option>
+                    </select>
+                </div>
             </div>
 
             <!-- Stats Bar -->
@@ -2506,7 +2508,7 @@
 <script src="/js/storage.js"></script>
 <script src="/js/utils.js?v=4"></script>
 <script src="/js/event-countdown.js"></script>
-<script src="/js/api/supabase.js?v=17"></script>
+<script src="/js/api/supabase.js?v=18"></script>
 <script src="/js/modal-helpers.js"></script>
 <script src="/js/format-helpers.js"></script>
 <script src="/js/news-render-helpers.js"></script>
@@ -4667,10 +4669,10 @@ async function publishPost() {
                     프로필 보기 →
                 </button>
             </div>
-        </div>` : `
+        </div>` : ((typeof adminUnlocked !== 'undefined' && adminUnlocked) ? `
         <div class="glass-card rounded-2xl p-5 mb-8 border border-white/10 text-center">
             <p class="oswald-sharp text-xs text-gray-600 italic uppercase tracking-widest">챔피언 공석 — 어드민에서 추가하세요</p>
-        </div>`}
+        </div>` : '')}
 
         <!-- Rankings Table -->
         <div class="glass-card rounded-[2rem] overflow-hidden">

@@ -318,6 +318,9 @@ function loadPostsFromDB() {
         var mobNavAdmin = document.getElementById('mob-nav-admin');
         if (navAdmin) navAdmin.classList.toggle('hidden', !adminUnlocked);
         if (mobNavAdmin) mobNavAdmin.classList.toggle('hidden', !adminUnlocked);
+        // UFC 랭킹 동기화 버튼은 어드민 전용 (비어드민에는 숨김)
+        var ufcFetchBtn = document.getElementById('btn-fetch-rankings');
+        if (ufcFetchBtn) ufcFetchBtn.classList.toggle('hidden', !adminUnlocked);
     }
 
     function loadUserFromDB(userId, showWelcome) {
