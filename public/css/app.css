@@ -1784,3 +1784,18 @@ textarea, select {
     #profile-report-grid > div,
     #profile-bonus-summary > div { padding: 0.75rem; }
 }
+
+/* ════════════════════════════════════════════════════════════════
+   Mobile compact — matchup fight cards (Polish 3차)
+   표현계층 전용. 데스크톱(≥1024px) 미적용. 픽/커뮤니티픽/상태/프로필/H2H 로직 무변경.
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 1023px) {
+    /* hero face-off(포트레이트) 영역 축소 — JS 인라인 min-height override */
+    .fc-faceoff-main { min-height: 280px !important; }
+    .fc-faceoff-co   { min-height: 236px !important; }
+    /* 커뮤니티 픽 바 상하 패딩 축소 (py-4 → 약 py-2.5). .fc-hero-card 스코프로
+       Tailwind 유틸(.py-4)보다 높은 specificity 확보. 가로 패딩 유지. */
+    .fc-hero-card .fc-pick-bar { padding-top: 0.625rem; padding-bottom: 0.625rem; }
+    /* hero 선수 정보 패딩 축소 (p-4 → p-3) — face-off 축소 시 이름/버튼 여유 확보 */
+    .fc-hero-card .fc-hero-info { padding: 0.75rem; }
+}

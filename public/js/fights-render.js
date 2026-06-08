@@ -155,7 +155,7 @@ function renderHeroCard(fight, idx) {
         <div id="my-pick-${fight.id}" class="hidden"></div>
 
         <!-- Hero Face-off Area -->
-        <div class="relative overflow-hidden" style="min-height:${isMain ? '320px' : '280px'}; background:#080808;">
+        <div class="relative overflow-hidden fc-faceoff ${isMain ? 'fc-faceoff-main' : 'fc-faceoff-co'}" style="min-height:${isMain ? '320px' : '280px'}; background:#080808;">
             <!-- F1 Background -->
             <div class="fc-hero-img-l absolute inset-y-0 left-0 w-1/2"
                 style="${f1BgStyle} -webkit-mask-image:linear-gradient(to right,rgba(0,0,0,0.95) 30%,transparent 100%); mask-image:linear-gradient(to right,rgba(0,0,0,0.95) 30%,transparent 100%);"></div>
@@ -178,7 +178,7 @@ function renderHeroCard(fight, idx) {
                 </div>
             </div>
             <!-- F1 Info (bottom-left) -->
-            <div class="absolute bottom-0 left-0 w-[48%] p-4 lg:p-6 z-20">
+            <div class="absolute bottom-0 left-0 w-[48%] p-4 lg:p-6 z-20 fc-hero-info">
                 <div class="flex gap-1 mb-1.5">${renderDotForm(fight.f1.recent)}</div>
                 <h4 data-no-pick="1"
                     class="oswald-sharp ${isMain ? 'text-xl lg:text-3xl' : 'text-lg lg:text-2xl'} font-black italic uppercase tracking-tighter leading-tight text-white mb-1">${fight.f1.name}</h4>
@@ -187,7 +187,7 @@ function renderHeroCard(fight, idx) {
                     class="oswald-sharp text-xs lg:text-sm text-gray-300 hover:text-white bg-black/40 hover:bg-ufcRed/15 border border-white/20 hover:border-ufcRed/50 px-4 py-2 rounded-xl italic uppercase tracking-wide transition active:scale-95">👤 선수 정보</button>
             </div>
             <!-- F2 Info (bottom-right) -->
-            <div class="absolute bottom-0 right-0 w-[48%] p-4 lg:p-6 z-20 text-right">
+            <div class="absolute bottom-0 right-0 w-[48%] p-4 lg:p-6 z-20 text-right fc-hero-info">
                 <div class="flex gap-1 mb-1.5 justify-end">${renderDotForm(fight.f2.recent)}</div>
                 <h4 data-no-pick="1"
                     class="oswald-sharp ${isMain ? 'text-xl lg:text-3xl' : 'text-lg lg:text-2xl'} font-black italic uppercase tracking-tighter leading-tight text-white mb-1">${fight.f2.name}</h4>
