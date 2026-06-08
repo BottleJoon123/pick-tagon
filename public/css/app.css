@@ -1472,6 +1472,70 @@ textarea, select {
 .comm-sort-btn.disabled:hover { color: var(--pt-ink-3); }
 /* 내 글 토글 — scope 필터라 sort-active(회색)와 구분되게 빨강 틴트 */
 .comm-mine-btn.active { background: rgba(232,0,13,0.14); border-color: rgba(232,0,13,0.40); color: #fff; }
+
+/* ── 닉네임 클릭 affordance ── */
+.fc-user-link, .post-comment-nick-link { cursor: pointer; transition: color 0.12s; }
+.fc-user-link:hover, .post-comment-nick-link:hover {
+    color: var(--red, #e8000d); text-decoration: underline; text-underline-offset: 2px;
+}
+
+/* ── 유저 활동 요약 모달 (데스크톱 centered / 모바일 bottom-sheet) ── */
+.ua-sheet {
+    background: var(--pt-bg-2, #131316);
+    border: 1px solid var(--pt-line-2, rgba(255,255,255,0.12));
+    border-radius: 18px 18px 0 0;
+    max-height: 88vh; overflow-y: auto;
+    box-shadow: 0 -8px 40px rgba(0,0,0,0.6);
+}
+@media (min-width: 1024px) {
+    .ua-sheet { border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.7); }
+}
+.ua-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 18px; border-bottom: 1px solid var(--pt-line-1, rgba(255,255,255,0.08));
+    position: sticky; top: 0; background: inherit;
+}
+.ua-content { padding: 16px 18px 20px; }
+.ua-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.ua-ava {
+    width: 44px; height: 44px; border-radius: 999px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--pt-bg-4, #1c1c20); border: 2px solid var(--pt-line-2, rgba(255,255,255,0.14));
+    font-family: 'Oswald', sans-serif; font-weight: 900; font-style: italic; font-size: 17px; color: #fff;
+}
+.ua-id { min-width: 0; }
+.ua-nick {
+    font-family: 'Inter', sans-serif; font-weight: 800; font-size: 16px; color: var(--pt-ink-0, #fff);
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.ua-belt {
+    font-family: 'Oswald', sans-serif; font-size: 10px; font-weight: 900; font-style: italic;
+    text-transform: uppercase; letter-spacing: 0.04em; color: var(--pt-ink-3, #888); margin-top: 2px;
+}
+.ua-stats {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px;
+}
+.ua-stat {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 10px 6px; border-radius: 10px;
+    background: var(--pt-bg-3, rgba(255,255,255,0.03)); border: 1px solid var(--pt-line-1, rgba(255,255,255,0.06));
+}
+.ua-stat-n { font-family: 'Oswald', sans-serif; font-weight: 900; font-style: italic; font-size: 19px; color: var(--red, #e8000d); }
+.ua-stat-l { font-family: 'Oswald', sans-serif; font-size: 9px; font-weight: 900; font-style: italic; text-transform: uppercase; letter-spacing: 0.06em; color: var(--pt-ink-3, #888); }
+.ua-section-label {
+    font-family: 'Oswald', sans-serif; font-size: 9px; font-weight: 900; font-style: italic;
+    text-transform: uppercase; letter-spacing: 0.1em; color: var(--pt-ink-4, #666); margin-bottom: 8px;
+}
+.ua-recent { display: flex; flex-direction: column; gap: 7px; }
+.ua-recent-item { display: flex; align-items: flex-start; gap: 8px; }
+.ua-recent-dot { width: 5px; height: 5px; border-radius: 999px; background: var(--red, #e8000d); margin-top: 6px; flex-shrink: 0; }
+.ua-recent-title {
+    font-family: 'Oswald', sans-serif; font-weight: 700; font-style: italic; font-size: 13px;
+    color: var(--pt-ink-1, #ddd); text-transform: uppercase; line-height: 1.25;
+    display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+}
+.ua-empty { font-family: 'Oswald', sans-serif; font-style: italic; font-size: 12px; color: #555; padding: 6px 0; }
+.ua-note { margin-top: 14px; font-family: 'Inter', sans-serif; font-size: 10.5px; color: var(--pt-ink-4, #666); line-height: 1.4; }
 .comm-filter-btn {
     font-family: 'Oswald', sans-serif; font-size: 10px; font-weight: 900; font-style: italic;
     text-transform: uppercase; letter-spacing: 0.06em;

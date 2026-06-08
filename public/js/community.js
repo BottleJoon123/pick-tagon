@@ -430,7 +430,7 @@
                 <div class="fc-body">
                     <div class="fc-head">
                         ${isPinned ? '<span class="fc-pin">📌 공지</span>' : ''}
-                        <span class="fc-user">${factionBadge}${author}</span>
+                        <span class="fc-user fc-user-link" data-uid="${escapeHtml(p.userId || '')}" data-nick="${author}" onclick="event.stopPropagation(); openUserActivity(this)">${factionBadge}${author}</span>
                         <span class="fc-belt belt-${beltTier}">${beltName}</span>
                         <span class="fc-cat ${catCls}">${catLbl}</span>
                         <span class="fc-meta">· ${date}</span>
@@ -455,6 +455,82 @@
     }
 
     function togglePostExpand(origIdx) { /* no-op: replaced by openPostDetail */ }
+
+    /* ── 유저 활동 요약 모달 (표현계층 · 현재 로드된 커뮤니티 데이터만 집계) ──
+       트리거: 게시글/댓글 작성자 닉네임 클릭 (data-uid/data-nick 엘리먼트 전달).
+       user_id 는 매칭 키로만 쓰고 UI 에는 노출하지 않는다. DB/RPC 호출 없음. */
+    function openUserActivity(el) {
+        var uid  = (el && el.dataset && el.dataset.uid)  || '';
+        var nick = (el && el.dataset && el.dataset.nick) || '';
+        if (!nick) return;
+        _renderUserActivity(uid, nick);
+        var m = document.getElementById('user-activity-modal');
+        if (m) m.classList.remove('hidden');   // modal-history 레이어가 뒤로가기/닫기 동기화
+    }
+
+    function closeUserActivity() {
+        var m = document.getElementById('user-activity-modal');
+        if (m) m.classList.add('hidden');
+    }
+
+    function _renderUserActivity(uid, nick) {
+        var body = document.getElementById('ua-body');
+        if (!body) return;
+
+        var all = (typeof posts !== 'undefined' && posts) ? posts : [];
+        var byUid = !!uid;
+        // 본인 글 (자동 픽 활동글 제외)
+        var myPosts = all.filter(function(p) {
+            if (p.isPickShare) return false;
+            return byUid ? (p.userId === uid) : (p.author === nick);
+        });
+        // 본인 댓글 (모든 글의 댓글 순회)
+        var myComments = 0;
+        all.forEach(function(p) {
+            (p.comments || []).forEach(function(c) {
+                if (byUid ? (c.userId === uid) : (c.user === nick)) myComments++;
+            });
+        });
+        var likesSum = myPosts.reduce(function(s, p) { return s + (p.likes || 0); }, 0);
+        var recent = myPosts.slice().sort(function(a, b) {
+            return (b.date || '').localeCompare(a.date || '');
+        }).slice(0, 3);
+
+        // faction/belt 는 본인 글 중 하나에서 추론 (현재 로드 범위 내). 없으면 생략.
+        var rep = myPosts.find(function(p) { return p.faction; }) || myPosts[0] || null;
+        var factionBadge = (rep && rep.faction && typeof getFactionBadge === 'function')
+            ? getFactionBadge(rep.faction) : '';
+        var beltStr = rep && rep.belt ? escapeHtml(rep.belt) : '';
+
+        var initial = escapeHtml(((nick || '?').trim().charAt(0) || '?').toUpperCase());
+        var safeNick = escapeHtml(nick || '');
+
+        var recentHtml = recent.length
+            ? recent.map(function(p) {
+                return '<div class="ua-recent-item">' +
+                       '<span class="ua-recent-dot"></span>' +
+                       '<span class="ua-recent-title">' + escapeHtml(_stripCatPrefix(p.title || '제목 없음')) + '</span>' +
+                       '</div>';
+              }).join('')
+            : '<div class="ua-empty">현재 로드된 글 없음</div>';
+
+        body.innerHTML =
+            '<div class="ua-head">' +
+                '<div class="ua-ava">' + initial + '</div>' +
+                '<div class="ua-id">' +
+                    '<div class="ua-nick">' + safeNick + (factionBadge ? ' ' + factionBadge : '') + '</div>' +
+                    (beltStr ? '<div class="ua-belt">' + beltStr + '</div>' : '') +
+                '</div>' +
+            '</div>' +
+            '<div class="ua-stats">' +
+                '<div class="ua-stat"><span class="ua-stat-n">' + myPosts.length + '</span><span class="ua-stat-l">글</span></div>' +
+                '<div class="ua-stat"><span class="ua-stat-n">' + myComments + '</span><span class="ua-stat-l">댓글</span></div>' +
+                '<div class="ua-stat"><span class="ua-stat-n">' + _fmtCount(likesSum) + '</span><span class="ua-stat-l">받은 추천</span></div>' +
+            '</div>' +
+            '<div class="ua-section-label">최근 글</div>' +
+            '<div class="ua-recent">' + recentHtml + '</div>' +
+            '<div class="ua-note">※ 현재 로드된 커뮤니티 기준 집계 (전체 히스토리가 아닐 수 있어요)</div>';
+    }
 
     var _communityMatchupsFetching = false;
 
@@ -758,7 +834,7 @@
                        onmouseout="this.style.color='#a33';this.style.borderColor='#3a1416'">✕</button>`
                 : '';
             return `<div class="post-comment-block">
-                <div class="post-comment-nick"><span>${escapeHtml(c.user || '')}</span>${battleBtn}${delBtn}</div>
+                <div class="post-comment-nick"><span class="post-comment-nick-link" data-uid="${escapeHtml(c.userId || '')}" data-nick="${escapeHtml(c.user || '')}" onclick="openUserActivity(this)">${escapeHtml(c.user || '')}</span>${battleBtn}${delBtn}</div>
                 <p class="post-comment-txt">${escapeHtml(c.text || '')}</p>
             </div>`;
         }).join('');
