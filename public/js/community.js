@@ -417,14 +417,15 @@
                         <span class="fc-user">${factionBadge}${author}</span>
                         <span class="fc-belt belt-${beltTier}">${beltName}</span>
                         <span class="fc-cat ${catCls}">${catLbl}</span>
-                        <span class="fc-meta">· ${date} · 👁 ${views}</span>
+                        <span class="fc-meta">· ${date}</span>
                         ${isHot ? '<span class="fc-hot">🔥 HOT</span>' : ''}
                     </div>
                     <div class="fc-title">${title}</div>
                     <div class="fc-snippet">${snippet}</div>
                     <div class="fc-foot">
                         <span class="fc-react ${likes > 0 ? 'hot' : ''}">🔥 ${likes}</span>
-                        <span>💬 ${cntCom}</span>
+                        <span class="fc-cmt">💬 ${cntCom}</span>
+                        <span class="fc-views">👁 ${views}</span>
                         <span class="fc-share" onclick="event.stopPropagation(); openPostDetail(${origIdx});">자세히</span>
                         <button class="fc-rec ${isLiked ? 'on' : ''}" onclick="event.stopPropagation(); likePost(${origIdx});">
                             ${isLiked ? '✓ 추천' : '+ 추천'}
