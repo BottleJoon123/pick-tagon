@@ -77,7 +77,7 @@
 <link href="/css/tokens.css" rel="stylesheet">
 <link href="/css/theme-bridge.css" rel="stylesheet">
 <link rel="stylesheet" href="./src/tailwind.css">
-<link href="/css/app.css?v=11" rel="stylesheet">
+<link href="/css/app.css?v=12" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 <!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -2012,12 +2012,17 @@
             </div>
             <!-- 댓글 목록 -->
             <div id="pd-com-list" class="space-y-2 mb-5"></div>
+            <!-- 답글 대상 표시 (답글 모드에서만 노출) -->
+            <div id="pd-reply-bar" class="hidden flex items-center gap-2 mb-2 px-3 py-2 rounded-xl" style="background:rgba(232,0,13,0.10);border:1px solid rgba(232,0,13,0.25)">
+                <span id="pd-reply-target" class="oswald-sharp text-[11px] font-black italic text-ufcRed uppercase tracking-wide truncate flex-1 min-w-0"></span>
+                <button onclick="clearReplyTarget()" aria-label="답글 취소" class="text-gray-400 hover:text-white text-lg leading-none px-1 flex-shrink-0">×</button>
+            </div>
             <!-- 댓글 입력 -->
             <div class="flex gap-2 pt-4 border-t border-white/10">
                 <input type="text" id="pd-com-input"
                     class="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed"
                     placeholder="의견을 남겨주세요..."
-                    onkeydown="if(event.key==='Enter')sendDetailComment()">
+                    onkeydown="if(event.key==='Enter'){sendDetailComment();}else if(event.key==='Escape'&&_replyTargetCommentId){clearReplyTarget();event.stopPropagation();}">
                 <button onclick="sendDetailComment()"
                     class="oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black px-5 py-3 rounded-xl italic uppercase text-xs tracking-widest transition-all">
                     SEND
@@ -2501,13 +2506,13 @@
 <script src="/js/storage.js"></script>
 <script src="/js/utils.js?v=4"></script>
 <script src="/js/event-countdown.js"></script>
-<script src="/js/api/supabase.js?v=16"></script>
+<script src="/js/api/supabase.js?v=17"></script>
 <script src="/js/modal-helpers.js"></script>
 <script src="/js/format-helpers.js"></script>
 <script src="/js/news-render-helpers.js"></script>
 <script src="/js/news.js"></script>
 <script src="/js/youtube.js?v=1"></script>
-<script src="/js/community.js?v=21"></script>
+<script src="/js/community.js?v=22"></script>
 <script src="/js/admin.js?v=24"></script>
 <script src="/js/profile.js?v=2"></script>
 <script src="/js/archive.js?v=8"></script>
@@ -5653,16 +5658,21 @@ async function publishPost() {
     }
 
 // [A안] post_comments 테이블에 댓글 INSERT (posts jsonb UPDATE 방식 폐기)
-async function addCommentToDB(postDbId, userNick, text) {
-    if (!sb || !postDbId) return { ok: true };
+async function addCommentToDB(postDbId, userNick, text, parentCommentId) {
+    if (!sb || !postDbId) return { ok: true, data: null };
     return runSupabaseMutation(function() {
-        // user_id는 DB trigger가 auth.uid()로 강제 세팅(스푸핑 방지). 명시 전달은 참고용.
-        return sb.from('post_comments').insert({
-            post_id: postDbId,
-            user_nick: userNick,
-            content: text,
-            user_id: (currentUser && currentUser.id) || null
-        });
+        // user_id/user_nick/deleted_*/parent 깊이1 정규화는 DB trigger가 강제(스푸핑·우회 방지).
+        // 명시 전달은 참고용. .select().single()로 서버가 확정한 행(실제 id 포함)을 반환.
+        return sb.from('post_comments')
+            .insert({
+                post_id: postDbId,
+                user_nick: userNick,
+                content: text,
+                user_id: (currentUser && currentUser.id) || null,
+                parent_comment_id: parentCommentId || null
+            })
+            .select('id, post_id, user_id, user_nick, content, created_at, parent_comment_id')
+            .single();
     }, '⚠ 댓글 저장에 실패했습니다.');
 }
 

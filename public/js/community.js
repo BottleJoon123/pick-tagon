@@ -674,9 +674,10 @@
         _detailPostIdx  = origIdx;
         _detailPostDbId = p.dbId;
 
-        // 이전 댓글 입력 잔여 텍스트 초기화
+        // 이전 댓글 입력 잔여 텍스트 + 답글 모드 초기화
         var comInput = document.getElementById('pd-com-input');
         if (comInput) comInput.value = '';
+        clearReplyTarget();
 
         var rawTitle = p.title || '';
         var cat = _getPostCategory(rawTitle);
@@ -796,6 +797,7 @@
         var modal = document.getElementById('post-detail-modal');
         if (modal) modal.classList.add('hidden');
         document.body.style.overflow = '';
+        clearReplyTarget();
         _detailPostIdx  = -1;
         _detailPostDbId = null;
         if (_detailEscHandler) {
@@ -806,38 +808,101 @@
         if (editForm) editForm.classList.add('hidden');
     }
 
+    // 단일 댓글/답글 블록 HTML. isReply=true 면 들여쓰기 + 답글버튼 미노출.
+    function _commentBlockHtml(c, isReply, isAdmin) {
+        var isSelf = c.user === getDisplayUsername();
+        var safeUser = escapeHtml(c.user || '').replace(/'/g, "\\'");
+        var battleBtn = (!isSelf && currentUser && typeof isBattleFeatureEnabled === 'function' && isBattleFeatureEnabled())
+            ? `<button onclick="requestBattle('${safeUser}', event)"
+                   style="font-family:'Oswald',sans-serif;font-size:10px;font-weight:900;font-style:italic;text-transform:uppercase;background:transparent;border:1px solid #222;color:#444;padding:2px 7px;border-radius:5px;cursor:pointer;letter-spacing:.05em;transition:color .12s,border-color .12s;"
+                   onmouseover="this.style.color='#e8000d';this.style.borderColor='rgba(232,0,13,.4)'"
+                   onmouseout="this.style.color='#444';this.style.borderColor='#222'">⚡ 옥타곤</button>`
+            : '';
+        // C3-5: delete button — own comment (user_id match) or admin; legacy (no userId) admin-only.
+        // Only on persisted comments (commentId present); server enforces via delete_post_comment.
+        var isOwnComment = !!(currentUser && c.userId && c.userId === currentUser.id);
+        var canDelete = (c.commentId != null) && (isOwnComment || isAdmin);
+        var delBtn = canDelete
+            ? `<button onclick="deleteDetailComment(${c.commentId})"
+                   style="font-family:'Oswald',sans-serif;font-size:10px;font-weight:900;background:transparent;border:1px solid #3a1416;color:#a33;padding:2px 7px;border-radius:5px;cursor:pointer;letter-spacing:.05em;transition:color .12s,border-color .12s;"
+                   onmouseover="this.style.color='#fff';this.style.borderColor='#e8000d'"
+                   onmouseout="this.style.color='#a33';this.style.borderColor='#3a1416'">✕</button>`
+            : '';
+        // 답글 버튼 — 최상위 댓글 + 로그인 + 실제 id 있을 때만(깊이1)
+        var replyBtn = (!isReply && currentUser && c.commentId != null)
+            ? `<button class="pd-reply-btn" data-nick="${escapeHtml(c.user || '')}" onclick="startReply(${c.commentId}, this.dataset.nick)">↳ 답글</button>`
+            : '';
+        return `<div class="post-comment-block${isReply ? ' is-reply' : ''}">
+                <div class="post-comment-nick"><span class="post-comment-nick-link" data-uid="${escapeHtml(c.userId || '')}" data-nick="${escapeHtml(c.user || '')}" onclick="openUserActivity(this)">${escapeHtml(c.user || '')}</span><span class="pc-actions">${replyBtn}${battleBtn}${delBtn}</span></div>
+                <p class="post-comment-txt">${escapeHtml(c.text || '')}</p>
+            </div>`;
+    }
+
     function _renderDetailComments(comments) {
         var listEl = document.getElementById('pd-com-list');
         if (!listEl) return;
-        if (!comments || comments.length === 0) {
+        var all = comments || [];
+        if (all.length === 0) {
             listEl.innerHTML = '<p style="font-size:13px;color:#555;font-style:italic;text-align:center;padding:12px 0;">첫 댓글을 남겨주세요</p>';
             return;
         }
         var isAdmin = (typeof adminUnlocked !== 'undefined' && adminUnlocked);
-        listEl.innerHTML = comments.map(function(c) {
-            var isSelf = c.user === getDisplayUsername();
-            var safeUser = escapeHtml(c.user || '').replace(/'/g, "\\'");
-            var battleBtn = (!isSelf && currentUser && typeof isBattleFeatureEnabled === 'function' && isBattleFeatureEnabled())
-                ? `<button onclick="requestBattle('${safeUser}', event)"
-                       style="font-family:'Oswald',sans-serif;font-size:10px;font-weight:900;font-style:italic;text-transform:uppercase;background:transparent;border:1px solid #222;color:#444;padding:2px 7px;border-radius:5px;cursor:pointer;letter-spacing:.05em;transition:color .12s,border-color .12s;"
-                       onmouseover="this.style.color='#e8000d';this.style.borderColor='rgba(232,0,13,.4)'"
-                       onmouseout="this.style.color='#444';this.style.borderColor='#222'">⚡ 옥타곤</button>`
-                : '';
-            // C3-5: delete button — own comment (user_id match) or admin; legacy (no userId) admin-only.
-            // Only on persisted comments (commentId present); server enforces via delete_post_comment.
-            var isOwnComment = !!(currentUser && c.userId && c.userId === currentUser.id);
-            var canDelete = (c.commentId != null) && (isOwnComment || isAdmin);
-            var delBtn = canDelete
-                ? `<button onclick="deleteDetailComment(${c.commentId})"
-                       style="font-family:'Oswald',sans-serif;font-size:10px;font-weight:900;background:transparent;border:1px solid #3a1416;color:#a33;padding:2px 7px;border-radius:5px;cursor:pointer;letter-spacing:.05em;transition:color .12s,border-color .12s;"
-                       onmouseover="this.style.color='#fff';this.style.borderColor='#e8000d'"
-                       onmouseout="this.style.color='#a33';this.style.borderColor='#3a1416'">✕</button>`
-                : '';
-            return `<div class="post-comment-block">
-                <div class="post-comment-nick"><span class="post-comment-nick-link" data-uid="${escapeHtml(c.userId || '')}" data-nick="${escapeHtml(c.user || '')}" onclick="openUserActivity(this)">${escapeHtml(c.user || '')}</span>${battleBtn}${delBtn}</div>
-                <p class="post-comment-txt">${escapeHtml(c.text || '')}</p>
-            </div>`;
-        }).join('');
+
+        // 그룹핑: 최상위(parent 없음) + parent별 답글. 부모가 로드결과에 없으면(삭제됨) 고아 그룹.
+        // 배열은 이미 created_at asc 정렬 → 그룹 내 답글도 asc 유지.
+        var tops = [], topIds = {};
+        all.forEach(function(c) { if (!c.parentCommentId) { tops.push(c); if (c.commentId != null) topIds[c.commentId] = true; } });
+        var repliesByParent = {}, orphanByParent = {}, orphanOrder = [];
+        all.forEach(function(c) {
+            if (!c.parentCommentId) return;
+            if (topIds[c.parentCommentId]) {
+                (repliesByParent[c.parentCommentId] = repliesByParent[c.parentCommentId] || []).push(c);
+            } else {
+                if (!orphanByParent[c.parentCommentId]) { orphanByParent[c.parentCommentId] = []; orphanOrder.push(c.parentCommentId); }
+                orphanByParent[c.parentCommentId].push(c);
+            }
+        });
+
+        var html = '';
+        tops.forEach(function(top) {
+            html += _commentBlockHtml(top, false, isAdmin);
+            var reps = repliesByParent[top.commentId] || [];
+            if (reps.length) {
+                html += '<div class="post-reply-group">' + reps.map(function(r) { return _commentBlockHtml(r, true, isAdmin); }).join('') + '</div>';
+            }
+        });
+        // 부모가 삭제된 답글: 합성 tombstone + 답글 보존
+        orphanOrder.forEach(function(pid) {
+            html += '<div class="post-comment-tomb">삭제된 댓글입니다</div>'
+                 + '<div class="post-reply-group">' + orphanByParent[pid].map(function(r) { return _commentBlockHtml(r, true, isAdmin); }).join('') + '</div>';
+        });
+
+        listEl.innerHTML = html;
+    }
+
+    // ── 답글(대댓글) 모드 상태 ─────────────────────────────────────────────
+    var _replyTargetCommentId = null;   // 답글 대상 최상위 댓글 id (null = 최상위 댓글 작성)
+    var _replyTargetNick = null;
+
+    function startReply(commentId, nick) {
+        if (!currentUser) { showToast('⚠ 답글은 로그인 후 작성할 수 있습니다'); return; }
+        _replyTargetCommentId = commentId;
+        _replyTargetNick = nick || '';
+        var bar = document.getElementById('pd-reply-bar');
+        var lbl = document.getElementById('pd-reply-target');
+        if (lbl) lbl.textContent = '@' + _replyTargetNick + ' 에게 답글';
+        if (bar) bar.classList.remove('hidden');
+        var input = document.getElementById('pd-com-input');
+        if (input) { input.placeholder = '@' + _replyTargetNick + ' 에게 답글...'; input.focus(); }
+    }
+
+    function clearReplyTarget() {
+        _replyTargetCommentId = null;
+        _replyTargetNick = null;
+        var bar = document.getElementById('pd-reply-bar');
+        if (bar) bar.classList.add('hidden');
+        var input = document.getElementById('pd-com-input');
+        if (input) input.placeholder = '의견을 남겨주세요...';
     }
 
     async function sendDetailComment() {
@@ -848,11 +913,30 @@
         var text  = input ? input.value.trim() : '';
         if (!text) return;
         if (!currentUser) { showToast('⚠ 댓글은 로그인 후 작성할 수 있습니다'); return; }
-        var nick    = getDisplayUsername();
-        var comment = { user: nick, userId: currentUser.id, text: text.slice(0, 300) };
-        p.comments.push(comment);
+        var nick   = getDisplayUsername();
+        var body   = text.slice(0, 300);
+        var parent = _replyTargetCommentId || null;   // 답글 대상(최상위 댓글 id), null=최상위 댓글
+
+        var res = await addCommentToDB(p.dbId, nick, body, parent);
+        if (!res.ok) return;   // 실패 토스트는 runSupabaseMutation 이 처리
+
+        if (res.data) {
+            // 서버가 확정한 행(실제 id + 깊이1 정규화된 parent) 사용 → optimistic 중복 없음
+            var row = res.data;
+            p.comments.push({
+                user: row.user_nick || nick,
+                userId: row.user_id || currentUser.id,
+                text: row.content || body,
+                commentId: row.id,
+                parentCommentId: row.parent_comment_id || null
+            });
+        } else {
+            // 오프라인 등 행 미반환 fallback (id 없음)
+            p.comments.push({ user: nick, userId: currentUser.id, text: body, commentId: null, parentCommentId: parent });
+        }
+
         if (input) input.value = '';
-        await addCommentToDB(p.dbId, nick, text.slice(0, 300));
+        clearReplyTarget();   // 전송 성공 후 답글 모드 해제
         save();
         _renderDetailComments(p.comments);
         var statsEl = document.getElementById('pd-stats');

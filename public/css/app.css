@@ -1425,7 +1425,26 @@ textarea, select {
     font-weight: 600; margin-bottom: 3px;
     display: flex; align-items: center; justify-content: space-between;
 }
-.post-comment-txt { font-size: 12px; color: #bbb; font-family: 'Inter', sans-serif; line-height: 1.5; }
+.post-comment-txt { font-size: 12px; color: #bbb; font-family: 'Inter', sans-serif; line-height: 1.5; word-break: break-word; }
+/* 댓글 액션(답글/옥타곤/삭제) 우측 그룹 */
+.post-comment-nick .pc-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.post-comment-nick .post-comment-nick-link { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pd-reply-btn {
+    font-family: 'Oswald', sans-serif; font-size: 10px; font-weight: 900; font-style: italic;
+    text-transform: uppercase; letter-spacing: .05em; white-space: nowrap;
+    background: transparent; border: 1px solid #2a2a2a; color: #888;
+    padding: 2px 7px; border-radius: 5px; cursor: pointer; transition: color .12s, border-color .12s;
+}
+.pd-reply-btn:hover { color: var(--red, #e8000d); border-color: rgba(232,0,13,.4); }
+/* 답글 그룹: 부모 바로 아래, 1단계 들여쓰기 + 얇은 연결선 */
+.post-reply-group { margin: 0 0 6px 14px; padding-left: 10px; border-left: 2px solid rgba(255,255,255,0.08); }
+.post-reply-group .post-comment-block.is-reply { border-left-color: rgba(255,255,255,0.18); background: rgba(0,0,0,0.25); }
+/* 삭제된 부모 합성 tombstone */
+.post-comment-tomb {
+    font-family: 'Inter', sans-serif; font-size: 11px; font-style: italic; color: #666;
+    padding: 6px 12px; margin-bottom: 4px; border-left: 2px solid rgba(255,255,255,0.06);
+    background: rgba(255,255,255,0.02); border-radius: 6px;
+}
 .post-com-input-row { display: flex; gap: 6px; margin-top: 10px; }
 .post-com-input {
     flex: 1; background: rgba(0,0,0,0.45); border: 1px solid #1e1e1e;

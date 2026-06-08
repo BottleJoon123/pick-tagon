@@ -70,7 +70,7 @@ function loadPostsFromDB() {
     sb.from('posts')
         // users embed must be disambiguated: C3-5 added posts.deleted_by FK to users,
         // so PostgREST sees two posts→users relationships. Pin the author FK explicitly.
-        .select('*, post_comments(id, user_id, user_nick, content, created_at), users!posts_user_id_fkey(nickname, factions(id, name, emoji_icon))')
+        .select('*, post_comments(id, user_id, user_nick, content, created_at, parent_comment_id), users!posts_user_id_fkey(nickname, factions(id, name, emoji_icon))')
         .is('deleted_at', null)                  // C3-5: exclude soft-deleted posts
         .is('post_comments.deleted_at', null)    // C3-5: exclude soft-deleted comments (embedded filter)
         .order('created_at', { ascending: false })
@@ -87,7 +87,7 @@ function loadPostsFromDB() {
                             && c.user_id === currentUser.id && typeof getDisplayUsername === 'function') {
                             displayUser = getDisplayUsername() || c.user_nick;
                         }
-                        return { user: displayUser, userId: c.user_id || null, text: c.content, commentId: c.id };
+                        return { user: displayUser, userId: c.user_id || null, text: c.content, commentId: c.id, parentCommentId: c.parent_comment_id || null };
                     });
                 var faction = (r.users && r.users.factions) ? r.users.factions : null;
                 return {
