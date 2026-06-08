@@ -1770,3 +1770,17 @@ textarea, select {
     /* 헤더↔콘텐츠 과한 간격 축소 (체급 탭 아래 여백) */
     #ufc-rankings #division-tabs { margin-bottom: 1rem; }
 }
+
+/* ════════════════════════════════════════════════════════════════
+   Mobile compact — profile dashboard spacing (Polish 2차)
+   표현계층 전용. 데스크톱(≥1024px) 미적용. 차트/그리드 구조·데이터 무변경.
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 1023px) {
+    /* 심화통계 그리드 카드 패딩 p-5 → p-4 (외곽 카드만; 차트/막대 영역 불변) */
+    #profile .grid > .glass-card { padding: 1rem; }
+    /* 심화통계 세로 스택 그리드 간격 gap-5 → gap-3 */
+    #profile .grid.grid-cols-1 { gap: 0.75rem; }
+    /* 중첩 inner 카드(리포트 4칸·보너스 3칸) 패딩 축소 → 중첩 느낌 완화 */
+    #profile-report-grid > div,
+    #profile-bonus-summary > div { padding: 0.75rem; }
+}
