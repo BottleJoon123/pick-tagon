@@ -1470,6 +1470,8 @@ textarea, select {
 .comm-sort-btn.active { background: var(--pt-bg-3); color: #fff; }
 .comm-sort-btn.disabled { opacity: 0.45; cursor: default; }
 .comm-sort-btn.disabled:hover { color: var(--pt-ink-3); }
+/* 내 글 토글 — scope 필터라 sort-active(회색)와 구분되게 빨강 틴트 */
+.comm-mine-btn.active { background: rgba(232,0,13,0.14); border-color: rgba(232,0,13,0.40); color: #fff; }
 .comm-filter-btn {
     font-family: 'Oswald', sans-serif; font-size: 10px; font-weight: 900; font-style: italic;
     text-transform: uppercase; letter-spacing: 0.06em;

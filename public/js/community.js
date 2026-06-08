@@ -81,6 +81,19 @@
         }
     }
 
+    // 내 글 모아보기 토글 — 표현계층(currentUser.id 기준 클라 필터). DB/RPC 변경 없음.
+    // 비로그인: 안내 토스트 후 비활성 유지. 로그인: 토글 후 renderFeed.
+    function setCommunityMyPosts() {
+        if (typeof currentUser === 'undefined' || !currentUser) {
+            if (typeof showToast === 'function') showToast('🔒 로그인 후 내 글을 모아볼 수 있어요');
+            return;
+        }
+        communityMyPosts = !communityMyPosts;
+        var btn = document.getElementById('cf-mine');
+        if (btn) { btn.classList.toggle('active', communityMyPosts); btn.setAttribute('aria-pressed', communityMyPosts ? 'true' : 'false'); }
+        renderFeed();
+    }
+
     function _fmtCount(n) {
         if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
         return String(n);
@@ -370,7 +383,10 @@
         if (!container) return;
 
         if (!filtered || filtered.length === 0) {
-            container.innerHTML = `<div style="padding:36px 20px;text-align:center;font-family:'Oswald',sans-serif;font-size:13px;color:#666;text-transform:uppercase;letter-spacing:.1em;font-style:italic;">표시할 게시글이 없습니다</div>`;
+            var _isMine = (typeof communityMyPosts !== 'undefined' && communityMyPosts
+                && typeof currentUser !== 'undefined' && currentUser);
+            var _emptyMsg = _isMine ? '아직 작성한 글이 없습니다 · 첫 글을 남겨보세요' : '표시할 게시글이 없습니다';
+            container.innerHTML = `<div style="padding:28px 20px;text-align:center;font-family:'Oswald',sans-serif;font-size:13px;color:#666;text-transform:uppercase;letter-spacing:.1em;font-style:italic;">${_emptyMsg}</div>`;
             return;
         }
 
@@ -468,9 +484,20 @@
             }
         }
 
-        // 2. Filter by category — isPickShare (자동 픽 활동글) 제외
+        // 1b. 내 글 토글 버튼 상태 동기화 (로그인 여부 반영) — 로그아웃 시 강제 해제
+        var _mineBtn = document.getElementById('cf-mine');
+        var _loggedIn = (typeof currentUser !== 'undefined' && !!currentUser);
+        if (!_loggedIn) communityMyPosts = false;
+        if (_mineBtn) {
+            _mineBtn.classList.toggle('disabled', !_loggedIn);
+            _mineBtn.classList.toggle('active', communityMyPosts);
+            _mineBtn.setAttribute('aria-pressed', communityMyPosts ? 'true' : 'false');
+        }
+
+        // 2. Filter by category (+ 내 글) — isPickShare (자동 픽 활동글) 제외
         var filtered = posts.filter(function(p) {
             if (p.isPickShare) return false;
+            if (communityMyPosts && _loggedIn && p.userId !== currentUser.id) return false;
             if (communityFilter === 'all') return true;
             return _postCategory(p) === communityFilter;
         });

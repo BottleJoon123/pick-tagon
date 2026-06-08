@@ -40,6 +40,7 @@ var h2hRadarChart = null;
 var communityFilter = 'all';   // all | post | pick
 var communitySortMode = 'latest';  // latest | recommend | hot
 var communityTimeFilter = 'all';   // all | day | week | month
+var communityMyPosts = false;      // 내 글 모아보기 토글 (표현계층 · currentUser.id 기준 클라 필터)
 
 // 뉴스/유튜브 카테고리 상태
 var currentNewsCat = 'all';
