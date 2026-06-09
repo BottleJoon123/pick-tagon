@@ -246,6 +246,10 @@ function loadPostsFromDB() {
                     // 로그아웃: 모든 오버레이 닫기 + 어드민 권한 초기화
                     currentUser = null;
                     adminUnlocked = false;
+                    // 비로그인/로그아웃에서도 공개 커뮤니티 글 로드 (INITIAL_SESSION 무세션·SIGNED_OUT).
+                    // 기존엔 loadUserFromDB(로그인 경로)에서만 호출돼 fresh 비로그인 피드가 비어 있었음.
+                    // loadPostsFromDB는 currentUser 없이 안전(좋아요는 로그인 시에만 추가 로드).
+                    loadPostsFromDB();
                     if (typeof closeFactionSelectModal === 'function') closeFactionSelectModal();
                     // octagon-invite-modal(z-700)도 닫기 — auth-modal(z-600)보다 위에 있어서 차단
                     var octModal = document.getElementById('octagon-invite-modal');
