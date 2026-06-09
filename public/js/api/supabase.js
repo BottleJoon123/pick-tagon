@@ -246,6 +246,16 @@ function loadPostsFromDB() {
                     // 로그아웃: 모든 오버레이 닫기 + 어드민 권한 초기화
                     currentUser = null;
                     adminUnlocked = false;
+                    // 사용자 전용 상태 초기화 — 로그아웃 후 이전 계정의 MY PICK/포인트/픽집계가 남거나
+                    // 다음 로그인 사용자에게 혼입되지 않도록. (베팅은 로그인 필수라 비로그인 로컬 픽은 없음)
+                    if (typeof state !== 'undefined') {
+                        state = { points: 1000, total: 0, success: 0, history: [], pendings: {}, settled: {} };
+                        if (typeof save === 'function') save();
+                    }
+                    if (typeof window.resetUserEventPicks === 'function') window.resetUserEventPicks();
+                    // 공개 픽 비율 재조회 — 로그아웃 후에도 서버 집계(get_event_pick_ratios)로 비율 복원.
+                    // resetUserEventPicks가 바를 중립(0%)으로 먼저 갱신했으므로, 응답 도착 시 정확 비율로 덮어쓴다.
+                    if (typeof loadAllEventPickCounts === 'function') loadAllEventPickCounts();
                     // 비로그인/로그아웃에서도 공개 커뮤니티 글 로드 (INITIAL_SESSION 무세션·SIGNED_OUT).
                     // 기존엔 loadUserFromDB(로그인 경로)에서만 호출돼 fresh 비로그인 피드가 비어 있었음.
                     // loadPostsFromDB는 currentUser 없이 안전(좋아요는 로그인 시에만 추가 로드).
@@ -255,6 +265,8 @@ function loadPostsFromDB() {
                     var octModal = document.getElementById('octagon-invite-modal');
                     if (octModal) octModal.classList.add('hidden');
                     updateAuthUI();
+                    // MY PICK 하이라이트/픽바를 비로그인 기본값으로 재렌더 (state 초기화 반영)
+                    if (typeof updateAllFightCards === 'function') updateAllFightCards();
                 }
             });
             // 현재 세션 확인 — recovery hash fallback + 비로그인 auth-modal 표시
@@ -338,7 +350,12 @@ function loadPostsFromDB() {
         if (storedUserId && storedUserId !== userId) {
             state = { points: 1000, total: 0, success: 0, history: [], pendings: {}, settled: {} };
             posts = [];
+            // 사용자 전용 픽 집계(myEventPicks)·공개 비율 캐시 초기화 — 이전 계정 값 혼입 방지.
+            // (resetUserEventPicks가 진행 중 응답 무효화 + 라이브바 중립화. 직후 재로딩으로 새 사용자 기준 재구성)
+            if (typeof window.resetUserEventPicks === 'function') window.resetUserEventPicks();
             save();
+            // 이전 계정 MY PICK을 즉시 제거 — 새 사용자 픽 응답 도착 전 A 표시가 카드에 남지 않도록.
+            if (typeof updateAllFightCards === 'function') updateAllFightCards();
         }
         localStorage.setItem('picktagon_current_user_id', userId);
 
@@ -347,6 +364,9 @@ function loadPostsFromDB() {
         // 커뮤니티 픽 집계 로드
         loadAllEventPickCounts();
         loadMyEventPicks();
+        // 현재 사용자 픽 즉시 복원 — active fights가 이미 로드된 상태(계정 전환 등)에서 새로고침 없이 MY PICK 복원.
+        // active fights가 아직 없으면 loadUserPicksFromDB가 안전 return → 이후 fetchUpcomingMatchups가 다시 복원.
+        if (typeof loadUserPicksFromDB === 'function') loadUserPicksFromDB();
 
         var requestedUserId = userId; // stale 콜백 감지용
         sb.from('users').select('*, factions(id, name, emoji_icon)').eq('id', userId).single()
@@ -610,6 +630,7 @@ async function fetchUpcomingMatchups() {
 // ── 현재 이벤트의 픽 상태를 DB에서 복원 ─────────────────────────────────
 // 서버 정산 후 state.pendings/settled를 DB picks 테이블 기준으로 재구성.
 // 로그인 시 + 결과 입력 후 호출.
+var _loadUserPicksSeq = 0; // 늦은 응답/계정 전환 stale 차단용 시퀀스 토큰
 async function loadUserPicksFromDB() {
     if (!sb || typeof currentUser === 'undefined' || !currentUser) return;
     try {
@@ -617,23 +638,62 @@ async function loadUserPicksFromDB() {
         if (!activeFights.length) return;
         var activeFightIds = activeFights.map(function(f) { return f.id; });
 
+        var requestedUserId = currentUser.id;    // 응답 적용 직전 사용자 일치 검사용
+        var seq = ++_loadUserPicksSeq;            // 늦게 도착한 이전 요청이 최신 상태를 덮어쓰지 못하도록
+        var startGen = (typeof window !== 'undefined' && window._pickStateGen) || 0; // reset/로그아웃/전환 무효화 세대
         var res = await sb.from('picks')
             .select('fight_id, pick_name, odds, bet_cost, payout, is_upset, status, actual_winner, actual_method, method, predicted_round, predicted_side, settled_at')
-            .eq('user_id', currentUser.id)
+            .eq('user_id', requestedUserId)
             .in('fight_id', activeFightIds);
 
-        if (!res.data || !res.data.length) return;
+        // 계정 전환/요청 역전/리셋(로그아웃·전환) 시: 다른 계정 픽으로 현재 상태를 덮어쓰거나 지우지 않도록 무시.
+        // 세대 토큰까지 검사해 '같은 사용자 로그아웃→빠른 재로그인'에서도 이전 세션 응답이 적용되지 않게 함.
+        var curGen = (typeof window !== 'undefined' && window._pickStateGen) || 0;
+        if (!currentUser || currentUser.id !== requestedUserId || seq !== _loadUserPicksSeq || startGen !== curGen) return;
+        // 네트워크/RLS 오류 시에는 로컬 상태를 건드리지 않음(잘못 비우기 방지)
+        if (res.error) { console.warn('[loadUserPicksFromDB]', res.error); return; }
+        var rows = res.data || [];
+
+        // fight_id → fight 객체 (예외적 predicted_side를 pick_name으로 방향 판별하기 위함)
+        var fightById = {};
+        activeFights.forEach(function(f) { fightById[f.id] = f; });
 
         var newPendings = {};
         var newSettled  = {};
 
-        res.data.forEach(function(pick) {
+        rows.forEach(function(pick) {
             var fid = pick.fight_id;
             if (pick.status === 'pending') {
-                var side = pick.predicted_side === 'red' ? 'left' : 'right';
+                var f = fightById[fid];
+                // 1) 방향 판별: canonical predicted_side(red→left / blue→right) 우선.
+                //    기존엔 'red'가 아닌 모든 값(NULL/비정상)을 무조건 right(blue)로 처리해 잘못 표시했음.
+                var side = pick.predicted_side === 'red' ? 'left'
+                         : pick.predicted_side === 'blue' ? 'right'
+                         : null;
+                // 2) NULL/비정상 side: pick_name이 매치업 한쪽 선수와 정확히 일치할 때만 방향 복원
+                if (!side) {
+                    if (f && f.f1 && pick.pick_name === f.f1.name) side = 'left';
+                    else if (f && f.f2 && pick.pick_name === f.f2.name) side = 'right';
+                }
+                if (!side) {
+                    // 이름·방향 모두로 판별 불가 → 잘못된 MY PICK 표시 방지 위해 제외
+                    console.warn('[loadUserPicksFromDB] predicted_side 불명 — pending 제외:', fid, pick.pick_name);
+                    return;
+                }
+                // 3) canonical 이름 강제: 화면/state 이름은 항상 fight의 해당 side 선수명을 사용.
+                //    side는 유효하나 pick_name이 어긋난 경우(예: red인데 blue 선수명) 모순 표시를 막기 위해 교정.
+                //    서버 RPC 하드닝 전까지의 클라이언트 방어 — DB는 수정하지 않음(표시/state만 canonical).
+                var canonical = f ? (side === 'left' ? (f.f1 && f.f1.name) : (f.f2 && f.f2.name)) : null;
+                if (!canonical) {
+                    console.warn('[loadUserPicksFromDB] canonical 선수명 판별 불가 — pending 제외:', fid, pick.pick_name);
+                    return;
+                }
+                if (pick.pick_name !== canonical) {
+                    console.warn('[loadUserPicksFromDB] pick_name≠canonical(side 기준 교정):', fid, pick.predicted_side, pick.pick_name, '→', canonical);
+                }
                 newPendings[fid] = {
                     side: side,
-                    pick: pick.pick_name,
+                    pick: canonical,
                     payout: pick.payout || 0,
                     fightId: fid,
                     betCost: pick.bet_cost || (typeof BET_COST !== 'undefined' ? BET_COST : 100),

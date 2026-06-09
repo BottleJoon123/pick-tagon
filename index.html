@@ -2508,7 +2508,7 @@
 <script src="/js/storage.js"></script>
 <script src="/js/utils.js?v=4"></script>
 <script src="/js/event-countdown.js"></script>
-<script src="/js/api/supabase.js?v=19"></script>
+<script src="/js/api/supabase.js?v=22"></script>
 <script src="/js/modal-helpers.js"></script>
 <script src="/js/format-helpers.js"></script>
 <script src="/js/news-render-helpers.js"></script>
@@ -5531,15 +5531,51 @@ async function publishPost() {
        EVENT_PICKS — 커뮤니티 픽 집계
     ============================== */
     const EVENT_ID = 'ufc327';
-    var eventPickCounts = {};  // { fightId: { c0, c1 } } — var: community.js에서 cross-script 접근 필요
-    let myEventPicks = {};     // { fightId: fighterIndex (0|1) }
+    var eventPickCounts = {};  // { fightId: { c0, c1 } } — var: community.js에서 cross-script 접근 필요 (공개 집계)
+    let myEventPicks = {};     // { fightId: fighterIndex (0|1) } — 사용자 전용(계정 전환/로그아웃 시 반드시 초기화)
+    var _myEventPicksSeq = 0;  // loadMyEventPicks 늦은 응답/전환 stale 차단
+    var _eventCountsSeq  = 0;  // loadAllEventPickCounts 늦은 집계 응답 차단
+    window._pickStateGen = 0;  // 픽 복원 무효화 세대 토큰 — reset/로그아웃/계정전환 시 증가 → 진행 중 loadUserPicksFromDB(supabase.js) 무효화
+
+    // 카드 라이브 픽바를 중립(50/50·0%)으로 즉시 갱신 — reset 후 서버 비율 도착 전 stale DOM 잔존 방지
+    function resetLivePickBarsNeutral() {
+        if (typeof getActiveFights !== 'function') return;
+        getActiveFights().forEach(function(f) {
+            var barEl = document.getElementById('live-bar-' + f.id);
+            if (barEl) {
+                var lBar = barEl.querySelector('.live-bar-left');
+                var rBar = barEl.querySelector('.live-bar-right');
+                if (lBar) lBar.style.width = '50%';
+                if (rBar) rBar.style.width = '50%';
+            }
+            var lEl = document.getElementById('live-pct-l-' + f.id);
+            var rEl = document.getElementById('live-pct-r-' + f.id);
+            var tEl = document.getElementById('live-total-' + f.id);
+            if (lEl && f.f1) lEl.textContent = f.f1.name.split(' ').pop() + ' 0%';
+            if (rEl && f.f2) rEl.textContent = f.f2.name.split(' ').pop() + ' 0%';
+            if (tEl) tEl.textContent = '';
+        });
+    }
+
+    // [계정 전환/로그아웃 가드] 사용자 전용 픽 집계 상태 초기화 + 진행 중 응답 무효화.
+    // 공개 eventPickCounts는 호출측에서 get_event_pick_ratios(loadAllEventPickCounts)로 즉시 재구성한다.
+    window.resetUserEventPicks = function() {
+        myEventPicks = {};
+        eventPickCounts = {};
+        _myEventPicksSeq++;        // 진행 중 loadMyEventPicks 응답 무효화
+        _eventCountsSeq++;         // 진행 중 loadAllEventPickCounts 응답 무효화
+        window._pickStateGen++;    // 진행 중 loadUserPicksFromDB 응답 무효화
+        resetLivePickBarsNeutral();
+    };
 
     async function loadAllEventPickCounts() {
         if (!sb) return;
         const eventId = getActiveFights()[0]?._eventId;
         if (!eventId) return;
+        var seq = ++_eventCountsSeq;   // 늦게 도착한 이전 집계가 최신 집계/리셋을 덮지 못하도록
         // get_event_pick_ratios: picks 기반 집계 (cancelled 제외, predicted_side=null 레거시 제외)
         var result = await sb.rpc('get_event_pick_ratios', { p_event_id: eventId });
+        if (seq !== _eventCountsSeq) return;   // 더 최신 호출/리셋이 있었음 → 폐기
         if (!result.data) return;
         eventPickCounts = {};
         result.data.forEach(function(r) {
@@ -5561,11 +5597,18 @@ async function publishPost() {
 
     async function loadMyEventPicks() {
         if (!sb || !currentUser) return;
+        var requestedUserId = currentUser.id;   // 응답 적용 직전 사용자 일치 검사용
+        var seq = ++_myEventPicksSeq;            // 늦게 도착한 이전 요청이 최신 상태를 덮어쓰지 못하도록
         var allFightIds = getActiveFights().map(function(f) { return f.id; });
         var result = await sb.from('event_picks')
             .select('fight_id, fighter_index')
-            .eq('user_id', currentUser.id)
+            .eq('user_id', requestedUserId)
             .in('fight_id', allFightIds);
+        // 계정 전환/요청 역전 시 무시 — stale 응답이 현재 사용자의 myEventPicks를 오염시키지 않도록
+        if (!currentUser || currentUser.id !== requestedUserId || seq !== _myEventPicksSeq) return;
+        if (result.error) return;
+        // active fight 범위 값은 '교체'(누적 금지): 기존 키 제거 후 이번 응답으로만 재구성
+        allFightIds.forEach(function(fid) { delete myEventPicks[fid]; });
         if (result.data) result.data.forEach(function(p) { myEventPicks[p.fight_id] = p.fighter_index; });
     }
 
