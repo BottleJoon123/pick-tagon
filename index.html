@@ -930,7 +930,7 @@
             <!-- 방식별 적중률 + 보너스 현황 -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 <div class="glass-card rounded-2xl p-5 lg:p-7">
-                    <p class="oswald-sharp text-[11px] text-gray-500 uppercase tracking-[.3em] font-black italic mb-4">방식별 예측 적중률</p>
+                    <p class="oswald-sharp text-[11px] text-gray-500 uppercase tracking-[.3em] font-black italic mb-4">실제 종료 방식별 성적</p>
                     <div id="profile-method-stats" class="space-y-4"></div>
                 </div>
                 <div class="glass-card rounded-2xl p-5 lg:p-7">
@@ -2512,23 +2512,23 @@
 <script src="/js/storage.js"></script>
 <script src="/js/utils.js?v=4"></script>
 <script src="/js/event-countdown.js"></script>
-<script src="/js/api/supabase.js?v=22"></script>
+<script src="/js/api/supabase.js?v=23"></script>
 <script src="/js/modal-helpers.js"></script>
 <script src="/js/format-helpers.js"></script>
 <script src="/js/news-render-helpers.js"></script>
 <script src="/js/news.js"></script>
 <script src="/js/youtube.js?v=1"></script>
-<script src="/js/community.js?v=22"></script>
+<script src="/js/community.js?v=24"></script>
 <script src="/js/admin.js?v=24"></script>
-<script src="/js/profile.js?v=2"></script>
+<script src="/js/profile.js?v=4"></script>
 <script src="/js/archive.js?v=9"></script>
-<script src="/js/season.js"></script>
+<script src="/js/season.js?v=1"></script>
 <script src="/js/fights-render.js?v=25"></script>
 <script src="/js/pixel-fighters.js?v=1"></script>
 <script src="/js/h2h.js?v=25"></script>
 <script src="/js/news-admin.js?v=7"></script>
 <script src="/js/home.js?v=6"></script>
-<script src="/js/share-card.js?v=18"></script>
+<script src="/js/share-card.js?v=19"></script>
 <script>
     /* ==============================
        FIGHT CARD DATA
@@ -2916,8 +2916,10 @@
         const accEl = document.getElementById('prof-acc');
         if(ptsEl) ptsEl.innerText = state.points.toLocaleString() + ' P';
         if(totEl) totEl.innerText = state.total + ' 회';
-        const rate = state.total === 0 ? 0 : Math.round((state.success / state.total) * 100);
-        if(accEl) accEl.innerText = rate + ' %';
+        // 적중률은 canonical(win/(win+lose))만 사용 — state.success/total 비율 금지.
+        // refreshAccuracyDisplays가 prof-acc(및 랭킹/사이드바)를 canonical 값으로 패치하고, 미로드 시 RPC 로드 후 재적용.
+        if (typeof refreshAccuracyDisplays === 'function') refreshAccuracyDisplays();
+        else if (accEl) accEl.innerText = '—';
 
         const bBox = document.getElementById('belt-box');
         const bName = document.getElementById('belt-name');
@@ -3655,8 +3657,10 @@ async function publishPost() {
             const rank = Number(u.rank);
             const isUser = u.user_id === myUserId;
             const userStyle = isUser ? 'bg-ufcRed/10 border-l-4 border-ufcRed' : '';
-            const acc = u.accuracy != null ? u.accuracy : (u.pending_count > 0 ? '—' : 0);
-            const accColor = typeof acc === 'number' && acc >= 70 ? 'text-ufcRed' : 'text-white';
+            // canonical: 숫자면 그 값, win+lose=0(pending-only/cancelled-only 포함)이면 null → '—'. '—%' 금지.
+            const acc = (typeof u.accuracy === 'number') ? u.accuracy : null;
+            const accText = acc === null ? '—' : acc + '%';
+            const accColor = (acc !== null && acc >= 70) ? 'text-ufcRed' : 'text-white';
             const name = u.nickname || '익명';
 
             return `
@@ -3680,7 +3684,7 @@ async function publishPost() {
                     <span class="oswald-sharp font-black italic text-xs lg:text-sm text-gray-400">${u.total_picks}</span>
                 </div>
                 <div class="col-span-2 text-center">
-                    <span class="oswald-sharp font-black italic text-xs lg:text-sm ${accColor}">${u.win_count}<span class="text-gray-600 text-[9px] ml-1">(${acc}%)</span></span>
+                    <span class="oswald-sharp font-black italic text-xs lg:text-sm ${accColor}">${u.win_count}<span class="text-gray-600 text-[9px] ml-1">(${accText})</span></span>
                 </div>
                 <div class="col-span-2 text-center">
                     <span class="oswald-sharp font-black italic text-xs lg:text-sm text-white">${u.event_points.toLocaleString()}<span class="text-gray-600 text-[9px] ml-0.5">P</span></span>
@@ -3799,13 +3803,17 @@ async function publishPost() {
         const myNickname = getDisplayUsername();
 
         // 내 순위 히어로 — 정적 필드 (실데이터만)
-        const myAcc = state.total === 0 ? '—' : Math.round((state.success/state.total)*100) + '%';
+        // 적중률은 canonical(win/(win+lose))만. 미로드/0건 → '—'. state.success/total 비율 금지.
+        const _accView = (typeof currentUserAccuracyView === 'function') ? currentUserAccuracyView() : { acc: null, accText: '—', settled: 0 };
+        const myAcc = _accView.accText;
         const myBelt = getBeltInfo(state.points);
         const myTier = _lbTier(state.points);
         const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
         set('my-rank-pts', state.points.toLocaleString() + ' P');
         set('my-rank-acc', myAcc);
         set('my-rank-picks', state.total);
+        // canonical stats 로드 후 적중률/분석가 표시를 다시 패치 (미로드 시 '—' → 로드 후 정확값)
+        if (typeof refreshAccuracyDisplays === 'function') refreshAccuracyDisplays();
 
         const avatarEl = document.getElementById('my-rank-avatar');
         if (avatarEl) { avatarEl.textContent = _lbInitials(myNickname); avatarEl.style.background = myTier.grad; }
@@ -3828,10 +3836,10 @@ async function publishPost() {
         const analystEl = document.getElementById('my-rank-analyst');
         if (analystEl) {
             const stateSettled = Object.values(state.settled || {});
-            const analystAcc = state.total === 0 ? null : Math.round(state.success / state.total * 100);
+            const analystAcc = _accView.acc; // canonical(win/(win+lose)) — state.success/total 비율 금지
             const methodBonusCount = stateSettled.filter(function(s) { return s.hadMethodBonus; }).length;
             const upsetWins = stateSettled.filter(function(s) { return s.hadUpsetBonus && s.result === 'WIN'; }).length;
-            const analyst = getAnalystType(analystAcc, state.total, state.total, methodBonusCount, upsetWins);
+            const analyst = getAnalystType(analystAcc, _accView.settled, state.total, methodBonusCount, upsetWins);
             analystEl.textContent = analyst.title;
             analystEl.className = 'oswald-sharp text-[9px] italic tracking-widest mt-1 hidden lg:block ' + analyst.color;
         }
@@ -3874,14 +3882,15 @@ async function publishPost() {
                 isUser: u.nickname === myNickname
             };
         });
-        // 내 행: 라이브 포인트는 state, settled 정확도는 RPC 행에서 보존
+        // 내 행: 라이브 포인트는 state, 적중률은 canonical(win/(win+lose)) 우선
         const myDbRow = all.find(function(u) { return u.isUser; });
+        const _myCanon = (typeof currentUserAccuracyView === 'function') ? currentUserAccuracyView() : { ready: false, acc: null };
         const myEntry = {
             name: myNickname,
             points: state.points,
             total: myDbRow ? myDbRow.total : state.total,
             success: myDbRow ? myDbRow.success : state.success,
-            accuracy: (myDbRow && typeof myDbRow.accuracy === 'number') ? myDbRow.accuracy : null,
+            accuracy: _myCanon.ready ? _myCanon.acc : ((myDbRow && typeof myDbRow.accuracy === 'number') ? myDbRow.accuracy : null),
             movement: (myDbRow && typeof myDbRow.movement === 'number') ? myDbRow.movement : null,
             isUser: true
         };
@@ -3916,8 +3925,8 @@ async function publishPost() {
         const medals = ['🥇','🥈','🥉'];
         list.innerHTML = all.map(function(u, i) {
             const rank = i + 1;
-            // accuracy: RPC(settled 기준) 우선, 없을 때만 success/total fallback
-            const acc = (typeof u.accuracy === 'number') ? u.accuracy : (u.total === 0 ? 0 : Math.round((u.success / u.total) * 100));
+            // accuracy: canonical RPC 값(win/(win+lose))만. 없으면 추측 금지 → null('—').
+            const acc = (typeof u.accuracy === 'number') ? u.accuracy : null;
             const tier = _lbTier(u.points);
             const isUser = u.isUser;
             const gapSub = (i > 0) ? `${rank-1}위까지 +${(all[i-1].points - u.points).toLocaleString()} P` : '표시 범위 1위';
@@ -3936,7 +3945,7 @@ async function publishPost() {
                     <div class="min-w-0 leading-tight">
                         <p class="oswald-sharp font-black italic text-sm lg:text-[15px] text-white tracking-tight uppercase truncate leading-tight ${isUser?'text-ufcRed':''}">${isUser ? '★ ' : ''}${escapeHtml(u.name)}</p>
                         <p class="oswald-sharp text-[10px] lg:text-[11px] italic text-gray-500 tracking-wide leading-tight mt-0.5 hidden lg:block">${gapSub}</p>
-                        <p class="oswald-sharp text-[10px] italic uppercase tracking-wide leading-tight mt-0.5 lg:hidden ${tierTextClass(tier.key)}">${tier.name} · ${u.total===0?'—':acc+'%'} · ${u.total}픽</p>
+                        <p class="oswald-sharp text-[10px] italic uppercase tracking-wide leading-tight mt-0.5 lg:hidden ${tierTextClass(tier.key)}">${tier.name} · ${acc===null?'—':acc+'%'} · ${u.total}픽</p>
                     </div>
                 </div>
                 <div class="text-center lb-cell-belt">
@@ -3946,8 +3955,8 @@ async function publishPost() {
                     <span class="oswald-sharp font-black italic text-base lg:text-lg text-yellow-400">${u.points.toLocaleString()}<span class="text-gray-500 text-[9px] lg:text-[11px] ml-0.5">P</span></span>
                 </div>
                 <div class="lb-cell-acc">
-                    <span class="oswald-sharp font-black italic text-sm lg:text-[15px] ${acc >= 70 ? 'text-ufcRed' : acc >= 50 ? 'text-white' : 'text-gray-400'}">${u.total===0?'—':acc+'%'}</span>
-                    <div class="lb-acc-bar"><div style="width:${u.total===0?0:acc}%"></div></div>
+                    <span class="oswald-sharp font-black italic text-sm lg:text-[15px] ${acc !== null && acc >= 70 ? 'text-ufcRed' : acc !== null && acc >= 50 ? 'text-white' : 'text-gray-400'}">${acc===null?'—':acc+'%'}</span>
+                    <div class="lb-acc-bar"><div style="width:${acc===null?0:acc}%"></div></div>
                 </div>
                 <div class="text-center lb-cell-picks">
                     <span class="oswald-sharp font-black italic text-sm lg:text-[15px] text-gray-300">${u.total}</span>
@@ -5453,6 +5462,7 @@ async function publishPost() {
         sb.auth.signOut().then(function() {
             currentUser = null;
             adminUnlocked = false;
+            if (typeof invalidateCurrentUserStats === 'function') invalidateCurrentUserStats();
             closeFactionSelectModal(); // stale 모달 즉시 닫기
             var _octM = document.getElementById('octagon-invite-modal');
             if (_octM) _octM.classList.add('hidden'); // z-700 오버레이도 닫기
@@ -5709,12 +5719,15 @@ async function publishPost() {
             const v2 = await sb.rpc('get_leaderboard_v2', { p_limit: 50 });
             if (v2 && !v2.error && Array.isArray(v2.data)) {
                 return v2.data.map(function(r) {
+                    var sp = (typeof r.settled_picks === 'number') ? r.settled_picks : 0;
                     return {
                         nickname: r.nickname || 'UNKNOWN',
                         points: r.points || 0,
-                        total_picks: r.settled_picks || 0,   // 표시 픽 수 = settled 기준
+                        total_picks: sp,            // 표시 픽 수 = settled 기준
+                        settled_picks: sp,          // 구 RPC 방어용으로 보존
                         success_picks: r.wins || 0,
-                        accuracy: (typeof r.accuracy === 'number') ? r.accuracy : null,
+                        // settled_picks===0이면 구 RPC가 accuracy=0을 줘도 null로 정규화(success/total 추측 금지)
+                        accuracy: (sp === 0) ? null : ((typeof r.accuracy === 'number') ? r.accuracy : null),
                         faction_emoji: r.faction_emoji || null,
                         faction_name: r.faction_name || null,
                         movement: (typeof r.movement === 'number') ? r.movement : null

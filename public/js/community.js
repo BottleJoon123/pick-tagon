@@ -179,8 +179,9 @@
             var beltLbl = escapeHtml(belt.name + ' Belt');
             var pts     = (state && state.points != null) ? state.points : 0;
             var total   = (state && state.total)   ? state.total   : 0;
-            var success = (state && state.success) ? state.success : 0;
-            var acc     = total > 0 ? (Math.round(success / total * 100) + '%') : '집계 전';
+            // 정확도 = canonical(win/(win+lose))만. state.success/total 비율 금지. 미로드/0건 → '—'.
+            var _av     = (typeof currentUserAccuracyView === 'function') ? currentUserAccuracyView() : { acc: null };
+            var acc     = (_av.acc === null || _av.acc === undefined) ? '—' : (_av.acc + '%');
             blocks.push([
                 '<div class="side-card me">',
                 '  <div class="side-head"><span class="side-title">내 픽타곤</span></div>',
@@ -193,7 +194,7 @@
                 '  </div>',
                 '  <div class="side-stats">',
                 '    <div class="side-stat"><div class="side-stat-v">' + Number(pts).toLocaleString() + '</div><div class="side-stat-l">포인트</div></div>',
-                '    <div class="side-stat"><div class="side-stat-v">' + acc + '</div><div class="side-stat-l">정확도</div></div>',
+                '    <div class="side-stat"><div class="side-stat-v" id="side-me-acc">' + acc + '</div><div class="side-stat-l">정확도</div></div>',
                 '    <div class="side-stat"><div class="side-stat-v">' + total + '</div><div class="side-stat-l">픽 수</div></div>',
                 '  </div>',
                 '</div>'
@@ -277,6 +278,8 @@
         ].join(''));
 
         aside.innerHTML = blocks.join('');
+        // canonical 정확도 로드 후 #side-me-acc 패치 (미로드/0건 '—' → 로드 후 정확값)
+        if (typeof refreshAccuracyDisplays === 'function') refreshAccuracyDisplays();
     }
 
     /* ── Matchup Board ── */

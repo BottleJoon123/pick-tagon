@@ -85,7 +85,7 @@ function loadHallOfFameFromDB() {
                         points:  row.points,
                         total:   row.total_picks,
                         success: row.success_picks,
-                        accuracy: row.accuracy !== null ? row.accuracy + '%' : '0%',
+                        accuracy: row.accuracy !== null ? row.accuracy + '%' : '—',
                         belt:    row.belt
                     });
                 });
@@ -122,7 +122,7 @@ function loadAdminHallOfFameFromDB() {
                     points:       row.points,
                     total:        row.total_picks,
                     success:      row.success_picks,
-                    accuracy:     row.accuracy !== null ? row.accuracy + '%' : '0%',
+                    accuracy:     row.accuracy !== null ? row.accuracy + '%' : '—',
                     belt:         row.belt,
                     isHidden:     row.is_hidden,
                     hiddenReason: row.hidden_reason

@@ -246,6 +246,8 @@ function loadPostsFromDB() {
                     // 로그아웃: 모든 오버레이 닫기 + 어드민 권한 초기화
                     currentUser = null;
                     adminUnlocked = false;
+                    // canonical 적중률 캐시 초기화 — 이전 계정 통계가 다음 로그인 사용자에게 혼입 방지
+                    if (typeof invalidateCurrentUserStats === 'function') invalidateCurrentUserStats();
                     // 사용자 전용 상태 초기화 — 로그아웃 후 이전 계정의 MY PICK/포인트/픽집계가 남거나
                     // 다음 로그인 사용자에게 혼입되지 않도록. (베팅은 로그인 필수라 비로그인 로컬 픽은 없음)
                     if (typeof state !== 'undefined') {
@@ -344,6 +346,8 @@ function loadPostsFromDB() {
 
         // 계정 전환 시 어드민 권한 즉시 초기화 (비동기 콜백 전에)
         adminUnlocked = false;
+        // canonical 적중률 캐시 무효화 — 매 로드마다 현재 사용자 기준으로 재조회(정산 반영·계정전환 stale 차단)
+        if (typeof invalidateCurrentUserStats === 'function') invalidateCurrentUserStats();
 
         // 다른 유저 로그인 시 로컬 상태 초기화
         var storedUserId = localStorage.getItem('picktagon_current_user_id');

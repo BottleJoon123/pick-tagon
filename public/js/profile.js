@@ -8,6 +8,137 @@ let _rpcStats = null;        // get_user_pick_stats RPC 캐시 (null = 미로드
 let _rpcStatsLoading = false; // RPC 진행 중 플래그 — empty CTA 조기 표시 방지용
 var _histExpanded = false;   // 히스토리 전체 보기/접기 상태
 
+/* ──────────────────────────────────────────────────────────────────────────
+   Canonical current-user 통계 — 단일 출처(권위값 = get_user_pick_stats RPC).
+   공식 정책: accuracy = win/(win+lose)×100 ROUND, pending/cancelled 제외,
+   win+lose=0 → null → 화면 "—". users.total_picks(참여수)는 분모로 쓰지 않는다.
+   userId 키 캐시 + in-flight 공유 + 세대 토큰으로 계정전환/로그아웃 stale 차단.
+   ────────────────────────────────────────────────────────────────────────── */
+var _curStats = null;          // 마지막 성공 stats(해당 userId)
+var _curStatsUid = null;
+var _curStatsPromise = null;
+var _curStatsPromiseUid = null;
+var _curStatsGen = 0;
+var _curStatsFailedUid = null; // RPC 실패한 userId → history fallback 사용
+
+function _canonAcc(win, lose) {
+    var s = (win || 0) + (lose || 0);
+    return s === 0 ? null : Math.min(100, Math.round((win || 0) / s * 100));
+}
+function _curUid() { return (typeof currentUser !== 'undefined' && currentUser) ? currentUser.id : null; }
+
+// 동기 접근: 현재 로그인 유저의 canonical stats(로드됐을 때만), userId 불일치 시 null
+function getCurrentUserStats() {
+    var uid = _curUid();
+    if (uid && _curStats && _curStatsUid === uid) return _curStats;
+    return null;
+}
+
+// 비동기 로드. 성공만 캐시. 실패 시 null + history fallback 플래그. 세대/promise 동일성으로 stale 차단.
+function ensureCurrentUserStats() {
+    var uid = _curUid();
+    if (!uid) return Promise.resolve(null);
+    if (_curStats && _curStatsUid === uid) return Promise.resolve(_curStats);
+    if (_curStatsPromise && _curStatsPromiseUid === uid) return _curStatsPromise;
+    if (typeof sb === 'undefined' || !sb) return Promise.resolve(null);
+    var myGen = ++_curStatsGen;
+    var reqUid = uid;
+    var p = (async function () {
+        try {
+            var res = await sb.rpc('get_user_pick_stats', { p_user_id: reqUid });
+            if (res && res.error) throw res.error;
+            var data = (res && res.data) || null;
+            if (myGen === _curStatsGen && _curUid() === reqUid) {
+                _curStats = data; _curStatsUid = reqUid;
+                if (_curStatsFailedUid === reqUid) _curStatsFailedUid = null;
+            }
+            return data;
+        } catch (e) {
+            if (myGen === _curStatsGen && _curUid() === reqUid) _curStatsFailedUid = reqUid;
+            return null;
+        } finally {
+            if (_curStatsPromise === p) { _curStatsPromise = null; _curStatsPromiseUid = null; }
+        }
+    })();
+    _curStatsPromise = p; _curStatsPromiseUid = reqUid;
+    return p;
+}
+
+// 계정전환·로그아웃 시 호출 — 세대 증가 + 캐시 전체 초기화.
+function invalidateCurrentUserStats() {
+    _curStatsGen++; _curStats = null; _curStatsUid = null;
+    _curStatsPromise = null; _curStatsPromiseUid = null; _curStatsFailedUid = null;
+    // 이전 계정 적중률/분석가 DOM 즉시 중립화(스테일 값 잔존 방지). 이후 새 사용자 RPC 응답으로 갱신.
+    if (typeof document !== 'undefined') _neutralizeAccuracyDom();
+}
+
+// 표시용 canonical 뷰. ready=false(loading)면 "—", RPC 실패면 history WIN/LOSE fallback.
+function currentUserAccuracyView() {
+    var cs = getCurrentUserStats();
+    if (cs) {
+        var w = cs.win_count || 0, l = cs.lose_count || 0;
+        var a = (cs.accuracy === null || cs.accuracy === undefined) ? _canonAcc(w, l) : cs.accuracy;
+        return { ready: true, source: 'rpc', win: w, lose: l, settled: w + l, acc: a, accText: a === null ? '—' : a + '%' };
+    }
+    var uid = _curUid();
+    if (uid && _curStatsFailedUid === uid) {
+        var h = (typeof state !== 'undefined' && Array.isArray(state.history)) ? state.history : [];
+        var w2 = h.filter(function (x) { return x.res === 'WIN'; }).length;
+        var l2 = h.filter(function (x) { return x.res === 'LOSE'; }).length;
+        var a2 = _canonAcc(w2, l2);
+        return { ready: true, source: 'history', win: w2, lose: l2, settled: w2 + l2, acc: a2, accText: a2 === null ? '—' : a2 + '%' };
+    }
+    return { ready: false, source: 'loading', win: 0, lose: 0, settled: 0, acc: null, accText: '—' };
+}
+
+// 정산 정보 없음(비로그인/로딩/win+lose=0)은 모든 화면에서 정확히 '—'.
+var _ACC_ANALYST_BASE_CLS = 'oswald-sharp text-[9px] italic tracking-widest mt-1 hidden lg:block';
+function _setText(id, txt) { var el = document.getElementById(id); if (el) el.textContent = txt; }
+
+// 화면의 적중률 표시(프로필 상단·랭킹 히어로·커뮤니티 사이드바·분석가)를 canonical 값으로 일괄 패치.
+function _applyAccuracyDom() {
+    var loggedIn = (typeof currentUser !== 'undefined' && !!currentUser);
+    var v = currentUserAccuracyView();
+    // 비로그인이거나 acc가 null(로딩/정산 0건)이면 전부 '—'. 숫자일 때만 %.
+    var hasAcc = loggedIn && (v.acc !== null && v.acc !== undefined);
+    var accEl = document.getElementById('prof-acc');
+    if (accEl) accEl.innerText = hasAcc ? (v.acc + ' %') : '—';
+    _setText('my-rank-acc', hasAcc ? (v.acc + '%') : '—');
+    _setText('side-me-acc', hasAcc ? (v.acc + '%') : '—');
+    var anEl = document.getElementById('my-rank-analyst');
+    if (anEl) {
+        if (loggedIn && typeof getAnalystType === 'function') {
+            var ss = Object.values((typeof state !== 'undefined' && state.settled) || {});
+            var mb = ss.filter(function (s) { return s.hadMethodBonus; }).length;
+            var uw = ss.filter(function (s) { return s.hadUpsetBonus && s.result === 'WIN'; }).length;
+            var an = getAnalystType(v.acc, v.settled, (typeof state !== 'undefined' ? (state.total || 0) : 0), mb, uw);
+            anEl.textContent = an.title;
+            anEl.className = _ACC_ANALYST_BASE_CLS + ' ' + an.color;
+        } else {
+            anEl.textContent = '';
+            anEl.className = _ACC_ANALYST_BASE_CLS;
+        }
+    }
+}
+
+// 계정전환/로그아웃 즉시 이전 계정 적중률/분석가 DOM 잔존 제거 → '—'/빈값. 이후 RPC 응답으로 갱신.
+function _neutralizeAccuracyDom() {
+    var a = document.getElementById('prof-acc'); if (a) a.innerText = '—';
+    _setText('my-rank-acc', '—');
+    _setText('side-me-acc', '—');
+    var an = document.getElementById('my-rank-analyst');
+    if (an) { an.textContent = ''; an.className = _ACC_ANALYST_BASE_CLS; }
+}
+
+// 적중률 표시 갱신 스케줄러 — 즉시 적용 + (미로드 시) RPC 로드 후 재적용.
+function refreshAccuracyDisplays() {
+    _applyAccuracyDom();
+    var uid = _curUid();
+    if (uid && !getCurrentUserStats() && _curStatsFailedUid !== uid) {
+        ensureCurrentUserStats().then(function () { _applyAccuracyDom(); });
+    }
+}
+
 // weight_class 단축키 → 표시 레이블
 const WEIGHT_CLASS_LABEL = {
     hw: 'Heavyweight', lhw: 'Light Heavyweight', mw: 'Middleweight',
@@ -31,22 +162,23 @@ const METHOD_CONFIG = {
 const METHOD_DEFAULT_CONFIG = { icon: '⚔️', color: 'bg-white/30' };
 
 async function renderProfileStats() {
-    _rpcStats = null;
     const shouldLoadRpc = !!currentUser?.id;
-    _rpcStatsLoading = shouldLoadRpc; // 1차 렌더 전에 설정 — empty CTA 조기 표시 방지
+    // 공유 canonical 캐시 사용 (프로필·랭킹·사이드바·공유카드가 동일 RPC 1회를 공유).
+    _rpcStats = getCurrentUserStats();
+    _rpcStatsLoading = shouldLoadRpc && !_rpcStats; // 캐시 있으면 로딩 표시 불필요
 
-    // 1차: state 기반 즉시 렌더 (현재 이벤트 범위 fallback)
+    // 1차: state/캐시 기반 즉시 렌더
     renderProfileReport();
     renderDivisionStats();
     renderFormChart();
     renderMethodStats();
     renderBonusSummary();
 
-    // 2차: RPC 데이터 수신 후 해당 섹션 덮어쓰기 (전체 이벤트, cross-session)
+    // 2차: canonical RPC 수신 후 해당 섹션 덮어쓰기 (전체 이벤트, cross-session)
     if (shouldLoadRpc) {
         try {
-            const { data, error } = await sb.rpc('get_user_pick_stats', { p_user_id: currentUser.id });
-            if (!error && data) _rpcStats = data;
+            await ensureCurrentUserStats();
+            _rpcStats = getCurrentUserStats();
         } finally {
             _rpcStatsLoading = false;
         }

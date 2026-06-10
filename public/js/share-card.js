@@ -16,16 +16,19 @@ function buildShareCardData() {
     try { nick = (typeof getDisplayUsername === 'function') ? getDisplayUsername() : ''; } catch(e) {}
     if (!nick) nick = 'Pick-tagon Player';
 
-    var pts = 0, tot = 0, suc = 0;
+    var pts = 0, tot = 0;
     try {
         if (typeof state !== 'undefined') {
-            pts = state.points  || 0;
-            tot = state.total   || 0;
-            suc = state.success || 0;
+            pts = state.points || 0;
+            tot = state.total  || 0;   // 전체 참여 픽 수(표시용) — accuracy/전적 분모로는 쓰지 않음
         }
     } catch(e) { console.warn('[ShareCard] state read failed:', e); }
 
-    var acc = (tot > 0) ? Math.round(suc / tot * 100) : 0;
+    // canonical(win/(win+lose)): pending/cancelled를 패배로 세지 않음, 정산 0건 → acc null
+    var _v = (typeof currentUserAccuracyView === 'function')
+        ? currentUserAccuracyView()
+        : { win: 0, lose: 0, settled: 0, acc: null };
+    var acc = _v.acc; // null 가능(정산 0건)
 
     var belt = { name: 'White', color: '#e8e8e8' };
     try { if (typeof getBeltInfo === 'function') belt = getBeltInfo(pts); } catch(e) {}
@@ -48,9 +51,12 @@ function buildShareCardData() {
     return {
         nick:    nick,
         points:  pts,
-        total:   tot,
-        success: suc,
-        acc:     acc,
+        total:   tot,         // 전체 참여 픽 수
+        win:     _v.win,
+        lose:    _v.lose,
+        settled: _v.settled,  // 정산 픽 수 = win+lose
+        success: _v.win,      // 하위호환(=win)
+        acc:     acc,         // canonical, null = 정산 0건
         belt:    belt,
         streak:  streak,
         rank:    rank,
@@ -277,8 +283,8 @@ function drawPicktagonShareCard(canvas, data) {
     ctx.fillText('시즌 예측 전적', PAD, 352);
 
     // Record: W – L  (success – fail)
-    var wins  = data.success;
-    var fails = Math.max((data.total || 0) - (data.success || 0), 0);
+    var wins  = data.win != null ? data.win : (data.success || 0);
+    var fails = data.lose != null ? data.lose : 0;  // 정산 패배만 — pending/cancelled 제외
     var recFontSize = 148;
     // Available width for record (left ~55% of card, leaving room for ring)
     var recAreaW = W * 0.52 - PAD;
@@ -323,7 +329,7 @@ function drawPicktagonShareCard(canvas, data) {
     var tagH   = 38;
     var tagR   = 19;
     var winTagText  = wins + '적중';
-    var totTagText  = '총 ' + data.total + '픽';
+    var totTagText  = '정산 ' + (data.settled != null ? data.settled : (wins + fails)) + '픽';
     function drawTag(text, x, y, bgColor, textColor) {
         ctx.font = '700 20px ' + F_MONO;
         var tw = ctx.measureText(text).width + 28;
@@ -349,8 +355,9 @@ function drawPicktagonShareCard(canvas, data) {
     ctx.strokeStyle = 'rgba(255,255,255,0.08)';
     ctx.lineWidth = ringLW;
     ctx.stroke();
-    // Progress arc
-    var accPct = data.acc || 0;
+    // Progress arc — 정산 0건이면 acc=null → 호 없이 '—' 표시
+    var accNull = (data.acc === null || data.acc === undefined);
+    var accPct = accNull ? 0 : data.acc;
     if (accPct > 0) {
         var startAngle = -Math.PI / 2;
         var endAngle   = startAngle + (accPct / 100) * Math.PI * 2;
@@ -366,7 +373,7 @@ function drawPicktagonShareCard(canvas, data) {
     ctx.font = '700 58px ' + F_BLK;
     ctx.fillStyle = WHITE;
     ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    ctx.fillText(accPct + '%', ringCx, ringCy + 18);
+    ctx.fillText(accNull ? '—' : accPct + '%', ringCx, ringCy + 18);
     ctx.font = '400 19px ' + F_MONO;
     ctx.fillStyle = MUTED;
     ctx.fillText('적중률', ringCx, ringCy + 50);
@@ -620,11 +627,14 @@ async function _scShareLink(title, text, url) {
 }
 
 // ── 프로필 공유 피커 ─────────────────────────────────────
-function sharePicktagonCard() {
+async function sharePicktagonCard() {
+    // 공유 직전 canonical current-user stats 확보 (없으면 RPC 로드)
+    if (typeof ensureCurrentUserStats === 'function') { try { await ensureCurrentUserStats(); } catch(e) {} }
     var data = buildShareCardData();
-    var losses = (data.total || 0) - (data.success || 0);
-    var shareText  = data.nick + '의 픽 전적 ' + (data.success || 0) + '승 ' + losses + '패 · '
-                   + '적중률 ' + (data.acc || 0) + '% · 너 적중률은? pick-tagon.com';
+    // 전적 = canonical W-L(정산 픽), 적중률 = canonical(정산 0건 → '—')
+    var accTxt = (data.acc === null || data.acc === undefined) ? '—' : data.acc + '%';
+    var shareText  = data.nick + '의 픽 전적 ' + (data.win || 0) + '승 ' + (data.lose || 0) + '패'
+                   + '(정산 ' + (data.settled || 0) + '픽) · 적중률 ' + accTxt + ' · 너 적중률은? pick-tagon.com';
     var shareUrl   = 'https://pick-tagon.com/?og=v2#profile';
     var shareTitle = 'PICK-TAGON';
 
