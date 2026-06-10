@@ -1836,16 +1836,18 @@
             </div>
         </div>
 
-        <!-- Stat Bars -->
-        <div class="px-8 lg:px-14 py-7 lg:py-10 border-b border-white/5">
+        <!-- Stat Bars (픽타곤 레이팅) — 유효 5수치 없으면 _renderRatingSection이 섹션 전체를 숨김 -->
+        <div id="fp-stat-bars-section" class="px-8 lg:px-14 py-7 lg:py-10 border-b border-white/5">
             <p class="oswald-sharp text-[9px] text-gray-600 uppercase tracking-[0.3em] font-black italic mb-5">Fighter Stats</p>
             <div id="fp-stat-bars" class="space-y-3 lg:space-y-4"></div>
         </div>
 
-        <!-- Radar Chart -->
+        <!-- Radar Chart (픽타곤 파이터 레이팅) -->
         <div class="px-8 lg:px-14 py-7 lg:py-8 border-b border-white/5">
-            <p class="oswald-sharp text-[9px] text-gray-600 uppercase tracking-[0.3em] font-black italic mb-4">Radar Analysis</p>
-            <div class="relative mx-auto" style="max-width:280px; height:240px">
+            <p class="oswald-sharp text-[9px] text-gray-600 uppercase tracking-[0.3em] font-black italic mb-1">픽타곤 파이터 레이팅</p>
+            <p class="text-[8px] text-gray-700 italic mb-4">공식 경기 기록과 별도로 산정된 종합 레이팅</p>
+            <div id="fp-radar-empty" class="hidden text-center py-12 oswald-sharp text-[10px] text-gray-600 italic uppercase tracking-widest">레이팅 데이터 없음</div>
+            <div id="fp-radar-wrap" class="relative mx-auto" style="max-width:280px; height:240px">
                 <canvas id="fp-radar-canvas"></canvas>
             </div>
         </div>
@@ -2517,11 +2519,11 @@
 <script src="/js/community.js?v=22"></script>
 <script src="/js/admin.js?v=24"></script>
 <script src="/js/profile.js?v=2"></script>
-<script src="/js/archive.js?v=8"></script>
+<script src="/js/archive.js?v=9"></script>
 <script src="/js/season.js"></script>
-<script src="/js/fights-render.js?v=24"></script>
+<script src="/js/fights-render.js?v=25"></script>
 <script src="/js/pixel-fighters.js?v=1"></script>
-<script src="/js/h2h.js?v=23"></script>
+<script src="/js/h2h.js?v=25"></script>
 <script src="/js/news-admin.js?v=7"></script>
 <script src="/js/home.js?v=6"></script>
 <script src="/js/share-card.js?v=18"></script>
@@ -4061,6 +4063,144 @@ async function publishPost() {
     ============================== */
     let fpRadarChart = null;
 
+    // ── 공식 랭킹(ufc_rankings) division-scoped 조회 ───────────────────────
+    // fighters.rank 단일값 대신 ufc_rankings(division + rank_position)를 한 쌍으로 사용.
+    // 이름 매칭은 exact normalized name/name_en만(부분매칭 금지). 매칭 없으면 '비랭크'.
+    var _officialRankMap = null;        // { normName: [{division, pos}] } — 성공 조회 결과만 캐시
+    var _officialRankMapPromise = null; // in-flight 공유(동시 호출 시 쿼리 1회)
+    var _officialRankMapGen = 0;        // 세대 토큰 — invalidate 시 증가. 시작 이전 세대의 느린 응답이 전역 캐시를 오염시키지 못하게 함.
+    function _normRankName(s) { return (s == null ? '' : String(s)).toLowerCase().trim().replace(/\s+/g, ' '); }
+    // ufc_rankings를 normName→[{division,pos}] 맵으로. 성공한 조회만 캐시하고,
+    // sb 미준비/쿼리 실패 시엔 빈 맵을 반환하되 캐시하지 않아 다음 호출에서 재시도된다.
+    async function _ensureOfficialRankMap() {
+        if (_officialRankMap) return _officialRankMap;          // 성공 캐시 hit
+        if (_officialRankMapPromise) return _officialRankMapPromise; // in-flight 공유
+        if (typeof sb === 'undefined' || !sb) return {};        // 미준비 — 캐시하지 않음
+        var myGen = _officialRankMapGen;                        // 조회 시작 시점 세대 캡처
+        var p = (async function () {
+            try {
+                var res = await sb.from('ufc_rankings').select('division, rank_position, fighter_name');
+                if (res && res.error) throw res.error;          // 쿼리 에러 — 캐시하지 않음
+                var map = {};
+                (res && res.data || []).forEach(function (r) {
+                    var k = _normRankName(r.fighter_name);
+                    if (!k) return;
+                    (map[k] = map[k] || []).push({ division: r.division, pos: r.rank_position });
+                });
+                // invalidate 이전에 시작된 응답(세대 불일치)은 호출자에게 결과만 반환하고 전역 캐시는 오염시키지 않음.
+                if (myGen === _officialRankMapGen) _officialRankMap = map;
+                return map;
+            } catch (e) {
+                return {};                                       // 실패 — 비랭크 처리, 캐시 안 함(재시도)
+            } finally {
+                // 새 요청이 덮어쓴 in-flight Promise를 구 요청 finally가 지우지 않도록 동일성 검사.
+                if (_officialRankMapPromise === p) _officialRankMapPromise = null;
+            }
+        })();
+        _officialRankMapPromise = p;
+        return p;
+    }
+    // 랭킹 관리자 저장/동기화 성공 후 호출 — 세대 증가(in-flight 구 응답의 캐시 반영 차단) + 캐시/Promise 제거.
+    function _invalidateOfficialRankMap() { _officialRankMapGen++; _officialRankMap = null; _officialRankMapPromise = null; }
+    // 공식 랭킹 배지 텍스트. 예: '라이트헤비급 #2 · P4P #4' / 동일체급이면 '#5' / 없으면 '비랭크'.
+    function _officialRankBadge(nameEn, name, currentDivLabel, mapArg) {
+        var map = mapArg || _officialRankMap;
+        if (!map) return { text: '비랭크', ranked: false };
+        var rows = map[_normRankName(nameEn)] || map[_normRankName(name)];
+        if (!rows || !rows.length) return { text: '비랭크', ranked: false };
+        var divParts = [], p4pPart = null;
+        rows.forEach(function (r) {
+            var posTxt = (String(r.pos).toUpperCase() === 'C') ? '챔피언' : '#' + String(r.pos).replace(/[^0-9]/g, '');
+            if (r.division === 'p4p')   { p4pPart = 'P4P ' + posTxt; return; }
+            if (r.division === 'w-p4p') { p4pPart = '여자 P4P ' + posTxt; return; }
+            var dl = (typeof UFC_DIVISION_FULL_LABELS !== 'undefined' && UFC_DIVISION_FULL_LABELS[r.division]) || (r.division || '').toUpperCase();
+            divParts.push((currentDivLabel && dl === currentDivLabel) ? posTxt : (dl + ' ' + posTxt));
+        });
+        var all = divParts.concat(p4pPart ? [p4pPart] : []);
+        return { text: all.length ? all.join(' · ') : '비랭크', ranked: all.length > 0 };
+    }
+    // 레이더용 레이팅 stats 유효성: 정확히 숫자 5개여야 함(빈/비정상/fallback 차단).
+    function _isValidRatingStats(s) {
+        return Array.isArray(s) && s.length === 5 && s.every(function (v) { return typeof v === 'number' && isFinite(v); });
+    }
+    // 픽타곤 레이팅(합성) 막대 + 레이더를 함께 렌더. 유효 5수치가 아니면 막대 섹션 전체와
+    // 레이더를 모두 숨기고 단일 '레이팅 데이터 없음' empty state만 노출(0/AVG 가짜 막대 금지).
+    function _renderRatingSection(stats) {
+        var valid   = _isValidRatingStats(stats);
+        var section = document.getElementById('fp-stat-bars-section');
+        var barsEl  = document.getElementById('fp-stat-bars');
+        var empty   = document.getElementById('fp-radar-empty');
+        var wrap    = document.getElementById('fp-radar-wrap');
+        if (fpRadarChart) { fpRadarChart.destroy(); fpRadarChart = null; }
+        if (!valid) {
+            if (section) section.classList.add('hidden');
+            if (barsEl)  barsEl.innerHTML = '';
+            if (empty)   empty.classList.remove('hidden');
+            if (wrap)    wrap.classList.add('hidden');
+            return;
+        }
+        if (section) section.classList.remove('hidden');
+        if (empty)   empty.classList.add('hidden');
+        if (wrap)    wrap.classList.remove('hidden');
+        if (barsEl) {
+            barsEl.innerHTML = STAT_LABELS.map(function (label, i) {
+                var val = stats[i];
+                var color = STAT_COLORS[i];
+                var grade = val >= 90 ? 'ELITE' : val >= 80 ? 'GREAT' : val >= 70 ? 'GOOD' : 'AVG';
+                return '' +
+                '<div>' +
+                    '<div class="flex justify-between items-center mb-1">' +
+                        '<span class="oswald-sharp text-[10px] lg:text-xs text-gray-400 font-black italic uppercase tracking-widest">' + label + '</span>' +
+                        '<div class="flex items-center gap-2">' +
+                            '<span class="oswald-sharp text-[8px] text-gray-600 italic uppercase">' + grade + '</span>' +
+                            '<span class="oswald-sharp text-sm lg:text-base font-black italic text-white">' + val + '</span>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="h-2 lg:h-2.5 rounded-full bg-white/5 overflow-hidden">' +
+                        '<div class="h-full rounded-full transition-all duration-700 fp-bar" data-width="' + val + '" style="width:0%; background:' + color + '"></div>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+            setTimeout(function () {
+                document.querySelectorAll('.fp-bar').forEach(function (bar) { bar.style.width = bar.dataset.width + '%'; });
+            }, 60);
+        }
+        var canvas = document.getElementById('fp-radar-canvas');
+        if (canvas && typeof Chart !== 'undefined') {
+            fpRadarChart = new Chart(canvas.getContext('2d'), {
+                type: 'radar',
+                data: {
+                    labels: STAT_LABELS,
+                    datasets: [{
+                        data: stats,
+                        backgroundColor: 'rgba(225,6,0,0.15)',
+                        borderColor: '#E10600',
+                        pointBackgroundColor: '#E10600',
+                        pointRadius: 4,
+                        borderWidth: 2,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            min: 0, max: 100,
+                            ticks: { display: false, stepSize: 25 },
+                            grid: { color: 'rgba(255,255,255,0.06)' },
+                            angleLines: { color: 'rgba(255,255,255,0.06)' },
+                            pointLabels: {
+                                color: '#9ca3af',
+                                font: { family: 'Oswald', size: 10, weight: '700', style: 'italic' }
+                            }
+                        }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+    }
+
     async function openFighterProfile(fighter) {
         // If passed as string (from onclick attr), parse it
         if (typeof fighter === 'string') fighter = JSON.parse(fighter);
@@ -4160,8 +4300,13 @@ async function publishPost() {
         document.getElementById('fp-reach').textContent = fighter.reach || '—';
         document.getElementById('fp-weight').textContent = fighter.weight || '—';
         document.getElementById('fp-odds').textContent = fighter.odds ? `×${fighter.odds}` : '—';
-        document.getElementById('fp-rank-badge').textContent = fighter.rank || 'UNRANKED';
-        document.getElementById('fp-division-badge').textContent = fighter.division || '';
+        // 체급(출전/프로필) 배지 = 현재 체급 라벨 (fighters.division 또는 weight_class 기반)
+        var _curDivLabel = fighter.division || '';
+        document.getElementById('fp-division-badge').textContent = _curDivLabel;
+        // 공식 랭킹 배지 = ufc_rankings(division+rank_position) 한 쌍으로만. fighters.rank 단독값 미사용.
+        var _rankMap = await _ensureOfficialRankMap();
+        var _orb = _officialRankBadge(fighter.name_en, fighter.name, _curDivLabel, _rankMap);
+        document.getElementById('fp-rank-badge').textContent = _orb.text;
         // KO/SUB/DEC율
         const finishSection = document.getElementById('fp-finish-section');
         if (fighter.ko_rate != null || fighter.sub_rate != null || fighter.dec_rate != null) {
@@ -4173,69 +4318,8 @@ async function publishPost() {
             finishSection?.classList.add('hidden');
         }
 
-        // Stat bars
-        const stats = fighter.stats || [75, 75, 75, 75, 75];
-        const barsEl = document.getElementById('fp-stat-bars');
-        barsEl.innerHTML = STAT_LABELS.map((label, i) => {
-            const val = stats[i] || 0;
-            const color = STAT_COLORS[i];
-            const grade = val >= 90 ? 'ELITE' : val >= 80 ? 'GREAT' : val >= 70 ? 'GOOD' : 'AVG';
-            return `
-            <div>
-                <div class="flex justify-between items-center mb-1">
-                    <span class="oswald-sharp text-[10px] lg:text-xs text-gray-400 font-black italic uppercase tracking-widest">${label}</span>
-                    <div class="flex items-center gap-2">
-                        <span class="oswald-sharp text-[8px] text-gray-600 italic uppercase">${grade}</span>
-                        <span class="oswald-sharp text-sm lg:text-base font-black italic text-white">${val}</span>
-                    </div>
-                </div>
-                <div class="h-2 lg:h-2.5 rounded-full bg-white/5 overflow-hidden">
-                    <div class="h-full rounded-full transition-all duration-700 fp-bar" data-width="${val}" style="width:0%; background:${color}"></div>
-                </div>
-            </div>`;
-        }).join('');
-
-        // Animate bars after short delay
-        setTimeout(() => {
-            document.querySelectorAll('.fp-bar').forEach(bar => {
-                bar.style.width = bar.dataset.width + '%';
-            });
-        }, 60);
-
-        // Radar chart
-        if (fpRadarChart) { fpRadarChart.destroy(); fpRadarChart = null; }
-        const ctx = document.getElementById('fp-radar-canvas').getContext('2d');
-        fpRadarChart = new Chart(ctx, {
-            type: 'radar',
-            data: {
-                labels: STAT_LABELS,
-                datasets: [{
-                    data: stats,
-                    backgroundColor: 'rgba(225,6,0,0.15)',
-                    borderColor: '#E10600',
-                    pointBackgroundColor: '#E10600',
-                    pointRadius: 4,
-                    borderWidth: 2,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    r: {
-                        min: 0, max: 100,
-                        ticks: { display: false, stepSize: 25 },
-                        grid: { color: 'rgba(255,255,255,0.06)' },
-                        angleLines: { color: 'rgba(255,255,255,0.06)' },
-                        pointLabels: {
-                            color: '#9ca3af',
-                            font: { family: 'Oswald', size: 10, weight: '700', style: 'italic' }
-                        }
-                    }
-                },
-                plugins: { legend: { display: false } }
-            }
-        });
+        // 픽타곤 레이팅(합성) 막대 + 레이더 — 유효 5수치 아니면 섹션 전체 숨김 + 단일 empty state.
+        _renderRatingSection(fighter.stats);
 
         // Fight history from archive
         renderFighterHistory(fighter.name);
@@ -4360,7 +4444,10 @@ async function publishPost() {
             p_division: div, p_rank_position: pos, p_name: newName
         });
         if (error) { showToast('❌ 저장 실패: ' + error.message); input.style.color = '#f87171'; }
-        else { showToast('✅ 저장됨: ' + newName); input.style.color = '#4ade80'; setTimeout(() => input.style.color = '', 2000); }
+        else {
+            _invalidateOfficialRankMap(); // 랭킹 이름 저장 성공 → 공식 랭킹 맵 무효화(다음 프로필 오픈 시 변경된 이름으로 재조회)
+            showToast('✅ 저장됨: ' + newName); input.style.color = '#4ade80'; setTimeout(() => input.style.color = '', 2000);
+        }
     }
 
     async function syncRankFromUFCRankings() {
@@ -4546,6 +4633,7 @@ async function publishPost() {
                 showToast('✅ ' + allRows.length + '개 랭킹 갱신 완료! (UFC.com 기준)');
                 var updated = document.getElementById('ufc-rank-updated');
                 if (updated) updated.textContent = 'UFC.com 기준 · ' + new Date().toLocaleDateString('ko-KR');
+                _invalidateOfficialRankMap(); // 동기화 성공 → 공식 랭킹 맵 캐시 무효화(다음 프로필 오픈 시 재조회)
                 loadUFCRankings();
                 syncFighterRanksFromRankings(allRows);
             }
@@ -4741,7 +4829,8 @@ async function publishPost() {
                 ko_rate: dbRow.ko_rate ?? null, sub_rate: dbRow.sub_rate ?? null, dec_rate: dbRow.dec_rate ?? null,
                 odds: dbRow.odds || fighter.odds || null,
                 rank: rankLabel, division: divLabel, style: dbRow.style,
-                stats: Array.isArray(dbRow.stats) ? dbRow.stats : (fighter.stats || [75,75,75,75,75]),
+                // 레이팅은 실제 fighters.stats만. 없으면 null(ufc_rankings의 [75,...] placeholder 미전달).
+                stats: Array.isArray(dbRow.stats) ? dbRow.stats : null,
                 image_url: dbRow.image_url || null,
             });
             return;
@@ -4761,40 +4850,9 @@ async function publishPost() {
         document.getElementById('fp-rank-badge').textContent = fighter.isChampion ? '🏆 CHAMPION' : `#${fighter.rank}`;
         document.getElementById('fp-division-badge').textContent = fighter.division || '';
 
-        // Stats bars
-        const stats = fighter.stats || [75,75,75,75,75];
-        const barsEl = document.getElementById('fp-stat-bars');
-        barsEl.innerHTML = STAT_LABELS.map((label, i) => {
-            const val = stats[i] || 0;
-            const color = STAT_COLORS[i];
-            const grade = val >= 90 ? 'ELITE' : val >= 80 ? 'GREAT' : val >= 70 ? 'GOOD' : 'AVG';
-            return `
-            <div>
-                <div class="flex justify-between items-center mb-1">
-                    <label class="oswald-sharp text-[10px] lg:text-xs text-gray-400 font-black italic uppercase tracking-widest">${label}</label>
-                    <div class="flex items-center gap-2">
-                        <span class="oswald-sharp text-[8px] text-gray-600 italic uppercase">${grade}</span>
-                        <span class="oswald-sharp text-sm lg:text-base font-black italic text-white">${val}</span>
-                    </div>
-                </div>
-                <div class="h-2 lg:h-2.5 rounded-full bg-white/5 overflow-hidden">
-                    <div class="h-full rounded-full transition-all duration-700 fp-bar" data-width="${val}" style="width:0%; background:${color}"></div>
-                </div>
-            </div>`;
-        }).join('');
-
-        setTimeout(() => {
-            document.querySelectorAll('.fp-bar').forEach(bar => { bar.style.width = bar.dataset.width + '%'; });
-        }, 60);
-
-        // Radar
-        if (fpRadarChart) { fpRadarChart.destroy(); fpRadarChart = null; }
-        const ctx = document.getElementById('fp-radar-canvas').getContext('2d');
-        fpRadarChart = new Chart(ctx, {
-            type:'radar',
-            data:{ labels:STAT_LABELS, datasets:[{ data:stats, backgroundColor:'rgba(225,6,0,0.15)', borderColor:'#E10600', pointBackgroundColor:'#E10600', pointRadius:4, borderWidth:2 }] },
-            options:{ responsive:true, maintainAspectRatio:false, scales:{ r:{ min:0, max:100, ticks:{display:false}, grid:{color:'rgba(255,255,255,0.06)'}, angleLines:{color:'rgba(255,255,255,0.06)'}, pointLabels:{color:'#9ca3af', font:{family:'Oswald',size:10,weight:'700',style:'italic'}} } }, plugins:{legend:{display:false}} }
-        });
+        // 레이팅 — fighters 테이블 미매칭(이 분기) 이므로 신뢰할 fighters.stats가 없다.
+        // ufc_rankings의 합성 stats를 레이팅으로 쓰지 않고 empty state로 처리(가짜 75 차단).
+        _renderRatingSection(null);
 
         renderFighterHistory(fighter.name);
     }

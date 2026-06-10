@@ -283,16 +283,10 @@ function _renderH2HContent() {
 }
 
 function _doRenderH2H(content, f1, f2) {
-    var stats1 = _getDisplayStats(f1);
-    var stats2 = _getDisplayStats(f2);
     var STAT_LABELS = ['Striking', 'Grappling', 'Stamina', 'Defense', 'Speed'];
-
-    var totalAdv1 = stats1.reduce(function(s, v, i) { return s + (v > stats2[i] ? 1 : 0); }, 0);
-    var totalAdv2 = stats2.reduce(function(s, v, i) { return s + (v > stats1[i] ? 1 : 0); }, 0);
-    var overallAdv = totalAdv1 > totalAdv2 ? f1.name : (totalAdv2 > totalAdv1 ? f2.name : 'EVEN');
-
-    var styleAnalysis = { f1Style: '—', f1Icon: '⚔️', f2Style: '—', f2Icon: '⚔️', keyMatchup: '—', prediction: '—' };
-    try { styleAnalysis = analyzeStyleMatchup(stats1, stats2, f1.name, f2.name); } catch(e) { console.warn('[H2H] styleAnalysis:', e); }
+    // 레이팅 의존 섹션(스탯 비교·스타일 분석·우위·레이더)은 두 선수 모두 유효한 숫자 5개일 때만 계산/표시.
+    // 한 명이라도 무효면 [75,...] fallback을 쓰지 않고 단일 empty state로 대체한다.
+    var _h2hRatingValid = _h2hValidRating(f1 && f1.stats) && _h2hValidRating(f2 && f2.stats);
 
     var rank1 = null, rank2 = null;
     try { rank1 = findUFCRank(f1.name); } catch(e) {}
@@ -336,27 +330,73 @@ function _doRenderH2H(content, f1, f2) {
         'box-shadow:0 0 18px rgba(225,6,0,0.22),0 0 18px rgba(59,130,246,0.18)">' +
         '<span style="color:#E10600">V</span><span style="color:#3b82f6">S</span></div></div>';
 
-    var statBarsHtml = STAT_LABELS.map(function(label, i) {
-        var v1 = stats1[i] || 0, v2 = stats2[i] || 0;
-        var total = v1 + v2;
-        var pct1 = total > 0 ? Math.round(v1 / total * 100) : 50;
-        var pct2 = 100 - pct1;
-        var adv = v1 > v2 ? 'left' : v2 > v1 ? 'right' : 'even';
-        return '<div>' +
-            '<div class="flex justify-between items-center mb-1">' +
-                '<span class="oswald-sharp text-xs font-black italic ' + (adv === 'left' ? 'text-ufcRed' : 'text-gray-400') + '">' + v1 + '</span>' +
-                '<span class="oswald-sharp text-[9px] text-gray-500 italic uppercase tracking-widest">' + label + '</span>' +
-                '<span class="oswald-sharp text-xs font-black italic ' + (adv === 'right' ? 'text-ufcBlue' : 'text-gray-400') + '">' + v2 + '</span>' +
-            '</div>' +
-            '<div class="flex h-2.5 rounded-full overflow-hidden gap-px">' +
-                '<div class="h-full rounded-l-full transition-all duration-700" style="width:' + pct1 + '%; background:' + (adv === 'left' ? '#E10600' : 'rgba(255,255,255,0.12)') + '"></div>' +
-                '<div class="h-full rounded-r-full transition-all duration-700" style="width:' + pct2 + '%; background:' + (adv === 'right' ? '#3b82f6' : 'rgba(255,255,255,0.12)') + '"></div>' +
-            '</div>' +
-        '</div>';
-    }).join('');
-
     var f1Last = (f1.name || '').split(' ').pop();
     var f2Last = (f2.name || '').split(' ').pop();
+
+    // ── 레이팅 의존 영역(스탯 비교·스타일 분석·우위·레이더) — 둘 다 유효할 때만 계산/표시 ──
+    var ratingSection;
+    if (!_h2hRatingValid) {
+        ratingSection =
+            '<div class="glass-card rounded-2xl p-8 text-center border border-white/5">' +
+                '<p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[0.3em] font-black italic mb-3">픽타곤 파이터 레이팅</p>' +
+                '<p class="oswald-sharp text-[11px] text-gray-600 italic uppercase tracking-widest py-4">레이팅 데이터 없음</p>' +
+                '<p class="text-[9px] text-gray-700 italic">두 선수의 레이팅 데이터가 모두 있어야 스탯 비교·스타일 분석·우위를 표시합니다</p>' +
+            '</div>';
+    } else {
+        var stats1 = f1.stats, stats2 = f2.stats; // 검증된 유효 5수치 — _getDisplayStats fallback 미사용
+        var totalAdv1 = stats1.reduce(function(s, v, i) { return s + (v > stats2[i] ? 1 : 0); }, 0);
+        var totalAdv2 = stats2.reduce(function(s, v, i) { return s + (v > stats1[i] ? 1 : 0); }, 0);
+        var overallAdv = totalAdv1 > totalAdv2 ? f1.name : (totalAdv2 > totalAdv1 ? f2.name : 'EVEN');
+        var styleAnalysis = { f1Style: '—', f1Icon: '⚔️', f2Style: '—', f2Icon: '⚔️', keyMatchup: '—', prediction: '—' };
+        try { styleAnalysis = analyzeStyleMatchup(stats1, stats2, f1.name, f2.name); } catch(e) { console.warn('[H2H] styleAnalysis:', e); }
+        var statBarsHtml = STAT_LABELS.map(function(label, i) {
+            var v1 = stats1[i] || 0, v2 = stats2[i] || 0;
+            var total = v1 + v2;
+            var pct1 = total > 0 ? Math.round(v1 / total * 100) : 50;
+            var pct2 = 100 - pct1;
+            var adv = v1 > v2 ? 'left' : v2 > v1 ? 'right' : 'even';
+            return '<div>' +
+                '<div class="flex justify-between items-center mb-1">' +
+                    '<span class="oswald-sharp text-xs font-black italic ' + (adv === 'left' ? 'text-ufcRed' : 'text-gray-400') + '">' + v1 + '</span>' +
+                    '<span class="oswald-sharp text-[9px] text-gray-500 italic uppercase tracking-widest">' + label + '</span>' +
+                    '<span class="oswald-sharp text-xs font-black italic ' + (adv === 'right' ? 'text-ufcBlue' : 'text-gray-400') + '">' + v2 + '</span>' +
+                '</div>' +
+                '<div class="flex h-2.5 rounded-full overflow-hidden gap-px">' +
+                    '<div class="h-full rounded-l-full transition-all duration-700" style="width:' + pct1 + '%; background:' + (adv === 'left' ? '#E10600' : 'rgba(255,255,255,0.12)') + '"></div>' +
+                    '<div class="h-full rounded-r-full transition-all duration-700" style="width:' + pct2 + '%; background:' + (adv === 'right' ? '#3b82f6' : 'rgba(255,255,255,0.12)') + '"></div>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+
+        ratingSection =
+            '<div class="glass-card rounded-2xl p-5 lg:p-7 mb-6 border border-white/5">' +
+                '<p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[0.3em] font-black italic mb-4">🔍 스탯 기반 관전 포인트</p>' +
+                '<div class="grid grid-cols-3 gap-3 mb-4">' +
+                    '<div class="text-center p-3 rounded-xl bg-black/30 border border-white/5"><p class="text-xl mb-1">' + styleAnalysis.f1Icon + '</p><p class="oswald-sharp text-[9px] text-gray-500 italic uppercase mb-1">' + f1Last + '</p><p class="oswald-sharp text-xs font-black italic text-ufcRed uppercase">' + styleAnalysis.f1Style + '</p></div>' +
+                    '<div class="text-center p-3 rounded-xl bg-ufcRed/5 border border-ufcRed/20 flex items-center justify-center"><div><p class="oswald-sharp text-[8px] text-gray-500 italic uppercase mb-1">키 매치업</p><p class="oswald-sharp text-xs font-black italic text-white uppercase leading-tight">' + styleAnalysis.keyMatchup + '</p></div></div>' +
+                    '<div class="text-center p-3 rounded-xl bg-black/30 border border-white/5"><p class="text-xl mb-1">' + styleAnalysis.f2Icon + '</p><p class="oswald-sharp text-[9px] text-gray-500 italic uppercase mb-1">' + f2Last + '</p><p class="oswald-sharp text-xs font-black italic text-ufcBlue uppercase">' + styleAnalysis.f2Style + '</p></div>' +
+                '</div>' +
+                '<div class="p-3 rounded-xl bg-black/20 border border-white/5"><p class="text-gray-300 text-xs italic leading-relaxed">' + styleAnalysis.prediction + '</p></div>' +
+            '</div>' +
+            '<div class="mb-6 space-y-3">' +
+                '<p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[0.3em] font-black italic">스탯 비교</p>' +
+                statBarsHtml +
+            '</div>' +
+            '<div class="mb-6">' +
+                '<p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[0.3em] font-black italic mb-1">픽타곤 파이터 레이팅</p>' +
+                '<p class="text-[8px] text-gray-700 italic mb-4">공식 경기 기록과 별도로 산정된 종합 레이팅</p>' +
+                '<div id="h2h-radar-wrap" class="relative mx-auto" style="max-width:300px; height:240px"><canvas id="h2h-radar-canvas"></canvas></div>' +
+                '<div class="flex justify-center gap-6 mt-3">' +
+                    '<div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-ufcRed"></div><span class="oswald-sharp text-[10px] text-gray-400 italic uppercase">' + f1Last + '</span></div>' +
+                    '<div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-ufcBlue"></div><span class="oswald-sharp text-[10px] text-gray-400 italic uppercase">' + f2Last + '</span></div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="glass-card rounded-2xl p-6 text-center border ' + (overallAdv === 'EVEN' ? 'border-white/10' : 'border-ufcRed/20') + '" style="' + (overallAdv !== 'EVEN' ? 'background:rgba(225,6,0,0.05)' : '') + '">' +
+                '<p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-widest italic mb-2">스탯 우위 종합</p>' +
+                '<p class="oswald-sharp text-2xl lg:text-3xl font-black italic text-white uppercase tracking-tighter">' + (overallAdv === 'EVEN' ? '⚖️ EVEN' : '🏆 ' + overallAdv) + '</p>' +
+                '<p class="oswald-sharp text-xs text-gray-500 italic mt-2 uppercase">' + totalAdv1 + '개 항목 우위 vs ' + totalAdv2 + '개 항목 우위</p>' +
+            '</div>';
+    }
 
     content.innerHTML =
         '<div class="flex flex-col sm:flex-row items-stretch gap-3 sm:gap-4 mb-6">' +
@@ -364,36 +404,12 @@ function _doRenderH2H(content, f1, f2) {
             vsBadge +
             '<div class="flex-1 min-w-0">' + fighterCards[1] + '</div>' +
         '</div>' +
-        '<div class="glass-card rounded-2xl p-5 lg:p-7 mb-6 border border-white/5">' +
-            '<p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[0.3em] font-black italic mb-4">🔍 스탯 기반 관전 포인트</p>' +
-            '<div class="grid grid-cols-3 gap-3 mb-4">' +
-                '<div class="text-center p-3 rounded-xl bg-black/30 border border-white/5"><p class="text-xl mb-1">' + styleAnalysis.f1Icon + '</p><p class="oswald-sharp text-[9px] text-gray-500 italic uppercase mb-1">' + f1Last + '</p><p class="oswald-sharp text-xs font-black italic text-ufcRed uppercase">' + styleAnalysis.f1Style + '</p></div>' +
-                '<div class="text-center p-3 rounded-xl bg-ufcRed/5 border border-ufcRed/20 flex items-center justify-center"><div><p class="oswald-sharp text-[8px] text-gray-500 italic uppercase mb-1">키 매치업</p><p class="oswald-sharp text-xs font-black italic text-white uppercase leading-tight">' + styleAnalysis.keyMatchup + '</p></div></div>' +
-                '<div class="text-center p-3 rounded-xl bg-black/30 border border-white/5"><p class="text-xl mb-1">' + styleAnalysis.f2Icon + '</p><p class="oswald-sharp text-[9px] text-gray-500 italic uppercase mb-1">' + f2Last + '</p><p class="oswald-sharp text-xs font-black italic text-ufcBlue uppercase">' + styleAnalysis.f2Style + '</p></div>' +
-            '</div>' +
-            '<div class="p-3 rounded-xl bg-black/20 border border-white/5"><p class="text-gray-300 text-xs italic leading-relaxed">' + styleAnalysis.prediction + '</p></div>' +
-        '</div>' +
-        '<div class="mb-6 space-y-3">' +
-            '<p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[0.3em] font-black italic">스탯 비교</p>' +
-            statBarsHtml +
-        '</div>' +
-        '<div class="mb-6">' +
-            '<p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-[0.3em] font-black italic mb-4">레이더 분석</p>' +
-            '<div class="relative mx-auto" style="max-width:300px; height:240px"><canvas id="h2h-radar-canvas"></canvas></div>' +
-            '<div class="flex justify-center gap-6 mt-3">' +
-                '<div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-ufcRed"></div><span class="oswald-sharp text-[10px] text-gray-400 italic uppercase">' + f1Last + '</span></div>' +
-                '<div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-ufcBlue"></div><span class="oswald-sharp text-[10px] text-gray-400 italic uppercase">' + f2Last + '</span></div>' +
-            '</div>' +
-        '</div>' +
-        '<div class="glass-card rounded-2xl p-6 text-center border ' + (overallAdv === 'EVEN' ? 'border-white/10' : 'border-ufcRed/20') + '" style="' + (overallAdv !== 'EVEN' ? 'background:rgba(225,6,0,0.05)' : '') + '">' +
-            '<p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-widest italic mb-2">스탯 우위 종합</p>' +
-            '<p class="oswald-sharp text-2xl lg:text-3xl font-black italic text-white uppercase tracking-tighter">' + (overallAdv === 'EVEN' ? '⚖️ EVEN' : '🏆 ' + overallAdv) + '</p>' +
-            '<p class="oswald-sharp text-xs text-gray-500 italic mt-2 uppercase">' + totalAdv1 + '개 항목 우위 vs ' + totalAdv2 + '개 항목 우위</p>' +
-        '</div>';
+        ratingSection;
 
-    // 레이더 차트
+    // 레이더 차트 — 유효 레이팅일 때만 그린다(empty state는 ratingSection에서 처리)
     setTimeout(function() {
         if (h2hRadarChart) { h2hRadarChart.destroy(); h2hRadarChart = null; }
+        if (!_h2hRatingValid) return;
         var canvas = document.getElementById('h2h-radar-canvas');
         if (!canvas || typeof Chart === 'undefined') return;
         try {
@@ -402,8 +418,8 @@ function _doRenderH2H(content, f1, f2) {
                 data: {
                     labels: STAT_LABELS,
                     datasets: [
-                        { label: f1.name, data: stats1, fill: true, backgroundColor: 'rgba(225,6,0,0.25)', borderColor: '#E10600', pointBackgroundColor: '#E10600', pointRadius: 4, borderWidth: 2 },
-                        { label: f2.name, data: stats2, fill: true, backgroundColor: 'rgba(59,130,246,0.25)', borderColor: '#3b82f6', pointBackgroundColor: '#3b82f6', pointRadius: 4, borderWidth: 2 }
+                        { label: f1.name, data: f1.stats, fill: true, backgroundColor: 'rgba(225,6,0,0.25)', borderColor: '#E10600', pointBackgroundColor: '#E10600', pointRadius: 4, borderWidth: 2 },
+                        { label: f2.name, data: f2.stats, fill: true, backgroundColor: 'rgba(59,130,246,0.25)', borderColor: '#3b82f6', pointBackgroundColor: '#3b82f6', pointRadius: 4, borderWidth: 2 }
                     ]
                 },
                 options: {
@@ -417,9 +433,10 @@ function _doRenderH2H(content, f1, f2) {
 }
 
 // ── Stats helper ──────────────────────────────────────────────────────
-function _getDisplayStats(f) {
-    var s = f && f.stats;
-    return (Array.isArray(s) && s.length === 5) ? s : [75, 75, 75, 75, 75];
+// 레이팅 의존 영역 표시 가부: 정확히 숫자 5개여야 함(가짜 [75,...] fallback 비표시).
+// 이전의 _getDisplayStats() 중립 fallback은 제거됨 — 사용자 화면 계산에 더 이상 쓰이지 않는다.
+function _h2hValidRating(s) {
+    return Array.isArray(s) && s.length === 5 && s.every(function (v) { return typeof v === 'number' && isFinite(v); });
 }
 
 // Height/reach display: prefer existing text column; fall back to the numeric

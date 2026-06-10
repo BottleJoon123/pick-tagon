@@ -13,7 +13,7 @@ var _archiveRetryTimer = null;  // retry timer ref
 
 var fighterArchiveDB = [];      // fighters table cache
 var _fightersFetching = false;
-var _ufcRankMap = {};           // lowercase name_en → rank number (0=champion)
+var _ufcRankMap = {};           // normName → { divisionCode: rank }  (0=champion, P4P 포함)
 var _currentArchiveTab = 'events'; // 'events' | 'fighters'
 
 // ── 서브탭 전환 ───────────────────────────────────────────────────────
@@ -629,28 +629,29 @@ const DIVISION_LABEL = {
     catchweight: '캐치웨이트',
 };
 
-// ufc_rankings 맵에서 랭크 조회 (없으면 fighters.rank 폴백)
-function _getRankVal(f) {
-    const key = (f.name_en || '').toLowerCase().trim();
-    if (key in _ufcRankMap) return _ufcRankMap[key];
-    // 성(last name) 부분 매칭 폴백
-    const lastName = key.split(' ').pop();
-    if (lastName && lastName.length >= 4) {
-        const match = Object.keys(_ufcRankMap).find(k => k.includes(lastName));
-        if (match !== undefined) return _ufcRankMap[match];
-    }
-    return f.rank ?? null;
+// fighters.division 코드 → ufc_rankings.division 코드 (여성 체급 표기 차이 보정)
+const _F2R_DIV = { hw:'hw', lhw:'lhw', mw:'mw', ww:'ww', lw:'lw', fw:'fw', bw:'bw', flw:'flw', wbw:'w-bw', wfw:'w-flw', wmw:'w-sw' };
+
+// 현재 체급(fighters.division)에 한해서만 공식 순위 반환. 교차체급/비랭크면 null.
+// 이름은 exact normalized(name_en 우선)만 사용 — last-word 부분매칭 금지(동성이인 오염 방지).
+// fighters.rank 단일값은 사용하지 않음(체급 정보가 없어 잘못된 "체급 #N"을 만든다).
+function _getDivisionRank(f) {
+    const key = (f.name_en || f.name || '').toLowerCase().trim().replace(/\s+/g, ' ');
+    const rows = _ufcRankMap[key];
+    if (!rows) return null;
+    const rdiv = _F2R_DIV[f.division];
+    if (!rdiv) return null;
+    return (rdiv in rows) ? rows[rdiv] : null;
 }
 
-// Maps a DB fighters row → openFighterProfile() expected shape
+// Maps a DB fighters row → openFighterProfile() expected shape.
+// 랭크는 프로필 모달에서 ufc_rankings(division+rank_position) 기준으로 재계산하므로
+// 여기서 잘못된 fighters.rank를 넣지 않는다(rank: null). 합성 stats fallback도 주입하지 않는다.
 function _buildFighterForProfile(f) {
     const record = (f.wins || f.losses || f.draws)
         ? `${f.wins || 0}-${f.losses || 0}${f.draws ? '-' + f.draws : ''}`
         : null;
-    const rv = _getRankVal(f);
-    const rankLabel = rv === 0 ? 'CHAMPION' : (rv != null ? `#${rv}` : 'UNRANKED');
     const divLabel  = DIVISION_LABEL[f.division] || (f.division || '').toUpperCase();
-    const stats     = Array.isArray(f.stats) ? f.stats : [50, 50, 50, 50, 50];
     const heightStr = f.height_cm ? Math.round(f.height_cm) + ' cm' : (f.height || '—');
     const reachStr  = f.reach_cm  ? Math.round(f.reach_cm)  + ' cm' : (f.reach  || '—');
     const weightStr = f.weight_kg ? Math.round(f.weight_kg) + ' kg' : '—';
@@ -666,10 +667,10 @@ function _buildFighterForProfile(f) {
         sub_rate: f.sub_rate ?? null,
         dec_rate: f.dec_rate ?? null,
         odds: f.odds || null,
-        rank: rankLabel,
+        rank: null,           // 프로필 모달이 ufc_rankings로 재계산
         division: divLabel,
         style: f.style,
-        stats,
+        stats: Array.isArray(f.stats) ? f.stats : null,  // 유효치 없으면 null → 레이더 empty state
         image_url: f.image_url || null,
         nickname: f.nickname || null,
     };
@@ -690,20 +691,22 @@ async function fetchFighterArchive() {
               .order('division', { ascending: true })
               .order('rank', { ascending: true, nullsFirst: false })
               .limit(5000),
-            sb.from('ufc_rankings').select('fighter_name, rank_position')
+            sb.from('ufc_rankings').select('division, fighter_name, rank_position')
         ]);
 
         if (fightersRes.error) throw fightersRes.error;
 
-        // ufc_rankings → 이름 소문자 키 맵 구성 (P4P 제외, 같은 이름이면 작은 값 우선)
+        // ufc_rankings → 이름키 division-scoped 맵: { normName: { divisionCode: rankInt|0 } }
+        // exact normalized 이름만 사용. 카드/프로필 모두 체급을 함께 판정한다.
         _ufcRankMap = {};
         (rankingsRes.data || []).forEach(row => {
-            if (row.division === 'p4p') return;
-            const key = (row.fighter_name || '').toLowerCase().trim();
+            const key = (row.fighter_name || '').toLowerCase().trim().replace(/\s+/g, ' ');
             if (!key) return;
-            const rv = row.rank_position === 'C' ? 0 : parseInt(row.rank_position, 10);
+            const rv = String(row.rank_position).toUpperCase() === 'C'
+                ? 0
+                : parseInt(String(row.rank_position).replace(/[^0-9]/g, ''), 10);
             if (isNaN(rv)) return;
-            if (!(key in _ufcRankMap) || rv < _ufcRankMap[key]) _ufcRankMap[key] = rv;
+            (_ufcRankMap[key] = _ufcRankMap[key] || {})[row.division] = rv;
         });
 
         fighterArchiveDB = fightersRes.data || [];
@@ -750,7 +753,8 @@ function renderFighterArchive() {
         const record      = (f.wins || f.losses || f.draws)
             ? `${f.wins || 0}-${f.losses || 0}${f.draws ? '-' + f.draws : ''}`
             : null;
-        const rv2 = _getRankVal(f);
+        // 카드 배지는 현재 체급에서 랭크된 경우만 표시(교차체급/비랭크면 '—'). fighters.rank 미사용.
+        const rv2 = _getDivisionRank(f);
         const rankLabel   = rv2 === 0 ? 'C' : (rv2 != null ? `#${rv2}` : '—');
         const divLabel    = DIVISION_LABEL[f.division] || (f.division || '').toUpperCase();
 

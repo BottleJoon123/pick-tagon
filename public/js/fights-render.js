@@ -223,9 +223,11 @@ function renderHeroCard(fight, idx) {
             </div>
             <div id="atab-content-radar-${fight.id}" class="p-6 lg:p-10">
                 <div class="text-center mb-4">
-                    <span class="oswald-sharp text-gray-500 text-[10px] lg:text-sm tracking-[0.3em] font-black italic uppercase">Fighter Stat Comparison</span>
+                    <span class="oswald-sharp text-gray-500 text-[10px] lg:text-sm tracking-[0.3em] font-black italic uppercase">픽타곤 파이터 레이팅</span>
+                    <p class="text-[8px] lg:text-[9px] text-gray-700 italic mt-1 normal-case tracking-normal">공식 경기 기록과 별도로 산정된 종합 레이팅</p>
                 </div>
-                <div class="relative mx-auto w-full max-w-md" style="height:260px">
+                <div id="radar-empty-${fight.id}" class="hidden text-center py-16 oswald-sharp text-[10px] text-gray-600 italic uppercase tracking-widest">레이팅 데이터 없음</div>
+                <div id="radar-wrap-${fight.id}" class="relative mx-auto w-full max-w-md" style="height:260px">
                     <canvas id="radar-${fight.id}"></canvas>
                 </div>
                 <div class="flex justify-center gap-6 mt-4">
@@ -570,14 +572,29 @@ function updateAllFightCards() {
     });
 }
 
-/* [📊 Radar Chart] */
+/* [📊 Radar Chart] 픽타곤 파이터 레이팅 (합성 0~100 점수; 공식 스탯 바와 별개) */
+// 유효 레이팅 = 정확히 숫자 5개. 빈/비정상/fallback은 차트로 그리지 않는다.
+function _fcValidRating(s) {
+    return Array.isArray(s) && s.length === 5 && s.every(function (v) { return typeof v === 'number' && isFinite(v); });
+}
 function initRadarChart(fightId) {
     const fight = getActiveFights().find(f => f.id === fightId);
     if (!fight) return;
     const canvas = document.getElementById(`radar-${fightId}`);
     if (!canvas) return;
 
-    if (fightCharts[fightId]) fightCharts[fightId].destroy();
+    if (fightCharts[fightId]) { fightCharts[fightId].destroy(); fightCharts[fightId] = null; }
+
+    const wrap  = document.getElementById(`radar-wrap-${fightId}`);
+    const empty = document.getElementById(`radar-empty-${fightId}`);
+    // 두 선수 모두 유효한 레이팅이 있어야 비교 레이더를 그린다. 아니면 empty state.
+    if (!_fcValidRating(fight.f1.stats) || !_fcValidRating(fight.f2.stats)) {
+        if (wrap)  wrap.classList.add('hidden');
+        if (empty) empty.classList.remove('hidden');
+        return;
+    }
+    if (wrap)  wrap.classList.remove('hidden');
+    if (empty) empty.classList.add('hidden');
 
     const ctx = canvas.getContext('2d');
     fightCharts[fightId] = new Chart(ctx, {
@@ -614,8 +631,8 @@ function initRadarChart(fightId) {
                     grid: { color: 'rgba(255,255,255,0.1)' },
                     pointLabels: { color: '#aaa', font: { family: 'Oswald', size: 10, style: 'italic' } },
                     ticks: { display: false, stepSize: 20 },
-                    suggestedMin: 50,
-                    suggestedMax: 100
+                    min: 0,
+                    max: 100
                 }
             },
             plugins: { legend: { display: false } }
