@@ -1089,15 +1089,34 @@ textarea, select {
     .tk-roll { white-space: normal; overflow: visible; text-overflow: clip; flex-basis: 100%; line-height: 1.5; }
 }
 
-/* Community composer — desktop centered modal / mobile bottom sheet */
+/* Community composer — desktop centered modal / mobile bottom sheet.
+   헤더와 Publish/Cancel footer는 항상 viewport 안에서 접근 가능하게 유지하고 본문만 스크롤한다:
+   - 시트 자체는 overflow:hidden + dvh 기반 max-height(vh fallback)로 viewport를 넘지 않음
+   - 본문 영역은 flex-1 + min-h-0 + overflow-y-auto(마크업), footer/header는 flex-shrink:0(마크업)
+   - 모바일은 하단 고정 내비(#mobile-nav, ≈59px, z-50)가 footer를 가리므로 그만큼 + safe-area 하단 여백을
+     확보해 Publish/Cancel이 내비 위로 올라오게 한다(데스크톱 centered modal은 하단 내비 없음 → 0). */
 .comm-composer-sheet {
     background: var(--pt-bg-1, #0E0F12);
     border: 1px solid var(--pt-line-2, rgba(255,255,255,0.10));
     border-radius: 20px 20px 0 0;
     box-shadow: 0 -12px 40px rgba(0,0,0,0.6);
+    overflow: hidden;
+    /* 모바일: 상단 고정 헤더(#header, ≈108px) 아래로 시트 상단이 내려오도록 높이 제한 →
+       짧은 화면(가로 모바일 등)에서도 헤더의 닫기(×)가 상단 바에 가리지 않는다. */
+    max-height: calc(100vh - 108px);
+    max-height: calc(100dvh - 108px);
+    padding-bottom: calc(60px + env(safe-area-inset-bottom));
 }
 @media (min-width: 1024px) {
-    .comm-composer-sheet { border-radius: 20px; box-shadow: 0 24px 60px rgba(0,0,0,0.6); }
+    /* 데스크톱 centered modal: 상단 내비(≈112px) 아래 가용 높이로 제한 → 짧은 창에서도 헤더/footer 모두 노출.
+       패널의 lg:pt-28(112) + lg:pb-4(16) = 128px 만큼 viewport에서 차감. */
+    .comm-composer-sheet {
+        border-radius: 20px;
+        box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+        max-height: calc(100vh - 128px);
+        max-height: calc(100dvh - 128px);
+        padding-bottom: 0;
+    }
 }
 
 /* Post list — dense table */
