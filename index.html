@@ -178,6 +178,28 @@
     </div>
 </div>
 
+<!-- ── Recovery Points Modal (0P 회생 — 잔액을 100P로 복구) ──
+     id가 -modal 로 끝나 modal-history(뒤로가기/Esc/배경)와 자동 연동.
+     초기 상태는 hidden 클래스(=display:none). open/close는 hidden 토글만 사용(display 스타일 금지). -->
+<div id="recovery-modal" class="hidden fixed inset-0 z-[700] flex items-center justify-center p-5"
+     style="background:rgba(0,0,0,0.88);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)"
+     onclick="if(event.target===this)closeRecoveryModal()">
+    <div class="glass-card" style="width:100%;max-width:360px;border-radius:20px;padding:24px;border:1px solid rgba(255,255,255,0.12);background:var(--pt-bg-2)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <p class="oswald-sharp" style="font-size:13px;font-weight:900;font-style:italic;text-transform:uppercase;letter-spacing:.18em;color:var(--pt-warn,#f5a524)">⚡ Daily Recovery</p>
+            <button onclick="closeRecoveryModal()" aria-label="닫기" style="background:none;border:none;color:#888;font-size:22px;line-height:1;cursor:pointer">&times;</button>
+        </div>
+        <h4 class="oswald-sharp" style="font-size:20px;font-weight:900;font-style:italic;color:#fff;margin-bottom:8px">포인트가 부족해요</h4>
+        <p class="oswald-sharp" style="font-size:13px;color:#9ca3af;line-height:1.55;margin-bottom:6px">픽 비용은 <b style="color:#fff">100P</b> 입니다. 하루 한 번, 잔액을 <b style="color:var(--pt-warn,#f5a524)">정확히 100P</b>로 복구할 수 있어요.</p>
+        <p id="recovery-balance-line" class="oswald-sharp" style="font-size:12px;color:#6b7280;margin-bottom:16px"></p>
+        <button id="recovery-claim-btn" onclick="claimRecoveryPoints(this)" class="oswald-sharp"
+            style="width:100%;padding:15px;background:var(--pt-warn,#f5a524);color:#1a1300;font-weight:900;font-size:16px;font-style:italic;text-transform:uppercase;letter-spacing:.06em;border:none;border-radius:14px;cursor:pointer;transition:opacity .15s">
+            오늘의 100P 복구
+        </button>
+        <p id="recovery-status" class="oswald-sharp" style="font-size:12px;color:#9ca3af;font-style:italic;text-align:center;min-height:16px;margin-top:12px"></p>
+    </div>
+</div>
+
 <!-- Mobile Top Bar -->
 <header class="lg:hidden sticky top-0 z-50 px-4 py-3 flex justify-between items-center" style="background:rgba(7,8,10,0.92);backdrop-filter:blur(12px) saturate(180%);-webkit-backdrop-filter:blur(12px) saturate(180%);border-bottom:1px solid var(--pt-line-2)">
     <h1 class="flex items-center gap-1.5 cursor-pointer" onclick="navigateTo('home')">
@@ -882,6 +904,22 @@
             <div id="belt-box" class="bg-white text-black p-4 lg:p-7 rounded-2xl flex flex-col justify-between h-28 lg:h-36 transition-all duration-700 shadow-2xl">
                 <span class="text-gray-600 oswald-sharp text-[11px] tracking-[.2em] font-black uppercase italic">Belt Rank</span>
                 <h4 id="belt-name" class="oswald-sharp text-xl lg:text-2xl font-black italic uppercase leading-none tracking-tighter">White Belt</h4>
+            </div>
+        </div>
+
+        <!-- 0P 회생: 로그인 + 잔액 100P 미만일 때만 노출 (refreshUI가 토글) -->
+        <div id="recovery-profile-cta" class="hidden mb-4 lg:mb-6">
+            <div class="glass-card rounded-2xl p-4 lg:p-5 flex items-center justify-between gap-3 border"
+                style="border-color:rgba(245,165,36,0.25);background:linear-gradient(135deg,rgba(245,165,36,0.08) 0%,rgba(0,0,0,0) 60%)">
+                <div class="min-w-0">
+                    <p class="oswald-sharp text-[11px] uppercase tracking-[.2em] font-black italic mb-1" style="color:var(--pt-warn,#f5a524)">⚡ Daily Recovery</p>
+                    <p class="oswald-sharp text-xs text-gray-400 italic leading-snug">잔액이 100P 미만이에요. 하루 한 번 잔액을 100P로 복구할 수 있어요.</p>
+                </div>
+                <button id="recovery-profile-btn" onclick="claimRecoveryPoints(this)"
+                    class="oswald-sharp text-[11px] sm:text-xs font-black italic uppercase tracking-wide whitespace-nowrap px-4 py-2 rounded-lg flex-shrink-0 transition"
+                    style="background:var(--pt-warn,#f5a524);color:#1a1300">
+                    100P 복구
+                </button>
             </div>
         </div>
 
@@ -2523,7 +2561,7 @@
 <script src="/js/profile.js?v=4"></script>
 <script src="/js/archive.js?v=9"></script>
 <script src="/js/season.js?v=1"></script>
-<script src="/js/fights-render.js?v=25"></script>
+<script src="/js/fights-render.js?v=26"></script>
 <script src="/js/pixel-fighters.js?v=1"></script>
 <script src="/js/h2h.js?v=25"></script>
 <script src="/js/news-admin.js?v=7"></script>
@@ -2733,7 +2771,8 @@
         'fighter-profile-modal': 'closeFighterProfile',
         'avatar-modal':          'closeAvatarModal',
         'result-modal':          'closeResultModal',
-        'pw-update-modal':       'closePasswordUpdateModal'
+        'pw-update-modal':       'closePasswordUpdateModal',
+        'recovery-modal':        'closeRecoveryModal'   // Back/Esc 시 keydown 리스너까지 정리
     };
 
     function _openModalEls() {
@@ -2907,6 +2946,100 @@
         });
     }
 
+    // ── 0P 회생(일일 Recovery Points) ─────────────────────────────
+    // 날짜·지급량·사용자는 전적으로 서버 RPC(claim_daily_recovery_points)가 결정·강제.
+    // 프론트는 RPC 반환값만 신뢰하고 화면을 갱신한다(자체 계산 금지).
+    var _recoveryInFlight = false;
+
+    function _recoveryEsc(e) { if (e && e.key === 'Escape') closeRecoveryModal(); }
+
+    function openRecoveryModal() {
+        var modal = document.getElementById('recovery-modal');
+        if (!modal) return;
+        var bal = document.getElementById('recovery-balance-line');
+        if (bal) bal.textContent = '현재 잔액: ' + (typeof state !== 'undefined' ? Number(state.points || 0).toLocaleString() : '0') + ' P';
+        var st = document.getElementById('recovery-status');
+        if (st) st.textContent = '';
+        var btn = document.getElementById('recovery-claim-btn');
+        if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = '오늘의 100P 복구'; }
+        modal.classList.remove('hidden');                 // modal-history observer가 open 감지 → Back 흡수 엔트리 push
+        document.addEventListener('keydown', _recoveryEsc);
+    }
+
+    function closeRecoveryModal() {
+        var modal = document.getElementById('recovery-modal');
+        if (modal) modal.classList.add('hidden');         // observer가 close 감지 → history 동기화
+        document.removeEventListener('keydown', _recoveryEsc);
+    }
+
+    function _recoveryMessage(reason) {
+        switch (reason) {
+            case 'auth_required':         return '로그인이 필요합니다.';
+            case 'not_eligible':          return '잔액이 충분합니다 (이미 100P 이상).';
+            case 'already_claimed':       return '오늘은 이미 복구를 받았어요. 내일 다시 신청할 수 있어요.';
+            case 'invalid_balance_state':
+            case 'user_not_found':
+            default:                      return '지금은 복구할 수 없어요. 잠시 후 다시 시도해주세요.';
+        }
+    }
+
+    async function claimRecoveryPoints(srcBtn) {
+        if (_recoveryInFlight) return;                          // 연타 방지
+        if (typeof sb === 'undefined' || !sb) { showToast('⚠ 연결을 확인해주세요.'); return; }
+        if (typeof currentUser === 'undefined' || !currentUser) { showToast('⚠ 로그인 후 이용 가능합니다.'); return; }
+        _recoveryInFlight = true;
+
+        var modalEl = document.getElementById('recovery-modal');
+        var useStatus = !!(modalEl && !modalEl.classList.contains('hidden'));   // hidden 기준(display 스타일 미사용)
+        var statusEl = document.getElementById('recovery-status');
+        var report = function (msg) { if (useStatus && statusEl) statusEl.textContent = msg; else showToast(msg); };
+
+        var btns = [document.getElementById('recovery-claim-btn'), document.getElementById('recovery-profile-btn')];
+        var origText = srcBtn ? srcBtn.textContent : null;
+        btns.forEach(function (b) { if (b) { b.disabled = true; b.style.opacity = '0.6'; } });
+        if (srcBtn) srcBtn.textContent = '처리 중...';
+
+        var succeeded = false;
+        try {
+            var res = await sb.rpc('claim_daily_recovery_points');
+            if (res.error) {
+                console.warn('[recovery error]', res.error);
+                report('⚠ 복구에 실패했어요. 잠시 후 다시 시도해주세요.');
+                return;
+            }
+            var d = res.data || {};
+            // 엄격 성공 검증: ok===true + points_after가 finite 100 + (있다면)points_granted finite·비음수
+            var grantOk = (d.points_granted === undefined || d.points_granted === null)
+                || (Number.isFinite(d.points_granted) && d.points_granted >= 0);
+            var strictOk = d && d.ok === true
+                && Number.isFinite(d.points_after) && d.points_after === 100 && grantOk;
+            if (strictOk) {
+                succeeded = true;
+                state.points = d.points_after;                          // 정확히 100
+                if (typeof save === 'function') save();                 // 로컬 영속화
+                if (typeof refreshUI === 'function') refreshUI();       // nav + profile + 픽슬립 게이트 즉시 갱신
+                showToast('⚡ ' + (d.points_granted || 0) + 'P 복구 완료! 잔액 ' + d.points_after + 'P');
+                if (useStatus && statusEl) statusEl.textContent = '✅ 복구 완료!';
+                setTimeout(closeRecoveryModal, 900);
+            } else if (d && d.ok === true) {
+                // 잘못된 성공 응답: 토스트·닫기·state 변경 없이 친화 오류 + 서버 재조회 정합화
+                console.warn('[recovery malformed success]', d);
+                report('⚠ 복구 응답이 올바르지 않아요. 잔액을 다시 확인할게요.');
+                if (typeof loadUserFromDB === 'function' && typeof currentUser !== 'undefined' && currentUser) loadUserFromDB(currentUser.id);
+            } else {
+                report('⚠ ' + _recoveryMessage(d.reason));
+                if (typeof refreshUI === 'function') refreshUI();       // not_eligible 등 → CTA 재평가
+            }
+        } catch (e) {
+            console.warn('[recovery exception]', e);
+            report('⚠ 복구에 실패했어요. 잠시 후 다시 시도해주세요.');
+        } finally {
+            _recoveryInFlight = false;
+            btns.forEach(function (b) { if (b) { b.disabled = false; b.style.opacity = '1'; } });
+            if (!succeeded && srcBtn && origText) srcBtn.textContent = origText;
+        }
+    }
+
     function refreshUI() {
         document.getElementById('nav-points').innerText = state.points.toLocaleString() + ' P';
         document.getElementById('nav-points-mobile').innerText = state.points.toLocaleString() + ' P';
@@ -2916,6 +3049,13 @@
         const accEl = document.getElementById('prof-acc');
         if(ptsEl) ptsEl.innerText = state.points.toLocaleString() + ' P';
         if(totEl) totEl.innerText = state.total + ' 회';
+
+        // 0P 회생 CTA: 로그인 사용자 + 잔액 100P 미만일 때만 노출 (서버가 최종 강제)
+        var recCta = document.getElementById('recovery-profile-cta');
+        if (recCta) {
+            var _recShow = (typeof currentUser !== 'undefined' && currentUser) && Number(state.points) < 100;
+            recCta.classList.toggle('hidden', !_recShow);
+        }
         // 적중률은 canonical(win/(win+lose))만 사용 — state.success/total 비율 금지.
         // refreshAccuracyDisplays가 prof-acc(및 랭킹/사이드바)를 canonical 값으로 패치하고, 미로드 시 RPC 로드 후 재적용.
         if (typeof refreshAccuracyDisplays === 'function') refreshAccuracyDisplays();
@@ -3109,7 +3249,12 @@
     }
 
     async function castVote(side, match, pick, odds, fightId, method, round, methodBonus) {
-        if (state.points < BET_COST) { showToast(`⚠️ 포인트가 부족합니다! (${BET_COST}P 필요)`); return; }
+        if (state.points < BET_COST) {
+            // 픽슬립 confirm 시점에 잔액 부족 → 복구 모달(서버 RPC가 자격 최종 강제)
+            if (typeof openRecoveryModal === 'function') openRecoveryModal();
+            else showToast(`⚠️ 포인트가 부족합니다! (${BET_COST}P 필요)`);
+            return;
+        }
         if (state.pendings[fightId]) { showToast("⚠️ 이미 이 경기에 예측을 등록했습니다."); return; }
         if (state.settled?.[fightId]) { showToast("⚠️ 이미 결과가 확정된 경기입니다."); return; }
 
@@ -5547,7 +5692,11 @@ async function publishPost() {
             });
             if (res.error) {
                 var msg = res.error.message || '';
-                if (msg.includes('insufficient_points')) showToast('⚠️ 포인트가 부족합니다!');
+                if (msg.includes('insufficient_points')) {
+                    // 서버 권위 판정: 로컬 잔액이 충분해 보여도 서버가 부족이면 복구 모달 노출
+                    if (typeof openRecoveryModal === 'function') openRecoveryModal();
+                    else showToast('⚠️ 포인트가 부족합니다!');
+                }
                 else if (msg.includes('duplicate_pick'))  showToast('⚠️ 이미 이 경기에 예측을 등록했습니다.');
                 else if (msg.includes('pick_locked'))      showToast('🔒 픽 마감된 경기입니다. 예측을 등록할 수 없습니다.');
                 else showToast('⚠ 예측 저장에 실패했습니다. 다시 시도해주세요.');

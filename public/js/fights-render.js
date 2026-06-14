@@ -652,7 +652,9 @@ function openPickSlip(fightId, match, f1Name, f1Odds, f2Name, f2Odds) {
     }
     _betSlipIsChange = !!(typeof state !== 'undefined' && state.pendings && state.pendings[fightId]);
     if (!_betSlipIsChange && typeof state !== 'undefined' && state.points < cost) {
-        showToast('⚠️ 포인트 부족 (' + cost + 'P 필요)');
+        // 잔액 부족: 단순 오류 대신 일일 100P 복구 안내(서버 RPC가 자격 최종 강제)
+        if (typeof openRecoveryModal === 'function') openRecoveryModal();
+        else showToast('⚠️ 포인트 부족 (' + cost + 'P 필요)');
         return;
     }
 
