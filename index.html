@@ -1855,6 +1855,12 @@
                     <p id="fp-odds" class="oswald-sharp text-[13px] lg:text-xl font-black italic text-ufcRed leading-snug mt-0.5 truncate"></p>
                 </div>
             </div>
+            <!-- 픽타곤 전적 (판타지/시범경기 정산 결과 파생) — 공식 전적과 별개, total>0일 때만 노출 -->
+            <div id="fp-picktagon-row" class="hidden flex items-center gap-2 mt-2 lg:mt-3 flex-wrap">
+                <span class="oswald-sharp text-[8px] lg:text-[9px] uppercase tracking-wider italic font-black px-1.5 py-0.5 rounded-md" style="color:var(--pt-warn,#f5a524);background:rgba(245,165,36,0.1)">픽타곤 전적</span>
+                <span id="fp-picktagon-record" class="oswald-sharp text-[13px] lg:text-lg font-black italic leading-none" style="color:var(--pt-warn,#f5a524)"></span>
+                <span class="oswald-sharp text-[8px] text-gray-600 italic">판타지/시범경기</span>
+            </div>
         </div>
 
         <!-- Finish Rate -->
@@ -2557,7 +2563,7 @@
 <script src="/js/news.js"></script>
 <script src="/js/youtube.js?v=1"></script>
 <script src="/js/community.js?v=24"></script>
-<script src="/js/admin.js?v=24"></script>
+<script src="/js/admin.js?v=25"></script>
 <script src="/js/profile.js?v=4"></script>
 <script src="/js/archive.js?v=9"></script>
 <script src="/js/season.js?v=1"></script>
@@ -4357,6 +4363,62 @@ async function publishPost() {
         }
     }
 
+    // 픽타곤 전적(판타지/시범경기 정산 파생) — fighter_id 기준 read-only RPC. 공개 데이터(로그인 무관).
+    //   성공 응답만 캐시(실패는 다음 호출 재시도) · 동일 fighter 동시 호출은 in-flight Promise 공유 ·
+    //   generation token 으로 invalidate. invalidate 이후 도착한 구 응답은 캐시·화면 미반영.
+    var _ptRecordCache = {};      // fid -> data (성공만)
+    var _ptRecordInflight = {};   // fid -> Promise
+    var _ptRecordGen = 0;         // generation token
+
+    function invalidatePicktagonRecordCache(fid) {
+        _ptRecordGen++;                                  // 진행 중 응답 무효화
+        if (fid) { delete _ptRecordCache[fid]; delete _ptRecordInflight[fid]; }
+        else { _ptRecordCache = {}; _ptRecordInflight = {}; }
+    }
+    window.invalidatePicktagonRecordCache = invalidatePicktagonRecordCache;
+
+    function _fetchPicktagonRecord(fid) {
+        if (Object.prototype.hasOwnProperty.call(_ptRecordCache, fid)) return Promise.resolve(_ptRecordCache[fid]);
+        if (_ptRecordInflight[fid]) return _ptRecordInflight[fid];   // 동시 호출 공유
+        var myGen = _ptRecordGen;
+        var p = (async function () {
+            try {
+                var res = await sb.rpc('get_fighter_picktagon_record', { p_fighter_id: fid });
+                if (res && res.error) return null;                   // 실패 → 캐시 안 함(재시도)
+                var data = (res && res.data) ? res.data : null;
+                if (myGen !== _ptRecordGen) return null;             // invalidate 발생 → 구 응답 폐기
+                if (data) _ptRecordCache[fid] = data;                // 성공만 캐시
+                return data;
+            } catch (e) {
+                return null;                                         // 실패 → 캐시 안 함
+            } finally {
+                if (_ptRecordInflight[fid] === p) delete _ptRecordInflight[fid];
+            }
+        })();
+        _ptRecordInflight[fid] = p;
+        return p;
+    }
+
+    async function _renderPicktagonRecord(fid) {
+        var row = document.getElementById('fp-picktagon-row');
+        var recEl = document.getElementById('fp-picktagon-record');
+        if (!row || !recEl) return;
+        row.classList.add('hidden'); recEl.textContent = '';          // 매 오픈 기본 숨김(스테일 방지)
+        if (!fid || typeof sb === 'undefined' || !sb) return;         // fighter_id 없으면 안전 중단
+        var reqGen = _ptRecordGen;
+        var data;
+        try { data = await _fetchPicktagonRecord(fid); } catch (e) { return; }
+        // 모달 전환 or invalidate 발생 시 무시(stale/race guard)
+        if (!window._currentFighterProfile || window._currentFighterProfile.id !== fid) return;
+        if (reqGen !== _ptRecordGen) return;
+        if (!data || !(Number(data.total) > 0)) return;               // 0경기 → 라인 숨김 유지
+        var txt = (data.win || 0) + '-' + (data.lose || 0)
+                + ((Number(data.draw) > 0) ? '-' + data.draw : '')
+                + ((Number(data.nc) > 0) ? ' ' + data.nc + 'NC' : '');
+        recEl.textContent = txt;
+        row.classList.remove('hidden');
+    }
+
     async function openFighterProfile(fighter) {
         // If passed as string (from onclick attr), parse it
         if (typeof fighter === 'string') fighter = JSON.parse(fighter);
@@ -4452,6 +4514,8 @@ async function publishPost() {
             }
         }
         document.getElementById('fp-record').textContent = fighter.record || '—';
+        // 픽타곤 전적(판타지/시범경기 정산 파생) — 공식 전적과 별개. total>0일 때만 노출.
+        _renderPicktagonRecord(fighter.id);
         document.getElementById('fp-height').textContent = fighter.height || '—';
         document.getElementById('fp-reach').textContent = fighter.reach || '—';
         document.getElementById('fp-weight').textContent = fighter.weight || '—';
@@ -5000,6 +5064,8 @@ async function publishPost() {
         document.getElementById('fp-initials').textContent = initials;
         document.getElementById('fp-name').textContent = fighter.name;
         document.getElementById('fp-record').textContent = fighter.record || '—';
+        // fighters 미매칭 fallback: 신뢰할 fighter_id 없음 → 픽타곤 전적 줄 안전 숨김(스테일 방지).
+        _renderPicktagonRecord(fighter.id);
         document.getElementById('fp-height').textContent = fighter.height || '—';
         document.getElementById('fp-reach').textContent = fighter.reach || '—';
         document.getElementById('fp-odds').textContent = fighter.odds ? `×${fighter.odds}` : '—';

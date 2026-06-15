@@ -1931,7 +1931,7 @@ async function fetchEventsForBuilder() {
     if (!sb) return;
     const { data, error } = await sb
         .from('events')
-        .select('id, title, event_date, status, picks_locked_at, settled_at, archived_at')
+        .select('id, title, event_date, status, picks_locked_at, settled_at, archived_at, record_scope')
         .order('event_date', { ascending: false })
         .limit(50);
     if (error) { showToast('이벤트 로드 실패: ' + error.message); return; }
@@ -2154,6 +2154,17 @@ function renderBuilderWorkspace() {
                         + 경기 추가
                     </button>
                 </div>
+            </div>
+            <div class="mt-3 flex items-center gap-2 flex-wrap">
+                <span class="oswald-sharp text-[9px] italic uppercase tracking-widest text-gray-500 shrink-0">전적 분류</span>
+                <select id="builder-record-scope" onchange="setEventRecordScope(this.value)"
+                    class="oswald-sharp text-[10px] bg-black/50 border border-white/10 rounded-lg px-2 py-1 text-white italic focus:outline-none focus:border-ufcRed">
+                    <option value="unclassified"${(ev.record_scope||'unclassified')==='unclassified'?' selected':''}>미분류</option>
+                    <option value="official"${ev.record_scope==='official'?' selected':''}>공식</option>
+                    <option value="fantasy"${ev.record_scope==='fantasy'?' selected':''}>판타지</option>
+                    <option value="exhibition"${ev.record_scope==='exhibition'?' selected':''}>시범경기</option>
+                </select>
+                <span class="oswald-sharp text-[8px] italic text-gray-600">판타지/시범경기는 선수의 픽타곤 전적에 반영됩니다. (공식 전적은 불변)</span>
             </div>
             ${_renderLifecyclePanel(ev)}
             ${renderPickSummaryPanel(_builderPickSummary)}
@@ -2410,6 +2421,25 @@ async function deleteMatchupFromModal() {
     await fetchBuilderMatchups();
 }
 
+// ── 이벤트 전적 분류 (record_scope) ─────────────────────────────────
+// 판타지/시범경기만 선수 픽타곤 전적에 반영. fighters 공식 전적은 불변. is_admin 경계는 RPC가 강제.
+async function setEventRecordScope(scope) {
+    const ev = _builderEvents.find(e => e.id === _builderState.eventId);
+    if (!ev) return;
+    const prev = ev.record_scope || 'unclassified';
+    if (scope === prev) return;
+    const revert = function () { var s = document.getElementById('builder-record-scope'); if (s) s.value = prev; };
+    if (!confirm('전적 분류를 "' + scope + '"(으)로 변경할까요?\n판타지/시범경기는 선수의 픽타곤 전적에 반영됩니다. (공식 전적은 변경되지 않습니다.)')) {
+        revert(); return;
+    }
+    const { data, error } = await sb.rpc('admin_set_event_record_scope', { p_event_id: ev.id, p_scope: scope });
+    if (error) { showToast('❌ 분류 변경 실패: ' + (error.message || error)); revert(); return; }
+    ev.record_scope = scope;
+    // 분류 변경은 다수 fighter의 픽타곤 전적 포함 여부를 바꾸므로 전체 무효화
+    if (typeof window.invalidatePicktagonRecordCache === 'function') window.invalidatePicktagonRecordCache();
+    showToast('✅ 전적 분류 변경: ' + scope);
+}
+
 // ── 이벤트 삭제 ────────────────────────────────────────────────────
 
 async function deleteBuilderEvent(eventId, eventTitle) {
@@ -2509,6 +2539,8 @@ async function adminSetMatchupResult(matchupId, winnerName, winnerSide, method, 
         p_force:       force
     });
     if (error) { showToast('❌ 결과 입력 실패: ' + (error.message || '')); return null; }
+    // 정산/force 재정산 성공 → 픽타곤 전적(현재 결과 파생) 캐시 무효화(영향 fighter 특정 어려워 전체)
+    if (typeof window.invalidatePicktagonRecordCache === 'function') window.invalidatePicktagonRecordCache();
     return data;
 }
 
