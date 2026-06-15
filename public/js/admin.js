@@ -2437,6 +2437,8 @@ async function setEventRecordScope(scope) {
     ev.record_scope = scope;
     // 분류 변경은 다수 fighter의 픽타곤 전적 포함 여부를 바꾸므로 전체 무효화
     if (typeof window.invalidatePicktagonRecordCache === 'function') window.invalidatePicktagonRecordCache();
+    // record_scope 변경 → 아카이브 리캡의 공식/판타지/시범경기 배지 즉시 갱신
+    if (typeof window.invalidateArchiveRecap === 'function') window.invalidateArchiveRecap();
     showToast('✅ 전적 분류 변경: ' + scope);
 }
 
@@ -2539,8 +2541,10 @@ async function adminSetMatchupResult(matchupId, winnerName, winnerSide, method, 
         p_force:       force
     });
     if (error) { showToast('❌ 결과 입력 실패: ' + (error.message || '')); return null; }
-    // 정산/force 재정산 성공 → 픽타곤 전적(현재 결과 파생) 캐시 무효화(영향 fighter 특정 어려워 전체)
+    // 정산/force 재정산 성공(실패 경로 제외) → 결과 파생 캐시 무효화:
+    //   픽타곤 전적(현재 결과 파생) + 아카이브 '내 픽 결과' 리캡(승패/손익 파생). 영향 대상 특정 어려워 전체.
     if (typeof window.invalidatePicktagonRecordCache === 'function') window.invalidatePicktagonRecordCache();
+    if (typeof window.invalidateArchiveRecap === 'function') window.invalidateArchiveRecap();
     return data;
 }
 

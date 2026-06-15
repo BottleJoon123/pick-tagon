@@ -288,6 +288,7 @@ function renderArchive() {
 
             <!-- Full Results (collapsible) -->
             <div id="archive-detail-${ev.id}" class="hidden">
+                ${!isUpcoming ? `<div data-archive-recap="${escapeHtml(ev.name || '')}" data-recap-date="${escapeHtml((ev.event_date || '').slice(0, 10))}" data-recap-evid="${escapeHtml(String(ev.id))}" class="archive-myrecap hidden"></div>` : ''}
                 <div class="divide-y divide-white/5">
                     ${(ev.fights || []).map((f, i) => `
                     <div class="px-4 lg:px-6 py-2 lg:py-2.5 hover:bg-white/2 transition">
@@ -336,6 +337,10 @@ function renderArchive() {
             </div>
         </div>`;
     }).join('');
+
+    // 내 픽 결과 리캡: 방금 생성된 placeholder를 현재 상태로 채우고, 로그인 시 지연 로드.
+    renderArchiveRecapSections();
+    ensureArchiveRecapLoaded();
 }
 
 function toggleArchiveDetail(evId) {
@@ -348,6 +353,264 @@ function toggleArchiveDetail(evId) {
         || (typeof archiveUpcomingDB !== 'undefined' ? archiveUpcomingDB.find(e => e.id === evId) : null);
     const isUpcoming = ev?.status === 'upcoming';
     label.textContent = isHidden ? `▲ 접기` : `▼ ${isUpcoming ? '대진표 보기' : '결과 보기'}`;
+    // 상세를 펼칠 때(TTL 만료 시) 리캡 재검증 — 기존 리캡은 유지하고 성공 응답만 교체.
+    if (isHidden && typeof ensureArchiveRecapLoaded === 'function') ensureArchiveRecapLoaded();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  내 픽 결과 리캡 (로그인 사용자, read-only) — 1차 보강
+//
+//  데이터 원천(모두 기존 안전 read 경로):
+//    picks(matchup_id, status, pick_name, bet_cost, settled_payout)
+//      ⨝ matchups(event_id, result_winner, result_status, sort_order)
+//      ⨝ events(id, title, event_date, record_scope) — events는 전체 조회.
+//  RLS picks_select_own(auth.uid()=user_id) → 본인 픽만(비로그인 0행). user_id는 UI 미노출.
+//
+//  매핑(아카이브 카드 ↔ 캐노니컬 이벤트): 정규화제목 + event_date(YYYY-MM-DD) 복합키.
+//    동일 복합키 2개+ → ambiguous(리캡 숨김). 0개 → unmapped(숨김; '픽 없음' 표기 금지).
+//    1개 → 해당 event_id 집계(없으면 '매핑됨·내 픽 없음'). 집계 캐시는 event_id 기준 저장.
+//
+//  순손익(추측 금지): place_pick -bet_cost, settle win +settled_payout, lose 0, cancelled(draw/nc) 환급.
+//    픽당 = cancelled ? 0 : (settled_payout - bet_cost), 단 win/lose는 bet_cost·settled_payout이
+//    모두 유효 finite 일 때만. 한 경기라도 계산 불가면 그 경기 손익 숨김 + 이벤트 합계 '손익 —'.
+//    NULL/비정상을 0으로 강제하지 않음. 승패/취소 집계는 손익 계산 가능 여부와 분리.
+//  레거시: matchup_id=NULL 픽은 추측 연결하지 않고 제외(내부 카운트만, UI 미노출).
+//  대용량: picks·events는 range pagination 전수 조회, matchups는 .in() 100개 chunk.
+//    (N+1 아님 — 쿼리 수가 데이터 크기에 비례하는 제한된 batch로만 증가.)
+//  record_scope(공식/판타지)는 배지로만 표기, 승패/손익 계산에 미사용.
+// ══════════════════════════════════════════════════════════════════════
+var _recapByEvent = {};       // event_id → { eventId, scope, win, lose, cancel, netSum, netComputable, fights:[] }
+var _eventByKey = {};         // normTitle|date → [event_id, ...] (복합키 → 이벤트; 모호 판정용)
+var _eventScope = {};         // event_id → record_scope
+var _recapLegacyExcluded = 0; // matchup_id=NULL 등 제외된 픽 수 (내부 집계, UI 미노출)
+var _recapUserId = null;
+var _recapGen = 0;
+var _recapInflight = null;
+var _recapLoadedFor = null;
+var _recapLoadedAt = 0;       // 성공 로드 시각(ms) — TTL revalidation 기준
+var _RECAP_TTL_MS = 60000;    // 캐시 신선도 TTL 60초
+
+function _recapNorm(s) { return (s || '').toLowerCase().trim().replace(/\s+/g, ' '); }
+function _recapDateKey(d) { return (d == null ? '' : String(d)).slice(0, 10); }
+function _recapKey(title, date) { return _recapNorm(title) + '|' + _recapDateKey(date); }
+function _recapUid() { return (typeof currentUser !== 'undefined' && currentUser) ? currentUser.id : null; }
+function _recapFinite(n) { return typeof n === 'number' && isFinite(n); }
+
+// 로그인/로그아웃/계정 전환/정산 성공 시 호출 — 캐시·진행 중 응답 무효화 후 재렌더(+필요 시 재로드).
+function invalidateArchiveRecap() {
+    _recapGen++;
+    _recapByEvent = {}; _eventByKey = {}; _eventScope = {}; _recapLegacyExcluded = 0;
+    _recapInflight = null; _recapLoadedFor = null; _recapUserId = null; _recapLoadedAt = 0;
+    renderArchiveRecapSections();   // 즉시 화면 정리(비로그인/전환 직후 이전 계정 리캡 제거)
+    // 아카이브가 현재 렌더되어 있을 때만 즉시 재로드(페이지 로드/세션 복원 시 불필요한 선요청 방지).
+    if (document.querySelector('[data-archive-recap]')) ensureArchiveRecapLoaded();
+}
+if (typeof window !== 'undefined') window.invalidateArchiveRecap = invalidateArchiveRecap;
+
+// 캐시가 TTL 이내면 즉시 재사용. 만료(stale)면 기존 리캡을 유지한 채 재검증(성공 응답만 새 캐시로 교체).
+function ensureArchiveRecapLoaded() {
+    var uid = _recapUid();
+    if (!uid) return;                                   // 비로그인 → 로드 안 함(섹션 숨김)
+    var fresh = (_recapLoadedFor === uid) && ((Date.now() - _recapLoadedAt) < _RECAP_TTL_MS);
+    renderArchiveRecapSections();                       // 보유 캐시 즉시 표시(미로드면 숨김, stale면 기존 유지)
+    if (fresh) return;                                  // 신선 → 재조회 불필요
+    if (_recapInflight && _recapUserId === uid) return; // 이미 (재)검증 중 → 공유(중복 요청 방지)
+    _loadArchiveRecap(uid);                             // 미로드 또는 TTL 만료 → (재)조회
+}
+
+// range 기반 전수 조회 — 단일 기본 limit 의존 금지(오래된 데이터 조용한 누락 방지).
+async function _recapFetchAllPaged(makeQuery) {
+    var PAGE = 1000, from = 0, all = [];
+    for (;;) {
+        var r = await makeQuery(from, from + PAGE - 1);
+        if (r.error) return null;
+        var rows = r.data || [];
+        all = all.concat(rows);
+        if (rows.length < PAGE) break;
+        from += PAGE;
+    }
+    return all;
+}
+
+// matchup id .in() 100개 chunk 조회 — 큰 id 목록에서도 누락 없이 전수.
+async function _recapFetchMatchupsChunked(ids) {
+    var CHUNK = 100, out = [];
+    for (var i = 0; i < ids.length; i += CHUNK) {
+        var slice = ids.slice(i, i + CHUNK);
+        var r = await sb.from('matchups')
+            .select('id, event_id, result_winner, result_status, sort_order')
+            .in('id', slice);
+        if (r.error) return null;
+        out = out.concat(r.data || []);
+    }
+    return out;
+}
+
+async function _loadArchiveRecap(uid) {
+    if (!sb) return;
+    var myGen = _recapGen;
+    _recapUserId = uid;
+    var p = (async function () {
+        try {
+            // 1) 전체 events → 복합키 인덱스(매핑 가능·모호 판정) + scope. (픽 유무와 무관하게 먼저 확정.)
+            var events = await _recapFetchAllPaged(function (a, b) {
+                return sb.from('events')
+                    .select('id, title, event_date, record_scope')
+                    .order('id', { ascending: true }).range(a, b);
+            });
+            if (events === null) return null;
+            var byKey = {}, scope = {};
+            events.forEach(function (e) {
+                (byKey[_recapKey(e.title, e.event_date)] = byKey[_recapKey(e.title, e.event_date)] || []).push(e.id);
+                scope[e.id] = e.record_scope || null;
+            });
+            // 2) 본인 settled picks 전수(pagination).
+            var picksRaw = await _recapFetchAllPaged(function (a, b) {
+                return sb.from('picks')
+                    .select('matchup_id, pick_name, status, bet_cost, settled_payout')
+                    .eq('user_id', uid).in('status', ['win', 'lose', 'cancelled'])
+                    .order('id', { ascending: true }).range(a, b);
+            });
+            if (picksRaw === null) return null;
+            // 3) 레거시 제외: matchup_id 없는 픽은 추측 연결하지 않고 제외(카운트만).
+            var legacy = 0;
+            var picks = picksRaw.filter(function (x) { if (!x.matchup_id) { legacy++; return false; } return true; });
+            var byEvent = {};
+            if (picks.length) {
+                var mids = Array.from(new Set(picks.map(function (x) { return x.matchup_id; })));
+                var matchups = await _recapFetchMatchupsChunked(mids);
+                if (matchups === null) return null;
+                var mById = {}; matchups.forEach(function (m) { mById[m.id] = m; });
+                picks.forEach(function (x) {
+                    var m = mById[x.matchup_id]; if (!m || !m.event_id) return;
+                    var eid = m.event_id;
+                    var rec = byEvent[eid] || (byEvent[eid] = {
+                        eventId: eid, scope: scope[eid] || null,
+                        win: 0, lose: 0, cancel: 0, netSum: 0, netComputable: true, fights: []
+                    });
+                    if (x.status === 'win') rec.win++;
+                    else if (x.status === 'lose') rec.lose++;
+                    else rec.cancel++;
+                    // 손익: cancelled=0 확정. win/lose는 bet_cost·settled_payout 모두 유효 finite 일 때만 계산.
+                    var fnet = null;
+                    if (x.status === 'cancelled') fnet = 0;
+                    else if (_recapFinite(x.bet_cost) && _recapFinite(x.settled_payout)) fnet = x.settled_payout - x.bet_cost;
+                    if (fnet === null) rec.netComputable = false; else rec.netSum += fnet;
+                    rec.fights.push({
+                        pick: x.pick_name || '', actualWinner: m.result_winner || null,
+                        resultStatus: m.result_status || null, status: x.status,
+                        net: fnet, sort: (m.sort_order == null ? 999 : m.sort_order)
+                    });
+                });
+                Object.keys(byEvent).forEach(function (eid) {
+                    byEvent[eid].fights.sort(function (a, b) { return a.sort - b.sort; });
+                });
+            }
+            return { byEvent: byEvent, byKey: byKey, scope: scope, legacy: legacy };
+        } catch (e) { return null; }
+    })();
+    _recapInflight = p;
+    var result = await p;
+    // 늦은 응답/세대/계정 가드 — 무효화됐거나 사용자가 바뀌면 적용하지 않음(UI 오염 방지).
+    if (myGen !== _recapGen) return;
+    if (_recapUid() !== uid) return;
+    if (_recapInflight === p) _recapInflight = null;
+    if (result === null) return;                 // 실패 → 기존 캐시 유지(지우지 않음), 다음 동작에서 재시도
+    _recapByEvent = result.byEvent;
+    _eventByKey = result.byKey;
+    _eventScope = result.scope;
+    _recapLegacyExcluded = result.legacy;
+    _recapLoadedFor = uid;
+    _recapLoadedAt = Date.now();                  // 성공 로드 시각 기록(TTL 기준)
+    renderArchiveRecapSections();
+}
+
+// 모든 리캡 placeholder를 현재 캐시/로그인 상태로 채운다. 카드(제목+날짜) → 복합키 → event_id 해석.
+function renderArchiveRecapSections() {
+    var uid = _recapUid();
+    var loaded = (uid && _recapLoadedFor === uid);
+    var nodes = document.querySelectorAll('[data-archive-recap]');
+    for (var i = 0; i < nodes.length; i++) {
+        var ph = nodes[i];
+        if (!uid || !loaded) { ph.innerHTML = ''; ph.classList.add('hidden'); ph.removeAttribute('data-recap-state'); continue; }
+        var name = ph.getAttribute('data-archive-recap');
+        var date = ph.getAttribute('data-recap-date') || '';
+        var evId = ph.getAttribute('data-recap-evid');
+        var ids = _eventByKey[_recapKey(name, date)];
+        var state, rec = null;
+        if (!ids || ids.length === 0) state = 'unmapped';        // 캐노니컬 이벤트 미매핑
+        else if (ids.length > 1) state = 'ambiguous';           // 복합키 충돌 → 모호
+        else { rec = _recapByEvent[ids[0]] || null; state = rec ? 'ok' : 'nopicks'; }
+        ph.setAttribute('data-recap-state', state);             // QA/디버그용(식별정보 없음)
+        // 매핑 실패/모호는 숨김('등록한 픽이 없습니다'로 오표기 금지). 매핑됨·픽없음만 empty state.
+        if (state === 'unmapped' || state === 'ambiguous') { ph.innerHTML = ''; ph.classList.add('hidden'); continue; }
+        ph.innerHTML = _recapSectionHtml(rec, evId, state);
+        ph.classList.remove('hidden');
+    }
+}
+
+function _recapScopeBadge(scope) {
+    if (scope === 'fantasy') return '<span class="oswald-sharp text-[7px] bg-fuchsia-500/10 border border-fuchsia-500/30 text-fuchsia-300 px-1.5 py-0.5 rounded italic uppercase">판타지</span>';
+    if (scope === 'official') return '<span class="oswald-sharp text-[7px] bg-sky-500/10 border border-sky-500/30 text-sky-300 px-1.5 py-0.5 rounded italic uppercase">공식</span>';
+    if (scope === 'exhibition') return '<span class="oswald-sharp text-[7px] bg-amber-500/10 border border-amber-500/30 text-amber-300 px-1.5 py-0.5 rounded italic uppercase">시범경기</span>';
+    return '';
+}
+
+function _recapSectionHtml(rec, evId, state) {
+    // 매핑 성공 + 본인 픽 0건: compact empty state (매핑 실패/모호와 구분 — 이쪽만 '픽 없음' 표기).
+    if (state === 'nopicks' || !rec) {
+        return `<div class="px-4 lg:px-6 py-2.5 bg-black/20 border-b border-white/5">
+            <p class="oswald-sharp text-[10px] text-gray-600 italic uppercase tracking-widest">내 픽 결과 · 이 이벤트에 등록한 픽이 없습니다</p>
+        </div>`;
+    }
+    var settled = rec.win + rec.lose;
+    var accStr = settled > 0 ? Math.round(rec.win / settled * 100) + '%' : '—';
+    // 손익 합계: 모든 win/lose 계산 가능할 때만 숫자, 하나라도 불가면 '—'(추측 금지).
+    var netStr = rec.netComputable ? ((rec.netSum > 0 ? '+' : '') + rec.netSum + 'P') : '—';
+    var netColor = !rec.netComputable ? 'text-gray-400' : (rec.netSum > 0 ? 'text-green-400' : (rec.netSum < 0 ? 'text-ufcRed' : 'text-gray-400'));
+    var rows = rec.fights.map(function (f) {
+        var stLabel = f.status === 'win' ? '적중' : (f.status === 'lose' ? '실패' : '취소');
+        var stColor = f.status === 'win' ? 'text-green-400 border-green-400/40 bg-green-400/10'
+                    : f.status === 'lose' ? 'text-ufcRed border-ufcRed/40 bg-ufcRed/10'
+                    : 'text-gray-400 border-gray-500/40 bg-gray-500/10';
+        var actual = f.actualWinner ? ('승자 ' + escapeHtml(f.actualWinner))
+                   : (f.resultStatus === 'draw' ? '무승부' : (f.resultStatus === 'no_contest' ? 'NC' : '—'));
+        // 경기별 손익: cancelled 또는 계산 불가면 표시하지 않음(0으로 강제하지 않음).
+        var hasNet = (f.status !== 'cancelled') && _recapFinite(f.net);
+        var fnet = hasNet ? ((f.net > 0 ? '+' : '') + f.net + 'P') : '';
+        var fnetColor = !hasNet ? 'text-gray-500' : (f.net > 0 ? 'text-green-400' : (f.net < 0 ? 'text-ufcRed' : 'text-gray-500'));
+        return `<div class="flex items-center gap-2 py-1 min-w-0">
+            <span class="oswald-sharp text-[8px] border ${stColor} px-1.5 py-0.5 rounded font-black italic uppercase flex-shrink-0 w-9 text-center">${stLabel}</span>
+            <span class="oswald-sharp text-[10px] text-white italic uppercase tracking-tight truncate flex-1 min-w-0">${escapeHtml(f.pick)}</span>
+            <span class="oswald-sharp text-[9px] text-gray-500 italic uppercase tracking-tight truncate flex-1 min-w-0">${actual}</span>
+            <span class="oswald-sharp text-[9px] font-black italic ${fnetColor} flex-shrink-0 w-12 text-right">${fnet}</span>
+        </div>`;
+    }).join('');
+    return `<div class="px-4 lg:px-6 py-2.5 bg-black/20 border-b border-white/5">
+        <!-- 요약 (항상 표시) -->
+        <div class="flex items-center gap-2 flex-wrap">
+            <span class="oswald-sharp text-[10px] font-black italic text-white uppercase tracking-widest">내 픽 결과</span>
+            ${_recapScopeBadge(rec.scope)}
+            <span class="oswald-sharp text-[9px] text-green-400 font-black italic uppercase">적중 ${rec.win}</span>
+            <span class="oswald-sharp text-[9px] text-ufcRed font-black italic uppercase">실패 ${rec.lose}</span>
+            ${rec.cancel > 0 ? `<span class="oswald-sharp text-[9px] text-gray-500 font-black italic uppercase">취소 ${rec.cancel}</span>` : ''}
+            <span class="oswald-sharp text-[9px] text-gray-400 font-black italic uppercase">적중률 ${accStr}</span>
+            <span class="oswald-sharp text-[9px] ${netColor} font-black italic uppercase">손익 ${netStr}</span>
+            <button onclick="toggleArchiveRecapDetail('${escapeHtml(String(evId))}')" id="archive-myrecap-btn-${escapeHtml(String(evId))}"
+                class="oswald-sharp text-[8px] border border-white/10 text-gray-500 hover:text-white px-2 py-0.5 rounded italic uppercase tracking-widest transition ml-auto flex-shrink-0">▼ ${rec.fights.length}경기</button>
+        </div>
+        <!-- 경기별 상세 (펼치기) -->
+        <div id="archive-myrecap-rows-${escapeHtml(String(evId))}" class="hidden mt-1.5 divide-y divide-white/5">${rows}</div>
+    </div>`;
+}
+
+function toggleArchiveRecapDetail(evId) {
+    var rows = document.getElementById('archive-myrecap-rows-' + evId);
+    var btn = document.getElementById('archive-myrecap-btn-' + evId);
+    if (!rows) return;
+    var isHidden = rows.classList.contains('hidden');
+    rows.classList.toggle('hidden');
+    if (btn) btn.textContent = isHidden ? '▲ 접기' : ('▼ ' + rows.children.length + '경기');
 }
 
 // ── ADMIN ─────────────────────────────────────────────────────────────

@@ -234,6 +234,8 @@ function loadPostsFromDB() {
 
                 if (session && session.user) {
                     currentUser = session.user;
+                    // 아카이브 '내 픽 결과' 리캡 캐시 무효화 — 이전 계정 리캡 제거 + (아카이브 표시 중이면) 새 계정 재로드
+                    if (typeof window.invalidateArchiveRecap === 'function') window.invalidateArchiveRecap();
                     // SIGNED_IN = 실제 로그인 → 환영 토스트 표시
                     // INITIAL_SESSION = 세션 복원 (페이지 리로드) → 토스트 생략
                     loadUserFromDB(session.user.id, event === 'SIGNED_IN');
