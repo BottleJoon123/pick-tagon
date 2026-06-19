@@ -288,7 +288,7 @@ function renderArchive() {
 
             <!-- Full Results (collapsible) -->
             <div id="archive-detail-${ev.id}" class="hidden">
-                ${!isUpcoming ? `<div data-archive-recap="${escapeHtml(ev.name || '')}" data-recap-date="${escapeHtml((ev.event_date || '').slice(0, 10))}" data-recap-evid="${escapeHtml(String(ev.id))}" class="archive-myrecap hidden"></div>` : ''}
+                ${!isUpcoming ? `<div data-archive-recap="${escapeHtml(ev.name || '')}" data-recap-date="${escapeHtml((ev.event_date || '').slice(0, 10))}" data-recap-srceid="${escapeHtml(ev.source_event_id || '')}" data-recap-evid="${escapeHtml(String(ev.id))}" class="archive-myrecap hidden"></div>` : ''}
                 <div class="divide-y divide-white/5">
                     ${(ev.fights || []).map((f, i) => `
                     <div class="px-4 lg:px-6 py-2 lg:py-2.5 hover:bg-white/2 transition">
@@ -366,9 +366,12 @@ function toggleArchiveDetail(evId) {
 //      ⨝ events(id, title, event_date, record_scope) — events는 전체 조회.
 //  RLS picks_select_own(auth.uid()=user_id) → 본인 픽만(비로그인 0행). user_id는 UI 미노출.
 //
-//  매핑(아카이브 카드 ↔ 캐노니컬 이벤트): 정규화제목 + event_date(YYYY-MM-DD) 복합키.
-//    동일 복합키 2개+ → ambiguous(리캡 숨김). 0개 → unmapped(숨김; '픽 없음' 표기 금지).
-//    1개 → 해당 event_id 집계(없으면 '매핑됨·내 픽 없음'). 집계 캐시는 event_id 기준 저장.
+//  매핑(아카이브 카드 ↔ 캐노니컬 이벤트):
+//    • archive_events.source_event_id 가 있으면 그것을 최우선 사용(제목/날짜 변경에 안전).
+//      events 에 없으면(삭제/권한실패) 숨김 — title/date fallback 으로 추측 연결하지 않음.
+//    • source_event_id 가 없을 때만 정규화제목 + event_date(YYYY-MM-DD) 복합키 fallback:
+//      동일 복합키 2개+ → ambiguous(숨김), 0개 → unmapped(숨김; '픽 없음' 표기 금지),
+//      1개 → 해당 event_id 집계(없으면 '매핑됨·내 픽 없음'). 집계 캐시는 event_id 기준 저장.
 //
 //  순손익(추측 금지): place_pick -bet_cost, settle win +settled_payout, lose 0, cancelled(draw/nc) 환급.
 //    픽당 = cancelled ? 0 : (settled_payout - bet_cost), 단 win/lose는 bet_cost·settled_payout이
@@ -535,12 +538,25 @@ function renderArchiveRecapSections() {
         if (!uid || !loaded) { ph.innerHTML = ''; ph.classList.add('hidden'); ph.removeAttribute('data-recap-state'); continue; }
         var name = ph.getAttribute('data-archive-recap');
         var date = ph.getAttribute('data-recap-date') || '';
+        var srcEid = ph.getAttribute('data-recap-srceid') || '';
         var evId = ph.getAttribute('data-recap-evid');
-        var ids = _eventByKey[_recapKey(name, date)];
         var state, rec = null;
-        if (!ids || ids.length === 0) state = 'unmapped';        // 캐노니컬 이벤트 미매핑
-        else if (ids.length > 1) state = 'ambiguous';           // 복합키 충돌 → 모호
-        else { rec = _recapByEvent[ids[0]] || null; state = rec ? 'ok' : 'nopicks'; }
+        if (srcEid) {
+            // source_event_id 최우선 — 제목/날짜가 바뀌어도 동일 이벤트에 연결.
+            // events 에 없거나(삭제/권한실패) 하면 숨김. title/date fallback 으로 추측 연결하지 않음.
+            if (Object.prototype.hasOwnProperty.call(_eventScope, srcEid)) {
+                rec = _recapByEvent[srcEid] || null;
+                state = rec ? 'ok' : 'nopicks';
+            } else {
+                state = 'unmapped';
+            }
+        } else {
+            // source_event_id 없을 때만 정규화제목+날짜 복합키 fallback.
+            var ids = _eventByKey[_recapKey(name, date)];
+            if (!ids || ids.length === 0) state = 'unmapped';        // 캐노니컬 이벤트 미매핑
+            else if (ids.length > 1) state = 'ambiguous';           // 복합키 충돌 → 모호
+            else { rec = _recapByEvent[ids[0]] || null; state = rec ? 'ok' : 'nopicks'; }
+        }
         ph.setAttribute('data-recap-state', state);             // QA/디버그용(식별정보 없음)
         // 매핑 실패/모호는 숨김('등록한 픽이 없습니다'로 오표기 금지). 매핑됨·픽없음만 empty state.
         if (state === 'unmapped' || state === 'ambiguous') { ph.innerHTML = ''; ph.classList.add('hidden'); continue; }
