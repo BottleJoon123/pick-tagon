@@ -1120,11 +1120,19 @@
             <button onclick="switchAdminTab('news')" id="admin-tab-news" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">📰 뉴스 관리</button>
             <button onclick="switchAdminTab('season')" id="admin-tab-season" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">🏆 시즌 관리</button>
             <button onclick="switchAdminTab('settings')" id="admin-tab-settings" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">⚙ 설정</button>
+            <button onclick="switchAdminTab('integrity')" id="admin-tab-integrity" class="oswald-sharp admin-tab px-6 py-2 rounded-xl font-black italic text-xs lg:text-sm tracking-widest uppercase transition-all text-gray-500">🩺 무결성</button>
         </div>
 
         <!-- TAB: DASHBOARD -->
         <div id="admin-panel-dashboard">
             <!-- renderAdminDashboard()가 전체 내용 렌더링 -->
+        </div>
+
+        <!-- TAB: 운영 무결성 (관리자 read-only) -->
+        <div id="admin-panel-integrity" class="hidden">
+            <div id="admin-integrity-panel">
+                <div class="glass-card p-6 text-center text-gray-600 oswald-sharp text-xs italic uppercase tracking-widest rounded-2xl">무결성 탭 진입 시 로드됩니다</div>
+            </div>
         </div>
 
         <!-- TAB: FIGHTERS DB -->
@@ -2563,7 +2571,7 @@
 <script src="/js/news.js"></script>
 <script src="/js/youtube.js?v=1"></script>
 <script src="/js/community.js?v=24"></script>
-<script src="/js/admin.js?v=26"></script>
+<script src="/js/admin.js?v=27"></script>
 <script src="/js/profile.js?v=4"></script>
 <script src="/js/archive.js?v=13"></script>
 <script src="/js/season.js?v=1"></script>

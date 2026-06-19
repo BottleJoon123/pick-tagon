@@ -129,7 +129,7 @@ function logoutAdmin() {
 
 // ----- ADMIN TAB -----
 function switchAdminTab(tab) {
-    ['dashboard', 'fighters', 'archive', 'news', 'season', 'event', 'ufc', 'settings'].forEach(function(t) {
+    ['dashboard', 'fighters', 'archive', 'news', 'season', 'event', 'ufc', 'settings', 'integrity'].forEach(function(t) {
         var panel = document.getElementById('admin-panel-' + t);
         var tabEl = document.getElementById('admin-tab-'   + t);
         if (panel) panel.classList.add('hidden');
@@ -144,6 +144,95 @@ function switchAdminTab(tab) {
     if (tab === 'season')    loadAdminHallOfFameFromDB().then(renderSeasonAdminPanel);
     if (tab === 'settings')  loadGeminiKeyToUI();
     if (tab === 'ufc')       fetchEventsForBuilder();
+    if (tab === 'integrity') loadIntegrityDashboard();
+}
+
+// ── 운영 무결성 대시보드 (관리자 read-only, 수정 액션 없음) ───────────────
+// admin_integrity_report() RPC(SECDEF+is_admin)로 7종 이상징후를 집계해 표시만 한다.
+// 식별정보(user_id/email) 미표시. 새로고침만 허용. RPC 실패 시 기존 표시 유지 + 토스트.
+function loadIntegrityDashboard() {
+    var panel = document.getElementById('admin-integrity-panel');
+    if (!panel) return;
+    if (!sb) { panel.innerHTML = '<div class="glass-card p-6 text-center text-gray-600 oswald-sharp text-xs italic uppercase tracking-widest rounded-2xl">DB 연결 필요</div>'; return; }
+    if (!panel.dataset.loaded) {
+        panel.innerHTML = '<div class="glass-card p-6 text-center text-gray-600 oswald-sharp text-xs italic uppercase tracking-widest rounded-2xl animate-pulse">로딩 중...</div>';
+    }
+    sb.rpc('admin_integrity_report').then(function(res) {
+        if (res.error) {
+            if (typeof showToast === 'function') showToast('⚠ 무결성 리포트 실패: ' + (res.error.message || ''));
+            if (!panel.dataset.loaded) panel.innerHTML = '<div class="glass-card p-6 text-center text-ufcRed/70 oswald-sharp text-xs italic uppercase tracking-widest rounded-2xl">⚠ 로드 실패 — 새로고침으로 재시도</div>';
+            return; // 성공 전까지 기존 표시 유지
+        }
+        renderIntegrityDashboard(res.data);
+        panel.dataset.loaded = '1';
+    }).catch(function() {
+        if (typeof showToast === 'function') showToast('⚠ 무결성 리포트 오류');
+    });
+}
+
+function _integCard(title, count, severity, detailHtml, idx) {
+    var ok = (Number(count) === 0);
+    var badge = ok
+        ? '<span class="oswald-sharp text-[9px] font-black italic uppercase px-2 py-0.5 rounded border text-green-400 border-green-400/40 bg-green-400/10">OK</span>'
+        : '<span class="oswald-sharp text-[9px] font-black italic uppercase px-2 py-0.5 rounded border ' + (severity === 'red' ? 'text-ufcRed border-ufcRed/40 bg-ufcRed/10' : 'text-amber-400 border-amber-400/40 bg-amber-400/10') + '">' + count + '</span>';
+    var toggle = detailHtml
+        ? '<button onclick="toggleIntegrityDetail(' + idx + ')" id="integ-btn-' + idx + '" class="oswald-sharp text-[8px] border border-white/10 text-gray-500 hover:text-white px-2 py-0.5 rounded italic uppercase tracking-widest transition ml-auto flex-shrink-0">▼ 상세</button>'
+        : '';
+    return '<div class="glass-card rounded-2xl p-4 min-w-0">'
+        + '<div class="flex items-center gap-2 flex-wrap">'
+        + '<span class="oswald-sharp text-[11px] font-black italic text-white uppercase tracking-widest">' + escapeHtml(title) + '</span>'
+        + badge + toggle + '</div>'
+        + (detailHtml ? '<div id="integ-detail-' + idx + '" class="hidden mt-2 text-[10px] text-gray-400 oswald-sharp italic space-y-0.5 break-words">' + detailHtml + '</div>' : '')
+        + '</div>';
+}
+
+function toggleIntegrityDetail(idx) {
+    var dEl = document.getElementById('integ-detail-' + idx);
+    var bEl = document.getElementById('integ-btn-' + idx);
+    if (!dEl) return;
+    var hidden = dEl.classList.contains('hidden');
+    dEl.classList.toggle('hidden');
+    if (bEl) bEl.textContent = hidden ? '▲ 접기' : '▼ 상세';
+}
+
+function renderIntegrityDashboard(d) {
+    var panel = document.getElementById('admin-integrity-panel');
+    if (!panel || !d) return;
+    function li(items) { return (items && items.length) ? items.map(function(x){ return '<div>· ' + x + '</div>'; }).join('') : '<div class="text-gray-600">표시할 항목 없음</div>'; }
+
+    var oe = d.orphan_event_picks || {};
+    var lp = d.legacy_picks || {};
+    var au = d.archive_unlinked || {};
+    var ue = d.unclassified_events || {};
+    var em = d.event_state_mismatch || {};
+    var ud = d.user_count_drift || {};
+    var rp = d.recap_uncomputable_picks || {};
+    var driftCount = (ud.total_picks_drift_users || 0) + (ud.success_picks_drift_users || 0);
+
+    var cards = [
+        _integCard('고아 EVENT_PICKS', oe.count || 0, 'amber',
+            '<div>전체 ' + (oe.total||0) + ' 중 고아 ' + (oe.count||0) + '</div>' + li((oe.samples||[]).map(function(s){ return 'fight ' + escapeHtml(String(s.fight_id)) + ' · event ' + escapeHtml(String(s.event_id)); })), 1),
+        _integCard('레거시 PICKS (matchup_id NULL)', lp.count || 0, 'amber',
+            '<div>연결 가능 ' + (lp.linkable||0) + ' · 불가 ' + (lp.unlinkable||0) + '</div><div>status ' + escapeHtml(JSON.stringify(lp.by_status||{})) + '</div>', 2),
+        _integCard('ARCHIVE 미연결 (source NULL)', au.count || 0, 'amber',
+            li((au.rows||[]).map(function(r){ return escapeHtml(String(r.title)) + ' (' + escapeHtml(String(r.date)) + ') — ' + escapeHtml(String(r.reason)); })), 3),
+        _integCard('미분류 이벤트 (finalized)', ue.finalized_count || 0, 'amber',
+            '<div>전체 미분류 ' + (ue.count||0) + ' · status ' + escapeHtml(JSON.stringify(ue.by_status||{})) + '</div>' + li((ue.finalized||[]).map(function(f){ return escapeHtml(String(f.title)) + ' (' + escapeHtml(String(f.date)) + ', ' + escapeHtml(String(f.status)) + ')'; })), 4),
+        _integCard('이벤트 상태 불일치', em.count || 0, 'red',
+            '<div>확정인데 미정산:</div>' + li((em.finalized_with_unsettled||[]).map(function(x){ return escapeHtml(String(x.title)) + ' (' + escapeHtml(String(x.status)) + ', 미정산 ' + x.unsettled + ')'; }))
+            + '<div class="mt-1">upcoming인데 결과:</div>' + li((em.upcoming_with_completed||[]).map(function(x){ return escapeHtml(String(x.title)) + ' (' + escapeHtml(String(x.status)) + ', 결과 ' + x.completed + ')'; })), 5),
+        _integCard('카운트 DRIFT (포인트/픽)', driftCount, 'red',
+            '<div>total_picks drift 유저 ' + (ud.total_picks_drift_users||0) + ' (최대 ' + (ud.max_total_drift||0) + ')</div><div>success_picks drift 유저 ' + (ud.success_picks_drift_users||0) + ' (최대 ' + (ud.max_success_drift||0) + ')</div>', 6),
+        _integCard('리캡 계산 불가 PICKS', rp.count || 0, 'amber',
+            '<div>bet_cost NULL ' + (rp.bet_cost_null||0) + ' · settled_payout NULL ' + (rp.settled_payout_null||0) + '</div><div>status ' + escapeHtml(JSON.stringify(rp.by_status||{})) + '</div>' + li((rp.samples||[]).map(function(s){ return 'fight ' + escapeHtml(String(s.fight_id)); })), 7)
+    ];
+
+    var gen = d.generated_at ? new Date(d.generated_at).toLocaleString('ko-KR') : '';
+    panel.innerHTML = '<div class="flex items-center justify-between mb-4 gap-2">'
+        + '<p class="oswald-sharp text-[9px] text-gray-500 uppercase tracking-widest italic min-w-0 truncate">운영 무결성 · 읽기 전용' + (gen ? ' · ' + escapeHtml(gen) : '') + '</p>'
+        + '<button onclick="loadIntegrityDashboard()" class="oswald-sharp border border-white/10 text-gray-400 hover:text-white font-black px-4 py-2 rounded-xl italic text-xs uppercase tracking-widest transition-all flex-shrink-0">↻ 새로고침</button>'
+        + '</div>'
+        + '<div class="grid grid-cols-1 lg:grid-cols-2 gap-3">' + cards.join('') + '</div>';
 }
 
 // ── Admin Dashboard ──────────────────────────────────────────────────
