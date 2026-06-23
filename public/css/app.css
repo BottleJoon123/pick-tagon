@@ -2090,3 +2090,99 @@ textarea, select {
     .arc-fph { font-size: 48px; }
     .arc-fstat-v { font-size: 24px; }
 }
+
+/* ════════════════════════════════════════════════════════════════
+   ARCHIVE — 3차: 디테일 polish (이벤트/파이터 탐색성)
+   • 순수 표현계층. 실데이터(tag/winner/method/round/time)만 사용.
+   • 키보드 focus-visible · 세그먼트 칩 · 승자 강조 · 섹션 구분 · 모바일.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── 키보드 접근성: 일관된 focus-visible 링(Enter/Space는 native button 유지) ── */
+.arc-tab:focus-visible,
+.arc-evrow:focus-visible,
+.arc-fcard:focus-visible,
+.arc-loadmore:focus-visible,
+.arc-drawer-close:focus-visible {
+    outline: 2px solid var(--pt-red-300);
+    outline-offset: 2px;
+}
+.arc-fselect:focus-visible { outline: 2px solid var(--pt-red-300); outline-offset: 1px; }
+.arc-evrow:focus-visible { transform: translateX(3px); border-color: var(--pt-line-3); }
+.arc-fcard:focus-visible { transform: translateY(-3px); border-color: var(--pt-line-3); }
+
+/* ── 상태칩 시각 구분 보강(적중/미참여/예정/결과만) ── */
+.arc-chip-result {
+    color: var(--pt-ink-3); background: transparent; border-color: var(--pt-line-2);
+    font-weight: 700; opacity: 0.9;
+}
+.arc-chip-none { background: var(--pt-bg-3); }
+
+/* ── 드로어 섹션 구분: 내 픽 vs 전체 결과 ── */
+.arc-ed-seccount {
+    font-family: var(--pt-font-mono); font-size: 10px; font-style: normal; font-weight: 500;
+    color: var(--pt-ink-2); background: var(--pt-bg-4); border-radius: var(--pt-r-pill);
+    padding: 1px 8px; letter-spacing: 0; margin-left: auto;
+}
+.arc-ed-sectitle-mine { color: var(--pt-red-300); }
+.arc-ed-section-mine {
+    background: linear-gradient(180deg, rgba(225,6,0,0.05), transparent 60%);
+    border: 1px solid var(--pt-line-1); border-left: 3px solid var(--pt-red-500);
+    border-radius: var(--pt-r-md); padding: 14px 14px 8px; margin-bottom: 18px;
+}
+.arc-ed-section-mine .arc-fr:last-child { margin-bottom: 0; }
+
+/* ── 전체 경기 결과 행: 세그먼트 + 승자 강조 + 방식/라운드 칩 ── */
+.arc-afr { padding: 10px 4px; }
+.arc-afr-main { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.arc-afr-segline { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.arc-afr-seg {
+    font-family: var(--pt-font-eyebrow); font-size: 9px; letter-spacing: 0.12em;
+    text-transform: uppercase; padding: 1px 7px; border-radius: var(--pt-r-pill);
+    border: 1px solid var(--pt-line-2); color: var(--pt-ink-3); white-space: nowrap; flex-shrink: 0;
+}
+.arc-seg-main   { color: var(--pt-red-300); border-color: var(--pt-line-red); background: rgba(225,6,0,0.08); }
+.arc-seg-co     { color: var(--pt-warn);    border-color: rgba(244,180,0,0.4); background: rgba(244,180,0,0.07); }
+.arc-seg-card   { color: var(--pt-info);    border-color: rgba(31,111,235,0.4); background: rgba(31,111,235,0.07); }
+.arc-seg-prelim,
+.arc-seg-other  { color: var(--pt-ink-3); }
+/* 승자 강조(색·굵기)·패자 디밍 — 색약 대비 'WIN' 칩 병행 */
+.arc-afr-w { color: var(--pt-ink-0); font-weight: 800; }
+.arc-afr-l { color: var(--pt-ink-4); }
+.arc-afr-wtag {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800; font-size: 9px;
+    letter-spacing: 0.04em; color: var(--pt-win); background: rgba(31,191,107,0.12);
+    border: 1px solid rgba(31,191,107,0.35); border-radius: var(--pt-r-xs); padding: 1px 6px;
+    text-transform: uppercase; white-space: nowrap; flex-shrink: 0;
+}
+.arc-afr-rtchip {
+    font-family: var(--pt-font-mono); font-size: 10px; color: var(--pt-ink-2);
+    background: var(--pt-bg-3); border: 1px solid var(--pt-line-1); border-radius: var(--pt-r-xs);
+    padding: 1px 6px; white-space: nowrap; flex-shrink: 0;
+}
+.arc-afr-soon { font-family: var(--pt-font-eyebrow); font-size: 10px; letter-spacing: 0.12em; color: var(--pt-win); text-transform: uppercase; }
+.arc-afr-res { flex-wrap: wrap; justify-content: flex-end; }
+
+/* ── 파이터 카드: 시각 hierarchy · 칩 가독성 보강 ── */
+.arc-fbody { gap: 4px; padding: 12px 13px 14px; }
+.arc-fname { line-height: 1.12; }
+.arc-fmeta { margin-top: 3px; padding-top: 7px; border-top: 1px solid var(--pt-line-1); }
+.arc-rankchip { box-shadow: 0 2px 8px rgba(0,0,0,0.45); }
+.arc-rankchip-champ { box-shadow: 0 2px 10px rgba(200,144,46,0.45); }
+
+/* ── 모바일 polish (375/390) ── */
+@media (max-width: 480px) {
+    .arc-afr { grid-template-columns: 18px 1fr; row-gap: 6px; }
+    .arc-afr-res { grid-column: 2 / 3; justify-content: flex-start; }
+    .arc-afr-name { font-size: 13px; }
+    .arc-ed-section-mine { padding: 12px 12px 6px; }
+}
+@media (max-width: 400px) {
+    .arc-drawer-body { padding: 14px; }
+    .arc-ed-hero { padding: 16px; }
+    .arc-ed-name { font-size: 24px; }
+    .arc-ed-myresult { gap: 14px; }
+    .arc-mu-name { font-size: 17px; }
+    .arc-fgrid { gap: 9px; }
+    .arc-fname { font-size: 15px; }
+    .arc-fb-search { flex: 1 1 100%; }
+}

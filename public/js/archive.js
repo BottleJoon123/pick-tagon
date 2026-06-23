@@ -174,6 +174,28 @@ var _ARC_METHOD_COLOR = {
     'NC':     'text-gray-500 border-gray-500/40 bg-gray-500/10',
 };
 
+// 카드 세그먼트(메인/코메인/프렐림) 칩 — DB 저장값(tag)만 사용, 합성/가짜 데이터 없음.
+//  archive_fights.tag: 'MAIN EVENT'/'CO-MAIN EVENT'/'FEATURED'/'PRELIMS'/'SPECIAL'
+//  live matchups 매핑(_fetchUpcomingArchiveRows): 'MAIN EVENT'/'MAIN CARD'/'PRELIM'
+function _arcSegMeta(tag) {
+    var t = (tag == null ? '' : String(tag)).toUpperCase().trim();
+    if (!t) return null;
+    if (t.indexOf('CO-MAIN') === 0 || t.indexOf('CO MAIN') === 0) return { label: 'CO-MAIN', cls: 'arc-seg-co' };
+    if (t.indexOf('MAIN EVENT') === 0 || t === 'MAIN')            return { label: 'MAIN', cls: 'arc-seg-main' };
+    if (t.indexOf('PRELIM') === 0)                                return { label: 'PRELIM', cls: 'arc-seg-prelim' };
+    if (t.indexOf('MAIN CARD') === 0)                             return { label: 'MAIN CARD', cls: 'arc-seg-card' };
+    return { label: t, cls: 'arc-seg-other' };   // FEATURED / SPECIAL 등 — 원문 유지
+}
+
+// 승자 측 판정(영문 winner ↔ 영문 f1/f2_name 정규화 비교). 0=미정/무승부, 1=f1, 2=f2.
+function _arcWinSide(f) {
+    if (!f || !f.winner) return 0;
+    var w = String(f.winner).toLowerCase().trim();
+    if (f.f1_name && w === String(f.f1_name).toLowerCase().trim()) return 1;
+    if (f.f2_name && w === String(f.f2_name).toLowerCase().trim()) return 2;
+    return 0;
+}
+
 // archive_events(결과 보유) 우선 + 라이브 upcoming read-merge(중복 이름 제거). 기존 병합 규칙 유지.
 function _arcCombinedEvents() {
     var up = (typeof archiveUpcomingDB !== 'undefined' ? archiveUpcomingDB : []);
@@ -357,7 +379,7 @@ function _arcEventRowHtml(ev) {
     } else if (rr.state === 'nopicks') {
         resultHtml = '<span class="arc-chip arc-chip-none">미참여</span>';
     } else {
-        resultHtml = '<span class="arc-result-only">결과만</span>';
+        resultHtml = '<span class="arc-chip arc-chip-result">결과만</span>';
     }
 
     var finishHtml;
@@ -539,17 +561,20 @@ function _arcDrawerHtml(ev) {
     // 내 픽 (recap, 매핑 ok일 때만 — unmapped/ambiguous/비로그인은 섹션 생략, 추측 금지)
     var myPicks = '';
     if (!isUpcoming && rr.state === 'ok' && rr.rec) {
-        myPicks = '<div class="arc-ed-section"><p class="arc-ed-sectitle">경기별 결과 · 내 픽 ' + _recapScopeBadge(rr.rec.scope) + '</p>'
+        myPicks = '<div class="arc-ed-section arc-ed-section-mine"><p class="arc-ed-sectitle arc-ed-sectitle-mine">경기별 내 픽 결과 ' + _recapScopeBadge(rr.rec.scope)
+            + '<span class="arc-ed-seccount">' + rr.rec.fights.length + '</span></p>'
             + rr.rec.fights.map(_arcDrawerFightRow).join('') + '</div>';
     } else if (!isUpcoming && rr.state === 'nopicks') {
-        myPicks = '<div class="arc-ed-section"><p class="arc-ed-empty">이 이벤트에 등록한 픽이 없습니다</p></div>';
+        myPicks = '<div class="arc-ed-section arc-ed-section-mine"><p class="arc-ed-sectitle arc-ed-sectitle-mine">경기별 내 픽 결과</p><p class="arc-ed-empty">이 이벤트에 등록한 픽이 없습니다</p></div>';
     }
 
     // 전체 경기 결과 (archive snapshot — 항상 안전, 방식/라운드 포함; source_event_id 없어도 표시)
+    var fightCount = (ev.fights || []).length;
     var allRows = (ev.fights || []).map(function (f, i) { return _arcDrawerArchiveRow(f, i, isUpcoming); }).join('');
     var allSection = allRows
-        ? '<div class="arc-ed-section"><p class="arc-ed-sectitle">' + (isUpcoming ? '대진표' : '전체 경기 결과') + '</p>' + allRows + '</div>'
-        : '<div class="arc-ed-section"><p class="arc-ed-empty">등록된 경기가 없습니다</p></div>';
+        ? '<div class="arc-ed-section"><p class="arc-ed-sectitle">' + (isUpcoming ? '대진표' : '전체 경기 결과')
+            + '<span class="arc-ed-seccount">' + fightCount + '</span></p>' + allRows + '</div>'
+        : '<div class="arc-ed-section"><p class="arc-ed-sectitle">' + (isUpcoming ? '대진표' : '전체 경기 결과') + '</p><p class="arc-ed-empty">등록된 경기가 없습니다</p></div>';
 
     return hero + myPicks + allSection;
 }
@@ -583,17 +608,38 @@ function _arcDrawerFightRow(f) {
 }
 
 function _arcDrawerArchiveRow(f, i, isUpcoming) {
-    var winner = (!isUpcoming && f.winner) ? _arcWinnerName(f) : '';
+    var seg = _arcSegMeta(f.tag);
+    var segChip = seg ? '<span class="arc-afr-seg ' + seg.cls + '">' + escapeHtml(seg.label) + '</span>' : '';
+    var winSide = isUpcoming ? 0 : _arcWinSide(f);   // 승자 강조용(영문 비교) — upcoming은 미정
+    var n1Cls = winSide === 1 ? ' arc-afr-w' : (winSide === 2 ? ' arc-afr-l' : '');
+    var n2Cls = winSide === 2 ? ' arc-afr-w' : (winSide === 1 ? ' arc-afr-l' : '');
+
     var method = (!isUpcoming && f.method) ? f.method : '';
     var rt = (!isUpcoming && (f.round || f.fight_time)) ? ('R' + (f.round || '?') + (f.fight_time ? ' ' + f.fight_time : '')) : '';
-    var res = winner
-        ? '<span class="arc-afr-res"><span class="arc-afr-win">' + escapeHtml(winner) + ' 승</span>'
+
+    var res;
+    if (isUpcoming) {
+        res = '<span class="arc-afr-res"><span class="arc-afr-soon">예정</span></span>';
+    } else if (winSide || method || rt) {
+        res = '<span class="arc-afr-res">'
+            + (winSide ? '<span class="arc-afr-wtag">WIN</span>' : '')
             + (method ? '<span class="arc-afr-method ' + (_ARC_METHOD_COLOR[method] || 'text-gray-400 border-gray-400/40 bg-gray-400/10') + '">' + escapeHtml(method) + '</span>' : '')
-            + (rt ? '<span class="arc-afr-rt">' + escapeHtml(rt) + '</span>' : '') + '</span>'
-        : (isUpcoming ? '<span class="arc-afr-tagnext">' + escapeHtml(f.tag || 'PRELIM') + '</span>' : '<span class="arc-afr-rt">결과 없음</span>');
+            + (rt ? '<span class="arc-afr-rtchip">' + escapeHtml(rt) + '</span>' : '')
+            + '</span>';
+    } else {
+        res = '<span class="arc-afr-res"><span class="arc-afr-rt">결과 없음</span></span>';
+    }
+
     return '<div class="arc-afr">'
         + '<span class="arc-afr-idx">' + (i + 1) + '</span>'
-        + '<span class="arc-afr-mu"><span class="arc-afr-name">' + escapeHtml(_arcF1(f)) + '</span><span class="arc-afr-vs">vs</span><span class="arc-afr-name">' + escapeHtml(_arcF2(f)) + '</span></span>'
+        + '<span class="arc-afr-main">'
+            + (segChip ? '<span class="arc-afr-segline">' + segChip + '</span>' : '')
+            + '<span class="arc-afr-mu">'
+                + '<span class="arc-afr-name' + n1Cls + '">' + escapeHtml(_arcF1(f)) + '</span>'
+                + '<span class="arc-afr-vs">vs</span>'
+                + '<span class="arc-afr-name' + n2Cls + '">' + escapeHtml(_arcF2(f)) + '</span>'
+            + '</span>'
+        + '</span>'
         + res + '</div>';
 }
 
