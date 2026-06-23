@@ -1174,93 +1174,105 @@ async function fetchFighterArchive() {
     }
 }
 
+function _fighterDisplayName(f) { return f.name || f.name_en || '—'; }
+function _fighterRecord(f) {
+    if (!(f.wins || f.losses || f.draws)) return null;
+    return (f.wins || 0) + '-' + (f.losses || 0) + (f.draws ? '-' + f.draws : '');
+}
+function _fighterWinRate(f) {
+    var t = (f.wins || 0) + (f.losses || 0) + (f.draws || 0);
+    return t > 0 ? (f.wins || 0) / t : -1;
+}
+// 정렬용 랭크키: 0=챔프(최상), N=#N, 비랭커=9999(하단). 공식 _getDivisionRank 재사용(fighters.rank 미사용).
+function _fighterRankKey(f) { var r = _getDivisionRank(f); return (r == null) ? 9999 : r; }
+
+var _ARC_FSTYLE_COLOR = {
+    striker:      'text-red-400 border-red-400/30 bg-red-400/5',
+    grappler:     'text-blue-400 border-blue-400/30 bg-blue-400/5',
+    wrestler:     'text-green-400 border-green-400/30 bg-green-400/5',
+    submission:   'text-purple-400 border-purple-400/30 bg-purple-400/5',
+    'all-around': 'text-yellow-400 border-yellow-400/30 bg-yellow-400/5'
+};
+
 function renderFighterArchive() {
-    const listEl  = document.getElementById('fighter-archive-list');
-    const emptyEl = document.getElementById('fighter-archive-empty');
+    var listEl  = document.getElementById('fighter-archive-list');
+    var emptyEl = document.getElementById('fighter-archive-empty');
     if (!listEl) return;
 
-    const query   = (document.getElementById('fighter-archive-search')?.value || '').toLowerCase();
-    const divFilt = document.getElementById('fighter-archive-division')?.value || 'all';
+    var query   = ((document.getElementById('fighter-archive-search') || {}).value || '').toLowerCase().trim();
+    var divFilt = (document.getElementById('fighter-archive-division') || {}).value || 'all';
+    var sortMode = (document.getElementById('fighter-archive-sort') || {}).value || 'rank';
 
-    const filtered = fighterArchiveDB.filter(f => {
-        const nameMatch = (f.name || '').toLowerCase().includes(query) ||
-                          (f.name_en || '').toLowerCase().includes(query);
-        const divMatch  = divFilt === 'all' || f.division === divFilt;
+    var filtered = fighterArchiveDB.filter(function (f) {
+        var nameMatch = !query
+            || (f.name || '').toLowerCase().indexOf(query) >= 0
+            || (f.name_en || '').toLowerCase().indexOf(query) >= 0
+            || (f.nickname || '').toLowerCase().indexOf(query) >= 0;
+        var divMatch = divFilt === 'all' || f.division === divFilt;
         return nameMatch && divMatch;
     });
 
-    // 통계
-    const divSet = new Set(fighterArchiveDB.map(f => f.division).filter(Boolean));
-    const statEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    function byName(a, b) { return _fighterDisplayName(a).localeCompare(_fighterDisplayName(b), 'ko'); }
+    if (sortMode === 'name') {
+        filtered.sort(byName);
+    } else if (sortMode === 'wins') {
+        filtered.sort(function (a, b) { return ((b.wins || 0) - (a.wins || 0)) || byName(a, b); });
+    } else if (sortMode === 'winrate') {
+        filtered.sort(function (a, b) { return (_fighterWinRate(b) - _fighterWinRate(a)) || ((b.wins || 0) - (a.wins || 0)) || byName(a, b); });
+    } else { // 'rank': 챔프·랭커 우선, 비랭커 하단, 동순위 이름순
+        filtered.sort(function (a, b) { return (_fighterRankKey(a) - _fighterRankKey(b)) || byName(a, b); });
+    }
+
+    // 통계(실데이터): 파이터 수 / 체급 수 / 랭커 수. 소유/컬렉션 개념 없음.
+    var divSet = new Set(fighterArchiveDB.map(function (f) { return f.division; }).filter(Boolean));
+    var rankedCount = fighterArchiveDB.reduce(function (s, f) { return s + (_getDivisionRank(f) != null ? 1 : 0); }, 0);
+    var statEl = function (id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
     statEl('fighter-stat-count', fighterArchiveDB.length);
     statEl('fighter-stat-divisions', divSet.size);
-    var ftCt = document.getElementById('archive-tab-fighters-ct');   // 서브탭 카운트 칩
+    statEl('fighter-stat-ranked', rankedCount);
+    var ftCt = document.getElementById('archive-tab-fighters-ct');
     if (ftCt) ftCt.textContent = fighterArchiveDB.length;
 
     if (filtered.length === 0) {
         listEl.innerHTML = '';
-        emptyEl?.classList.remove('hidden');
+        if (emptyEl) emptyEl.classList.remove('hidden');
         return;
     }
-    emptyEl?.classList.add('hidden');
+    if (emptyEl) emptyEl.classList.add('hidden');
 
-    listEl.innerHTML = filtered.map(f => {
-        const displayName = f.name || f.name_en || '—';
-        const engName     = (f.name !== f.name_en && f.name_en) ? f.name_en : '';
-        const record      = (f.wins || f.losses || f.draws)
-            ? `${f.wins || 0}-${f.losses || 0}${f.draws ? '-' + f.draws : ''}`
-            : null;
-        // 카드 배지는 현재 체급에서 랭크된 경우만 표시(교차체급/비랭크면 '—'). fighters.rank 미사용.
-        const rv2 = _getDivisionRank(f);
-        const rankLabel   = rv2 === 0 ? 'C' : (rv2 != null ? `#${rv2}` : '—');
-        const divLabel    = DIVISION_LABEL[f.division] || (f.division || '').toUpperCase();
+    window._fighterCardCache = {};   // 매 렌더 초기화 — onclick 키는 현재 렌더 인덱스 기준(따옴표 안전)
+    listEl.innerHTML = filtered.map(_arcFighterCardHtml).join('');
+}
 
-        const STYLE_COLOR = {
-            striker:    'text-red-400 border-red-400/30 bg-red-400/5',
-            grappler:   'text-blue-400 border-blue-400/30 bg-blue-400/5',
-            wrestler:   'text-green-400 border-green-400/30 bg-green-400/5',
-            submission: 'text-purple-400 border-purple-400/30 bg-purple-400/5',
-            'all-around': 'text-yellow-400 border-yellow-400/30 bg-yellow-400/5',
-        };
+function _arcFighterCardHtml(f, i) {
+    var displayName = _fighterDisplayName(f);
+    var subName = (f.name_en && f.name_en !== f.name) ? f.name_en : '';
+    var record = _fighterRecord(f);
+    var divLabel = DIVISION_LABEL[f.division] || (f.division || '').toUpperCase();
+    var rv = _getDivisionRank(f);                // 0=champ, N=#N, null=비랭커(칩 숨김)
+    var firstLetter = escapeHtml((f.name_en || f.name || '?').charAt(0) || '?');
 
-        window._fighterCardCache = window._fighterCardCache || {};
-        const cacheKey = 'fc_' + (f.id || f.name_en || Math.random().toString(36).slice(2));
-        window._fighterCardCache[cacheKey] = _buildFighterForProfile(f);
-        return `
-        <div class="glass-card rounded-2xl overflow-hidden hover:border-white/20 hover:border-ufcRed/30 transition-all duration-300 flex flex-col cursor-pointer" onclick="openFighterProfile(window._fighterCardCache['${cacheKey}'])">
-            <!-- 파이터 이미지 -->
-            <div class="relative bg-gradient-to-b from-white/5 to-black/40 aspect-[3/4] flex items-end justify-center overflow-hidden">
-                ${f.image_url
-                    ? `<img src="${escapeHtml(f.image_url)}" alt="${escapeHtml(displayName)}"
-                           class="absolute inset-0 w-full h-full object-cover object-top"
-                           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
-                    : ''}
-                <div class="absolute inset-0 ${f.image_url ? 'hidden' : 'flex'} items-center justify-center">
-                    <span class="oswald-sharp text-5xl lg:text-6xl font-black italic text-white/10 uppercase select-none">
-                        ${escapeHtml((f.name_en || f.name || '?')[0])}
-                    </span>
-                </div>
-                <!-- rank badge -->
-                <div class="absolute top-2 left-2">
-                    <span class="oswald-sharp text-[10px] font-black italic uppercase px-2 py-0.5 rounded-lg ${rv2 === 0 ? 'bg-yellow-500/20 border border-yellow-500/40 text-yellow-400' : 'bg-white/5 border border-white/10 text-gray-400'}">${rankLabel}</span>
-                </div>
-            </div>
+    var cacheKey = 'fc_' + i;                     // 인덱스 키: 따옴표/특수문자 안전, 매 렌더 유니크
+    window._fighterCardCache[cacheKey] = _buildFighterForProfile(f);
 
-            <!-- 파이터 정보 -->
-            <div class="p-3 flex-1 flex flex-col gap-1">
-                <p class="oswald-sharp font-black italic text-white uppercase tracking-tighter text-sm lg:text-base leading-tight">${escapeHtml(displayName)}</p>
-                ${engName ? `<p class="oswald-sharp text-[9px] text-gray-500 italic uppercase tracking-widest truncate">${escapeHtml(engName)}</p>` : ''}
-                <p class="oswald-sharp text-[9px] text-ufcRed italic uppercase tracking-widest">${escapeHtml(divLabel)}</p>
-                <div class="flex items-center gap-2 mt-auto pt-2 border-t border-white/5 flex-wrap">
-                    ${record ? `<span class="oswald-sharp text-[9px] text-white font-black italic">${escapeHtml(record)}</span>` : ''}
-                    ${f.style ? `<span class="oswald-sharp text-[8px] border ${STYLE_COLOR[f.style] || 'text-gray-500 border-gray-500/30 bg-gray-500/5'} px-1.5 py-0.5 rounded-md italic uppercase">${escapeHtml(f.style)}</span>` : ''}
-                </div>
-                ${(f.height || f.reach) ? `
-                <div class="flex gap-2 text-[9px] text-gray-600 oswald-sharp italic uppercase">
-                    ${f.height ? `<span>키 ${escapeHtml(f.height)}</span>` : ''}
-                    ${f.reach  ? `<span>리치 ${escapeHtml(f.reach)}</span>` : ''}
-                </div>` : ''}
-            </div>
-        </div>`;
-    }).join('');
+    var rankChip = (rv === 0)
+        ? '<span class="arc-rankchip arc-rankchip-champ">CHAMP</span>'
+        : (rv != null ? '<span class="arc-rankchip">#' + rv + '</span>' : '');
+
+    // 이미지 없거나 onerror 시 안전 placeholder(모노그램)만 — fake portrait 생성 안 함.
+    var imgHtml = f.image_url
+        ? '<img class="arc-fimg" src="' + escapeHtml(f.image_url) + '" alt="' + escapeHtml(displayName) + '" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
+        : '';
+    var ph = '<span class="arc-fph"' + (f.image_url ? ' style="display:none"' : '') + '>' + firstLetter + '</span>';
+
+    return '<button type="button" class="arc-fcard" onclick="openFighterProfile(window._fighterCardCache[\'' + cacheKey + '\'])">'
+        + '<span class="arc-fport">' + imgHtml + ph + rankChip + '</span>'
+        + '<span class="arc-fbody">'
+            + '<span class="arc-fname">' + escapeHtml(displayName) + '</span>'
+            + (subName ? '<span class="arc-fsub">' + escapeHtml(subName) + '</span>' : '')
+            + '<span class="arc-fmeta"><span class="arc-fdiv">' + escapeHtml(divLabel) + '</span>'
+                + (record ? '<span class="arc-frec">' + escapeHtml(record) + '</span>' : '') + '</span>'
+            + (f.style ? '<span class="arc-fstyle ' + (_ARC_FSTYLE_COLOR[f.style] || 'text-gray-500 border-gray-500/30 bg-gray-500/5') + '">' + escapeHtml(f.style) + '</span>' : '')
+        + '</span>'
+        + '</button>';
 }

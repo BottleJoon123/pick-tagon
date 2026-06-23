@@ -2053,3 +2053,40 @@ textarea, select {
     .arc-ed-name { font-size: 28px; }
     .arc-ed-myresult { gap: 16px; }
 }
+
+/* ════════════════════════════════════════════════════════════════
+   ARCHIVE — 파이터 도감 (2차: 실데이터 기반 카드 비주얼)
+   • 소유/희귀도/잠금/수집률 등 가짜 도감 데이터 없음 — fighters DB 값만.
+   • 카드 중첩 없음 · 긴 이름 min-width:0+ellipsis · 실사진에 pixelated 미적용.
+   ════════════════════════════════════════════════════════════════ */
+.arc-fsummary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+.arc-fstat { background: var(--pt-bg-2); border: 1px solid var(--pt-line-1); border-radius: var(--pt-r-md); padding: 13px 15px; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; text-align: center; }
+.arc-fstat-v { font-family: var(--pt-font-display); font-style: italic; font-weight: 800; font-size: 28px; line-height: 1; color: var(--pt-ink-0); }
+.arc-fstat-k { font-family: var(--pt-font-eyebrow); font-size: 10px; letter-spacing: 0.14em; color: var(--pt-ink-3); text-transform: uppercase; }
+
+.arc-fgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; }
+.arc-fcard { display: flex; flex-direction: column; width: 100%; text-align: left; cursor: pointer; padding: 0; color: var(--pt-ink-1); background: var(--pt-bg-2); border: 1px solid var(--pt-line-1); border-radius: var(--pt-r-md); overflow: hidden; transition: transform var(--pt-dur-base) var(--pt-ease-out), border-color var(--pt-dur-base) var(--pt-ease-out), box-shadow var(--pt-dur-base) var(--pt-ease-out); }
+.arc-fcard:hover { transform: translateY(-3px); border-color: var(--pt-line-3); box-shadow: 0 16px 40px rgba(0,0,0,0.4); }
+
+.arc-fport { position: relative; display: block; width: 100%; aspect-ratio: 3 / 4; overflow: hidden; background: radial-gradient(70% 60% at 50% 30%, rgba(255,255,255,0.05), transparent 70%), linear-gradient(180deg, #16181e, #0b0c0f); }
+.arc-fimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; }
+/* 16비트 톤 스캔라인 오버레이(사진 위) — 실사진 자체는 pixelated 미적용 */
+.arc-fport::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, transparent 0 2px, rgba(0,0,0,0.10) 2px 3px); mix-blend-mode: multiply; opacity: 0.5; pointer-events: none; }
+.arc-fph { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--pt-font-display); font-style: italic; font-weight: 900; font-size: 64px; color: rgba(255,255,255,0.08); text-transform: uppercase; user-select: none; }
+.arc-rankchip { position: absolute; top: 8px; left: 8px; z-index: 1; font-family: var(--pt-font-display); font-style: italic; font-weight: 800; font-size: 11px; line-height: 1; padding: 3px 8px; border-radius: var(--pt-r-pill); color: #fff; background: rgba(225,6,0,0.85); border: 1px solid rgba(255,255,255,0.15); text-transform: uppercase; }
+.arc-rankchip-champ { color: #1b1205; background: linear-gradient(180deg, #f0c87a, #c8902e); border-color: rgba(255,255,255,0.35); }
+
+.arc-fbody { display: flex; flex-direction: column; gap: 3px; padding: 11px 13px 13px; min-width: 0; }
+.arc-fname { font-family: var(--pt-font-display); font-style: italic; font-weight: 800; font-size: 18px; line-height: 1.1; color: var(--pt-ink-0); text-transform: uppercase; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arc-fsub { font-size: 11px; color: var(--pt-ink-3); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arc-fmeta { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 2px; min-width: 0; }
+.arc-fdiv { font-family: var(--pt-font-eyebrow); font-size: 10px; letter-spacing: 0.12em; color: var(--pt-red-300); text-transform: uppercase; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arc-frec { font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-2); flex-shrink: 0; }
+.arc-fstyle { align-self: flex-start; margin-top: 4px; font-family: var(--pt-font-display); font-style: italic; font-weight: 700; font-size: 9px; text-transform: uppercase; padding: 2px 7px; border-radius: var(--pt-r-xs); border: 1px solid; }
+
+@media (max-width: 640px) {
+    .arc-fgrid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .arc-fname { font-size: 16px; }
+    .arc-fph { font-size: 48px; }
+    .arc-fstat-v { font-size: 24px; }
+}

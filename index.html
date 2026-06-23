@@ -77,7 +77,7 @@
 <link href="/css/tokens.css" rel="stylesheet">
 <link href="/css/theme-bridge.css" rel="stylesheet">
 <link rel="stylesheet" href="./src/tailwind.css">
-<link href="/css/app.css?v=17" rel="stylesheet">
+<link href="/css/app.css?v=18" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 <!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1053,13 +1053,21 @@
 
         <!-- ══ 파이터 패널 ══ -->
         <div id="archive-fighters-panel" class="hidden">
-            <!-- Search + Filter -->
-            <div class="flex flex-col sm:flex-row gap-3 w-full mb-6">
-                <input id="fighter-archive-search" type="text" placeholder="파이터 검색..."
-                    class="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed placeholder-gray-600 w-full lg:w-60"
-                    oninput="renderFighterArchive()">
-                <select id="fighter-archive-division" class="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed"
-                    onchange="renderFighterArchive()">
+            <!-- 실데이터 summary (소유/컬렉션 개념 없음) -->
+            <div class="arc-fsummary">
+                <div class="arc-fstat"><span id="fighter-stat-count" class="arc-fstat-v">0</span><span class="arc-fstat-k">등록 파이터</span></div>
+                <div class="arc-fstat"><span id="fighter-stat-divisions" class="arc-fstat-v arc-tile-accent">0</span><span class="arc-fstat-k">체급</span></div>
+                <div class="arc-fstat"><span id="fighter-stat-ranked" class="arc-fstat-v">0</span><span class="arc-fstat-k">랭커</span></div>
+            </div>
+
+            <!-- 검색 / 체급 / 정렬 (이벤트 탭과 동일 .arc-* 필터바) -->
+            <div class="arc-filterbar">
+                <label class="arc-fb-search">
+                    <span class="arc-fb-ico" aria-hidden="true">🔍</span>
+                    <input id="fighter-archive-search" type="text" placeholder="파이터 이름 검색"
+                        class="arc-fb-input" oninput="renderFighterArchive()" aria-label="파이터 검색">
+                </label>
+                <select id="fighter-archive-division" class="arc-fselect" onchange="renderFighterArchive()" aria-label="체급 필터">
                     <option value="all">전체 체급</option>
                     <option value="hw">헤비웨이트</option>
                     <option value="lhw">라이트헤비웨이트</option>
@@ -1072,26 +1080,22 @@
                     <option value="wmw">여성 스트로웨이트</option>
                     <option value="wfw">여성 플라이웨이트</option>
                     <option value="wbw">여성 밴텀웨이트</option>
-                    <option value="wfw">여성 페더웨이트</option>
+                    <option value="wfe">여성 페더웨이트</option>
+                </select>
+                <select id="fighter-archive-sort" class="arc-fselect" onchange="renderFighterArchive()" aria-label="정렬">
+                    <option value="rank">랭킹순</option>
+                    <option value="name">이름순</option>
+                    <option value="wins">승수</option>
+                    <option value="winrate">승률</option>
                 </select>
             </div>
 
-            <!-- Fighter Stats Bar -->
-            <div class="grid grid-cols-2 gap-3 lg:gap-6 mb-6 lg:mb-8">
-                <div class="glass-card rounded-2xl p-4 lg:p-6 text-center">
-                    <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 tracking-widest italic uppercase mb-2">등록 파이터</p>
-                    <p id="fighter-stat-count" class="oswald-sharp text-2xl lg:text-4xl font-black italic text-white">0</p>
-                </div>
-                <div class="glass-card rounded-2xl p-4 lg:p-6 text-center">
-                    <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 tracking-widest italic uppercase mb-2">체급 수</p>
-                    <p id="fighter-stat-divisions" class="oswald-sharp text-2xl lg:text-4xl font-black italic text-ufcRed">0</p>
-                </div>
-            </div>
-
             <!-- Fighter Grid -->
-            <div id="fighter-archive-list" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 lg:gap-4"></div>
-            <div id="fighter-archive-empty" class="hidden glass-card rounded-[2rem] p-16 text-center">
-                <p class="oswald-sharp text-gray-600 text-sm italic uppercase tracking-widest">검색 결과가 없습니다</p>
+            <div id="fighter-archive-list" class="arc-fgrid"></div>
+            <div id="fighter-archive-empty" class="hidden arc-empty">
+                <span class="arc-empty-ico" aria-hidden="true">⬡</span>
+                <p class="arc-empty-title">검색 결과가 없습니다</p>
+                <p class="arc-empty-sub">다른 이름이나 체급으로 검색해 보세요.</p>
             </div>
         </div>
     </section>
@@ -2586,7 +2590,7 @@
 <script src="/js/community.js?v=24"></script>
 <script src="/js/admin.js?v=27"></script>
 <script src="/js/profile.js?v=4"></script>
-<script src="/js/archive.js?v=14"></script>
+<script src="/js/archive.js?v=15"></script>
 <script src="/js/season.js?v=1"></script>
 <script src="/js/fights-render.js?v=26"></script>
 <script src="/js/pixel-fighters.js?v=1"></script>
