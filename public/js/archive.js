@@ -24,25 +24,29 @@ function switchArchiveTab(tab) {
     const ftPanel = document.getElementById('archive-fighters-panel');
     const evBtn   = document.getElementById('archive-tab-events');
     const ftBtn   = document.getElementById('archive-tab-fighters');
+    const isEvents = (tab === 'events');
 
-    if (tab === 'events') {
-        evPanel?.classList.remove('hidden');
-        ftPanel?.classList.add('hidden');
-        evBtn?.classList.replace('border-transparent', 'border-ufcRed');
-        evBtn?.classList.replace('text-gray-500', 'text-white');
-        ftBtn?.classList.replace('border-ufcRed', 'border-transparent');
-        ftBtn?.classList.replace('text-white', 'text-gray-500');
+    evPanel?.classList.toggle('hidden', !isEvents);
+    ftPanel?.classList.toggle('hidden', isEvents);
+    evBtn?.classList.toggle('is-active', isEvents);
+    ftBtn?.classList.toggle('is-active', !isEvents);
+
+    try { localStorage.setItem('arch_tab', tab); } catch (e) { /* storage 비활성 무시 */ }
+
+    if (isEvents) {
         if (archiveDB.length === 0) fetchArchive(); else renderArchive();
     } else {
-        ftPanel?.classList.remove('hidden');
-        evPanel?.classList.add('hidden');
-        ftBtn?.classList.replace('border-transparent', 'border-ufcRed');
-        ftBtn?.classList.replace('text-gray-500', 'text-white');
-        evBtn?.classList.replace('border-ufcRed', 'border-transparent');
-        evBtn?.classList.replace('text-white', 'text-gray-500');
         if (fighterArchiveDB.length === 0) fetchFighterArchive(); else renderFighterArchive();
     }
 }
+
+// 저장된 탭 복원(있을 때만). 최초 아카이브 진입 시 호출되며, 없으면 기본 'events' 유지.
+function restoreArchiveTab() {
+    var saved = null;
+    try { saved = localStorage.getItem('arch_tab'); } catch (e) { saved = null; }
+    if (saved === 'fighters') switchArchiveTab('fighters');
+}
+if (typeof window !== 'undefined') window.restoreArchiveTab = restoreArchiveTab;
 
 // ── 라이브 events(upcoming) → archive 표시용 행 (read-only merge, DB write 없음) ──
 async function _fetchUpcomingArchiveRows() {
@@ -157,204 +161,440 @@ function loadArchive() {
 }
 
 // ── PUBLIC VIEW ────────────────────────────────────────────────────────
+var _ARC_PAGE = 6;
+var _arcLimit = _ARC_PAGE;
+
+var _ARC_METHOD_COLOR = {
+    'KO/TKO': 'text-ufcRed border-ufcRed/40 bg-ufcRed/10',
+    'SUB':    'text-purple-400 border-purple-400/40 bg-purple-400/10',
+    'UD':     'text-blue-400 border-blue-400/40 bg-blue-400/10',
+    'SD':     'text-yellow-400 border-yellow-400/40 bg-yellow-400/10',
+    'MD':     'text-orange-400 border-orange-400/40 bg-orange-400/10',
+    'DQ':     'text-gray-400 border-gray-400/40 bg-gray-400/10',
+    'NC':     'text-gray-500 border-gray-500/40 bg-gray-500/10',
+};
+
+// archive_events(결과 보유) 우선 + 라이브 upcoming read-merge(중복 이름 제거). 기존 병합 규칙 유지.
+function _arcCombinedEvents() {
+    var up = (typeof archiveUpcomingDB !== 'undefined' ? archiveUpcomingDB : []);
+    var names = new Set(archiveDB.map(function (e) { return (e.name || '').toLowerCase().trim(); }));
+    return archiveDB.concat(up.filter(function (e) { return !names.has((e.name || '').toLowerCase().trim()); }));
+}
+
+// 카드 ↔ 캐노니컬 이벤트 매핑(행 칩·드로어 공용). source_event_id 최우선, 없으면 정규화제목+날짜 복합키.
+// state: ok(픽 있음)/nopicks(매핑됨·픽 0)/unmapped/ambiguous/loading. 추측 연결 금지(기존 규칙 보존).
+function _resolveEventRecap(name, date, srcEid) {
+    var uid = _recapUid();
+    if (!uid || _recapLoadedFor !== uid) return { state: 'loading', rec: null };
+    if (srcEid) {
+        if (Object.prototype.hasOwnProperty.call(_eventScope, srcEid)) {
+            var r = _recapByEvent[srcEid] || null;
+            return { state: r ? 'ok' : 'nopicks', rec: r };
+        }
+        return { state: 'unmapped', rec: null };
+    }
+    var ids = _eventByKey[_recapKey(name, date)];
+    if (!ids || ids.length === 0) return { state: 'unmapped', rec: null };
+    if (ids.length > 1) return { state: 'ambiguous', rec: null };
+    var r2 = _recapByEvent[ids[0]] || null;
+    return { state: r2 ? 'ok' : 'nopicks', rec: r2 };
+}
+
+function _arcDateLabel(d) {
+    if (!d) return '날짜 미상';
+    var dt = new Date(d + 'T00:00:00');
+    if (isNaN(dt.getTime())) return '날짜 미상';
+    return dt.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+function _arcPosterNum(name) {
+    var m = (name || '').match(/UFC\s*(\d{2,4})/i);
+    if (m) return m[1];
+    if (/fight\s*night/i.test(name || '')) return 'FN';
+    return ((name || '?').replace(/[^0-9A-Za-z]/g, '').slice(0, 3).toUpperCase()) || '?';
+}
+function _arcMainFight(ev) {
+    return (ev.fights || []).find(function (f) { return f.tag === 'MAIN EVENT'; }) || (ev.fights || [])[0] || null;
+}
+function _arcF1(f) { return f ? (f.f1_name_ko || f.f1_name || '') : ''; }
+function _arcF2(f) { return f ? (f.f2_name_ko || f.f2_name || '') : ''; }
+function _arcWinnerName(f) {
+    if (!f || !f.winner) return '';
+    if (f.winner === f.f1_name && f.f1_name_ko) return f.f1_name_ko;
+    if (f.winner === f.f2_name && f.f2_name_ko) return f.f2_name_ko;
+    return f.winner;
+}
+
+// 필터 변경(검색/연도/상태/참여/정렬) → 페이지 리셋 후 렌더.
+function archiveFilterChanged() { _arcLimit = _ARC_PAGE; renderArchive(); }
+function archiveLoadMore() { _arcLimit += _ARC_PAGE; renderArchive(); }
+if (typeof window !== 'undefined') { window.archiveFilterChanged = archiveFilterChanged; window.archiveLoadMore = archiveLoadMore; }
+
+// <select> 내 특정 옵션 disable 토글(비로그인 시 recap 의존 정렬 옵션 잠금용).
+function _arcSetOptDisabled(sel, val, disabled) {
+    if (!sel || typeof sel.querySelector !== 'function') return;
+    var opt = sel.querySelector('option[value="' + val + '"]');
+    if (opt) opt.disabled = !!disabled;
+}
+
 function renderArchive() {
-    const list = document.getElementById('archive-list');
-    const empty = document.getElementById('archive-empty');
+    var list = document.getElementById('archive-list');
     if (!list) return;
+    var empty = document.getElementById('archive-empty');
+    renderArchiveRecapBand();
 
-    const query = (document.getElementById('archive-search')?.value || '').toLowerCase();
-    const yearFilter = document.getElementById('archive-filter')?.value || 'all';
-    const statusFilter = document.getElementById('archive-status-filter')?.value || 'all';
+    var query = ((document.getElementById('archive-search') || {}).value || '').toLowerCase().trim();
+    var yearFilter = (document.getElementById('archive-filter') || {}).value || 'all';
+    var statusFilter = (document.getElementById('archive-status-filter') || {}).value || 'all';
+    var joinedSel = document.getElementById('archive-joined-filter');
+    var sortSel = document.getElementById('archive-sort');
 
-    // archive_events(과거/수동) + 라이브 events(upcoming) 병합 표시.
-    // 같은 이름이 양쪽에 있으면 archive_events(수동/결과 보유)를 우선(중복 제거).
-    const _upcoming = (typeof archiveUpcomingDB !== 'undefined' ? archiveUpcomingDB : []);
-    const _archiveNames = new Set(archiveDB.map(e => (e.name || '').toLowerCase().trim()));
-    const _combined = archiveDB.concat(
-        _upcoming.filter(e => !_archiveNames.has((e.name || '').toLowerCase().trim()))
-    );
+    var uid = _recapUid();
+    var recapReady = !!(uid && _recapLoadedFor === uid);
 
-    let filtered = _combined.filter(ev => {
-        const nameMatch = (ev.name || '').toLowerCase().includes(query) ||
-            (ev.venue || '').toLowerCase().includes(query);
-        const yearMatch = yearFilter === 'all' || (ev.event_date || '').startsWith(yearFilter);
-        const statusMatch = statusFilter === 'all' || ev.status === statusFilter;
-        return nameMatch && yearMatch && statusMatch;
-    }).sort((a, b) => (b.event_date || '').localeCompare(a.event_date || ''));
+    // 비로그인: recap 의존 컨트롤 잠금 — 참여 필터 all 리셋+disable, 정렬 accuracy/net 옵션 disable+값 리셋.
+    if (joinedSel) {
+        joinedSel.disabled = !uid;
+        if (!uid) joinedSel.value = 'all';
+    }
+    if (sortSel) {
+        _arcSetOptDisabled(sortSel, 'accuracy', !uid);
+        _arcSetOptDisabled(sortSel, 'net', !uid);
+        if (!uid && (sortSel.value === 'accuracy' || sortSel.value === 'net')) sortSel.value = 'recent';
+    }
 
-    // Update stats
-    const totalFights = archiveDB.reduce((s, e) => s + (e.fights || []).length, 0);
-    const koFights = archiveDB.reduce((s, e) => s + (e.fights || []).filter(f => f.method === 'KO/TKO').length, 0);
-    const statEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-    statEl('archive-stat-events', archiveDB.length);
-    statEl('archive-stat-fights', totalFights);
-    statEl('archive-stat-ko', totalFights > 0 ? Math.round(koFights / totalFights * 100) + '%' : '0%');
+    var joinedFilter = (joinedSel || {}).value || 'all';
+    var sortMode = (sortSel || {}).value || 'recent';
+    // 로그인했으나 recap 미로드: 참여/accuracy/net 은 로딩 중 오표시 방지 위해 최신순/무필터로 안전 fallback.
+    // (사용자 선택값 자체는 보존 — 로드 완료 후 재렌더에서 정상 적용.)
+    if (!recapReady && (sortMode === 'accuracy' || sortMode === 'net')) sortMode = 'recent';
+    if (!recapReady && (joinedFilter === 'joined' || joinedFilter === 'none')) joinedFilter = 'all';
 
+    var combined = _arcCombinedEvents();
+    var evCt = document.getElementById('archive-tab-events-ct');
+    if (evCt) evCt.textContent = combined.length;
+
+    function fighterHay(ev) {
+        return (ev.fights || []).map(function (f) {
+            return [f.f1_name, f.f2_name, f.f1_name_ko, f.f2_name_ko].join(' ');
+        }).join(' ').toLowerCase();
+    }
+    function recOf(ev) { return _resolveEventRecap(ev.name, ev.event_date, ev.source_event_id).rec; }
+
+    var filtered = combined.filter(function (ev) {
+        var nameMatch = !query
+            || (ev.name || '').toLowerCase().indexOf(query) >= 0
+            || (ev.venue || '').toLowerCase().indexOf(query) >= 0
+            || fighterHay(ev).indexOf(query) >= 0;
+        var yearMatch = yearFilter === 'all' || (ev.event_date || '').slice(0, 4) === yearFilter;
+        var statusMatch = statusFilter === 'all' || ev.status === statusFilter;
+        var joinMatch = true;
+        if (joinedFilter === 'joined' || joinedFilter === 'none') {
+            var st = _resolveEventRecap(ev.name, ev.event_date, ev.source_event_id).state;
+            joinMatch = (joinedFilter === 'joined') ? (st === 'ok') : (st === 'nopicks');
+        }
+        return nameMatch && yearMatch && statusMatch && joinMatch;
+    });
+
+    if (sortMode === 'accuracy') {
+        filtered.sort(function (a, b) {
+            var ra = recOf(a), rb = recOf(b);
+            var aa = (ra && (ra.win + ra.lose) > 0) ? ra.win / (ra.win + ra.lose) : -1;
+            var ab = (rb && (rb.win + rb.lose) > 0) ? rb.win / (rb.win + rb.lose) : -1;
+            if (ab !== aa) return ab - aa;
+            return (b.event_date || '').localeCompare(a.event_date || '');
+        });
+    } else if (sortMode === 'net') {
+        filtered.sort(function (a, b) {
+            var ra = recOf(a), rb = recOf(b);
+            var na = (ra && ra.netComputable) ? ra.netSum : -Infinity;
+            var nb = (rb && rb.netComputable) ? rb.netSum : -Infinity;
+            if (nb !== na) return nb - na;
+            return (b.event_date || '').localeCompare(a.event_date || '');
+        });
+    } else {
+        filtered.sort(function (a, b) { return (b.event_date || '').localeCompare(a.event_date || ''); });
+    }
+
+    var lmWrap = document.getElementById('archive-loadmore-wrap');
     if (filtered.length === 0) {
         list.innerHTML = '';
+        if (lmWrap) lmWrap.innerHTML = '';
         if (empty) empty.classList.remove('hidden');
+        ensureArchiveRecapLoaded();
         return;
     }
     if (empty) empty.classList.add('hidden');
 
-    const METHOD_COLOR = {
-        'KO/TKO': 'text-ufcRed border-ufcRed/40 bg-ufcRed/10',
-        'SUB':    'text-purple-400 border-purple-400/40 bg-purple-400/10',
-        'UD':     'text-blue-400 border-blue-400/40 bg-blue-400/10',
-        'SD':     'text-yellow-400 border-yellow-400/40 bg-yellow-400/10',
-        'MD':     'text-orange-400 border-orange-400/40 bg-orange-400/10',
-        'DQ':     'text-gray-400 border-gray-400/40 bg-gray-400/10',
-        'NC':     'text-gray-500 border-gray-500/40 bg-gray-500/10',
-    };
+    var shown = filtered.slice(0, _arcLimit);
+    list.innerHTML = shown.map(_arcEventRowHtml).join('');
+    if (lmWrap) {
+        lmWrap.innerHTML = (filtered.length > _arcLimit)
+            ? '<button type="button" class="arc-loadmore" onclick="archiveLoadMore()">더 불러오기 <span class="arc-loadmore-ct">+' + Math.min(_ARC_PAGE, filtered.length - _arcLimit) + '</span></button>'
+            : '';
+    }
 
-    list.innerHTML = filtered.map(ev => {
-        const dateStr = ev.event_date
-            ? new Date(ev.event_date + 'T00:00:00').toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
-            : '날짜 미상';
-        const mainEvent = (ev.fights || []).find(f => f.tag === 'MAIN EVENT') || ev.fights?.[0];
-        const isUpcoming = ev.status === 'upcoming';
-
-        const f1Display = fight => fight.f1_name_ko || fight.f1_name || '';
-        const f2Display = fight => fight.f2_name_ko || fight.f2_name || '';
-        const winnerDisplay = fight => {
-            if (!fight.winner) return '';
-            if (fight.winner === fight.f1_name && fight.f1_name_ko) return fight.f1_name_ko;
-            if (fight.winner === fight.f2_name && fight.f2_name_ko) return fight.f2_name_ko;
-            return fight.winner;
-        };
-
-        return `
-        <div class="glass-card rounded-[2rem] overflow-hidden hover:border-white/20 transition-all duration-500">
-            <!-- Event Header -->
-            <div class="flex flex-col lg:flex-row lg:items-center justify-between px-4 lg:px-6 py-3 lg:py-4 bg-black/30 border-b border-white/5 gap-3">
-                <div class="flex items-center gap-3 min-w-0">
-                    <div class="w-8 h-8 lg:w-10 lg:h-10 rounded-xl ${isUpcoming ? 'bg-green-500/10 border border-green-500/30' : 'bg-ufcRed/10 border border-ufcRed/30'} flex items-center justify-center flex-shrink-0">
-                        <span class="oswald-sharp ${isUpcoming ? 'text-green-400' : 'text-ufcRed'} text-[8px] lg:text-[10px] font-black italic uppercase text-center leading-tight px-1">${isUpcoming ? 'NEXT' : (ev.name || '').replace('UFC ','').substring(0,4)}</span>
-                    </div>
-                    <div class="min-w-0">
-                        <div class="flex items-center gap-2 min-w-0">
-                            <p class="oswald-sharp font-black italic text-sm lg:text-xl text-white uppercase tracking-tighter truncate">${escapeHtml(ev.name || '')}</p>
-                            ${isUpcoming ? '<span class="oswald-sharp text-[8px] bg-green-500/10 border border-green-500/30 text-green-400 px-2 py-0.5 rounded-lg font-black italic uppercase flex-shrink-0">UPCOMING</span>' : ''}
-                        </div>
-                        <p class="oswald-sharp text-[10px] text-gray-500 italic uppercase tracking-widest truncate">${dateStr} · ${escapeHtml(ev.venue || '—')}</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-3">
-                    <span class="oswald-sharp text-[8px] lg:text-[10px] text-gray-600 italic uppercase tracking-widest">${(ev.fights || []).length}경기</span>
-                    ${(ev.fights || []).length > 0 ? `
-                    <button onclick="toggleArchiveDetail('${ev.id}')" id="archive-toggle-btn-${ev.id}"
-                        class="oswald-sharp text-[8px] lg:text-[10px] border border-white/10 text-gray-500 hover:text-white hover:border-white/30 px-2 lg:px-3 py-1 rounded-xl italic uppercase tracking-widest transition flex items-center gap-1">
-                        <span id="archive-toggle-label-${ev.id}">▼ ${isUpcoming ? '대진표 보기' : '결과 보기'}</span>
-                    </button>` : ''}
-                </div>
-            </div>
-
-            ${mainEvent ? `
-            <!-- Main Event Highlight -->
-            <div class="px-4 lg:px-6 py-3 lg:py-4 border-b border-white/5 min-w-0">
-                <!-- Mobile: stacked (tag / names / result) -->
-                <div class="flex items-start gap-2 min-w-0 lg:hidden">
-                    <span class="oswald-sharp text-[8px] bg-ufcRed/10 border border-ufcRed/20 text-ufcRed px-2 py-1 rounded-lg font-black italic uppercase flex-shrink-0 mt-0.5">${escapeHtml(mainEvent.tag || '')}</span>
-                    <div class="min-w-0 flex-1">
-                        <p class="oswald-sharp text-xs font-black italic text-white uppercase tracking-tighter truncate">${escapeHtml(f1Display(mainEvent))} <span class="text-gray-600">vs</span> ${escapeHtml(f2Display(mainEvent))}</p>
-                        ${!isUpcoming && mainEvent.winner ? `
-                        <div class="flex items-center gap-1.5 mt-1 flex-wrap">
-                            <span class="oswald-sharp text-[9px] font-black italic text-ufcRed uppercase">W: ${escapeHtml(winnerDisplay(mainEvent))}</span>
-                            <span class="oswald-sharp text-[8px] border ${METHOD_COLOR[mainEvent.method] || 'text-gray-400 border-gray-400/40 bg-gray-400/10'} px-1.5 py-0.5 rounded-md font-black italic uppercase">${escapeHtml(mainEvent.method || '')}</span>
-                        </div>` : ''}
-                    </div>
-                </div>
-                <!-- Desktop: balanced face-off — [tag] [← f1name · f1img] [VS] [f2img · f2name →] [result] -->
-                <div class="hidden lg:flex items-center gap-4">
-                    <span class="oswald-sharp text-[8px] bg-ufcRed/10 border border-ufcRed/20 text-ufcRed px-2 py-1 rounded-lg font-black italic uppercase flex-shrink-0">${escapeHtml(mainEvent.tag || '')}</span>
-                    <div class="flex flex-row-reverse items-center gap-2 flex-1 min-w-0">
-                        ${mainEvent.f1_image_url ? `<img src="${escapeHtml(mainEvent.f1_image_url)}" class="w-9 h-9 rounded-full object-cover object-top border border-white/10 flex-shrink-0" onerror="this.style.display='none'">` : ''}
-                        <span class="oswald-sharp text-base font-black italic text-white uppercase tracking-tighter truncate flex-1 min-w-0 text-right">${escapeHtml(f1Display(mainEvent))}</span>
-                    </div>
-                    <span class="oswald-sharp text-xs font-black italic text-gray-600 uppercase flex-shrink-0 w-8 text-center">VS</span>
-                    <div class="flex items-center gap-2 flex-1 min-w-0">
-                        ${mainEvent.f2_image_url ? `<img src="${escapeHtml(mainEvent.f2_image_url)}" class="w-9 h-9 rounded-full object-cover object-top border border-white/10 flex-shrink-0" onerror="this.style.display='none'">` : ''}
-                        <span class="oswald-sharp text-base font-black italic text-white uppercase tracking-tighter truncate flex-1 min-w-0">${escapeHtml(f2Display(mainEvent))}</span>
-                    </div>
-                    <div class="w-44 flex-shrink-0 min-w-0">
-                        ${!isUpcoming && mainEvent.winner ? `
-                        <div class="flex items-center gap-1.5 min-w-0">
-                            <span class="oswald-sharp text-sm font-black italic text-ufcRed uppercase truncate">${escapeHtml(winnerDisplay(mainEvent))}</span>
-                            <span class="oswald-sharp text-[8px] border ${METHOD_COLOR[mainEvent.method] || 'text-gray-400 border-gray-400/40 bg-gray-400/10'} px-2 py-0.5 rounded-lg font-black italic uppercase flex-shrink-0">${escapeHtml(mainEvent.method || '')}</span>
-                        </div>` : ''}
-                    </div>
-                </div>
-            </div>` : ''}
-
-            <!-- Full Results (collapsible) -->
-            <div id="archive-detail-${ev.id}" class="hidden">
-                ${!isUpcoming ? `<div data-archive-recap="${escapeHtml(ev.name || '')}" data-recap-date="${escapeHtml((ev.event_date || '').slice(0, 10))}" data-recap-srceid="${escapeHtml(ev.source_event_id || '')}" data-recap-evid="${escapeHtml(String(ev.id))}" class="archive-myrecap hidden"></div>` : ''}
-                <div class="divide-y divide-white/5">
-                    ${(ev.fights || []).map((f, i) => `
-                    <div class="px-4 lg:px-6 py-2 lg:py-2.5 hover:bg-white/2 transition">
-                        <!-- Mobile: 2-line compact result -->
-                        <div class="flex items-start gap-2 min-w-0 lg:hidden">
-                            <span class="oswald-sharp text-[7px] text-gray-600 italic uppercase flex-shrink-0 w-4 text-center mt-0.5">${i + 1}</span>
-                            <div class="min-w-0 flex-1">
-                                <div class="flex items-center gap-1 min-w-0">
-                                    <span class="oswald-sharp text-xs font-black italic text-white uppercase tracking-tighter truncate flex-1 min-w-0">${escapeHtml(f1Display(f))}</span>
-                                    <span class="text-gray-700 text-[9px] flex-shrink-0 px-0.5">vs</span>
-                                    <span class="oswald-sharp text-xs font-black italic text-white uppercase tracking-tighter truncate flex-1 min-w-0">${escapeHtml(f2Display(f))}</span>
-                                </div>
-                                ${!isUpcoming && f.winner ? `
-                                <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                                    <span class="oswald-sharp text-[9px] font-black italic text-ufcRed uppercase">W: ${escapeHtml(winnerDisplay(f))}</span>
-                                    <span class="oswald-sharp text-[7px] border ${METHOD_COLOR[f.method] || 'text-gray-400 border-gray-400/40 bg-gray-400/10'} px-1.5 py-0.5 rounded-md font-black italic uppercase">${escapeHtml(f.method || '')}</span>
-                                    ${f.round ? `<span class="oswald-sharp text-[7px] text-gray-600 italic uppercase">R${f.round}${f.fight_time ? ' ' + f.fight_time : ''}</span>` : ''}
-                                </div>` : (!isUpcoming && (f.round || f.fight_time) ? `<p class="oswald-sharp text-[7px] text-gray-600 italic uppercase mt-0.5">R${f.round || '?'} ${f.fight_time || ''}</p>` : '')}
-                            </div>
-                        </div>
-                        <!-- Desktop: balanced face-off — [#] [← f1name · f1img] [VS] [f2img · f2name →] [result] -->
-                        <div class="hidden lg:flex items-center gap-2">
-                            <span class="oswald-sharp text-[9px] text-gray-600 italic uppercase flex-shrink-0 w-5 text-center">${i + 1}</span>
-                            <div class="flex flex-row-reverse items-center gap-1.5 flex-1 min-w-0">
-                                ${f.f1_image_url ? `<img src="${escapeHtml(f.f1_image_url)}" class="w-7 h-7 rounded-full object-cover object-top border border-white/10 flex-shrink-0" onerror="this.style.display='none'">` : ''}
-                                <span class="oswald-sharp text-sm font-black italic text-white uppercase tracking-tighter truncate flex-1 min-w-0 text-right">${escapeHtml(f1Display(f))}</span>
-                            </div>
-                            <span class="oswald-sharp text-[9px] font-black italic text-gray-600 uppercase flex-shrink-0 w-7 text-center">VS</span>
-                            <div class="flex items-center gap-1.5 flex-1 min-w-0">
-                                ${f.f2_image_url ? `<img src="${escapeHtml(f.f2_image_url)}" class="w-7 h-7 rounded-full object-cover object-top border border-white/10 flex-shrink-0" onerror="this.style.display='none'">` : ''}
-                                <span class="oswald-sharp text-sm font-black italic text-white uppercase tracking-tighter truncate flex-1 min-w-0">${escapeHtml(f2Display(f))}</span>
-                            </div>
-                            <div class="w-40 flex-shrink-0 min-w-0">
-                                ${!isUpcoming && f.winner ? `
-                                <div class="flex items-center gap-1.5 min-w-0">
-                                    <span class="oswald-sharp text-xs font-black italic text-ufcRed uppercase truncate">${escapeHtml(winnerDisplay(f))}</span>
-                                    <span class="oswald-sharp text-[8px] border ${METHOD_COLOR[f.method] || 'text-gray-400 border-gray-400/40 bg-gray-400/10'} px-2 py-0.5 rounded-lg font-black italic uppercase flex-shrink-0">${escapeHtml(f.method || '')}</span>
-                                </div>
-                                ${f.round || f.fight_time ? `<p class="oswald-sharp text-[9px] text-gray-500 italic uppercase mt-0.5">R${f.round || '?'} ${f.fight_time || ''}</p>` : ''}` :
-                                !isUpcoming && (f.round || f.fight_time) ? `<p class="oswald-sharp text-[9px] text-gray-500 italic uppercase">R${f.round || '?'} ${f.fight_time || ''}</p>` : ''}
-                            </div>
-                        </div>
-                    </div>
-                    `).join('')}
-                </div>
-            </div>
-        </div>`;
-    }).join('');
-
-    // 내 픽 결과 리캡: 방금 생성된 placeholder를 현재 상태로 채우고, 로그인 시 지연 로드.
-    renderArchiveRecapSections();
     ensureArchiveRecapLoaded();
 }
 
-function toggleArchiveDetail(evId) {
-    const panel = document.getElementById(`archive-detail-${evId}`);
-    const label = document.getElementById(`archive-toggle-label-${evId}`);
-    if (!panel || !label) return;
-    const isHidden = panel.classList.contains('hidden');
-    panel.classList.toggle('hidden');
-    const ev = archiveDB.find(e => e.id === evId)
-        || (typeof archiveUpcomingDB !== 'undefined' ? archiveUpcomingDB.find(e => e.id === evId) : null);
-    const isUpcoming = ev?.status === 'upcoming';
-    label.textContent = isHidden ? `▲ 접기` : `▼ ${isUpcoming ? '대진표 보기' : '결과 보기'}`;
-    // 상세를 펼칠 때(TTL 만료 시) 리캡 재검증 — 기존 리캡은 유지하고 성공 응답만 교체.
-    if (isHidden && typeof ensureArchiveRecapLoaded === 'function') ensureArchiveRecapLoaded();
+function _arcEventRowHtml(ev) {
+    var isUpcoming = ev.status === 'upcoming';
+    var mf = _arcMainFight(ev);
+    var dateLabel = _arcDateLabel(ev.event_date);
+    var num = (ev.name || '').replace(/^UFC\s*/i, '').trim() || (ev.name || '');
+    var rr = _resolveEventRecap(ev.name, ev.event_date, ev.source_event_id);
+
+    var resultHtml;
+    if (isUpcoming) {
+        resultHtml = '<span class="arc-chip arc-chip-next">예정</span>';
+    } else if (rr.state === 'ok' && rr.rec) {
+        var rec = rr.rec, settled = rec.win + rec.lose;
+        var acc = settled > 0 ? Math.round(rec.win / settled * 100) : null;
+        var chipCls = (acc != null && acc >= 60) ? 'arc-chip-hit' : 'arc-chip-mid';
+        var netStr = rec.netComputable ? ((rec.netSum > 0 ? '+' : '') + rec.netSum + 'P') : '—';
+        var netCls = !rec.netComputable ? 'arc-net-flat' : (rec.netSum > 0 ? 'arc-net-pos' : (rec.netSum < 0 ? 'arc-net-neg' : 'arc-net-flat'));
+        resultHtml = '<span class="arc-chip ' + chipCls + '">' + rec.win + '/' + settled + ' 적중'
+            + (acc != null ? ' · ' + acc + '%' : '') + '</span><span class="arc-net ' + netCls + '">' + netStr + '</span>';
+    } else if (rr.state === 'nopicks') {
+        resultHtml = '<span class="arc-chip arc-chip-none">미참여</span>';
+    } else {
+        resultHtml = '<span class="arc-result-only">결과만</span>';
+    }
+
+    var finishHtml;
+    if (!isUpcoming && mf && mf.winner) {
+        finishHtml = escapeHtml(_arcWinnerName(mf)) + ' 승' + (mf.method ? ' · ' + escapeHtml(mf.method) : '') + (mf.round ? ' · R' + mf.round : '');
+    } else if (isUpcoming) {
+        finishHtml = (ev.fights || []).length + '경기 예정';
+    } else {
+        finishHtml = '';
+    }
+
+    var matchup = mf
+        ? '<span class="arc-mu-name">' + escapeHtml(_arcF1(mf)) + '</span><span class="arc-mu-vs">VS</span><span class="arc-mu-name">' + escapeHtml(_arcF2(mf)) + '</span>'
+        : '<span class="arc-mu-name">' + escapeHtml(ev.name || '') + '</span>';
+
+    return '<button type="button" class="arc-evrow' + (isUpcoming ? ' arc-evrow-next' : '') + '" onclick="openArchiveDetailModal(\'' + escapeHtml(String(ev.id)) + '\')">'
+        + '<span class="arc-poster' + (isUpcoming ? ' arc-poster-next' : '') + '"><span class="arc-poster-ufc">UFC</span><span class="arc-poster-num">' + escapeHtml(isUpcoming ? 'NEXT' : _arcPosterNum(ev.name)) + '</span></span>'
+        + '<span class="arc-evmain">'
+            + '<span class="arc-evmeta"><span class="arc-numchip">' + escapeHtml(num) + '</span><span class="arc-evdate">' + escapeHtml(dateLabel) + '</span>'
+                + (ev.venue ? '<span class="arc-evvenue">' + escapeHtml(ev.venue) + '</span>' : '') + '</span>'
+            + '<span class="arc-mu">' + matchup + '</span>'
+            + (finishHtml ? '<span class="arc-evfinish' + (isUpcoming ? ' arc-evfinish-next' : '') + '">' + finishHtml + '</span>' : '')
+        + '</span>'
+        + '<span class="arc-evresult">' + resultHtml + '<span class="arc-chev" aria-hidden="true">›</span></span>'
+        + '</button>';
+}
+
+// ── 성적 회고 밴드 (기존 _recapByEvent 캐시 재사용 — 추가 쿼리 없음) ──
+function renderArchiveRecapBand() {
+    var band = document.getElementById('archive-recap-band');
+    if (!band) return;
+    var uid = _recapUid();
+
+    var totalEvents = archiveDB.length;
+    var totalFights = archiveDB.reduce(function (s, e) { return s + (e.fights || []).length; }, 0);
+    var koFights = archiveDB.reduce(function (s, e) { return s + (e.fights || []).filter(function (f) { return f.method === 'KO/TKO'; }).length; }, 0);
+    var koPct = totalFights > 0 ? Math.round(koFights / totalFights * 100) + '%' : '—';
+    var gstats = '<div class="arc-gstats">' + _arcGStat(totalEvents, '이벤트') + _arcGStat(totalFights, '경기') + _arcGStat(koPct, 'KO/TKO') + '</div>';
+
+    if (!uid) {
+        band.innerHTML = '<div class="arc-recap arc-recap-guest"><div class="arc-recap-gtext">'
+            + '<p class="arc-recap-title">아카이브 기록</p><p class="arc-recap-sub">로그인하면 내 픽 성적 회고를 볼 수 있어요.</p>'
+            + '</div>' + gstats + '</div>';
+        return;
+    }
+    if (_recapLoadedFor !== uid) {
+        band.innerHTML = '<div class="arc-recap arc-recap-guest"><div class="arc-recap-gtext">'
+            + '<p class="arc-recap-title">내 픽 성적 회고</p><p class="arc-recap-sub arc-recap-loading">성적 불러오는 중…</p>'
+            + '</div>' + gstats + '</div>';
+        return;
+    }
+
+    var eids = Object.keys(_recapByEvent);
+    var win = 0, lose = 0, cancel = 0, netSum = 0, netAll = true;
+    eids.forEach(function (id) {
+        var r = _recapByEvent[id];
+        win += r.win; lose += r.lose; cancel += r.cancel;
+        if (r.netComputable) netSum += r.netSum; else netAll = false;
+    });
+    var settledWL = win + lose;
+    var accStr = settledWL > 0 ? Math.round(win / settledWL * 100) + '%' : '—';
+    var settledPicks = win + lose + cancel;
+    // 손익 계산 불가 이벤트가 하나라도 있으면 누적 합계도 '—'(추측 금지).
+    var netStr = (eids.length === 0) ? '—' : (netAll ? ((netSum > 0 ? '+' : '') + netSum + 'P') : '—');
+    var netCls = (netAll && eids.length) ? (netSum > 0 ? 'arc-net-pos' : (netSum < 0 ? 'arc-net-neg' : '')) : '';
+
+    band.innerHTML = '<div class="arc-recap">'
+        + '<div class="arc-recap-main"><div class="arc-recap-head"><span class="arc-recap-title">내 픽 성적 회고</span><span class="arc-recap-season">2026 시즌</span></div>'
+        + '<div class="arc-rtiles">'
+            + _arcTile(eids.length, '참여 이벤트', '')
+            + _arcTile(accStr, '평균 적중률', 'arc-tile-accent')
+            + _arcTile(netStr, '누적 순손익', netCls)
+            + _arcTile(settledPicks, '정산 픽', '')
+        + '</div></div>'
+        + '<div class="arc-recap-spark">' + _arcSparkline() + '</div>'
+        + '</div>';
+}
+
+function _arcGStat(v, label) {
+    return '<div class="arc-gstat"><span class="arc-gstat-v">' + escapeHtml(String(v)) + '</span><span class="arc-gstat-k">' + escapeHtml(label) + '</span></div>';
+}
+function _arcTile(v, label, cls) {
+    return '<div class="arc-rtile"><span class="arc-rtile-v ' + (cls || '') + '">' + escapeHtml(String(v)) + '</span><span class="arc-rtile-k">' + escapeHtml(label) + '</span></div>';
+}
+
+// 적중률 추이 — 참여 이벤트를 날짜순으로 누적 적중률 폴리라인. 데이터 부족(≤1) 시 placeholder.
+function _arcSparkline() {
+    var pts = [];
+    Object.keys(_recapByEvent).forEach(function (id) {
+        var r = _recapByEvent[id];
+        var d = _eventDate[id];
+        if (!d || (r.win + r.lose) <= 0) return;
+        pts.push({ d: String(d).slice(0, 10), win: r.win, settled: r.win + r.lose });
+    });
+    pts.sort(function (a, b) { return a.d.localeCompare(b.d); });
+    if (pts.length < 2) {
+        return '<div class="arc-spark-head"><span class="arc-spark-label">적중률 추이</span></div>'
+            + '<div class="arc-spark-empty">데이터 부족</div>';
+    }
+    var cw = 0, cs = 0, series = [];
+    pts.forEach(function (p) { cw += p.win; cs += p.settled; series.push(cw / cs * 100); });
+    var W = 280, H = 88, pad = 8;
+    var min = Math.min.apply(null, series), max = Math.max.apply(null, series);
+    var range = (max - min) < 1 ? 1 : (max - min);
+    var stepX = (W - pad * 2) / (series.length - 1);
+    var coords = series.map(function (v, i) {
+        return [pad + stepX * i, pad + (H - pad * 2) * (1 - (v - min) / range)];
+    });
+    var poly = coords.map(function (c) { return c[0].toFixed(1) + ',' + c[1].toFixed(1); }).join(' ');
+    var area = 'M' + coords[0][0].toFixed(1) + ',' + (H - pad).toFixed(1)
+        + ' L' + coords.map(function (c) { return c[0].toFixed(1) + ',' + c[1].toFixed(1); }).join(' L')
+        + ' L' + coords[coords.length - 1][0].toFixed(1) + ',' + (H - pad).toFixed(1) + ' Z';
+    var last = coords[coords.length - 1];
+    var delta = Math.round(series[series.length - 1] - series[0]);
+    var deltaStr = (delta > 0 ? '▲ ' + delta : (delta < 0 ? '▼ ' + Math.abs(delta) : '· 0')) + '%p';
+    var deltaCls = delta > 0 ? 'arc-net-pos' : (delta < 0 ? 'arc-net-neg' : '');
+    return '<div class="arc-spark-head"><span class="arc-spark-label">적중률 추이</span><span class="arc-spark-delta ' + deltaCls + '">' + deltaStr + '</span></div>'
+        + '<svg class="arc-spark-svg" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true">'
+        + '<defs><linearGradient id="arcSparkFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(225,6,0,0.28)"/><stop offset="100%" stop-color="rgba(225,6,0,0)"/></linearGradient></defs>'
+        + '<path d="' + area + '" fill="url(#arcSparkFill)" stroke="none"/>'
+        + '<polyline points="' + poly + '" fill="none" stroke="#E10600" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>'
+        + '<circle cx="' + last[0].toFixed(1) + '" cy="' + last[1].toFixed(1) + '" r="3" fill="#E10600"/>'
+        + '</svg>';
+}
+
+
+// ── 이벤트 상세 드로어 (#archive-detail-modal — modal-history 자동 등록: Back/Esc/backdrop) ──
+var _arcDetailEscBound = false;
+function _arcDetailEsc(e) { if (e && e.key === 'Escape') closeArchiveDetailModal(); }
+
+function openArchiveDetailModal(evId) {
+    var ev = archiveDB.find(function (e) { return e.id === evId; })
+        || (typeof archiveUpcomingDB !== 'undefined' ? archiveUpcomingDB.find(function (e) { return e.id === evId; }) : null);
+    if (!ev) { if (typeof showToast === 'function') showToast('⚠ 이벤트를 찾을 수 없습니다'); return; }
+    var modal = document.getElementById('archive-detail-modal');
+    var body = document.getElementById('archive-detail-body');
+    var crumb = document.getElementById('archive-detail-crumb');
+    if (!modal || !body) return;
+    if (crumb) crumb.textContent = ev.name || '이벤트';
+    _arcOpenEvId = ev.id;
+    body.innerHTML = _arcDrawerHtml(ev);
+    body.scrollTop = 0;
+    modal.classList.remove('hidden');                  // -modal observer가 history 엔트리 push
+    document.body.style.overflow = 'hidden';
+    if (!_arcDetailEscBound) { document.addEventListener('keydown', _arcDetailEsc); _arcDetailEscBound = true; }
+    ensureArchiveRecapLoaded();                         // 드로어 오픈 시 stale 리캡 재검증(TTL 로직 재사용)
+}
+
+function closeArchiveDetailModal() {
+    var modal = document.getElementById('archive-detail-modal');
+    if (modal) modal.classList.add('hidden');
+    document.body.style.overflow = '';
+    _arcOpenEvId = null;
+    if (_arcDetailEscBound) { document.removeEventListener('keydown', _arcDetailEsc); _arcDetailEscBound = false; }
+}
+if (typeof window !== 'undefined') { window.openArchiveDetailModal = openArchiveDetailModal; window.closeArchiveDetailModal = closeArchiveDetailModal; }
+
+function _arcDrawerHtml(ev) {
+    var isUpcoming = ev.status === 'upcoming';
+    var mf = _arcMainFight(ev);
+    var dateLabel = _arcDateLabel(ev.event_date);
+    var rr = _resolveEventRecap(ev.name, ev.event_date, ev.source_event_id);
+
+    var heroResult = '';
+    if (!isUpcoming && mf && mf.winner) {
+        heroResult = escapeHtml(_arcWinnerName(mf)) + ' 승' + (mf.method ? ' · ' + escapeHtml(mf.method) : '')
+            + (mf.round ? ' · R' + mf.round + (mf.fight_time ? ' ' + escapeHtml(mf.fight_time) : '') : '');
+    }
+    var heroSub = (isUpcoming ? '예정' : '종료') + ' · ' + escapeHtml(ev.venue || '장소 미상') + (heroResult ? ' · 최종 ' + heroResult : '');
+    var hero = '<div class="arc-ed-hero' + (isUpcoming ? ' arc-ed-hero-next' : '') + '">'
+        + '<div class="arc-ed-badges"><span class="arc-ed-badge">' + escapeHtml(ev.name || '') + (isUpcoming ? ' · 예정' : ' · 종료') + '</span><span class="arc-ed-date">' + escapeHtml(dateLabel) + '</span></div>'
+        + '<div class="arc-ed-mu">' + (mf
+            ? '<span class="arc-ed-name">' + escapeHtml(_arcF1(mf)) + '</span><span class="arc-ed-vs">VS</span><span class="arc-ed-name">' + escapeHtml(_arcF2(mf)) + '</span>'
+            : '<span class="arc-ed-name">' + escapeHtml(ev.name || '') + '</span>') + '</div>'
+        + '<div class="arc-ed-sub">' + heroSub + '</div>'
+        + ((!isUpcoming && rr.state === 'ok' && rr.rec) ? _arcDrawerMyResult(rr.rec) : '')
+        + '</div>';
+
+    // 내 픽 (recap, 매핑 ok일 때만 — unmapped/ambiguous/비로그인은 섹션 생략, 추측 금지)
+    var myPicks = '';
+    if (!isUpcoming && rr.state === 'ok' && rr.rec) {
+        myPicks = '<div class="arc-ed-section"><p class="arc-ed-sectitle">경기별 결과 · 내 픽 ' + _recapScopeBadge(rr.rec.scope) + '</p>'
+            + rr.rec.fights.map(_arcDrawerFightRow).join('') + '</div>';
+    } else if (!isUpcoming && rr.state === 'nopicks') {
+        myPicks = '<div class="arc-ed-section"><p class="arc-ed-empty">이 이벤트에 등록한 픽이 없습니다</p></div>';
+    }
+
+    // 전체 경기 결과 (archive snapshot — 항상 안전, 방식/라운드 포함; source_event_id 없어도 표시)
+    var allRows = (ev.fights || []).map(function (f, i) { return _arcDrawerArchiveRow(f, i, isUpcoming); }).join('');
+    var allSection = allRows
+        ? '<div class="arc-ed-section"><p class="arc-ed-sectitle">' + (isUpcoming ? '대진표' : '전체 경기 결과') + '</p>' + allRows + '</div>'
+        : '<div class="arc-ed-section"><p class="arc-ed-empty">등록된 경기가 없습니다</p></div>';
+
+    return hero + myPicks + allSection;
+}
+
+function _arcDrawerMyResult(rec) {
+    var settled = rec.win + rec.lose;
+    var acc = settled > 0 ? Math.round(rec.win / settled * 100) + '%' : '—';
+    var netStr = rec.netComputable ? ((rec.netSum > 0 ? '+' : '') + rec.netSum + 'P') : '—';
+    var netCls = !rec.netComputable ? '' : (rec.netSum > 0 ? 'arc-net-pos' : (rec.netSum < 0 ? 'arc-net-neg' : ''));
+    return '<div class="arc-ed-myresult">'
+        + '<div class="arc-ed-metric"><span class="arc-ed-metric-v">' + rec.win + '/' + settled + '</span><span class="arc-ed-metric-k">적중</span></div>'
+        + '<div class="arc-ed-metric"><span class="arc-ed-metric-v arc-tile-accent">' + acc + '</span><span class="arc-ed-metric-k">적중률</span></div>'
+        + '<div class="arc-ed-metric"><span class="arc-ed-metric-v ' + netCls + '">' + netStr + '</span><span class="arc-ed-metric-k">순손익</span></div>'
+        + (rec.cancel > 0 ? '<div class="arc-ed-metric"><span class="arc-ed-metric-v">' + rec.cancel + '</span><span class="arc-ed-metric-k">취소</span></div>' : '')
+        + '</div>';
+}
+
+function _arcDrawerFightRow(f) {
+    var stLabel = f.status === 'win' ? '적중 ✓' : (f.status === 'lose' ? '실패 ✗' : '취소');
+    var stCls = f.status === 'win' ? 'arc-fr-win' : (f.status === 'lose' ? 'arc-fr-lose' : 'arc-fr-cancel');
+    var actual = f.actualWinner ? ('승자 ' + escapeHtml(f.actualWinner))
+        : (f.resultStatus === 'draw' ? '무승부' : (f.resultStatus === 'no_contest' ? 'NC' : '—'));
+    var hasNet = (f.status !== 'cancelled') && _recapFinite(f.net);
+    var fnet = hasNet ? ((f.net > 0 ? '+' : '') + f.net + 'P') : '';
+    var fnetCls = !hasNet ? '' : (f.net > 0 ? 'arc-net-pos' : (f.net < 0 ? 'arc-net-neg' : ''));
+    return '<div class="arc-fr ' + stCls + '">'
+        + '<span class="arc-fr-tag">' + stLabel + '</span>'
+        + '<span class="arc-fr-body"><span class="arc-fr-pick">내 픽 · ' + escapeHtml(f.pick || '—') + '</span><span class="arc-fr-actual">' + actual + '</span></span>'
+        + '<span class="arc-fr-net ' + fnetCls + '">' + fnet + '</span>'
+        + '</div>';
+}
+
+function _arcDrawerArchiveRow(f, i, isUpcoming) {
+    var winner = (!isUpcoming && f.winner) ? _arcWinnerName(f) : '';
+    var method = (!isUpcoming && f.method) ? f.method : '';
+    var rt = (!isUpcoming && (f.round || f.fight_time)) ? ('R' + (f.round || '?') + (f.fight_time ? ' ' + f.fight_time : '')) : '';
+    var res = winner
+        ? '<span class="arc-afr-res"><span class="arc-afr-win">' + escapeHtml(winner) + ' 승</span>'
+            + (method ? '<span class="arc-afr-method ' + (_ARC_METHOD_COLOR[method] || 'text-gray-400 border-gray-400/40 bg-gray-400/10') + '">' + escapeHtml(method) + '</span>' : '')
+            + (rt ? '<span class="arc-afr-rt">' + escapeHtml(rt) + '</span>' : '') + '</span>'
+        : (isUpcoming ? '<span class="arc-afr-tagnext">' + escapeHtml(f.tag || 'PRELIM') + '</span>' : '<span class="arc-afr-rt">결과 없음</span>');
+    return '<div class="arc-afr">'
+        + '<span class="arc-afr-idx">' + (i + 1) + '</span>'
+        + '<span class="arc-afr-mu"><span class="arc-afr-name">' + escapeHtml(_arcF1(f)) + '</span><span class="arc-afr-vs">vs</span><span class="arc-afr-name">' + escapeHtml(_arcF2(f)) + '</span></span>'
+        + res + '</div>';
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -385,6 +625,8 @@ function toggleArchiveDetail(evId) {
 var _recapByEvent = {};       // event_id → { eventId, scope, win, lose, cancel, netSum, netComputable, fights:[] }
 var _eventByKey = {};         // normTitle|date → [event_id, ...] (복합키 → 이벤트; 모호 판정용)
 var _eventScope = {};         // event_id → record_scope
+var _eventDate = {};          // event_id → event_date (스파크라인 날짜순 정렬용 — 동일 events 쿼리 재사용)
+var _arcOpenEvId = null;      // 현재 열린 상세 드로어의 이벤트 id (리캡 갱신 시 재렌더용)
 var _recapLegacyExcluded = 0; // matchup_id=NULL 등 제외된 픽 수 (내부 집계, UI 미노출)
 var _recapUserId = null;
 var _recapGen = 0;
@@ -402,20 +644,25 @@ function _recapFinite(n) { return typeof n === 'number' && isFinite(n); }
 // 로그인/로그아웃/계정 전환/정산 성공 시 호출 — 캐시·진행 중 응답 무효화 후 재렌더(+필요 시 재로드).
 function invalidateArchiveRecap() {
     _recapGen++;
-    _recapByEvent = {}; _eventByKey = {}; _eventScope = {}; _recapLegacyExcluded = 0;
+    _recapByEvent = {}; _eventByKey = {}; _eventScope = {}; _eventDate = {}; _recapLegacyExcluded = 0;
     _recapInflight = null; _recapLoadedFor = null; _recapUserId = null; _recapLoadedAt = 0;
-    renderArchiveRecapSections();   // 즉시 화면 정리(비로그인/전환 직후 이전 계정 리캡 제거)
-    // 아카이브가 현재 렌더되어 있을 때만 즉시 재로드(페이지 로드/세션 복원 시 불필요한 선요청 방지).
-    if (document.querySelector('[data-archive-recap]')) ensureArchiveRecapLoaded();
+    var list = document.getElementById('archive-list');
+    if (list && list.offsetParent !== null) {
+        renderArchive();                 // 아카이브가 보이는 중 → 즉시 갱신(+ tail 에서 재로드)
+    } else {
+        renderArchiveRecapBand();        // 숨김 → 밴드만 정리(이전 계정 리캡 제거), 재로드는 다음 진입 시
+        if (list) list.innerHTML = '';
+    }
+    _arcRefreshOpenDrawer();             // 드로어 열려 있으면 내용 갱신(전환 후 잔존 방지)
 }
 if (typeof window !== 'undefined') window.invalidateArchiveRecap = invalidateArchiveRecap;
 
 // 캐시가 TTL 이내면 즉시 재사용. 만료(stale)면 기존 리캡을 유지한 채 재검증(성공 응답만 새 캐시로 교체).
+// 렌더는 하지 않음(호출부 renderArchive 가 렌더 소유 — 재귀 루프 방지). 비로그인 시 picks 쿼리 0건.
 function ensureArchiveRecapLoaded() {
     var uid = _recapUid();
-    if (!uid) return;                                   // 비로그인 → 로드 안 함(섹션 숨김)
+    if (!uid) return;                                   // 비로그인 → 로드 안 함(picks 쿼리 0건 보장)
     var fresh = (_recapLoadedFor === uid) && ((Date.now() - _recapLoadedAt) < _RECAP_TTL_MS);
-    renderArchiveRecapSections();                       // 보유 캐시 즉시 표시(미로드면 숨김, stale면 기존 유지)
     if (fresh) return;                                  // 신선 → 재조회 불필요
     if (_recapInflight && _recapUserId === uid) return; // 이미 (재)검증 중 → 공유(중복 요청 방지)
     _loadArchiveRecap(uid);                             // 미로드 또는 TTL 만료 → (재)조회
@@ -462,10 +709,11 @@ async function _loadArchiveRecap(uid) {
                     .order('id', { ascending: true }).range(a, b);
             });
             if (events === null) return null;
-            var byKey = {}, scope = {};
+            var byKey = {}, scope = {}, date = {};
             events.forEach(function (e) {
                 (byKey[_recapKey(e.title, e.event_date)] = byKey[_recapKey(e.title, e.event_date)] || []).push(e.id);
                 scope[e.id] = e.record_scope || null;
+                date[e.id] = e.event_date || null;     // 스파크라인 날짜순 정렬용(동일 events 쿼리 재사용)
             });
             // 2) 본인 settled picks 전수(pagination).
             var picksRaw = await _recapFetchAllPaged(function (a, b) {
@@ -509,7 +757,7 @@ async function _loadArchiveRecap(uid) {
                     byEvent[eid].fights.sort(function (a, b) { return a.sort - b.sort; });
                 });
             }
-            return { byEvent: byEvent, byKey: byKey, scope: scope, legacy: legacy };
+            return { byEvent: byEvent, byKey: byKey, scope: scope, date: date, legacy: legacy };
         } catch (e) { return null; }
     })();
     _recapInflight = p;
@@ -522,47 +770,29 @@ async function _loadArchiveRecap(uid) {
     _recapByEvent = result.byEvent;
     _eventByKey = result.byKey;
     _eventScope = result.scope;
+    _eventDate = result.date;
     _recapLegacyExcluded = result.legacy;
     _recapLoadedFor = uid;
     _recapLoadedAt = Date.now();                  // 성공 로드 시각 기록(TTL 기준)
-    renderArchiveRecapSections();
+    renderArchiveRecapSections();                 // 성공 적용 → 밴드/행/드로어 재렌더(루프 가드: tail ensure 는 fresh)
 }
 
-// 모든 리캡 placeholder를 현재 캐시/로그인 상태로 채운다. 카드(제목+날짜) → 복합키 → event_id 해석.
+// 리캡 캐시 적용 훅(성공 로드/무효화 시 호출) — 이벤트 뷰 재렌더 + 열린 드로어 갱신.
+// (구 placeholder 인라인 방식 대체: 행 칩·회고 밴드는 renderArchive 가, 경기별 상세는 드로어가 소유.
+//  매핑 ok/nopicks/unmapped/ambiguous 구분은 _resolveEventRecap 에 그대로 보존.)
 function renderArchiveRecapSections() {
-    var uid = _recapUid();
-    var loaded = (uid && _recapLoadedFor === uid);
-    var nodes = document.querySelectorAll('[data-archive-recap]');
-    for (var i = 0; i < nodes.length; i++) {
-        var ph = nodes[i];
-        if (!uid || !loaded) { ph.innerHTML = ''; ph.classList.add('hidden'); ph.removeAttribute('data-recap-state'); continue; }
-        var name = ph.getAttribute('data-archive-recap');
-        var date = ph.getAttribute('data-recap-date') || '';
-        var srcEid = ph.getAttribute('data-recap-srceid') || '';
-        var evId = ph.getAttribute('data-recap-evid');
-        var state, rec = null;
-        if (srcEid) {
-            // source_event_id 최우선 — 제목/날짜가 바뀌어도 동일 이벤트에 연결.
-            // events 에 없거나(삭제/권한실패) 하면 숨김. title/date fallback 으로 추측 연결하지 않음.
-            if (Object.prototype.hasOwnProperty.call(_eventScope, srcEid)) {
-                rec = _recapByEvent[srcEid] || null;
-                state = rec ? 'ok' : 'nopicks';
-            } else {
-                state = 'unmapped';
-            }
-        } else {
-            // source_event_id 없을 때만 정규화제목+날짜 복합키 fallback.
-            var ids = _eventByKey[_recapKey(name, date)];
-            if (!ids || ids.length === 0) state = 'unmapped';        // 캐노니컬 이벤트 미매핑
-            else if (ids.length > 1) state = 'ambiguous';           // 복합키 충돌 → 모호
-            else { rec = _recapByEvent[ids[0]] || null; state = rec ? 'ok' : 'nopicks'; }
-        }
-        ph.setAttribute('data-recap-state', state);             // QA/디버그용(식별정보 없음)
-        // 매핑 실패/모호는 숨김('등록한 픽이 없습니다'로 오표기 금지). 매핑됨·픽없음만 empty state.
-        if (state === 'unmapped' || state === 'ambiguous') { ph.innerHTML = ''; ph.classList.add('hidden'); continue; }
-        ph.innerHTML = _recapSectionHtml(rec, evId, state);
-        ph.classList.remove('hidden');
-    }
+    if (document.getElementById('archive-list')) renderArchive();
+    _arcRefreshOpenDrawer();
+}
+
+// 열린 상세 드로어가 있으면 현재 캐시로 본문 재렌더(리캡 늦은 로드/계정 전환 반영).
+function _arcRefreshOpenDrawer() {
+    var modal = document.getElementById('archive-detail-modal');
+    if (!modal || modal.classList.contains('hidden') || !_arcOpenEvId) return;
+    var body = document.getElementById('archive-detail-body');
+    var ev = archiveDB.find(function (e) { return e.id === _arcOpenEvId; })
+        || (typeof archiveUpcomingDB !== 'undefined' ? archiveUpcomingDB.find(function (e) { return e.id === _arcOpenEvId; }) : null);
+    if (body && ev) body.innerHTML = _arcDrawerHtml(ev);
 }
 
 function _recapScopeBadge(scope) {
@@ -572,62 +802,8 @@ function _recapScopeBadge(scope) {
     return '';
 }
 
-function _recapSectionHtml(rec, evId, state) {
-    // 매핑 성공 + 본인 픽 0건: compact empty state (매핑 실패/모호와 구분 — 이쪽만 '픽 없음' 표기).
-    if (state === 'nopicks' || !rec) {
-        return `<div class="px-4 lg:px-6 py-2.5 bg-black/20 border-b border-white/5">
-            <p class="oswald-sharp text-[10px] text-gray-600 italic uppercase tracking-widest">내 픽 결과 · 이 이벤트에 등록한 픽이 없습니다</p>
-        </div>`;
-    }
-    var settled = rec.win + rec.lose;
-    var accStr = settled > 0 ? Math.round(rec.win / settled * 100) + '%' : '—';
-    // 손익 합계: 모든 win/lose 계산 가능할 때만 숫자, 하나라도 불가면 '—'(추측 금지).
-    var netStr = rec.netComputable ? ((rec.netSum > 0 ? '+' : '') + rec.netSum + 'P') : '—';
-    var netColor = !rec.netComputable ? 'text-gray-400' : (rec.netSum > 0 ? 'text-green-400' : (rec.netSum < 0 ? 'text-ufcRed' : 'text-gray-400'));
-    var rows = rec.fights.map(function (f) {
-        var stLabel = f.status === 'win' ? '적중' : (f.status === 'lose' ? '실패' : '취소');
-        var stColor = f.status === 'win' ? 'text-green-400 border-green-400/40 bg-green-400/10'
-                    : f.status === 'lose' ? 'text-ufcRed border-ufcRed/40 bg-ufcRed/10'
-                    : 'text-gray-400 border-gray-500/40 bg-gray-500/10';
-        var actual = f.actualWinner ? ('승자 ' + escapeHtml(f.actualWinner))
-                   : (f.resultStatus === 'draw' ? '무승부' : (f.resultStatus === 'no_contest' ? 'NC' : '—'));
-        // 경기별 손익: cancelled 또는 계산 불가면 표시하지 않음(0으로 강제하지 않음).
-        var hasNet = (f.status !== 'cancelled') && _recapFinite(f.net);
-        var fnet = hasNet ? ((f.net > 0 ? '+' : '') + f.net + 'P') : '';
-        var fnetColor = !hasNet ? 'text-gray-500' : (f.net > 0 ? 'text-green-400' : (f.net < 0 ? 'text-ufcRed' : 'text-gray-500'));
-        return `<div class="flex items-center gap-2 py-1 min-w-0">
-            <span class="oswald-sharp text-[8px] border ${stColor} px-1.5 py-0.5 rounded font-black italic uppercase flex-shrink-0 w-9 text-center">${stLabel}</span>
-            <span class="oswald-sharp text-[10px] text-white italic uppercase tracking-tight truncate flex-1 min-w-0">${escapeHtml(f.pick)}</span>
-            <span class="oswald-sharp text-[9px] text-gray-500 italic uppercase tracking-tight truncate flex-1 min-w-0">${actual}</span>
-            <span class="oswald-sharp text-[9px] font-black italic ${fnetColor} flex-shrink-0 w-12 text-right">${fnet}</span>
-        </div>`;
-    }).join('');
-    return `<div class="px-4 lg:px-6 py-2.5 bg-black/20 border-b border-white/5">
-        <!-- 요약 (항상 표시) -->
-        <div class="flex items-center gap-2 flex-wrap">
-            <span class="oswald-sharp text-[10px] font-black italic text-white uppercase tracking-widest">내 픽 결과</span>
-            ${_recapScopeBadge(rec.scope)}
-            <span class="oswald-sharp text-[9px] text-green-400 font-black italic uppercase">적중 ${rec.win}</span>
-            <span class="oswald-sharp text-[9px] text-ufcRed font-black italic uppercase">실패 ${rec.lose}</span>
-            ${rec.cancel > 0 ? `<span class="oswald-sharp text-[9px] text-gray-500 font-black italic uppercase">취소 ${rec.cancel}</span>` : ''}
-            <span class="oswald-sharp text-[9px] text-gray-400 font-black italic uppercase">적중률 ${accStr}</span>
-            <span class="oswald-sharp text-[9px] ${netColor} font-black italic uppercase">손익 ${netStr}</span>
-            <button onclick="toggleArchiveRecapDetail('${escapeHtml(String(evId))}')" id="archive-myrecap-btn-${escapeHtml(String(evId))}"
-                class="oswald-sharp text-[8px] border border-white/10 text-gray-500 hover:text-white px-2 py-0.5 rounded italic uppercase tracking-widest transition ml-auto flex-shrink-0">▼ ${rec.fights.length}경기</button>
-        </div>
-        <!-- 경기별 상세 (펼치기) -->
-        <div id="archive-myrecap-rows-${escapeHtml(String(evId))}" class="hidden mt-1.5 divide-y divide-white/5">${rows}</div>
-    </div>`;
-}
-
-function toggleArchiveRecapDetail(evId) {
-    var rows = document.getElementById('archive-myrecap-rows-' + evId);
-    var btn = document.getElementById('archive-myrecap-btn-' + evId);
-    if (!rows) return;
-    var isHidden = rows.classList.contains('hidden');
-    rows.classList.toggle('hidden');
-    if (btn) btn.textContent = isHidden ? '▲ 접기' : ('▼ ' + rows.children.length + '경기');
-}
+// (구 인라인 리캡 행 _recapSectionHtml / toggleArchiveRecapDetail 은 상세 드로어로 이관·제거됨.
+//  경기별 내 픽 렌더는 _arcDrawerFightRow, 요약은 _arcDrawerMyResult 이 담당.)
 
 // ── ADMIN ─────────────────────────────────────────────────────────────
 function renderArchiveAdminList() {
@@ -1018,6 +1194,8 @@ function renderFighterArchive() {
     const statEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     statEl('fighter-stat-count', fighterArchiveDB.length);
     statEl('fighter-stat-divisions', divSet.size);
+    var ftCt = document.getElementById('archive-tab-fighters-ct');   // 서브탭 카운트 칩
+    if (ftCt) ftCt.textContent = fighterArchiveDB.length;
 
     if (filtered.length === 0) {
         listEl.innerHTML = '';

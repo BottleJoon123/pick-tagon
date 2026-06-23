@@ -77,7 +77,7 @@
 <link href="/css/tokens.css" rel="stylesheet">
 <link href="/css/theme-bridge.css" rel="stylesheet">
 <link rel="stylesheet" href="./src/tailwind.css">
-<link href="/css/app.css?v=16" rel="stylesheet">
+<link href="/css/app.css?v=17" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 <!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -983,72 +983,71 @@
     <!-- [SECTION: ARCHIVE] -->
     <section id="archive" class="section-animate max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-24 lg:pt-8 lg:pb-20">
         <!-- Header -->
-        <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-6 lg:mb-8">
+        <div class="arc-hero">
+            <p class="arc-eyebrow">ARCHIVE · 기록 보관소</p>
             <div class="sx-head">
-                <h3 class="oswald-sharp text-3xl lg:text-6xl font-black italic tracking-tighter uppercase">Archive</h3>
-                <p class="text-gray-500 oswald-sharp uppercase tracking-widest mt-1 text-[10px] lg:text-sm italic">UFC 이벤트 기록 & 파이터 정보</p>
+                <h3 class="oswald-sharp arc-h1 text-3xl lg:text-6xl font-black italic tracking-tighter uppercase">아카이브</h3>
             </div>
+            <p class="arc-subcopy">종료된 이벤트의 결과와 내 픽 성적을 돌아보고, 파이터를 검색하세요.</p>
         </div>
 
         <!-- Sub-tab switcher -->
-        <div class="flex gap-2 mb-6 lg:mb-8 border-b border-white/5 pb-0">
+        <div class="arc-tabs">
             <button id="archive-tab-events"
                 onclick="switchArchiveTab('events')"
-                class="oswald-sharp font-black italic uppercase tracking-widest text-sm lg:text-base px-5 py-3 border-b-2 border-ufcRed text-white transition-all">
-                이벤트
+                class="arc-tab oswald-sharp is-active">
+                이벤트 <span id="archive-tab-events-ct" class="arc-tab-ct">0</span>
             </button>
             <button id="archive-tab-fighters"
                 onclick="switchArchiveTab('fighters')"
-                class="oswald-sharp font-black italic uppercase tracking-widest text-sm lg:text-base px-5 py-3 border-b-2 border-transparent text-gray-500 hover:text-gray-300 transition-all">
-                파이터
+                class="arc-tab oswald-sharp">
+                파이터 <span id="archive-tab-fighters-ct" class="arc-tab-ct">0</span>
             </button>
         </div>
 
         <!-- ══ 이벤트 패널 ══ -->
         <div id="archive-events-panel">
-            <!-- Search + Filter -->
-            <div class="flex flex-col sm:flex-row gap-3 w-full mb-6">
-                <input id="archive-search" type="text" placeholder="이벤트 검색..."
-                    class="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed placeholder-gray-600 w-full lg:w-60"
-                    oninput="renderArchive()">
-                <div class="grid grid-cols-2 gap-3 sm:flex sm:gap-3">
-                    <select id="archive-filter" class="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed w-full sm:w-auto"
-                        onchange="renderArchive()">
-                        <option value="all">전체 연도</option>
-                        <option value="2026">2026</option>
-                        <option value="2025">2025</option>
-                        <option value="2024">2024</option>
-                        <option value="2023">2023</option>
-                    </select>
-                    <select id="archive-status-filter" class="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed w-full sm:w-auto"
-                        onchange="renderArchive()">
-                        <option value="all">전체</option>
-                        <option value="upcoming">예정</option>
-                        <option value="past">지난 이벤트</option>
-                    </select>
-                </div>
+            <!-- ① 내 픽 성적 회고 밴드 (JS 렌더 — 로그인/비로그인 분기) -->
+            <div id="archive-recap-band" class="arc-recap-band"></div>
+
+            <!-- ② 필터 / 검색 바 -->
+            <div class="arc-filterbar">
+                <label class="arc-fb-search">
+                    <span class="arc-fb-ico" aria-hidden="true">🔍</span>
+                    <input id="archive-search" type="text" placeholder="파이터 · 이벤트 · 장소 검색"
+                        class="arc-fb-input" oninput="archiveFilterChanged()" aria-label="이벤트 검색">
+                </label>
+                <select id="archive-filter" class="arc-fselect" onchange="archiveFilterChanged()" aria-label="연도 필터">
+                    <option value="all">전체 연도</option>
+                    <option value="2026">2026</option>
+                    <option value="2025">2025</option>
+                    <option value="2024">2024</option>
+                    <option value="2023">2023</option>
+                </select>
+                <select id="archive-status-filter" class="arc-fselect" onchange="archiveFilterChanged()" aria-label="상태 필터">
+                    <option value="all">전체</option>
+                    <option value="upcoming">예정</option>
+                    <option value="past">지난 이벤트</option>
+                </select>
+                <select id="archive-joined-filter" class="arc-fselect" onchange="archiveFilterChanged()" aria-label="참여 필터">
+                    <option value="all">전체 참여</option>
+                    <option value="joined">참여</option>
+                    <option value="none">미참여</option>
+                </select>
+                <select id="archive-sort" class="arc-fselect" onchange="archiveFilterChanged()" aria-label="정렬">
+                    <option value="recent">최신순</option>
+                    <option value="accuracy">적중률</option>
+                    <option value="net">순손익</option>
+                </select>
             </div>
 
-            <!-- Stats Bar -->
-            <div class="grid grid-cols-3 gap-3 lg:gap-6 mb-6 lg:mb-10">
-                <div class="glass-card rounded-2xl p-3 lg:p-5 text-center">
-                    <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 tracking-widest italic uppercase mb-1">총 이벤트</p>
-                    <p id="archive-stat-events" class="oswald-sharp text-xl lg:text-3xl font-black italic text-white">0</p>
-                </div>
-                <div class="glass-card rounded-2xl p-3 lg:p-5 text-center">
-                    <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 tracking-widest italic uppercase mb-1">총 경기</p>
-                    <p id="archive-stat-fights" class="oswald-sharp text-xl lg:text-3xl font-black italic text-ufcRed">0</p>
-                </div>
-                <div class="glass-card rounded-2xl p-3 lg:p-5 text-center">
-                    <p class="oswald-sharp text-[8px] lg:text-xs text-gray-500 tracking-widest italic uppercase mb-1">KO/TKO 비율</p>
-                    <p id="archive-stat-ko" class="oswald-sharp text-xl lg:text-3xl font-black italic text-white">0%</p>
-                </div>
-            </div>
-
-            <div id="archive-list" class="space-y-3 lg:space-y-4"></div>
-            <div id="archive-empty" class="hidden glass-card rounded-[2rem] p-16 text-center">
-                <p class="oswald-sharp text-gray-600 text-sm italic uppercase tracking-widest">등록된 아카이브가 없습니다</p>
-                <p class="text-gray-700 text-xs mt-2">어드민 패널 → 아카이브 탭에서 이벤트를 추가하세요</p>
+            <!-- ③ 컴팩트 이벤트 리스트 -->
+            <div id="archive-list" class="arc-evlist"></div>
+            <div id="archive-loadmore-wrap" class="arc-loadmore-wrap"></div>
+            <div id="archive-empty" class="hidden arc-empty">
+                <span class="arc-empty-ico" aria-hidden="true">⬡</span>
+                <p class="arc-empty-title">표시할 이벤트가 없습니다</p>
+                <p class="arc-empty-sub">검색·필터를 바꾸거나, 어드민 패널 → 아카이브에서 이벤트를 추가하세요.</p>
             </div>
         </div>
 
@@ -2104,6 +2103,20 @@
 </div>
 
 <!-- ================================
+     ARCHIVE EVENT DETAIL DRAWER (public, read-only)
+     id가 -modal 로 끝나 modal-history(뒤로가기/Esc/배경) 자동 연동.
+================================ -->
+<div id="archive-detail-modal" class="hidden arc-drawer-overlay" onclick="if(event.target===this)closeArchiveDetailModal()">
+    <div class="arc-drawer" role="dialog" aria-modal="true" aria-label="이벤트 상세">
+        <div class="arc-drawer-top">
+            <span class="arc-drawer-crumb">아카이브 · 이벤트 · <span id="archive-detail-crumb">이벤트</span></span>
+            <button type="button" onclick="closeArchiveDetailModal()" class="arc-drawer-close" aria-label="닫기">✕</button>
+        </div>
+        <div id="archive-detail-body" class="arc-drawer-body"></div>
+    </div>
+</div>
+
+<!-- ================================
      ARCHIVE EVENT MODAL
 ================================ -->
 <div id="archive-event-modal" class="hidden fixed inset-0 z-[200] flex items-center justify-center p-4" style="background:rgba(0,0,0,0.88)">
@@ -2573,7 +2586,7 @@
 <script src="/js/community.js?v=24"></script>
 <script src="/js/admin.js?v=27"></script>
 <script src="/js/profile.js?v=4"></script>
-<script src="/js/archive.js?v=13"></script>
+<script src="/js/archive.js?v=14"></script>
 <script src="/js/season.js?v=1"></script>
 <script src="/js/fights-render.js?v=26"></script>
 <script src="/js/pixel-fighters.js?v=1"></script>
@@ -2752,7 +2765,7 @@
             startRealtimeSubscription();
         }
         if(id === 'rankings') setTimeout(function() { renderLeaderboard(); loadHallOfFameFromDB(); loadCurrentSeasonFromDB(); }, 100);
-        if(id === 'archive') { if (archiveDB.length === 0) fetchArchive(); else renderArchive(); }
+        if(id === 'archive') { if (archiveDB.length === 0) fetchArchive(); else renderArchive(); if (typeof restoreArchiveTab === 'function') restoreArchiveTab(); }
         if(id === 'community') {
             if (typeof renderFeed === 'function') renderFeed();
             if (currentUser) loadMyBattles();
@@ -2786,7 +2799,8 @@
         'avatar-modal':          'closeAvatarModal',
         'result-modal':          'closeResultModal',
         'pw-update-modal':       'closePasswordUpdateModal',
-        'recovery-modal':        'closeRecoveryModal'   // Back/Esc 시 keydown 리스너까지 정리
+        'recovery-modal':        'closeRecoveryModal',  // Back/Esc 시 keydown 리스너까지 정리
+        'archive-detail-modal':  'closeArchiveDetailModal'  // body 스크롤 복원 + Esc 리스너 정리
     };
 
     function _openModalEls() {
