@@ -77,7 +77,7 @@
 <link href="/css/tokens.css" rel="stylesheet">
 <link href="/css/theme-bridge.css" rel="stylesheet">
 <link rel="stylesheet" href="./src/tailwind.css">
-<link href="/css/app.css?v=19" rel="stylesheet">
+<link href="/css/app.css?v=20" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 <!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1060,7 +1060,10 @@
                 <div class="arc-fstat"><span id="fighter-stat-ranked" class="arc-fstat-v">0</span><span class="arc-fstat-k">랭커</span></div>
             </div>
 
-            <!-- 검색 / 체급 / 정렬 (이벤트 탭과 동일 .arc-* 필터바) -->
+            <!-- 내 컬렉션 진행률 (로그인 + 로드 성공 시에만 노출 — 비로그인/미로드/실패 시 숨김) -->
+            <div id="fighter-collection-band" class="hidden arc-collband-wrap"></div>
+
+            <!-- 검색 / 체급 / 보유상태 / 정렬 (이벤트 탭과 동일 .arc-* 필터바) -->
             <div class="arc-filterbar">
                 <label class="arc-fb-search">
                     <span class="arc-fb-ico" aria-hidden="true">🔍</span>
@@ -1082,8 +1085,13 @@
                     <option value="wbw">여성 밴텀웨이트</option>
                     <option value="wfe">여성 페더웨이트</option>
                 </select>
+                <select id="fighter-archive-owned" class="arc-fselect" onchange="renderFighterArchive()" aria-label="보유 상태" disabled>
+                    <option value="all">전체 보유</option>
+                    <option value="owned">보유</option>
+                </select>
                 <select id="fighter-archive-sort" class="arc-fselect" onchange="renderFighterArchive()" aria-label="정렬">
                     <option value="rank">랭킹순</option>
+                    <option value="owned" disabled>보유 우선</option>
                     <option value="name">이름순</option>
                     <option value="wins">승수</option>
                     <option value="winrate">승률</option>
@@ -2590,7 +2598,7 @@
 <script src="/js/community.js?v=24"></script>
 <script src="/js/admin.js?v=27"></script>
 <script src="/js/profile.js?v=4"></script>
-<script src="/js/archive.js?v=16"></script>
+<script src="/js/archive.js?v=17"></script>
 <script src="/js/season.js?v=1"></script>
 <script src="/js/fights-render.js?v=26"></script>
 <script src="/js/pixel-fighters.js?v=1"></script>

@@ -2186,3 +2186,37 @@ textarea, select {
     .arc-fname { font-size: 15px; }
     .arc-fb-search { flex: 1 1 100%; }
 }
+
+/* ════════════════════════════════════════════════════════════════
+   ARCHIVE — 컬렉션 V1 (도감 소유/진행률). 로그인 + 로드 성공 시에만 노출.
+   • owned 카드만 '보유' 표시. 미보유 가짜 잠금/희귀도/942-lock 없음.
+   ════════════════════════════════════════════════════════════════ */
+.arc-collband-wrap { margin-bottom: 16px; }
+.arc-collband {
+    background: radial-gradient(80% 140% at 100% 0%, rgba(31,191,107,0.10), transparent 60%), var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1); border-radius: var(--pt-r-md);
+    box-shadow: var(--pt-shadow-card); padding: 13px 16px;
+}
+.arc-coll-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 9px; }
+.arc-coll-label { font-family: var(--pt-font-display); font-style: italic; font-weight: 800; font-size: 14px; color: var(--pt-ink-1); text-transform: uppercase; letter-spacing: 0.03em; }
+.arc-coll-nums { font-family: var(--pt-font-mono); font-size: 12px; color: var(--pt-ink-2); min-width: 0; }
+.arc-coll-owned { color: var(--pt-win); font-weight: 700; }
+.arc-coll-sep { color: var(--pt-ink-4); margin: 0 6px; }
+.arc-coll-pct { color: var(--pt-win); font-weight: 700; }
+.arc-coll-bar { height: 7px; border-radius: var(--pt-r-pill); background: var(--pt-bg-1); border: 1px solid var(--pt-line-1); overflow: hidden; }
+.arc-coll-fill { display: block; height: 100%; border-radius: var(--pt-r-pill); background: linear-gradient(90deg, rgba(31,191,107,0.55), var(--pt-win)); transition: width var(--pt-dur-slow) var(--pt-ease-out); }
+
+/* 보유 카드 강조 + '보유' 칩(포트레이트 우상단; 랭크칩은 좌상단 → 미충돌) */
+.arc-fcard.arc-fowned { border-color: rgba(31,191,107,0.45); }
+.arc-fcard.arc-fowned:hover { border-color: rgba(31,191,107,0.7); }
+.arc-fownchip {
+    position: absolute; top: 8px; right: 8px; z-index: 1;
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800; font-size: 10px; line-height: 1;
+    padding: 3px 7px; border-radius: var(--pt-r-pill); color: #06281a;
+    background: linear-gradient(180deg, #4fe3a0, var(--pt-win)); border: 1px solid rgba(255,255,255,0.25);
+    text-transform: uppercase; letter-spacing: 0.04em; box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+@media (max-width: 400px) {
+    .arc-coll-label { font-size: 13px; }
+    .arc-coll-nums { font-size: 11px; }
+}
