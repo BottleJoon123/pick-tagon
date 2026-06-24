@@ -2220,3 +2220,12 @@ textarea, select {
     .arc-coll-label { font-size: 13px; }
     .arc-coll-nums { font-size: 11px; }
 }
+
+/* (V2) 보유 카드 획득 출처 compact 1줄 — 보유 카드에만. UUID/숫자 미노출. 단일행 ellipsis로 카드 높이 안정. */
+.arc-facq {
+    display: block; margin-top: 5px; padding-top: 7px; border-top: 1px solid var(--pt-line-1);
+    font-family: var(--pt-font-mono); font-size: 10px; line-height: 1.3; color: var(--pt-ink-3);
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.arc-fcard.arc-fowned .arc-facq { color: var(--pt-ink-2); border-top-color: rgba(31,191,107,0.22); }
+@media (max-width: 400px) { .arc-facq { font-size: 9px; } }

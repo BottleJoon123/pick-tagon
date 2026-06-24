@@ -1256,6 +1256,7 @@ var _collInflight = null;
 var _collLoadedFor = null;
 var _collLoadedAt = 0;
 var _COLL_TTL_MS = 60000;
+var _collMatchupMeta = {};     // (V2) source_matchup_id → { eventTitle, eventDate } — 획득 출처 보강 캐시
 
 function _collReady() { var uid = _recapUid(); return !!(uid && _collLoadedFor === uid); }
 function _isOwned(f) { return !!(f && f.id && _collByFighter[f.id]); }
@@ -1263,7 +1264,7 @@ function _isOwned(f) { return !!(f && f.id && _collByFighter[f.id]); }
 // 로그인/로그아웃/계정 전환 시 호출(invalidateArchiveRecap 에서 함께 호출). 캐시·진행응답 무효화.
 function invalidateFighterCollection() {
     _collGen++;
-    _collByFighter = {}; _collOwned = 0; _collObtainable = 0; _collProgress = 0;
+    _collByFighter = {}; _collOwned = 0; _collObtainable = 0; _collProgress = 0; _collMatchupMeta = {};
     _collInflight = null; _collLoadedFor = null; _collUserId = null; _collLoadedAt = 0;
     var panel = document.getElementById('archive-fighters-panel');
     if (panel && !panel.classList.contains('hidden') && fighterArchiveDB.length) {
@@ -1306,6 +1307,63 @@ async function _loadFighterCollection(uid) {
     _collByFighter = result.map; _collOwned = result.owned; _collObtainable = result.obtainable; _collProgress = result.progress;
     _collLoadedFor = uid; _collLoadedAt = Date.now();
     renderFighterArchive();                                 // 성공 → 소유 칩/진행률 반영
+    _loadCollectionMeta(uid, myGen);                        // (V2) 획득 출처(이벤트명) best-effort 보강
+}
+
+// ── (V2) 획득 출처 보강 — owned 카드의 source_matchup_id → 이벤트 제목(공개 read, batch .in()).
+//   best-effort·DB write 0. 실패/미해결 시 이벤트명만 생략(소스 라벨+날짜는 RPC 값 유지).
+//   generation/계정 guard 동일 적용. N+1 금지(100개 chunk .in()만).
+async function _loadCollectionMeta(uid, myGen) {
+    if (!sb) return;
+    var ids = [];
+    Object.keys(_collByFighter).forEach(function (fid) {
+        var mid = _collByFighter[fid].source_matchup_id;
+        if (mid) ids.push(mid);
+    });
+    ids = Array.from(new Set(ids));
+    if (!ids.length) return;
+    try {
+        var CHUNK = 100, mus = [], i, j;
+        for (i = 0; i < ids.length; i += CHUNK) {
+            var r = await sb.from('matchups').select('id, event_id, red_fighter_name, blue_fighter_name').in('id', ids.slice(i, i + CHUNK));
+            if (r.error) return;                            // 실패 → 보강 생략(도감/소스라벨 유지)
+            mus = mus.concat(r.data || []);
+        }
+        var eids = Array.from(new Set(mus.map(function (m) { return m.event_id; }).filter(Boolean)));
+        var evById = {};
+        for (j = 0; j < eids.length; j += CHUNK) {
+            var er = await sb.from('events').select('id, title, event_date').in('id', eids.slice(j, j + CHUNK));
+            if (er.error) return;
+            (er.data || []).forEach(function (e) { evById[e.id] = e; });
+        }
+        if (myGen !== _collGen) return;                     // 무효화/세대 변경 → 폐기
+        if (_recapUid() !== uid) return;                    // 계정 전환 → 폐기
+        var map = {};
+        mus.forEach(function (m) {
+            var e = evById[m.event_id];
+            map[m.id] = { eventTitle: (e && e.title) || '', eventDate: (e && e.event_date) || '' };
+        });
+        _collMatchupMeta = map;
+        renderFighterArchive();                             // 보강 반영(이벤트명 추가)
+    } catch (e) { /* best-effort: 메타 없이 진행 */ }
+}
+
+// 획득 출처 표시 — source_type 라벨 + 날짜(+이벤트명). UUID/숫자(source_*_id) 원문 미노출.
+var _COLL_SOURCE_LABEL = { backfill: '기존 기록', pick: '픽 등록', change_pick: '픽 변경', reward: '보상' };
+function _collSourceLabel(t) { return _COLL_SOURCE_LABEL[t] || '획득'; }
+function _collDateFmt(s) {
+    if (!s) return '';
+    var d = String(s).slice(0, 10);                         // 서버 날짜 그대로(YYYY-MM-DD)
+    return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.replace(/-/g, '.') : '';
+}
+function _collAcqHtml(card) {
+    if (!card) return '';
+    var label = _collSourceLabel(card.source_type);
+    var date  = _collDateFmt(card.unlocked_at);
+    var meta  = card.source_matchup_id ? _collMatchupMeta[card.source_matchup_id] : null;
+    var ev    = (meta && meta.eventTitle) ? meta.eventTitle : '';
+    var txt   = (ev ? ev + ' · ' : '') + label + (date ? ' · ' + date : '');
+    return '<span class="arc-facq" title="' + escapeHtml(txt) + '">' + escapeHtml(txt) + '</span>';
 }
 
 function _collBandHtml() {
@@ -1419,6 +1477,7 @@ function _arcFighterCardHtml(f, i, owned) {
             + '<span class="arc-fmeta"><span class="arc-fdiv">' + escapeHtml(divLabel) + '</span>'
                 + (record ? '<span class="arc-frec">' + escapeHtml(record) + '</span>' : '') + '</span>'
             + (f.style ? '<span class="arc-fstyle ' + (_ARC_FSTYLE_COLOR[f.style] || 'text-gray-500 border-gray-500/30 bg-gray-500/5') + '">' + escapeHtml(f.style) + '</span>' : '')
+            + (owned ? _collAcqHtml(_collByFighter[f.id]) : '')   // (V2) 보유 카드 획득 출처 compact 1줄
         + '</span>'
         + '</button>';
 }
