@@ -1212,6 +1212,9 @@ async function fetchFighterArchive() {
         });
 
         fighterArchiveDB = fightersRes.data || [];
+        // 파생키(_nl/_el/_kl/_sortName/_rankKey) 1회 계산 — _ufcRankMap 확정 직후라야 _rankKey 정확.
+        // 이후 모든 렌더의 검색/정렬은 캐시값을 재사용(렌더당 _getDivisionRank 재호출 제거).
+        fighterArchiveDB.forEach(_computeFighterKeys);
         renderFighterArchive();
     } catch (e) {
         console.error('[fetchFighterArchive]', e);
@@ -1230,8 +1233,25 @@ function _fighterWinRate(f) {
     var t = (f.wins || 0) + (f.losses || 0) + (f.draws || 0);
     return t > 0 ? (f.wins || 0) / t : -1;
 }
-// 정렬용 랭크키: 0=챔프(최상), N=#N, 비랭커=9999(하단). 공식 _getDivisionRank 재사용(fighters.rank 미사용).
-function _fighterRankKey(f) { var r = _getDivisionRank(f); return (r == null) ? 9999 : r; }
+// ── 파이터별 파생키 1회 계산(검색/정렬 핫패스 최적화) ──────────────────────
+// 매 렌더(특히 검색 키 입력)마다 반복되던 정규화·정렬키·_getDivisionRank(렌더당 ~16,000회)를
+// fetch 직후 1회로 옮긴다. _ufcRankMap 확정 후 호출해야 _rankKey가 정확하다.
+//   _nl/_el/_kl: 검색용 소문자 name/name_en/nickname (필드별 분리 — 기존 매칭 의미 보존)
+//   _sortName  : 이름순 localeCompare 입력값
+//   _rankKey   : 공식 division-scoped 랭크(0=champ, N=#N, 비랭커=9999). fighters.rank 단독값 미사용.
+function _computeFighterKeys(f) {
+    f._nl = (f.name || '').toLowerCase();
+    f._el = (f.name_en || '').toLowerCase();
+    f._kl = (f.nickname || '').toLowerCase();
+    f._sortName = _fighterDisplayName(f);
+    var r = _getDivisionRank(f);               // 0=champ, N=#N, null=비랭커
+    f._rankKey = (r == null) ? 9999 : r;       // 비랭커 9999(하단), champion=0 구분 유지
+}
+// 캐시 미존재(mock/동적 객체) 시 즉석 계산+캐시 — 기존 계산과 동일 결과 fallback.
+function _fKeys(f) { if (f && f._rankKey === undefined) _computeFighterKeys(f); return f; }
+
+// 정렬용 랭크키: 0=챔프(최상), N=#N, 비랭커=9999(하단). 캐시(_rankKey) 우선, 없으면 fallback.
+function _fighterRankKey(f) { return _fKeys(f)._rankKey; }
 
 var _ARC_FSTYLE_COLOR = {
     striker:      'text-red-400 border-red-400/30 bg-red-400/5',
@@ -1306,7 +1326,7 @@ async function _loadFighterCollection(uid) {
     if (result === null) return;                            // 실패 → 기존 도감 유지, 컬렉션 UI 미표시. 재렌더 안 함(루프 방지)
     _collByFighter = result.map; _collOwned = result.owned; _collObtainable = result.obtainable; _collProgress = result.progress;
     _collLoadedFor = uid; _collLoadedAt = Date.now();
-    renderFighterArchive();                                 // 성공 → 소유 칩/진행률 반영
+    _applyCollectionToFighterView();                        // 성공 → 진행률/보유 칩 반영(부분 패치 또는 목록변경 시 전체 렌더)
     _loadCollectionMeta(uid, myGen);                        // (V2) 획득 출처(이벤트명) best-effort 보강
 }
 
@@ -1344,7 +1364,7 @@ async function _loadCollectionMeta(uid, myGen) {
             map[m.id] = { eventTitle: (e && e.title) || '', eventDate: (e && e.event_date) || '' };
         });
         _collMatchupMeta = map;
-        renderFighterArchive();                             // 보강 반영(이벤트명 추가)
+        _applyCollectionToFighterView();                    // 보강 반영(획득 출처 이벤트명) — 목록변경 없으면 .arc-facq만 패치
     } catch (e) { /* best-effort: 메타 없이 진행 */ }
 }
 
@@ -1377,6 +1397,90 @@ function _collBandHtml() {
         + '</div>';
 }
 
+// ══════════════════════════════════════════════════════════════════════
+//  (P2) 컬렉션/메타 로드 후 부분 DOM 패치 — 942장 전량 innerHTML 재생성 회피.
+//   첫 진입은 fighters→collection→meta 3단계인데, 2·3단계는 보유 칩/획득 출처만 추가하므로
+//   전량 재빌드(HTML 파싱 비용; content-visibility로도 줄지 않음)는 낭비다.
+//   • 목록 구성이 보유 의존(보유 필터/보유 정렬)일 때만 전체 렌더 — 그 외엔 칩/라벨만 패치.
+//   • _fighterCardCache·onclick 인덱스는 마지막 전체 렌더 그대로 유지(프로필 정합 보존).
+//   • 비로그인/계정 전환/무효화는 기존 경로(렌더 또는 중립화) 유지 — 여기선 성공 로드만 다룸.
+// ══════════════════════════════════════════════════════════════════════
+
+// 현재 뷰의 목록 구성/순서가 보유 상태에 의존하는가(→ 부분 패치 불가, 전체 렌더 필요).
+function _fighterListDependsOnOwnership() {
+    var sortMode  = (document.getElementById('fighter-archive-sort')  || {}).value || 'rank';
+    var ownedFilt = (document.getElementById('fighter-archive-owned') || {}).value || 'all';
+    return sortMode === 'owned' || ownedFilt === 'owned';
+}
+
+// 컬렉션 의존 컨트롤 + 진행률 밴드 갱신(renderFighterArchive 내 동일 로직과 일치 유지).
+function _updateCollectionControls() {
+    var collReady = _collReady();
+    var ownedSel = document.getElementById('fighter-archive-owned');
+    var sortSel  = document.getElementById('fighter-archive-sort');
+    if (ownedSel) { ownedSel.disabled = !collReady; if (!collReady) ownedSel.value = 'all'; }
+    if (sortSel)  { _arcSetOptDisabled(sortSel, 'owned', !collReady); if (!collReady && sortSel.value === 'owned') sortSel.value = 'rank'; }
+    var band = document.getElementById('fighter-collection-band');
+    if (band) {
+        if (collReady) { band.innerHTML = _collBandHtml(); band.classList.remove('hidden'); }
+        else { band.innerHTML = ''; band.classList.add('hidden'); }
+    }
+}
+
+// 현재 렌더된 카드들에 보유 표시(.arc-fowned/보유 칩/획득 출처)만 패치. 목록/순서/캐시 불변.
+function _patchFighterOwnedDom() {
+    var listEl = document.getElementById('fighter-archive-list');
+    if (!listEl) return;
+    var collReady = _collReady();
+    var cards = listEl.querySelectorAll('.arc-fcard[data-fid]');
+    for (var i = 0; i < cards.length; i++) {
+        var card = cards[i];
+        var fid  = card.getAttribute('data-fid');
+        var owned = collReady && Object.prototype.hasOwnProperty.call(_collByFighter, fid);
+        card.classList.toggle('arc-fowned', owned);
+        // 보유 칩(포트레이트 우상단) — 없으면 추가, 비보유면 제거.
+        var port = card.querySelector('.arc-fport');
+        var chip = port ? port.querySelector('.arc-fownchip') : null;
+        if (owned && port && !chip) {
+            var c = document.createElement('span'); c.className = 'arc-fownchip'; c.textContent = '보유'; port.appendChild(c);
+        } else if (!owned && chip) { chip.remove(); }
+        // 획득 출처(.arc-facq) — 보유 시 현재 캐시(_collMatchupMeta 포함)로 재구성, 비보유면 제거.
+        var body = card.querySelector('.arc-fbody');
+        if (!body) continue;
+        var acq = body.querySelector('.arc-facq');
+        if (owned) {
+            var html = _collAcqHtml(_collByFighter[fid]);   // 항상 <span class="arc-facq">…</span>
+            if (acq) acq.outerHTML = html; else body.insertAdjacentHTML('beforeend', html);
+        } else if (acq) { acq.remove(); }
+    }
+}
+
+// 컬렉션/메타 성공 시 파이터 뷰 갱신 진입점.
+//  • 패널 숨김/데이터 없음 → 무시(다음 진입 시 렌더)
+//  • 카드 미렌더 or 목록이 보유 의존 → 전체 렌더(목록·순서 정확성 우선)
+//  • 그 외 → 컨트롤/밴드 갱신 + 카드 보유 표시 부분 패치(전량 재빌드 회피)
+function _applyCollectionToFighterView() {
+    var panel = document.getElementById('archive-fighters-panel');
+    if (!panel || panel.classList.contains('hidden') || !fighterArchiveDB.length) return;
+    var listEl = document.getElementById('fighter-archive-list');
+    if (!listEl || !listEl.querySelector('.arc-fcard[data-fid]') || _fighterListDependsOnOwnership()) {
+        renderFighterArchive();
+        return;
+    }
+    _updateCollectionControls();
+    _patchFighterOwnedDom();
+}
+
+// 검색 input 디바운스(~160ms) — 키 입력당 전량 필터·정렬·렌더 폭주 방지.
+// 체급/정렬/보유 select(onchange)는 단발 이벤트라 즉시 renderFighterArchive() 유지.
+// 입력값은 렌더 시점에 DOM에서 읽으므로 한글 조합/빠른 연속 입력도 최종 상태로 정확히 반영.
+var _fighterSearchTimer = null;
+function _debouncedFighterRender() {
+    if (_fighterSearchTimer) clearTimeout(_fighterSearchTimer);
+    _fighterSearchTimer = setTimeout(function () { _fighterSearchTimer = null; renderFighterArchive(); }, 160);
+}
+if (typeof window !== 'undefined') window._debouncedFighterRender = _debouncedFighterRender;
+
 function renderFighterArchive() {
     var listEl  = document.getElementById('fighter-archive-list');
     var emptyEl = document.getElementById('fighter-archive-empty');
@@ -1395,16 +1499,17 @@ function renderFighterArchive() {
     var ownedFilt = (ownedSel || {}).value || 'all';
 
     var filtered = fighterArchiveDB.filter(function (f) {
+        _fKeys(f);                              // 캐시 보장(mock/동적 객체 대비). DB 로드분은 이미 계산됨.
         var nameMatch = !query
-            || (f.name || '').toLowerCase().indexOf(query) >= 0
-            || (f.name_en || '').toLowerCase().indexOf(query) >= 0
-            || (f.nickname || '').toLowerCase().indexOf(query) >= 0;
+            || f._nl.indexOf(query) >= 0
+            || f._el.indexOf(query) >= 0
+            || f._kl.indexOf(query) >= 0;
         var divMatch = divFilt === 'all' || f.division === divFilt;
         var ownedMatch = !(collReady && ownedFilt === 'owned') || _isOwned(f);
         return nameMatch && divMatch && ownedMatch;
     });
 
-    function byName(a, b) { return _fighterDisplayName(a).localeCompare(_fighterDisplayName(b), 'ko'); }
+    function byName(a, b) { return _fKeys(a)._sortName.localeCompare(_fKeys(b)._sortName, 'ko'); }
     if (sortMode === 'owned' && collReady) {       // 보유 우선 → 비보유, 동순위 공식랭크·이름순
         filtered.sort(function (a, b) { var oa = _isOwned(a) ? 0 : 1, ob = _isOwned(b) ? 0 : 1; return (oa - ob) || (_fighterRankKey(a) - _fighterRankKey(b)) || byName(a, b); });
     } else if (sortMode === 'name') {
@@ -1419,7 +1524,7 @@ function renderFighterArchive() {
 
     // 통계(실데이터): 파이터 수 / 체급 수 / 랭커 수.
     var divSet = new Set(fighterArchiveDB.map(function (f) { return f.division; }).filter(Boolean));
-    var rankedCount = fighterArchiveDB.reduce(function (s, f) { return s + (_getDivisionRank(f) != null ? 1 : 0); }, 0);
+    var rankedCount = fighterArchiveDB.reduce(function (s, f) { return s + (_fKeys(f)._rankKey !== 9999 ? 1 : 0); }, 0);
     var statEl = function (id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
     statEl('fighter-stat-count', fighterArchiveDB.length);
     statEl('fighter-stat-divisions', divSet.size);
@@ -1453,7 +1558,8 @@ function _arcFighterCardHtml(f, i, owned) {
     var subName = (f.name_en && f.name_en !== f.name) ? f.name_en : '';
     var record = _fighterRecord(f);
     var divLabel = DIVISION_LABEL[f.division] || (f.division || '').toUpperCase();
-    var rv = _getDivisionRank(f);                // 0=champ, N=#N, null=비랭커(칩 숨김)
+    var rk = _fKeys(f)._rankKey;                 // 캐시된 공식 division-scoped 랭크키(9999=비랭커)
+    var rv = (rk === 9999) ? null : rk;          // 0=champ, N=#N, null=비랭커(칩 숨김)
     var firstLetter = escapeHtml((f.name_en || f.name || '?').charAt(0) || '?');
 
     var cacheKey = 'fc_' + i;                     // 인덱스 키: 따옴표/특수문자 안전, 매 렌더 유니크
@@ -1465,11 +1571,11 @@ function _arcFighterCardHtml(f, i, owned) {
 
     // 이미지 없거나 onerror 시 안전 placeholder(모노그램)만 — fake portrait 생성 안 함.
     var imgHtml = f.image_url
-        ? '<img class="arc-fimg" src="' + escapeHtml(f.image_url) + '" alt="' + escapeHtml(displayName) + '" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
+        ? '<img class="arc-fimg" src="' + escapeHtml(f.image_url) + '" alt="' + escapeHtml(displayName) + '" loading="lazy" decoding="async" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
         : '';
     var ph = '<span class="arc-fph"' + (f.image_url ? ' style="display:none"' : '') + '>' + firstLetter + '</span>';
 
-    return '<button type="button" class="arc-fcard' + (owned ? ' arc-fowned' : '') + '" onclick="openFighterProfile(window._fighterCardCache[\'' + cacheKey + '\'])">'
+    return '<button type="button" class="arc-fcard' + (owned ? ' arc-fowned' : '') + '" data-fid="' + escapeHtml(String(f.id == null ? '' : f.id)) + '" onclick="openFighterProfile(window._fighterCardCache[\'' + cacheKey + '\'])">'
         + '<span class="arc-fport">' + imgHtml + ph + rankChip + (owned ? '<span class="arc-fownchip">보유</span>' : '') + '</span>'
         + '<span class="arc-fbody">'
             + '<span class="arc-fname">' + escapeHtml(displayName) + '</span>'

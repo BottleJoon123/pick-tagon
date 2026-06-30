@@ -2065,7 +2065,12 @@ textarea, select {
 .arc-fstat-k { font-family: var(--pt-font-eyebrow); font-size: 10px; letter-spacing: 0.14em; color: var(--pt-ink-3); text-transform: uppercase; }
 
 .arc-fgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; }
-.arc-fcard { display: flex; flex-direction: column; width: 100%; text-align: left; cursor: pointer; padding: 0; color: var(--pt-ink-1); background: var(--pt-bg-2); border: 1px solid var(--pt-line-1); border-radius: var(--pt-r-md); overflow: hidden; transition: transform var(--pt-dur-base) var(--pt-ease-out), border-color var(--pt-dur-base) var(--pt-ease-out), box-shadow var(--pt-dur-base) var(--pt-ease-out); }
+/* [perf] content-visibility: 화면 밖 카드의 레이아웃/페인트를 스킵해 942장 전량 렌더의
+   레이아웃 비용을 ~10×(데스크톱)~16×(모바일) 줄인다. 전 카드는 DOM에 그대로 유지되어
+   검색/정렬/필터/프로필 클릭/보유 칩 동작은 변경 없음. contain-intrinsic-size는 실측 카드
+   높이(데스크톱/태블릿 364~394px)에 맞춰 스크롤바 점프를 억제. 모바일 2열은 아래 미디어쿼리에서 재정의.
+   content-visibility 미지원 브라우저는 두 속성을 무시 → 기존 전량 렌더로 안전 폴백. */
+.arc-fcard { display: flex; flex-direction: column; width: 100%; text-align: left; cursor: pointer; padding: 0; color: var(--pt-ink-1); background: var(--pt-bg-2); border: 1px solid var(--pt-line-1); border-radius: var(--pt-r-md); overflow: hidden; content-visibility: auto; contain-intrinsic-size: 380px; transition: transform var(--pt-dur-base) var(--pt-ease-out), border-color var(--pt-dur-base) var(--pt-ease-out), box-shadow var(--pt-dur-base) var(--pt-ease-out); }
 .arc-fcard:hover { transform: translateY(-3px); border-color: var(--pt-line-3); box-shadow: 0 16px 40px rgba(0,0,0,0.4); }
 
 .arc-fport { position: relative; display: block; width: 100%; aspect-ratio: 3 / 4; overflow: hidden; background: radial-gradient(70% 60% at 50% 30%, rgba(255,255,255,0.05), transparent 70%), linear-gradient(180deg, #16181e, #0b0c0f); }
@@ -2086,6 +2091,7 @@ textarea, select {
 
 @media (max-width: 640px) {
     .arc-fgrid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .arc-fcard { contain-intrinsic-size: 360px; }  /* [perf] 모바일 2열 실측 높이(354~364px) */
     .arc-fname { font-size: 16px; }
     .arc-fph { font-size: 48px; }
     .arc-fstat-v { font-size: 24px; }
