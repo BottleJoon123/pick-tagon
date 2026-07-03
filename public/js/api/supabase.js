@@ -64,10 +64,16 @@ function setUserFaction(factionId) {
 }
 
 // [A안] posts + post_comments + 작성자 faction JOIN으로 로드 + 내 좋아요 목록 로드
+// 공개 피드 강제 새로고침. Promise(성공 true) 반환. 최신 seq+auth key 응답만 posts/likedPostIds/DOM에 적용
+// → 계정 A의 늦은 응답이 B/anon 상태를 덮지 못함. force 호출은 seq를 증가시켜 이전 in-flight를 무효화한다.
+function _postsAuthKey() { return (typeof currentUser !== 'undefined' && currentUser) ? currentUser.id : 'anon'; }
+var _postsLoadedFor = null, _postsInflightFor = null, _postsInflightPromise = null, _postsSeq = 0;
 function loadPostsFromDB() {
-    if (!sb) return;
+    if (!sb) return Promise.resolve(false);
+    var mySeq = ++_postsSeq;                  // 이전 in-flight 응답 무효화(seq)
+    var myKey = _postsAuthKey();
     // posts + comments + users(faction) 로드
-    sb.from('posts')
+    return sb.from('posts')
         // users embed must be disambiguated: C3-5 added posts.deleted_by FK to users,
         // so PostgREST sees two posts→users relationships. Pin the author FK explicitly.
         .select('*, post_comments(id, user_id, user_nick, content, created_at, parent_comment_id), users!posts_user_id_fkey(nickname, factions(id, name, emoji_icon))')
@@ -76,8 +82,9 @@ function loadPostsFromDB() {
         .order('created_at', { ascending: false })
         .limit(100)
         .then(function(res) {
-            if (res.error || !res.data) return;
-            posts = res.data.map(function(r) {
+            if (mySeq !== _postsSeq || myKey !== _postsAuthKey()) return false;   // 늦은/전환 응답 폐기
+            if (res.error || !res.data) return false;
+            var mapped = res.data.map(function(r) {
                 var comments = (r.post_comments || [])
                     .sort(function(a, b) { return new Date(a.created_at) - new Date(b.created_at); })
                     .map(function(c) {
@@ -108,20 +115,55 @@ function loadPostsFromDB() {
                     category: r.category || 'general',
                 };
             });
-            save();
-            // 로그인 상태면 내 좋아요 목록도 로드
-            if (currentUser) {
-                sb.from('post_likes')
-                    .select('post_id')
-                    .eq('user_id', currentUser.id)
+            // 로그인: likes까지 받은 뒤 posts+likes 원자 적용(성공 처리). anon: 즉시 적용.
+            if (typeof currentUser !== 'undefined' && currentUser && currentUser.id === myKey) {
+                return sb.from('post_likes').select('post_id').eq('user_id', myKey)
                     .then(function(likesRes) {
+                        if (mySeq !== _postsSeq || myKey !== _postsAuthKey()) return false;   // 재확인(전환 역전 방지)
+                        posts = mapped; save();
                         likedPostIds = new Set((likesRes.data || []).map(function(l) { return l.post_id; }));
+                        _postsLoadedFor = myKey;
                         renderFeed();
-                    });
-            } else {
-                renderFeed();
+                        return true;
+                    })
+                    .catch(function() { return false; });
             }
+            if (mySeq !== _postsSeq || myKey !== _postsAuthKey()) return false;
+            posts = mapped; save();
+            likedPostIds = new Set();          // anon → 좋아요 없음(이전 계정 잔상 없음)
+            _postsLoadedFor = myKey;
+            renderFeed();
+            return true;
         });
+}
+
+// ── (perf) 공개 피드 lazy 로드 계층(auth-key 기준) ──────────────────────
+// 홈 부팅·홈·타 탭에서는 조회하지 않고, community 최초 진입/계정 변경 시에만 현재 key로 1회 조회.
+// 동일 key 동시 ensure는 Promise 1개 공유. 성공만 loaded. 실패 시 다음 진입 재시도.
+function arePostsLoaded() { return _postsLoadedFor === _postsAuthKey(); }
+function ensurePostsLoaded() {
+    var key = _postsAuthKey();
+    if (_postsLoadedFor === key) return;                            // 현재 key로 이미 로드 → skip(재진입 중복 0)
+    if (_postsInflightFor === key && _postsInflightPromise) return; // 동일 key 로딩 중 → Promise 공유
+    _postsInflightFor = key;
+    var p = loadPostsFromDB();                                      // seq/key는 loadPostsFromDB 내부에서 캡처
+    if (!p || typeof p.then !== 'function') { _postsInflightFor = null; return; }
+    _postsInflightPromise = p.then(function() {                     // 성공 시 _postsLoadedFor는 loadPostsFromDB가 기록(성공만).
+        if (_postsInflightFor === key) { _postsInflightFor = null; _postsInflightPromise = null; }
+    }).catch(function() {
+        if (_postsInflightFor === key) { _postsInflightFor = null; _postsInflightPromise = null; }
+    });
+}
+// 로그인/로그아웃/계정 전환 시 호출 — lazy 캐시 무효화 + 진행 중 응답 무효화(seq) + 이전 계정 좋아요 즉시 제거.
+function invalidatePostsCache() {
+    _postsLoadedFor = null; _postsInflightFor = null; _postsInflightPromise = null;
+    _postsSeq++;                                    // 진행 중 응답 폐기(늦은 응답 역전 방지)
+    likedPostIds = new Set();                       // 이전 계정 좋아요 잔상 즉시 제거
+}
+// auth 확정/변경 반영 — 현재 화면이 community일 때만 현재 key로 재조회(홈/타 탭은 posts 조회 금지).
+function _syncPostsForAuth() {
+    if (_postsLoadedFor === _postsAuthKey()) return;
+    if (typeof _currentPage !== 'undefined' && _currentPage === 'community') ensurePostsLoaded();
 }
 
     function loadNewsFromDB() {
@@ -236,9 +278,14 @@ function loadPostsFromDB() {
                     currentUser = session.user;
                     // 아카이브 '내 픽 결과' 리캡 캐시 무효화 — 이전 계정 리캡 제거 + (아카이브 표시 중이면) 새 계정 재로드
                     if (typeof window.invalidateArchiveRecap === 'function') window.invalidateArchiveRecap();
+                    // [perf/race] 실제 로그인/계정 전환(SIGNED_IN) → posts lazy 캐시·likedPostIds 즉시 무효화(이전 계정 잔상 제거).
+                    //  세션 복원(INITIAL_SESSION)은 기준 상태라 무효화하지 않음(진행 중 로드 불필요 폐기 방지).
+                    if (event === 'SIGNED_IN' && typeof invalidatePostsCache === 'function') invalidatePostsCache();
                     // SIGNED_IN = 실제 로그인 → 환영 토스트 표시
                     // INITIAL_SESSION = 세션 복원 (페이지 리로드) → 토스트 생략
                     loadUserFromDB(session.user.id, event === 'SIGNED_IN');
+                    // [perf] posts는 홈/타 탭에서 조회 금지 — community 화면일 때만 현재 key로 재조회(신규 로그인 홈 posts 0).
+                    if (typeof _syncPostsForAuth === 'function') _syncPostsForAuth();
                     document.getElementById('auth-modal').classList.add('hidden');
                     updateAuthUI();
                     if (typeof isBattleFeatureEnabled === 'function' && isBattleFeatureEnabled()) {
@@ -257,13 +304,17 @@ function loadPostsFromDB() {
                         if (typeof save === 'function') save();
                     }
                     if (typeof window.resetUserEventPicks === 'function') window.resetUserEventPicks();
-                    // 공개 픽 비율 재조회 — 로그아웃 후에도 서버 집계(get_event_pick_ratios)로 비율 복원.
-                    // resetUserEventPicks가 바를 중립(0%)으로 먼저 갱신했으므로, 응답 도착 시 정확 비율로 덮어쓴다.
-                    if (typeof loadAllEventPickCounts === 'function') loadAllEventPickCounts();
-                    // 비로그인/로그아웃에서도 공개 커뮤니티 글 로드 (INITIAL_SESSION 무세션·SIGNED_OUT).
-                    // 기존엔 loadUserFromDB(로그인 경로)에서만 호출돼 fresh 비로그인 피드가 비어 있었음.
-                    // loadPostsFromDB는 currentUser 없이 안전(좋아요는 로그인 시에만 추가 로드).
-                    loadPostsFromDB();
+                    // [perf] 공개 픽 비율은 matchups 화면에서만 표시 → 현재 화면이 matchups일 때만 서버 집계 복원.
+                    // (홈/기타 화면의 로그아웃·비로그인 부팅에서 불필요한 get_event_pick_ratios 제거. matchups 진입 시 fetchUpcomingMatchups가 로드.)
+                    // resetUserEventPicks가 바를 중립(0%)으로 먼저 갱신했으므로, 비율 응답 도착 시 정확 비율로 덮어쓴다.
+                    if (typeof loadAllEventPickCounts === 'function'
+                        && typeof _currentPage !== 'undefined' && _currentPage === 'matchups') {
+                        loadAllEventPickCounts();
+                    }
+                    // [perf/race] 로그아웃(SIGNED_OUT) → posts lazy 캐시·likedPostIds 무효화. 비로그인 부팅(INITIAL_SESSION)은 기준 상태라 무효화 안 함.
+                    if (event === 'SIGNED_OUT' && typeof invalidatePostsCache === 'function') invalidatePostsCache();
+                    // 홈/타 탭에서는 posts 조회 금지 — community(로그아웃 화면)일 때만 anon 피드 재조회.
+                    if (typeof _syncPostsForAuth === 'function') _syncPostsForAuth();
                     if (typeof closeFactionSelectModal === 'function') closeFactionSelectModal();
                     // octagon-invite-modal(z-700)도 닫기 — auth-modal(z-600)보다 위에 있어서 차단
                     var octModal = document.getElementById('octagon-invite-modal');
@@ -365,10 +416,11 @@ function loadPostsFromDB() {
         }
         localStorage.setItem('picktagon_current_user_id', userId);
 
-        // 포스트는 계정 무관하게 항상 DB에서 로드 (공유 커뮤니티)
-        loadPostsFromDB();
-        // 커뮤니티 픽 집계 로드
-        loadAllEventPickCounts();
+        // [perf] posts는 홈/타 탭에서 조회하지 않음 — auth 핸들러의 _syncPostsForAuth가 community일 때만 현재 key로 재조회.
+        //  (기존 무조건 loadPostsFromDB 제거 → 로그인/세션복원 홈에서 posts 요청 0. 작성/삭제는 로컬 반영·강제 새로고침 경로가 갱신.)
+        // [perf] 공개 픽 비율은 matchups 화면에서만 표시 → 로그인 시 현재 화면이 matchups일 때만 로드.
+        //  (홈에서 로그인/세션복원 시 불필요한 get_event_pick_ratios 제거. matchups 진입 시 fetchUpcomingMatchups가 로드.)
+        if (typeof _currentPage !== 'undefined' && _currentPage === 'matchups') loadAllEventPickCounts();
         loadMyEventPicks();
         // 현재 사용자 픽 즉시 복원 — active fights가 이미 로드된 상태(계정 전환 등)에서 새로고침 없이 MY PICK 복원.
         // active fights가 아직 없으면 loadUserPicksFromDB가 안전 return → 이후 fetchUpcomingMatchups가 다시 복원.
@@ -622,8 +674,12 @@ async function fetchUpcomingMatchups() {
         if (typeof renderFightCards === 'function') renderFightCards();
         if (typeof renderHomeTicker === 'function') renderHomeTicker();
         if (typeof renderEventSidebar === 'function') renderEventSidebar();
-        // _dbMatchups 로드 완료 시점에 커뮤니티 픽 비율 집계 (로그인 시 early-return 방지)
-        if (typeof loadAllEventPickCounts === 'function') loadAllEventPickCounts();
+        // [perf] 공개 픽 비율 집계는 matchups 화면에서만 필요 → 홈 티커 목적의 fetchUpcomingMatchups에서는 조회하지 않음.
+        //  matchups 최초/재진입은 navigateTo가 _currentPage='matchups' 설정 후 fetchUpcomingMatchups를 호출하므로 정상 조회.
+        if (typeof loadAllEventPickCounts === 'function'
+            && typeof _currentPage !== 'undefined' && _currentPage === 'matchups') {
+            loadAllEventPickCounts();
+        }
         // 로그인 유저이면 DB에서 픽 상태 복원 (서버 정산 결과 반영)
         if (typeof currentUser !== 'undefined' && currentUser && typeof loadUserPicksFromDB === 'function') {
             loadUserPicksFromDB();

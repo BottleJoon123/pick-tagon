@@ -6,27 +6,32 @@
 
 // ── Main Event & Matchup ──────────────────────────────────────────
 
+// fetchMainEvent가 저장하는 canonical active fight count(=해당 upcoming event의 matchup 행 수).
+// updateHeroStats가 정적 FIGHTS 대신 이 값을 쓴다 → Total Fights가 시드에 의존하지 않고 세션 내 안정.
+var _homeActiveFightCount = null;
+
 async function fetchMainEvent(sb) {
     var eventsResult = await sb.from('events').select('*')
         .eq('status', 'upcoming').order('event_date', { ascending: true }).limit(1);
     if (eventsResult.error) { console.warn('events fetch failed:', eventsResult.error.message); return null; }
     var event = eventsResult.data && eventsResult.data[0];
-    if (!event) return null;
+    if (!event) { _homeActiveFightCount = 0; return null; }   // upcoming 이벤트 없음 → active fights 0
 
-    var matchupResult = await sb.from('matchups').select('*')
-        .eq('event_id', event.id).eq('is_main_event', true).limit(1);
-    if (matchupResult.error) { console.warn('matchups fetch failed:', matchupResult.error.message); return null; }
-    var matchup = matchupResult.data && matchupResult.data[0];
-    // is_main_event 플래그가 없으면 sort_order=1 메인카드 첫 경기를 폴백으로 사용
-    if (!matchup) {
-        var fallbackResult = await sb.from('matchups').select('*')
-            .eq('event_id', event.id).eq('card_segment', 'main')
-            .order('sort_order', { ascending: true }).limit(1);
-        matchup = fallbackResult.data && fallbackResult.data[0];
-    }
+    // 해당 upcoming event의 전체 matchup을 1회 조회(별도 count 요청 없음) → active count + 메인경기 선택을 동일 응답에서 처리.
+    var muRes = await sb.from('matchups').select('*')
+        .eq('event_id', event.id).order('sort_order', { ascending: true });
+    if (muRes.error) { console.warn('matchups fetch failed:', muRes.error.message); return null; }
+    var matchups = muRes.data || [];
+    _homeActiveFightCount = matchups.length;   // canonical DB active count(정적 시드 미사용)
+
+    // 메인경기 우선순위(기존 유지): a) is_main_event=true → b) 없으면 card_segment='main' 중 sort_order 최상위.
+    // (쿼리가 sort_order asc 정렬이므로 filter[0]이 최상위. find도 동일 정렬 기준 첫 항목.)
+    var matchup = matchups.find(function (m) { return m.is_main_event === true; })
+        || matchups.filter(function (m) { return m.card_segment === 'main'; })[0]
+        || null;
     if (!matchup) return null;
 
-    return { event, matchup };
+    return { event: event, matchup: matchup };
 }
 
 function renderFaceOffGlow(leftBias) {
@@ -46,6 +51,7 @@ async function initHomeData() {
     if (typeof sb === 'undefined' || !sb) return;
     try {
         var data = await fetchMainEvent(sb);
+        if (typeof updateHeroStats === 'function') updateHeroStats();   // active count 확정 후 Total Fights 최종 표시
         if (!data) {
             var heroLabel = document.getElementById('hero-event-label');
             var redEl = document.getElementById('hero-red-name');
@@ -316,12 +322,69 @@ function animateCount(id, target) {
     requestAnimationFrame(step);
 }
 
+// ── Total Fights: archive 전체 payload를 홈에서 재로드하지 않고 경량 count만 사용 ──
+// 우선순위: archiveDB(이미 로드된 전체 payload) 합계 > localStorage 캐시 count > (없으면) 경량 HEAD count.
+// 표시값 = archive_fights 총계 + 현재 active fights → 방문 순서와 무관하게 동일.
+var _AF_COUNT_KEY = 'picktagon_archive_fight_count_v1';
+var _AF_COUNT_TTL_MS = 6 * 60 * 60 * 1000;   // 6h — 신선하면 요청 0, 만료 시 백그라운드 재검증
+var _afCountInflight = null;
+
+function _afReadCache() {
+    try { var o = JSON.parse(localStorage.getItem(_AF_COUNT_KEY) || 'null'); return (o && typeof o.count === 'number' && typeof o.ts === 'number') ? o : null; } catch (e) { return null; }
+}
+function _afWriteCache(count) {
+    try { localStorage.setItem(_AF_COUNT_KEY, JSON.stringify({ count: count, ts: Date.now() })); } catch (e) { /* storage 비활성 무시 */ }
+}
+// archiveDB(전체 payload)가 로드됐으면 그 합계(+캐시 최신화), 아니면 캐시 count, 둘 다 없으면 null.
+function _archiveFightCount() {
+    if (typeof archiveDB !== 'undefined' && Array.isArray(archiveDB) && archiveDB.length) {
+        var sum = archiveDB.reduce(function (s, e) { return s + ((e.fights || []).length); }, 0);
+        _afWriteCache(sum);
+        return sum;
+    }
+    var c = _afReadCache();
+    return c ? c.count : null;
+}
+// 경량 HEAD count(행 payload 미수신). archiveDB 로드/신선 캐시면 요청 0. in-flight 공유. 실패 시 마지막 캐시 유지.
+function _ensureArchiveFightCount(onDone) {
+    if (typeof archiveDB !== 'undefined' && Array.isArray(archiveDB) && archiveDB.length) { if (onDone) onDone(); return; }
+    var cached = _afReadCache();
+    if (cached && (Date.now() - cached.ts) < _AF_COUNT_TTL_MS) { if (onDone) onDone(); return; }   // 신선 → 요청 0
+    if (_afCountInflight) { if (onDone) _afCountInflight.then(onDone); return; }                    // in-flight 공유
+    if (typeof sb === 'undefined' || !sb) { if (onDone) onDone(); return; }
+    _afCountInflight = sb.from('archive_fights').select('*', { count: 'exact', head: true }).then(function (res) {
+        _afCountInflight = null;
+        if (!res.error && typeof res.count === 'number') _afWriteCache(res.count);   // 성공만 갱신(실패 시 기존 캐시 유지)
+    }).catch(function () { _afCountInflight = null; });
+    if (onDone) _afCountInflight.then(onDone);
+}
+
+// active fight count: _dbMatchups 로드 시 그 길이 → 아니면 fetchMainEvent가 저장한 _homeActiveFightCount → 없으면 null.
+// 정적 FIGHTS/customFights는 Total Fights 계산에 사용하지 않는다(시드 의존 금지 → 방문 순서·로드 시점 무관 동일값).
+function _homeActiveCount() {
+    if (typeof _dbMatchups !== 'undefined' && Array.isArray(_dbMatchups) && _dbMatchups.length) return _dbMatchups.length;
+    if (typeof _homeActiveFightCount === 'number') return _homeActiveFightCount;
+    return null;
+}
+
 function updateHeroStats() {
-    var activeFights = typeof getActiveFights === 'function' ? getActiveFights() : [];
-    var archive = Array.isArray(archiveDB) ? archiveDB : [];
     var s = typeof state === 'object' && state ? state : {};
-    var totalFights = archive.reduce((sum, e) => sum + (e.fights || []).length, activeFights.length);
-    animateCount('stat-fights', totalFights);
+    var archCount = _archiveFightCount();               // archiveDB 합계 or 캐시 or null
+    var activeCount = _homeActiveCount();               // DB matchup 개수(정적 시드 미사용) or null
+    var shown = (archCount == null || activeCount == null) ? null : (archCount + activeCount);
+    var statEl = document.getElementById('stat-fights');
+    if (shown == null) {
+        if (statEl) statEl.textContent = '—';           // archive/active 중 미확정 → 잘못된 중간 숫자 대신 —
+    } else {
+        animateCount('stat-fights', shown);
+    }
     animateCount('stat-picks', Number(s.total) || 0);
     animateCount('stat-pts', Number(s.points) || 0);
+    // 백그라운드 archive count 로드(요청 0~1) 후 archive+active 총계로 최종 재표시(값 바뀔 때만 재애니).
+    _ensureArchiveFightCount(function () {
+        var c = _archiveFightCount(), a = _homeActiveCount();
+        if (c == null || a == null) return;
+        var target = c + a;
+        if (target !== shown) animateCount('stat-fights', target);
+    });
 }
