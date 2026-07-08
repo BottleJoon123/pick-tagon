@@ -2605,7 +2605,7 @@
 <script src="/js/pixel-fighters.js?v=1"></script>
 <script src="/js/h2h.js?v=25"></script>
 <script src="/js/news-admin.js?v=7"></script>
-<script src="/js/home.js?v=8"></script>
+<script src="/js/home.js?v=9"></script>
 <script src="/js/share-card.js?v=19"></script>
 <script>
     /* ==============================
@@ -2706,6 +2706,7 @@
     ============================== */
     var _currentPage = 'home';
 
+    var _navBooted = false;   // [perf/Stage 4B-P0] 첫 boot 여부 — 최초 navigateTo(initPage,true)에서 smooth-scroll 1회 skip.
     function navigateTo(id, fromPopState) {
         // admin 직접 접근 차단 (hash, popstate, programmatic 모두 포함)
         // admin 직접 접근 차단: adminUnlocked는 loadUserFromDB에서 ADMIN_EMAILS 체크 후 설정됨
@@ -2808,7 +2809,10 @@
                 Promise.all([loadCurrentSeasonFromDB(), loadHallOfFameFromDB()]);
             }
         }
-        window.scrollTo({top: 0, behavior: 'smooth'});
+        // [perf/Stage 4B-P0] 첫 boot에서는 smooth-scroll 금지 — 부팅 강제 리플로우(~120ms) 제거.
+        //   이미 top이므로 즉시 (0,0)(?fight/?fighter 후속 scrollIntoView와 충돌 방지). 두 번째 이후 실제 탭 이동은 기존 smooth 유지.
+        if (!_navBooted) { _navBooted = true; window.scrollTo(0, 0); }
+        else { window.scrollTo({top: 0, behavior: 'smooth'}); }
         refreshUI();
     }
 
@@ -5356,8 +5360,24 @@ async function publishPost() {
             });
         } catch (e) { _tsProfileWidgetId = null; }
     }
-    // api.js?onload=onloadTurnstileCallback 진입점
-    window.onloadTurnstileCallback = function() { _tsRenderAuth(); _tsRenderProfile(); };
+    // [perf/Stage 4B-P0] Turnstile lazy render — 홈 부팅에서 위젯 0개.
+    //   auth 위젯: auth-modal이 실제 visible일 때만 렌더. 모든 진입 경로(데스크톱/모바일 로그인 버튼,
+    //     admin 로그인 요구[admin.js], 로그아웃 후 자동표시, recovery/signup)를 개별 호출 수정 없이
+    //     class 변경 MutationObserver로 포괄. hard gate·토큰 reset·expired/error 콜백은 _tsRenderAuth 내부 그대로 보존.
+    //   profile 위젯: 기존대로 _getProfileCaptchaToken() 내부 _tsRenderProfile()로 execute-on-demand 렌더.
+    function _isAuthModalVisible() {
+        var m = document.getElementById('auth-modal');
+        return !!(m && !m.classList.contains('hidden'));
+    }
+    // api.js?onload=onloadTurnstileCallback 진입점 — script가 modal보다 늦게 로드된 경우: 이미 열려있으면 렌더.
+    window.onloadTurnstileCallback = function() { if (_isAuthModalVisible()) _tsRenderAuth(); };
+    // script가 먼저 로드되고 이후 modal이 열리는 경우: visible 전환 시 렌더(_tsAuthWidgetId 1회 가드).
+    (function _observeAuthModalForTurnstile() {
+        var m = document.getElementById('auth-modal');
+        if (!m || typeof MutationObserver === 'undefined') return;
+        new MutationObserver(function() { if (_isAuthModalVisible()) _tsRenderAuth(); })
+            .observe(m, { attributes: true, attributeFilter: ['class'] });
+    })();
 
     // auth-modal 토큰 — 호출 시점에 즉시 읽기(stale 전역 캐시 금지)
     function _getAuthCaptchaToken() {

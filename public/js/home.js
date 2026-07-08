@@ -309,17 +309,48 @@ function startCountdown(targetDate) {
 }
 
 // ── Stats ─────────────────────────────────────────────────────────
+// [perf/Stage 4B-P0] 단일 공유 rAF 루프로 fights/picks/points를 같은 프레임에 배치 갱신.
+//   기존: 3개 animateCount가 각자 rAF 루프 → 폭이 커지는 숫자 텍스트 변경이 프레임마다 개별 리플로우.
+//   개선: 한 프레임에 함께 갱신 + 시작을 idle까지 지연(부팅 크리티컬 레이아웃과 경쟁 회피).
+//         idle 미지원/과다 지연 시 rAF·setTimeout fallback(timeout 300ms). 같은 id 새 목표 = 이전 generation 무효화.
+var _statTargets = {};   // id -> { el, from, to, t0 }
+var _statRAF = 0;        // 활성 rAF 핸들(0 = 미실행)
+var _statIdle = 0;       // 대기 중 idle/timeout 핸들(0 = 없음)
+var _STAT_DUR = 1200;
+
+function _statStep(now) {
+    _statRAF = 0;
+    var ids = Object.keys(_statTargets), alive = false;
+    for (var i = 0; i < ids.length; i++) {
+        var t = _statTargets[ids[i]];
+        if (!t.el) { delete _statTargets[ids[i]]; continue; }
+        if (!t.t0) t.t0 = now;
+        var p = Math.min((now - t.t0) / _STAT_DUR, 1), ease = 1 - Math.pow(1 - p, 3);
+        t.el.textContent = Math.round(t.from + (t.to - t.from) * ease).toLocaleString();
+        if (p >= 1) delete _statTargets[ids[i]]; else alive = true;
+    }
+    if (alive) _statRAF = requestAnimationFrame(_statStep);
+}
+
+function _statSchedule() {
+    if (_statRAF || _statIdle) return;   // 이미 예약됨(중복 루프 방지)
+    var start = function () {
+        _statIdle = 0;
+        if (!_statRAF && Object.keys(_statTargets).length) _statRAF = requestAnimationFrame(_statStep);
+    };
+    if (typeof requestIdleCallback === 'function') _statIdle = requestIdleCallback(start, { timeout: 300 });  // idle 대기, 300ms 초과 시 강제 실행
+    else _statIdle = setTimeout(start, 0);   // 미지원 브라우저 → 다음 틱
+}
 
 function animateCount(id, target) {
     var el = document.getElementById(id);
     if (!el) return;
-    var end = Number(target) || 0, dur = 1200, t0 = performance.now();
-    function step(now) {
-        var p = Math.min((now - t0) / dur, 1), ease = 1 - Math.pow(1 - p, 3);
-        el.textContent = Math.round(end * ease).toLocaleString();
-        if (p < 1) requestAnimationFrame(step);
-    }
-    requestAnimationFrame(step);
+    var to = Number(target) || 0;
+    var cur = String(el.textContent || '').replace(/[^0-9.\-]/g, '');   // '—'/빈값 → 0
+    var from = cur === '' ? 0 : (Number(cur) || 0);
+    if (from === to) { el.textContent = to.toLocaleString(); delete _statTargets[id]; return; }  // 변화 없음 → 즉시 확정(불필요 리플로우 0)
+    _statTargets[id] = { el: el, from: from, to: to, t0: 0 };   // 같은 id 덮어쓰기 = 이전 generation 무효화, 현재 표시값에서 이어서 애니
+    _statSchedule();
 }
 
 // ── Total Fights: archive 전체 payload를 홈에서 재로드하지 않고 경량 count만 사용 ──
