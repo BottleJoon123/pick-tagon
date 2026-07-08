@@ -1262,14 +1262,15 @@ var _ARC_FSTYLE_COLOR = {
 };
 
 // ══════════════════════════════════════════════════════════════════════
-//  컬렉션 V1 (도감 소유/진행률) — get_my_fighter_collection() RPC 기반.
-//   • 로그인 사용자만 호출(비로그인 RPC 0). 반환은 owned 카드 + obtainable_total(개수)만.
-//   • RPC는 "획득가능 파이터 목록"을 주지 않으므로 프론트에서 pool을 재구성하지 않는다
-//     (미보유 카드에 가짜 잠금/도감외 표시 금지, 942 전체 lock 금지). owned만 안전 표시.
-//   • userId별 캐시 + in-flight 공유 + generation guard(계정 전환 잔상 방지). 성공 응답만 캐시.
+//  컬렉션 V1→V3 (도감 소유/진행률/획득가능) — get_my_fighter_collection() RPC 기반.
+//   • 로그인 사용자만 호출(비로그인 RPC 0). 반환은 owned 카드 전체 + 서버 authoritative
+//     obtainable_fighter_ids(pool ID 배열, V3). pool은 fighters 943명 중 matchups에 등장한
+//     ID만 — 943 전체 lock은 여전히 금지, 잠금은 pool 안(미보유)에서만 표시.
+//   • userId별 캐시 + in-flight 공유 + generation guard(계정 전환 잔상 방지). 검증 통과한
+//     성공 응답만 캐시(malformed 응답은 실패로 취급 — 아래 _validateCollectionResponse).
 // ══════════════════════════════════════════════════════════════════════
-var _collByFighter = {};       // fighter_id → owned card row
-var _collOwned = 0, _collObtainable = 0, _collProgress = 0;
+var _collByFighter = {};       // fighter_id → owned card row (전체 ledger — pool 밖 포함, 절대 revoke 없음)
+var _collOwned = 0, _collObtainable = 0, _collProgress = 0;   // total_owned / obtainable_total / progress_pct(V3: obtainable_owned 기준)
 var _collGen = 0;
 var _collUserId = null;
 var _collInflight = null;
@@ -1277,14 +1278,23 @@ var _collLoadedFor = null;
 var _collLoadedAt = 0;
 var _COLL_TTL_MS = 60000;
 var _collMatchupMeta = {};     // (V2) source_matchup_id → { eventTitle, eventDate } — 획득 출처 보강 캐시
+// (V3) 획득가능 pool — 서버 authoritative obtainable_fighter_ids. null=미로드(성공 로드 전까지 obtainable/unowned 필터 진입 불가).
+var _collObtainableSet = null;
+var _collObtainableOwned = 0;   // owned ∩ pool
+// (V3) 파이터 도감 상태 필터: all | obtainable | owned | unowned. 계정 전환/로그아웃/무효화 시 'all'로 리셋(잔상 방지).
+var _fighterStateFilt = 'all';
 
 function _collReady() { var uid = _recapUid(); return !!(uid && _collLoadedFor === uid); }
 function _isOwned(f) { return !!(f && f.id && _collByFighter[f.id]); }
+// (V3) 획득가능 pool 소속 여부 — obtainable/unowned 필터·잠금 표시에만 사용. 전체 943 필터에서는 참조하지 않는다(잠금 없음).
+function _isObtainable(f) { return !!(f && f.id && _collObtainableSet && _collObtainableSet.has(f.id)); }
 
-// 로그인/로그아웃/계정 전환 시 호출(invalidateArchiveRecap 에서 함께 호출). 캐시·진행응답 무효화.
+// 로그인/로그아웃/계정 전환 시 호출(invalidateArchiveRecap 에서 함께 호출). 캐시·진행응답·상태필터 전부 무효화.
 function invalidateFighterCollection() {
     _collGen++;
     _collByFighter = {}; _collOwned = 0; _collObtainable = 0; _collProgress = 0; _collMatchupMeta = {};
+    _collObtainableSet = null; _collObtainableOwned = 0;
+    _fighterStateFilt = 'all';   // (V3) restricted 상태(획득가능/보유/미보유) 진입 중이었어도 전체로 리셋 — 잔상 방지
     _collInflight = null; _collLoadedFor = null; _collUserId = null; _collLoadedAt = 0;
     var panel = document.getElementById('archive-fighters-panel');
     if (panel && !panel.classList.contains('hidden') && fighterArchiveDB.length) {
@@ -1303,6 +1313,57 @@ function ensureFighterCollectionLoaded() {
     _loadFighterCollection(uid);
 }
 
+// (V3) malformed 응답 방어 — 아래 중 하나라도 어긋나면 실패로 취급(캐시 미갱신, 기존 도감/전체 필터 그대로 유지):
+//   ids 배열 아님 · cards 배열 아님 · ids 중복 · obtainable_total ≠ ids.length ·
+//   total_owned/obtainable_owned/progress_pct 숫자 아님 · progress_pct ∉[0,100] ·
+//   obtainable_owned > obtainable_total(pool 초과 불가) · obtainable_owned > total_owned(ledger 초과 불가).
+// (V3.1) 검증 강화 — 타입/범위뿐 아니라 cards×ids를 직접 재계산해 서버 집계값(obtainable_owned·progress_pct)이
+//   실제 데이터와 정합한지까지 교차검증한다. 하나라도 어긋나면 즉시 null(중립 유지, 다음 진입에서 재시도 가능).
+function _validateCollectionResponse(d) {
+    if (!d || d.ok !== true) return null;
+    var ids = d.obtainable_fighter_ids, cardsArr = d.cards;
+    if (!Array.isArray(ids) || !Array.isArray(cardsArr)) return null;
+
+    // ids: 전부 비어있지 않은 string + 오름차순 + 중복 0(한 루프에서 함께 확인).
+    var idSet = new Set();
+    for (var i = 0; i < ids.length; i++) {
+        var fid = ids[i];
+        if (typeof fid !== 'string' || fid.length === 0) return null;
+        if (i > 0 && fid < ids[i - 1]) return null;             // 오름차순
+        if (idSet.has(fid)) return null;                        // 중복 0
+        idSet.add(fid);
+    }
+
+    // 카운트 3종: 정수·0 이상만 허용(문자열/소수/음수 전부 거부). progress는 숫자 + [0,100].
+    var obtTotal = d.obtainable_total, totalOwned = d.total_owned, obtOwned = d.obtainable_owned, pct = d.progress_pct;
+    if (!Number.isInteger(obtTotal) || obtTotal < 0) return null;
+    if (!Number.isInteger(totalOwned) || totalOwned < 0) return null;
+    if (!Number.isInteger(obtOwned) || obtOwned < 0) return null;
+    if (typeof pct !== 'number' || !isFinite(pct) || pct < 0 || pct > 100) return null;
+    if (obtTotal !== ids.length) return null;
+    if (obtOwned > obtTotal || obtOwned > totalOwned) return null;
+
+    // cards: 개수가 total_owned와 일치 + 각 카드 fighter_id 유효 string + 카드 간 중복 0.
+    if (cardsArr.length !== totalOwned) return null;
+    var map = {}, cardIdSet = new Set();
+    for (var j = 0; j < cardsArr.length; j++) {
+        var c = cardsArr[j];
+        if (!c || typeof c.fighter_id !== 'string' || c.fighter_id.length === 0) return null;
+        if (cardIdSet.has(c.fighter_id)) return null;
+        cardIdSet.add(c.fighter_id);
+        map[c.fighter_id] = c;
+    }
+
+    // 재계산 교차검증 — 서버가 보낸 obtainable_owned/progress_pct를 그대로 신뢰하지 않고 cards∩ids로 직접 재산출.
+    var recomputedObtOwned = 0;
+    cardIdSet.forEach(function (id2) { if (idSet.has(id2)) recomputedObtOwned++; });
+    if (recomputedObtOwned !== obtOwned) return null;
+    var expectedPct = obtTotal === 0 ? 0 : Math.round((obtOwned / obtTotal) * 1000) / 10;   // SQL round(numeric,1)과 동일 반올림
+    if (Math.abs(expectedPct - pct) > 0.05) return null;
+
+    return { map: map, owned: totalOwned, obtainable: obtTotal, progress: pct, obtainableSet: idSet, obtainableOwned: obtOwned };
+}
+
 async function _loadFighterCollection(uid) {
     if (!sb) return;
     var myGen = _collGen;
@@ -1311,11 +1372,7 @@ async function _loadFighterCollection(uid) {
         try {
             var r = await sb.rpc('get_my_fighter_collection');
             if (r.error) return null;
-            var d = r.data || {};
-            if (!d || d.ok !== true) return null;
-            var map = {};
-            (d.cards || []).forEach(function (c) { if (c && c.fighter_id) map[c.fighter_id] = c; });
-            return { map: map, owned: d.total_owned || 0, obtainable: d.obtainable_total || 0, progress: d.progress_pct || 0 };
+            return _validateCollectionResponse(r.data);
         } catch (e) { return null; }
     })();
     _collInflight = p;
@@ -1323,8 +1380,9 @@ async function _loadFighterCollection(uid) {
     if (myGen !== _collGen) return;                         // 무효화/세대 변경 → 폐기
     if (_recapUid() !== uid) return;                        // 계정 전환 → 폐기
     if (_collInflight === p) _collInflight = null;
-    if (result === null) return;                            // 실패 → 기존 도감 유지, 컬렉션 UI 미표시. 재렌더 안 함(루프 방지)
+    if (result === null) return;                            // 실패/malformed → 기존 도감 유지, 컬렉션 UI 미표시. 재렌더 안 함(루프 방지)
     _collByFighter = result.map; _collOwned = result.owned; _collObtainable = result.obtainable; _collProgress = result.progress;
+    _collObtainableSet = result.obtainableSet; _collObtainableOwned = result.obtainableOwned;
     _collLoadedFor = uid; _collLoadedAt = Date.now();
     _applyCollectionToFighterView();                        // 성공 → 진행률/보유 칩 반영(부분 패치 또는 목록변경 시 전체 렌더)
     _loadCollectionMeta(uid, myGen);                        // (V2) 획득 출처(이벤트명) best-effort 보강
@@ -1388,12 +1446,19 @@ function _collAcqHtml(card) {
 
 function _collBandHtml() {
     var pct = (_collObtainable > 0) ? Math.max(0, Math.min(100, _collProgress)) : 0;
+    // (V3) 진행률/보유 수치는 전부 obtainable pool 기준(3개 숫자 내적 일관). pool 밖 career-permanent 보유는
+    // 별도 보조 라벨로만 표시(0이면 완전히 숨김) — 진행률 100% 초과를 만들지 않는다.
+    var extra = _collOwned - _collObtainableOwned;
+    var extraHtml = extra > 0
+        ? '<div class="arc-coll-extra">도감 외 보유 ' + escapeHtml(String(extra)) + '</div>'
+        : '';
     return '<div class="arc-collband">'
         + '<div class="arc-coll-head"><span class="arc-coll-label">내 컬렉션</span>'
-        + '<span class="arc-coll-nums"><b class="arc-coll-owned">' + escapeHtml(String(_collOwned)) + '</b> 보유'
+        + '<span class="arc-coll-nums"><b class="arc-coll-owned">' + escapeHtml(String(_collObtainableOwned)) + '</b> 보유'
         + '<span class="arc-coll-sep">·</span>' + escapeHtml(String(_collObtainable)) + ' 획득 가능'
         + '<span class="arc-coll-sep">·</span><span class="arc-coll-pct">' + escapeHtml(String(_collProgress)) + '%</span></span></div>'
         + '<div class="arc-coll-bar"><span class="arc-coll-fill" style="width:' + pct + '%"></span></div>'
+        + extraHtml
         + '</div>';
 }
 
@@ -1406,25 +1471,67 @@ function _collBandHtml() {
 //   • 비로그인/계정 전환/무효화는 기존 경로(렌더 또는 중립화) 유지 — 여기선 성공 로드만 다룸.
 // ══════════════════════════════════════════════════════════════════════
 
-// 현재 뷰의 목록 구성/순서가 보유 상태에 의존하는가(→ 부분 패치 불가, 전체 렌더 필요).
+// 현재 뷰의 목록 구성/순서가 보유·pool 상태에 의존하는가(→ 부분 패치 불가, 전체 렌더 필요).
+// (V3) 상태 필터가 all이 아니면(획득가능/보유/미보유 모두) 목록 자체가 소유/pool 여부로 걸러지므로 전체 렌더 대상.
 function _fighterListDependsOnOwnership() {
-    var sortMode  = (document.getElementById('fighter-archive-sort')  || {}).value || 'rank';
-    var ownedFilt = (document.getElementById('fighter-archive-owned') || {}).value || 'all';
-    return sortMode === 'owned' || ownedFilt === 'owned';
+    var sortMode = (document.getElementById('fighter-archive-sort') || {}).value || 'rank';
+    return sortMode === 'owned' || _fighterStateFilt !== 'all';
 }
 
-// 컬렉션 의존 컨트롤 + 진행률 밴드 갱신(renderFighterArchive 내 동일 로직과 일치 유지).
+// 컬렉션 의존 컨트롤(정렬 옵션·상태 필터바) + 진행률 밴드 갱신(renderFighterArchive 내 동일 로직과 일치 유지).
 function _updateCollectionControls() {
     var collReady = _collReady();
-    var ownedSel = document.getElementById('fighter-archive-owned');
-    var sortSel  = document.getElementById('fighter-archive-sort');
-    if (ownedSel) { ownedSel.disabled = !collReady; if (!collReady) ownedSel.value = 'all'; }
-    if (sortSel)  { _arcSetOptDisabled(sortSel, 'owned', !collReady); if (!collReady && sortSel.value === 'owned') sortSel.value = 'rank'; }
+    var sortSel = document.getElementById('fighter-archive-sort');
+    if (sortSel) { _arcSetOptDisabled(sortSel, 'owned', !collReady); if (!collReady && sortSel.value === 'owned') sortSel.value = 'rank'; }
+    if (!collReady && _fighterStateFilt !== 'all') _fighterStateFilt = 'all';   // 미로드로 되돌아가면 restricted 상태 강제 해제
+    _renderFighterStateFilterBar();
     var band = document.getElementById('fighter-collection-band');
     if (band) {
         if (collReady) { band.innerHTML = _collBandHtml(); band.classList.remove('hidden'); }
         else { band.innerHTML = ''; band.classList.add('hidden'); }
     }
+}
+
+// (V3) 상태 필터 세그먼트 버튼 — all은 로그인 여부와 무관하게 항상 활성(fighterArchiveDB.length 고정 수치).
+//   restricted(획득가능/보유/미보유)는 collReady일 때만 활성 + 실수치, 아니면 disabled + '–'(가짜 0 금지).
+var FIGHTER_STATE_LABELS = { all: '전체', obtainable: '획득 가능', owned: '보유', unowned: '미보유' };
+var FIGHTER_STATE_ORDER  = ['all', 'obtainable', 'owned', 'unowned'];
+
+function _fighterStateCounts() {
+    var collReady = _collReady();
+    return {
+        all:        fighterArchiveDB.length,
+        obtainable: collReady ? _collObtainable : 0,
+        owned:      collReady ? _collOwned : 0,
+        unowned:    collReady ? Math.max(0, _collObtainable - _collObtainableOwned) : 0
+    };
+}
+
+function setFighterStateFilter(state) {
+    if (FIGHTER_STATE_ORDER.indexOf(state) === -1) return;   // (V3.1) 미정의 값(오타/외부 호출) 무시 — active 버튼 없는 상태 방지
+    if (state !== 'all' && !_collReady()) return;             // 미로드 상태에서 restricted 진입 차단
+    if (_fighterStateFilt === state) return;
+    _fighterStateFilt = state;
+    renderFighterArchive();
+}
+if (typeof window !== 'undefined') window.setFighterStateFilter = setFighterStateFilter;
+
+function _renderFighterStateFilterBar() {
+    var bar = document.getElementById('fighter-archive-statefilter');
+    if (!bar) return;
+    var collReady = _collReady();
+    var counts = _fighterStateCounts();
+    bar.innerHTML = FIGHTER_STATE_ORDER.map(function (st) {
+        var disabled = (st !== 'all') && !collReady;
+        var active = _fighterStateFilt === st;
+        var ct = disabled ? '–' : String(counts[st]);
+        return '<button type="button" class="arc-state-btn' + (active ? ' is-active' : '') + '"'
+            + (disabled ? ' disabled' : '')
+            + ' aria-pressed="' + (active ? 'true' : 'false') + '"'
+            + ' onclick="setFighterStateFilter(\'' + st + '\')">'
+            + escapeHtml(FIGHTER_STATE_LABELS[st]) + ' <span class="arc-state-ct">' + escapeHtml(ct) + '</span>'
+            + '</button>';
+    }).join('');
 }
 
 // 현재 렌더된 카드들에 보유 표시(.arc-fowned/보유 칩/획득 출처)만 패치. 목록/순서/캐시 불변.
@@ -1489,14 +1596,15 @@ function renderFighterArchive() {
     var query   = ((document.getElementById('fighter-archive-search') || {}).value || '').toLowerCase().trim();
     var divFilt = (document.getElementById('fighter-archive-division') || {}).value || 'all';
     var sortSel  = document.getElementById('fighter-archive-sort');
-    var ownedSel = document.getElementById('fighter-archive-owned');
 
     var collReady = _collReady();
-    // 컬렉션 의존 컨트롤 게이팅: 비로그인/미로드 → 보유필터 disable+all, '보유 우선' 정렬 옵션 disable+값 리셋.
-    if (ownedSel) { ownedSel.disabled = !collReady; if (!collReady) ownedSel.value = 'all'; }
-    if (sortSel)  { _arcSetOptDisabled(sortSel, 'owned', !collReady); if (!collReady && sortSel.value === 'owned') sortSel.value = 'rank'; }
-    var sortMode  = (sortSel || {}).value || 'rank';
-    var ownedFilt = (ownedSel || {}).value || 'all';
+    // 컬렉션 의존 컨트롤 게이팅: 비로그인/미로드 → '보유 우선' 정렬 옵션 disable+값 리셋, 상태 필터 all 강제.
+    if (sortSel) { _arcSetOptDisabled(sortSel, 'owned', !collReady); if (!collReady && sortSel.value === 'owned') sortSel.value = 'rank'; }
+    if (!collReady && _fighterStateFilt !== 'all') _fighterStateFilt = 'all';
+    var sortMode   = (sortSel || {}).value || 'rank';
+    var stateFilt  = _fighterStateFilt;
+    // (V3) 획득가능/미보유 필터에서만 미보유 카드에 절제된 잠금 표시. 전체/보유 필터에서는 잠금 절대 없음.
+    var lockScope  = collReady && (stateFilt === 'obtainable' || stateFilt === 'unowned');
 
     var filtered = fighterArchiveDB.filter(function (f) {
         _fKeys(f);                              // 캐시 보장(mock/동적 객체 대비). DB 로드분은 이미 계산됨.
@@ -1505,8 +1613,14 @@ function renderFighterArchive() {
             || f._el.indexOf(query) >= 0
             || f._kl.indexOf(query) >= 0;
         var divMatch = divFilt === 'all' || f.division === divFilt;
-        var ownedMatch = !(collReady && ownedFilt === 'owned') || _isOwned(f);
-        return nameMatch && divMatch && ownedMatch;
+        var stateMatch = true;
+        if (collReady) {
+            if (stateFilt === 'obtainable')     stateMatch = _isObtainable(f);
+            else if (stateFilt === 'owned')     stateMatch = _isOwned(f);
+            else if (stateFilt === 'unowned')   stateMatch = _isObtainable(f) && !_isOwned(f);
+            // 'all' → 항상 true, 943명 전체 무잠금
+        }
+        return nameMatch && divMatch && stateMatch;
     });
 
     function byName(a, b) { return _fKeys(a)._sortName.localeCompare(_fKeys(b)._sortName, 'ko'); }
@@ -1538,6 +1652,7 @@ function renderFighterArchive() {
         if (collReady) { band.innerHTML = _collBandHtml(); band.classList.remove('hidden'); }
         else { band.innerHTML = ''; band.classList.add('hidden'); }
     }
+    _renderFighterStateFilterBar();   // (V3) 상태 필터 버튼 active/disabled/수치 갱신(검색 결과와 무관한 고정 수치)
 
     if (filtered.length === 0) {
         listEl.innerHTML = '';
@@ -1548,12 +1663,12 @@ function renderFighterArchive() {
     if (emptyEl) emptyEl.classList.add('hidden');
 
     window._fighterCardCache = {};   // 매 렌더 초기화 — onclick 키는 현재 렌더 인덱스 기준(따옴표 안전)
-    listEl.innerHTML = filtered.map(function (f, i) { return _arcFighterCardHtml(f, i, collReady && _isOwned(f)); }).join('');
+    listEl.innerHTML = filtered.map(function (f, i) { return _arcFighterCardHtml(f, i, collReady && _isOwned(f), lockScope); }).join('');
 
     ensureFighterCollectionLoaded();
 }
 
-function _arcFighterCardHtml(f, i, owned) {
+function _arcFighterCardHtml(f, i, owned, lockIfUnowned) {
     var displayName = _fighterDisplayName(f);
     var subName = (f.name_en && f.name_en !== f.name) ? f.name_en : '';
     var record = _fighterRecord(f);
@@ -1575,8 +1690,17 @@ function _arcFighterCardHtml(f, i, owned) {
         : '';
     var ph = '<span class="arc-fph"' + (f.image_url ? ' style="display:none"' : '') + '>' + firstLetter + '</span>';
 
-    return '<button type="button" class="arc-fcard' + (owned ? ' arc-fowned' : '') + '" data-fid="' + escapeHtml(String(f.id == null ? '' : f.id)) + '" onclick="openFighterProfile(window._fighterCardCache[\'' + cacheKey + '\'])">'
-        + '<span class="arc-fport">' + imgHtml + ph + rankChip + (owned ? '<span class="arc-fownchip">보유</span>' : '') + '</span>'
+    // (V3) 미보유 pool 카드에만 절제된 잠금 표시(획득가능/미보유 필터 스코프에서만). 전체/보유 필터에서는 항상 false.
+    var showLock = !!(lockIfUnowned && !owned);
+    var stateCls = owned ? ' arc-fowned' : (showLock ? ' arc-funowned' : '');
+    // (V3.1) 잠금 아이콘은 aria-hidden(장식용)이라 스크린리더가 상태를 못 읽는다 — 잠금 카드에만 명시적
+    //   aria-label로 "미보유" 상태를 accessible name에 포함시킨다. 보유/일반 카드는 aria-label을 추가하지
+    //   않아 기존처럼 콘텐츠 기반 accessible name(이름·체급·전적 등)을 그대로 유지한다.
+    var lockHtml = showLock ? '<span class="arc-flock" aria-hidden="true" title="미보유">🔒</span>' : '';
+    var ariaLabel = showLock ? ' aria-label="' + escapeHtml('미보유 · ' + displayName + ' 프로필 보기') + '"' : '';
+
+    return '<button type="button" class="arc-fcard' + stateCls + '" data-fid="' + escapeHtml(String(f.id == null ? '' : f.id)) + '"' + ariaLabel + ' onclick="openFighterProfile(window._fighterCardCache[\'' + cacheKey + '\'])">'
+        + '<span class="arc-fport">' + imgHtml + ph + rankChip + lockHtml + (owned ? '<span class="arc-fownchip">보유</span>' : '') + '</span>'
         + '<span class="arc-fbody">'
             + '<span class="arc-fname">' + escapeHtml(displayName) + '</span>'
             + (subName ? '<span class="arc-fsub">' + escapeHtml(subName) + '</span>' : '')

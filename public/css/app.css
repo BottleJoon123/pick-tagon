@@ -2235,3 +2235,46 @@ textarea, select {
 }
 .arc-fcard.arc-fowned .arc-facq { color: var(--pt-ink-2); border-top-color: rgba(31,191,107,0.22); }
 @media (max-width: 400px) { .arc-facq { font-size: 9px; } }
+
+/* ════════════════════════════════════════════════════════════════
+   ARCHIVE — 컬렉션 V3 (획득가능 pool 상태 필터 + 미보유 표시).
+   • pool 밖 943명은 어떤 필터에서도 잠금 없음(전체 필터 = 항상 무잠금).
+   • 미보유 표시는 pool 안에서만, 절제된 dim+lock 1개 — rarity/등급/가짜 수집률 없음.
+   • 사진만 dim 처리, 배지·이름 텍스트는 대비 유지(opacity 전체적용 금지 — WCAG 고려).
+   ════════════════════════════════════════════════════════════════ */
+.arc-statefilter { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.arc-state-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 700;
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0; white-space: nowrap;
+    color: var(--pt-ink-3); background: var(--pt-bg-3); border: 1px solid var(--pt-line-2);
+    border-radius: var(--pt-r-pill); padding: 8px 14px; cursor: pointer;
+    transition: color var(--pt-dur-fast) var(--pt-ease-out), border-color var(--pt-dur-fast) var(--pt-ease-out), background var(--pt-dur-fast) var(--pt-ease-out);
+}
+.arc-state-btn:hover:not(:disabled) { color: var(--pt-ink-1); border-color: var(--pt-line-3); }
+.arc-state-btn.is-active { color: var(--pt-ink-0); background: var(--pt-bg-4); border-color: var(--pt-red-500); }
+.arc-state-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.arc-state-btn:focus-visible { outline: 2px solid var(--pt-red-300); outline-offset: 1px; }
+.arc-state-ct {
+    font-family: var(--pt-font-mono); font-size: 10px; font-style: normal; font-weight: 500;
+    color: var(--pt-ink-2); background: var(--pt-bg-1); border-radius: var(--pt-r-pill); padding: 1px 7px;
+}
+.arc-state-btn.is-active .arc-state-ct { color: var(--pt-ink-0); }
+
+/* 미보유(획득가능 pool 안, obtainable/unowned 필터 스코프에서만) */
+.arc-fcard.arc-funowned { border-color: var(--pt-line-1); }
+.arc-fcard.arc-funowned .arc-fimg,
+.arc-fcard.arc-funowned .arc-fph { filter: grayscale(0.65) brightness(0.72); }
+.arc-fcard.arc-funowned .arc-fname { color: var(--pt-ink-2); }
+.arc-flock {
+    position: absolute; bottom: 8px; right: 8px; z-index: 1;
+    font-size: 11px; line-height: 1; padding: 4px 6px; border-radius: var(--pt-r-pill);
+    background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.15); color: var(--pt-ink-2);
+}
+
+/* 도감 외 보유(pool 밖 career-permanent 카드) — 0이면 JS에서 아예 미출력 */
+.arc-coll-extra { margin-top: 7px; font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); }
+
+@media (max-width: 400px) {
+    .arc-state-btn { font-size: 11px; padding: 7px 11px; }
+}
