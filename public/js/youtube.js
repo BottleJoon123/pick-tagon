@@ -38,67 +38,35 @@
             '</div></a>';
     }
 
-    // videoId별 oEmbed 제목 조회 (ytMetaCache로 중복 fetch 방지)
-    async function fetchVideoTitle(videoId) {
-        if (ytMetaCache[videoId] !== undefined) return ytMetaCache[videoId];
-        try {
-            var oEmbedUrl = 'https://www.youtube.com/oembed?url=' +
-                encodeURIComponent('https://www.youtube.com/watch?v=' + videoId) +
-                '&format=json';
-            var res = await fetch(oEmbedUrl);
-            if (!res.ok) { ytMetaCache[videoId] = null; return null; }
-            var data = await res.json();
-            var title = (data && data.title) ? String(data.title) : null;
-            ytMetaCache[videoId] = title;
-            return title;
-        } catch(e) {
-            ytMetaCache[videoId] = null;
-            return null;
-        }
-    }
-
-    // r.jina.ai 프록시 텍스트 fetch — AbortController 타임아웃(hang 방지). 미지원 브라우저는 signal 없이 진행.
-    async function _ytFetchText(url, timeoutMs) {
-        var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-        var timer = ctrl ? setTimeout(function() { try { ctrl.abort(); } catch (e) {} }, timeoutMs) : null;
-        try {
-            var res = await fetch(url, { headers: { 'Accept': 'text/plain' }, signal: ctrl ? ctrl.signal : undefined });
-            if (!res.ok) throw new Error('http ' + res.status);
-            return await res.text();
-        } finally {
-            if (timer) clearTimeout(timer);
-        }
-    }
-
+    // [YouTube 안정 수집 V1] 프론트 직접 스크래핑(r.jina.ai→YouTube, 403/CAPTCHA 다발) 중단.
+    //   서버(Edge refresh-youtube-cache)가 채운 public.youtube_cache 를 query별로 SELECT 만 한다.
+    //   캐시 row 있으면 카드 렌더 / 없거나 실패면 [] → 호출측이 YouTube 검색 링크 fallback(가짜 영상 0).
+    //   - success-only 캐시(ytVideoCache): 빈/실패는 캐시 안 함 → 다음 진입 시 재조회 가능.
+    //   - 홈 진입 시 호출 안 됨(loadYoutubeTab → 뉴스 유튜브 카테고리 진입시에만).
     async function fetchYoutubeVideosForQuery(query) {
         if (ytVideoCache[query]) return ytVideoCache[query];
-        // EgQIBBABMAE%3D = "This month" + sort by upload date
-        var searchUrl = 'https://r.jina.ai/https://www.youtube.com/results?search_query=' + encodeURIComponent(query) + '&sp=EgQIBBABMAE%3D';
-        var videoIds = [];
-        // [보강] 소스(r.jina.ai→YouTube)가 403/CAPTCHA로 간헐 차단됨(대부분 실패, 가끔 성공).
-        //   차단 응답은 빠르게 반환되므로 최대 2회 시도(과도한 재시도 금지). 타임아웃으로 hang 방지.
-        for (var attempt = 0; attempt < 2 && videoIds.length === 0; attempt++) {
-            try {
-                var text = await _ytFetchText(searchUrl, 7000);
-                // [보강] videoId 추출 다중 패턴 — r.jina.ai 마크다운(/watch?v=)뿐 아니라 원본 JSON("videoId":"…")도 안전 지원.
-                //   순서 유지 + 중복 제거, 최대 6개. 제목 근처 줄 추정은 여전히 금지(오탐 방지).
-                var seen = new Set();
-                var re = /(?:\/watch\?v=|"videoId":")([A-Za-z0-9_-]{11})/g, mm;
-                while ((mm = re.exec(text)) !== null) {
-                    if (!seen.has(mm[1])) { seen.add(mm[1]); videoIds.push({ id: mm[1], title: null }); }
-                    if (videoIds.length >= 6) break;
-                }
-            } catch (e) { /* timeout/http/network → 다음 시도, 그래도 실패면 아래에서 [] 반환 */ }
+        if (typeof sb === 'undefined' || !sb) return [];   // 클라이언트 없음 → 검색 링크 fallback
+        try {
+            var res = await sb.from('youtube_cache')
+                .select('video_id,title,channel_title,thumbnail_url,published_at')
+                .eq('query', query)
+                .order('published_at', { ascending: false, nullsFirst: false })
+                .limit(6);
+            if (res.error || !res.data || res.data.length === 0) return [];   // 실패/빈 캐시 → fallback(캐시 안 함)
+            var seen = new Set();
+            var videos = [];
+            for (var i = 0; i < res.data.length && videos.length < 6; i++) {
+                var row = res.data[i];
+                if (!row || !row.video_id || seen.has(row.video_id)) continue;   // 중복 video_id 제거
+                seen.add(row.video_id);
+                videos.push({ id: row.video_id, title: row.title || null });
+            }
+            if (videos.length === 0) return [];
+            ytVideoCache[query] = videos;   // 성공분만 캐시
+            return videos;
+        } catch (e) {
+            return [];   // 조회 예외 → fallback, 가짜 영상 생성 없음
         }
-        // 실패(0개) → 캐시하지 않고 [] 반환. 호출측이 YouTube 검색 링크로 fallback(가짜 영상 생성 없음),
-        //   다음 진입 시 재시도 가능(간헐 차단 특성상 중요).
-        if (videoIds.length === 0) return [];
-        // videoId별 oEmbed 제목 병렬 조회(best-effort). 실패해도 title=null → 카드는 ID 기반 썸네일로 정상 표시.
-        await Promise.all(videoIds.map(function(v) {
-            return fetchVideoTitle(v.id).then(function(title) { v.title = title; });
-        }));
-        ytVideoCache[query] = videoIds;   // 성공분만 캐시
-        return videoIds;
     }
 
     function goToYoutubeCard(idx) {
