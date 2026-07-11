@@ -669,20 +669,28 @@
 
     <!-- [SECTION: MMA NEWS] -->
     <section id="mma-news" class="section-animate max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-20 lg:pt-8 lg:pb-20">
-        <div class="mb-5 lg:mb-8 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+        <div class="mb-4 lg:mb-5 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
             <div class="sx-head">
                 <p class="oswald-sharp text-ufcRed text-[10px] tracking-[0.3em] font-black italic uppercase mb-1">AI POWERED</p>
                 <h3 class="oswald-sharp text-3xl lg:text-6xl font-black italic tracking-tighter uppercase leading-none">MMA 뉴스</h3>
                 <p class="text-gray-500 oswald-sharp uppercase tracking-widest mt-2 text-[10px] lg:text-sm italic">한국어 최신 MMA 뉴스 + 유튜브</p>
             </div>
-            <div class="flex gap-3">
+            <div class="flex gap-2 flex-wrap lg:flex-nowrap">
                 <input id="news-search-input" type="text" placeholder="키워드 검색..."
-                    class="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed placeholder-gray-600 w-full lg:w-56">
-                <button onclick="fetchMMANews()" class="oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black px-6 py-3 rounded-xl italic uppercase text-xs tracking-widest transition flex-shrink-0">새로고침</button>
+                    class="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed placeholder-gray-600 flex-1 min-w-0 lg:w-52">
+                <!-- 정렬: 실데이터(발행일) 기반만 노출. 인기/댓글순은 데이터가 없어 제공하지 않음(추측 금지). -->
+                <select id="news-sort" onchange="renderNewsGrid()" aria-label="정렬"
+                    class="bg-black/40 border border-white/10 rounded-xl px-3 py-3 text-white text-xs oswald-sharp italic uppercase tracking-widest focus:outline-none focus:border-ufcRed flex-shrink-0 cursor-pointer">
+                    <option value="latest">최신순</option>
+                    <option value="oldest">오래된순</option>
+                </select>
+                <button onclick="fetchMMANews()" class="oswald-sharp bg-ufcRed hover:bg-red-700 text-white font-black px-5 py-3 rounded-xl italic uppercase text-xs tracking-widest transition flex-shrink-0">새로고침</button>
             </div>
         </div>
+        <!-- BREAKING 티커: 실데이터 최신 헤드라인 순환(renderNewsTicker). 데이터 없으면 hidden. 가짜 속보 생성 없음. -->
+        <div id="news-ticker" class="hidden"></div>
         <!-- Category Tabs -->
-        <div class="flex gap-2 overflow-x-auto pb-2 mb-8" id="news-cat-tabs"></div>
+        <div class="flex gap-2 overflow-x-auto pb-2 mb-6" id="news-cat-tabs"></div>
         <!-- Loading -->
         <div id="news-loading" class="hidden text-center py-16">
             <div class="inline-block w-10 h-10 border-2 border-ufcRed border-t-transparent rounded-full mb-4" style="animation:spin 1s linear infinite"></div>
@@ -5172,9 +5180,27 @@ async function publishPost() {
             return matchCat && matchQ;
         });
 
-        var newsHtml = filtered.length === 0
-            ? '<div class="col-span-2 py-16 text-center oswald-sharp text-xs text-gray-600 italic uppercase tracking-widest">해당하는 뉴스가 없습니다</div>'
-            : filtered.map(buildNewsCardHtml).join('');
+        // [정렬] 실데이터(발행일)만 사용. 기본 latest(=news_cache published_at desc 그대로), oldest는 역순.
+        var sortMode = (document.getElementById('news-sort') || {}).value || 'latest';
+        if (sortMode === 'oldest') {
+            filtered = filtered.slice().sort(function (a, b) { return _newsDateVal(a) - _newsDateVal(b); });
+        } else {
+            filtered = filtered.slice().sort(function (a, b) { return _newsDateVal(b) - _newsDateVal(a); });
+        }
+
+        // [BREAKING 티커] 실데이터 최신 헤드라인만 순환(가짜 속보 없음). 필터/검색과 무관하게 전체 최신 기준.
+        renderNewsTicker();
+
+        var newsHtml;
+        if (filtered.length === 0) {
+            newsHtml = '<div class="col-span-2 py-16 text-center oswald-sharp text-xs text-gray-600 italic uppercase tracking-widest">해당하는 뉴스가 없습니다</div>';
+        } else {
+            // [Featured] 전체 탭 + 검색어 없음 + 최신순일 때만 최신 1건을 대형 카드로 강조(실데이터). 그 외엔 균일 그리드.
+            var useFeatured = (currentNewsCat === 'all' && !query && sortMode === 'latest' && filtered.length >= 3);
+            var featuredHtml = useFeatured ? buildNewsFeaturedHtml(filtered[0]) : '';
+            var listItems = useFeatured ? filtered.slice(1) : filtered;
+            newsHtml = featuredHtml + listItems.map(buildNewsCardHtml).join('');
+        }
 
         // 전체 탭 + 검색어 없을 때 하단에 YouTube 탭 바로가기 추가
         var extraYt = '';
@@ -5187,6 +5213,86 @@ async function publishPost() {
 
         grid.innerHTML = newsHtml + extraYt;
     }
+
+    // 'YYYY.MM.DD' → 정렬용 정수(YYYYMMDD). 파싱 불가 시 0.
+    function _newsDateVal(n) {
+        if (!n || !n.date) return 0;
+        var p = String(n.date).split('.');
+        if (p.length !== 3) return 0;
+        var v = (parseInt(p[0], 10) * 10000) + (parseInt(p[1], 10) * 100) + parseInt(p[2], 10);
+        return isFinite(v) ? v : 0;
+    }
+
+    // ── BREAKING 티커 ── 실데이터 최신 MMA 헤드라인만 순환. 데이터 없으면 완전 숨김.
+    //   가짜 속보/조회수/영상 데이터 생성 없음. 클릭 시 기존 openNewsDetail/원문 경로 재사용.
+    var _newsTickerTimer = null;
+    var _newsTickerIdx = 0;
+    function _stopNewsTicker() { if (_newsTickerTimer) { clearInterval(_newsTickerTimer); _newsTickerTimer = null; } }
+
+    function renderNewsTicker() {
+        var el = document.getElementById('news-ticker');
+        if (!el) return;
+        var items = (typeof cachedNews !== 'undefined' && cachedNews ? cachedNews : [])
+            .filter(function (n) { return n && n.category !== 'youtube' && n.title && (typeof isMMARelated !== 'function' || isMMARelated(n)); })
+            .slice(0, 6);
+        if (items.length === 0) { _stopNewsTicker(); el.classList.add('hidden'); el.innerHTML = ''; return; }
+
+        if (_newsTickerIdx >= items.length) _newsTickerIdx = 0;
+        var itemsHtml = items.map(function (n, i) {
+            var realIdx = cachedNews.indexOf(n);
+            var openAttr = (n.url && n.url.indexOf('http') === 0)
+                ? "onclick=\"window.open('" + n.url + "','_blank')\""
+                : "onclick=\"openNewsDetail(" + realIdx + ")\"";
+            return '<button type="button" ' + openAttr + ' data-tick="' + i + '" ' +
+                'class="nt-item oswald-sharp text-[11px] lg:text-xs font-black italic text-white/90 uppercase tracking-tight text-left truncate w-full" ' +
+                'style="position:absolute;inset:0;display:flex;align-items:center;opacity:' + (i === _newsTickerIdx ? '1' : '0') + ';transition:opacity 260ms ease;pointer-events:' + (i === _newsTickerIdx ? 'auto' : 'none') + ';">' +
+                '<span class="truncate">' + escapeHtml(n.title) + '</span></button>';
+        }).join('');
+
+        el.className = 'flex items-center gap-3 mb-5 rounded-xl px-4 py-2.5 overflow-hidden';
+        el.style.cssText = 'background:var(--pt-bg-2,#14161B);border:1px solid var(--pt-line-1,rgba(255,255,255,0.06))';
+        el.innerHTML =
+            '<span class="oswald-sharp text-[9px] lg:text-[10px] font-black italic uppercase tracking-[0.18em] px-2 py-1 rounded flex-shrink-0" style="background:var(--pt-red-500,#E10600);color:#fff">BREAKING</span>' +
+            '<span class="relative flex-1 min-w-0" style="height:20px">' + itemsHtml + '</span>' +
+            (items.length > 1
+                ? '<span class="flex gap-1 flex-shrink-0">' +
+                    '<button type="button" onclick="_newsTickerStep(-1)" aria-label="이전 헤드라인" class="text-gray-500 hover:text-white text-xs px-1 transition">‹</button>' +
+                    '<button type="button" onclick="_newsTickerStep(1)" aria-label="다음 헤드라인" class="text-gray-500 hover:text-white text-xs px-1 transition">›</button>' +
+                    '</span>'
+                : '');
+
+        _stopNewsTicker();
+        if (items.length > 1) {
+            _newsTickerTimer = setInterval(function () {
+                var t = document.getElementById('news-ticker');
+                if (!t || t.offsetParent === null) { _stopNewsTicker(); return; }   // 탭 벗어나면(숨김) 자동 정지
+                _newsTickerAdvance(1);
+            }, 4000);
+        }
+    }
+    function _newsTickerAdvance(dir) {
+        var t = document.getElementById('news-ticker');
+        if (!t) return;
+        var items = t.querySelectorAll('.nt-item');
+        if (!items.length) return;
+        _newsTickerIdx = (_newsTickerIdx + dir + items.length) % items.length;
+        for (var i = 0; i < items.length; i++) {
+            var on = i === _newsTickerIdx;
+            items[i].style.opacity = on ? '1' : '0';
+            items[i].style.pointerEvents = on ? 'auto' : 'none';
+        }
+    }
+    function _newsTickerStep(dir) { _newsTickerAdvance(dir); _stopNewsTicker();  // 수동 조작 시 자동순환 정지(사용자 제어 우선)
+        var t = document.getElementById('news-ticker');
+        if (t && t.querySelectorAll('.nt-item').length > 1) {
+            _newsTickerTimer = setInterval(function () {
+                var el2 = document.getElementById('news-ticker');
+                if (!el2 || el2.offsetParent === null) { _stopNewsTicker(); return; }
+                _newsTickerAdvance(1);
+            }, 4000);
+        }
+    }
+    if (typeof window !== 'undefined') { window._newsTickerStep = _newsTickerStep; }
 
     async function openNewsDetail(idx) {
         var n = cachedNews[idx];

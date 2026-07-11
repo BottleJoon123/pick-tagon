@@ -57,37 +57,48 @@
         }
     }
 
+    // r.jina.ai 프록시 텍스트 fetch — AbortController 타임아웃(hang 방지). 미지원 브라우저는 signal 없이 진행.
+    async function _ytFetchText(url, timeoutMs) {
+        var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+        var timer = ctrl ? setTimeout(function() { try { ctrl.abort(); } catch (e) {} }, timeoutMs) : null;
+        try {
+            var res = await fetch(url, { headers: { 'Accept': 'text/plain' }, signal: ctrl ? ctrl.signal : undefined });
+            if (!res.ok) throw new Error('http ' + res.status);
+            return await res.text();
+        } finally {
+            if (timer) clearTimeout(timer);
+        }
+    }
+
     async function fetchYoutubeVideosForQuery(query) {
         if (ytVideoCache[query]) return ytVideoCache[query];
-        try {
-            // EgQIBBABMAE%3D = "This month" + sort by upload date
-            var searchUrl = 'https://r.jina.ai/https://www.youtube.com/results?search_query=' + encodeURIComponent(query) + '&sp=EgQIBBABMAE%3D';
-            var res = await fetch(searchUrl, { headers: { 'Accept': 'text/plain' } });
-            if (!res.ok) throw new Error('fetch 실패');
-            var text = await res.text();
-            // videoId만 추출 (제목 근처 줄 추정 금지)
-            var videoIds = [];
-            var seen = new Set();
-            var lines = text.split('\n');
-            for (var i = 0; i < lines.length; i++) {
-                var m = lines[i].match(/\/watch\?v=([\w-]{11})/);
-                if (m && !seen.has(m[1])) {
-                    seen.add(m[1]);
-                    videoIds.push({ id: m[1], title: null });
+        // EgQIBBABMAE%3D = "This month" + sort by upload date
+        var searchUrl = 'https://r.jina.ai/https://www.youtube.com/results?search_query=' + encodeURIComponent(query) + '&sp=EgQIBBABMAE%3D';
+        var videoIds = [];
+        // [보강] 소스(r.jina.ai→YouTube)가 403/CAPTCHA로 간헐 차단됨(대부분 실패, 가끔 성공).
+        //   차단 응답은 빠르게 반환되므로 최대 2회 시도(과도한 재시도 금지). 타임아웃으로 hang 방지.
+        for (var attempt = 0; attempt < 2 && videoIds.length === 0; attempt++) {
+            try {
+                var text = await _ytFetchText(searchUrl, 7000);
+                // [보강] videoId 추출 다중 패턴 — r.jina.ai 마크다운(/watch?v=)뿐 아니라 원본 JSON("videoId":"…")도 안전 지원.
+                //   순서 유지 + 중복 제거, 최대 6개. 제목 근처 줄 추정은 여전히 금지(오탐 방지).
+                var seen = new Set();
+                var re = /(?:\/watch\?v=|"videoId":")([A-Za-z0-9_-]{11})/g, mm;
+                while ((mm = re.exec(text)) !== null) {
+                    if (!seen.has(mm[1])) { seen.add(mm[1]); videoIds.push({ id: mm[1], title: null }); }
+                    if (videoIds.length >= 6) break;
                 }
-                if (videoIds.length >= 6) break;
-            }
-            // videoId별 oEmbed 제목 병렬 조회
-            await Promise.all(videoIds.map(function(v) {
-                return fetchVideoTitle(v.id).then(function(title) {
-                    v.title = title;
-                });
-            }));
-            ytVideoCache[query] = videoIds;
-            return videoIds;
-        } catch(e) {
-            return [];
+            } catch (e) { /* timeout/http/network → 다음 시도, 그래도 실패면 아래에서 [] 반환 */ }
         }
+        // 실패(0개) → 캐시하지 않고 [] 반환. 호출측이 YouTube 검색 링크로 fallback(가짜 영상 생성 없음),
+        //   다음 진입 시 재시도 가능(간헐 차단 특성상 중요).
+        if (videoIds.length === 0) return [];
+        // videoId별 oEmbed 제목 병렬 조회(best-effort). 실패해도 title=null → 카드는 ID 기반 썸네일로 정상 표시.
+        await Promise.all(videoIds.map(function(v) {
+            return fetchVideoTitle(v.id).then(function(title) { v.title = title; });
+        }));
+        ytVideoCache[query] = videoIds;   // 성공분만 캐시
+        return videoIds;
     }
 
     function goToYoutubeCard(idx) {
@@ -169,11 +180,15 @@
     function renderNewsCatTabs() {
         var tabs = document.getElementById('news-cat-tabs');
         if (!tabs) return;
+        // 시각 개선: pill 세그먼트. 활성=레드 필 + 흰 텍스트, 비활성=은은한 보더 + hover 상승.
         tabs.innerHTML = NEWS_CATS.map(function(c) {
             var active = currentNewsCat === c.id;
-            return '<button onclick="setNewsCat(\'' + c.id + '\')" class="oswald-sharp flex-shrink-0 px-4 py-2.5 rounded-xl font-black italic text-[11px] uppercase tracking-widest transition-all border ' +
-                (active ? 'bg-ufcRed/15 border-ufcRed/50 text-white' : 'border-white/10 text-gray-500 hover:text-white') + '">' +
-                c.icon + ' ' + c.label + '</button>';
+            return '<button onclick="setNewsCat(\'' + c.id + '\')" aria-pressed="' + (active ? 'true' : 'false') + '" ' +
+                'class="oswald-sharp flex-shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-full font-black italic text-[11px] uppercase tracking-widest transition-all border ' +
+                (active
+                    ? 'bg-ufcRed border-ufcRed text-white shadow-[0_4px_16px_rgba(225,6,0,0.35)]'
+                    : 'bg-white/[0.02] border-white/10 text-gray-500 hover:text-white hover:border-white/25') + '">' +
+                '<span>' + c.icon + '</span><span>' + c.label + '</span></button>';
         }).join('');
     }
 
