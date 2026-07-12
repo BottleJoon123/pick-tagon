@@ -671,7 +671,7 @@
     <section id="mma-news" class="section-animate max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-20 lg:pt-8 lg:pb-20">
         <div class="mb-4 lg:mb-5 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
             <div class="sx-head">
-                <p class="oswald-sharp text-ufcRed text-[10px] tracking-[0.3em] font-black italic uppercase mb-1">AI POWERED</p>
+                <p class="oswald-sharp text-ufcRed text-[10px] tracking-[0.3em] font-black italic uppercase mb-1">자동 큐레이션</p>
                 <h3 class="oswald-sharp text-3xl lg:text-6xl font-black italic tracking-tighter uppercase leading-none">MMA 뉴스</h3>
                 <p class="text-gray-500 oswald-sharp uppercase tracking-widest mt-2 text-[10px] lg:text-sm italic">한국어 최신 MMA 뉴스 + 유튜브</p>
             </div>
@@ -694,7 +694,7 @@
         <!-- Loading -->
         <div id="news-loading" class="hidden text-center py-16">
             <div class="inline-block w-10 h-10 border-2 border-ufcRed border-t-transparent rounded-full mb-4" style="animation:spin 1s linear infinite"></div>
-            <p class="oswald-sharp text-xs text-gray-500 italic uppercase tracking-widest">AI가 최신 뉴스를 검색 중...</p>
+            <p class="oswald-sharp text-xs text-gray-500 italic uppercase tracking-widest">최신 뉴스를 불러오는 중...</p>
         </div>
         <!-- Grid -->
         <div id="news-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6"></div>
@@ -2597,10 +2597,10 @@
 <script src="/js/storage.js"></script>
 <script src="/js/utils.js?v=4"></script>
 <script src="/js/event-countdown.js"></script>
-<script src="/js/api/supabase.js?v=24"></script>
+<script src="/js/api/supabase.js?v=25"></script>
 <script src="/js/modal-helpers.js"></script>
 <script src="/js/format-helpers.js"></script>
-<script src="/js/news-render-helpers.js"></script>
+<script src="/js/news-render-helpers.js?v=2"></script>
 <script src="/js/news.js"></script>
 <script src="/js/youtube.js?v=1"></script>
 <script src="/js/community.js?v=24"></script>
@@ -5158,8 +5158,10 @@ async function publishPost() {
             return;
         }
 
+        // [뉴스 1.5차] 중복 제거된 공용 목록을 기준으로 사용(티커·featured·목록·검색·정렬 동일 소스, 1회 계산 공유).
+        var dedupedNews = (typeof getDedupedNews === 'function') ? getDedupedNews(cachedNews) : cachedNews;
         // youtube 카테고리 뉴스는 일반 탭에서 제외
-        var newsItems = cachedNews.filter(function(n) { return n.category !== 'youtube'; });
+        var newsItems = dedupedNews.filter(function(n) { return n.category !== 'youtube'; });
 
         // 30일 이내 뉴스만 표시
         var cutoff = new Date();
@@ -5232,7 +5234,11 @@ async function publishPost() {
     function renderNewsTicker() {
         var el = document.getElementById('news-ticker');
         if (!el) return;
-        var items = (typeof cachedNews !== 'undefined' && cachedNews ? cachedNews : [])
+        // [뉴스 1.5차] 티커도 목록·featured와 동일한 중복 제거 결과를 사용(동일 헤드라인 반복 방지).
+        var _tickBase = (typeof cachedNews !== 'undefined' && cachedNews)
+            ? ((typeof getDedupedNews === 'function') ? getDedupedNews(cachedNews) : cachedNews)
+            : [];
+        var items = _tickBase
             .filter(function (n) { return n && n.category !== 'youtube' && n.title && (typeof isMMARelated !== 'function' || isMMARelated(n)); })
             .slice(0, 6);
         if (items.length === 0) { _stopNewsTicker(); el.classList.add('hidden'); el.innerHTML = ''; return; }
@@ -5246,7 +5252,7 @@ async function publishPost() {
             return '<button type="button" ' + openAttr + ' data-tick="' + i + '" ' +
                 'class="nt-item oswald-sharp text-[11px] lg:text-xs font-black italic text-white/90 uppercase tracking-tight text-left truncate w-full" ' +
                 'style="position:absolute;inset:0;display:flex;align-items:center;opacity:' + (i === _newsTickerIdx ? '1' : '0') + ';transition:opacity 260ms ease;pointer-events:' + (i === _newsTickerIdx ? 'auto' : 'none') + ';">' +
-                '<span class="truncate">' + escapeHtml(n.title) + '</span></button>';
+                '<span class="truncate">' + escapeHtml(typeof newsDisplayTitle === 'function' ? newsDisplayTitle(n) : n.title) + '</span></button>';
         }).join('');
 
         el.className = 'flex items-center gap-3 mb-5 rounded-xl px-4 py-2.5 overflow-hidden';
@@ -5302,8 +5308,12 @@ async function publishPost() {
         var ndLoading = document.getElementById('nd-content-loading');
         var ndSummary = document.getElementById('nd-summary');
 
-        document.getElementById('nd-title').textContent = n.title || '';
-        document.getElementById('nd-date').textContent = n.date || '';
+        document.getElementById('nd-title').textContent = (typeof newsDisplayTitle === 'function' ? newsDisplayTitle(n) : (n.title || ''));
+        // [뉴스 1.5차] 상세 모달도 카드와 동일한 상대시간(+절대일자 title). 시각 없으면 빈 값(깨진 표기 방지).
+        var _ndFt = (typeof formatNewsTime === 'function') ? formatNewsTime(n) : { rel: (n.date || ''), abs: (n.date || '') };
+        var _ndDate = document.getElementById('nd-date');
+        _ndDate.textContent = _ndFt.rel || '';
+        if (_ndFt.abs) _ndDate.setAttribute('title', _ndFt.abs); else _ndDate.removeAttribute('title');
         document.getElementById('nd-source-label').textContent = n.source ? '출처: ' + n.source : '';
         document.getElementById('nd-cat-bar').style.background = NEWS_CATEGORY_BAR_COLOR[n.category] || '#fff';
         var badge = document.getElementById('nd-badge');

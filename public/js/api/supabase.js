@@ -190,6 +190,9 @@ function _syncPostsForAuth() {
                             image_url: n.image_url,
                             category: n.category,
                             source: n.source,
+                            // [뉴스 1.5차] 신뢰 가능한 원본 발행시각 보존 → 상대시간 정확도 + dedupe 대표선택 tiebreak.
+                            //   (translateNewsWithGemini 가 Object.assign spread 로 유지)
+                            published_at: n.published_at,
                             date: d.getFullYear() + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0')
                         };
                     });
