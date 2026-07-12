@@ -622,7 +622,8 @@
     }
 
     function likePost(i) {
-        if (!currentUser) { showToast('⚠ 추천은 로그인 후 가능합니다'); return; }
+        // [로그인 UX] 좋아요는 인증 필요 행동 — write/낙관적 UI 전에 중단하고 로그인 모달 유도(자동 재실행 없음).
+        if (!currentUser) { if (typeof openAuthModal === 'function') { openAuthModal('community'); } else { showToast('⚠ 추천은 로그인 후 가능합니다'); } return; }
         var dbId = posts[i].dbId;
         if (likedPostIds.has(dbId)) { showToast('이미 추천한 게시글입니다'); return; }
         posts[i].likes++;
@@ -888,7 +889,8 @@
     var _replyTargetNick = null;
 
     function startReply(commentId, nick) {
-        if (!currentUser) { showToast('⚠ 답글은 로그인 후 작성할 수 있습니다'); return; }
+        // [로그인 UX] 답글은 인증 필요 행동 — reply 상태 변경 전에 중단하고 로그인 모달 유도.
+        if (!currentUser) { if (typeof openAuthModal === 'function') { openAuthModal('community'); } else { showToast('⚠ 로그인이 필요합니다'); } return; }
         _replyTargetCommentId = commentId;
         _replyTargetNick = nick || '';
         var bar = document.getElementById('pd-reply-bar');
@@ -915,7 +917,8 @@
         var input = document.getElementById('pd-com-input');
         var text  = input ? input.value.trim() : '';
         if (!text) return;
-        if (!currentUser) { showToast('⚠ 댓글은 로그인 후 작성할 수 있습니다'); return; }
+        // [로그인 UX] 상세 모달 댓글도 인증 필요 행동 — write 전에 중단하고 로그인 모달 유도.
+        if (!currentUser) { if (typeof openAuthModal === 'function') { openAuthModal('community'); } else { showToast('⚠ 로그인이 필요합니다'); } return; }
         var nick   = getDisplayUsername();
         var body   = text.slice(0, 300);
         var parent = _replyTargetCommentId || null;   // 답글 대상(최상위 댓글 id), null=최상위 댓글

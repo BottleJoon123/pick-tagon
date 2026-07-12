@@ -325,6 +325,21 @@ function _syncPostsForAuth() {
                     updateAuthUI();
                     // MY PICK 하이라이트/픽바를 비로그인 기본값으로 재렌더 (state 초기화 반영)
                     if (typeof updateAllFightCards === 'function') updateAllFightCards();
+                    // [로그인 UX] 비명시적 SIGNED_OUT(세션 만료·타 탭 로그아웃) 정리 — 개인 profile 화면이었다면 공개 home으로.
+                    //   auth-modal/Turnstile 자동 표시 없음(단순 화면 전환). INITIAL_SESSION(비로그인 부팅)에는 적용 안 함(불필요한 홈 이동 방지).
+                    //   명시적 logoutUser도 profile→home을 수행 → 먼저 실행된 쪽이 home으로 옮기고 나머지는 _currentPage 검사로 skip(history 중복 push 0).
+                    if (event === 'SIGNED_OUT' && typeof _currentPage !== 'undefined' && _currentPage === 'profile'
+                        && typeof navigateTo === 'function') {
+                        navigateTo('home');
+                    }
+                }
+                // [로그인 UX] auth 확정 신호 — profile 등 인증 필요 화면이 localStorage 토큰 추정 없이
+                //   공식 INITIAL_SESSION/SIGNED_* 결과로만 해소되게 한다(session/guest 처리 완료 후 set).
+                //   보류된 profile 요청은 resolver가 정확히 1회 소비. SIGNED_OUT 자체로 자동 모달을 열지 않음
+                //   (resolver는 pending이 있을 때만 동작하고, 픽/포인트 write 자동 재실행은 없음).
+                if (typeof window !== 'undefined') {
+                    window.__picktagonAuthReady = true;
+                    if (typeof window.__picktagonResolvePendingProfile === 'function') window.__picktagonResolvePendingProfile();
                 }
             });
             // 현재 세션 확인 — recovery hash fallback + 비로그인 auth-modal 표시
@@ -341,10 +356,10 @@ function _syncPostsForAuth() {
                 }
                 if (!res.data || !res.data.session) {
                     adminUnlocked = false;
-                    // 로그인 안 된 상태 — 모달 표시
-                    setTimeout(function() {
-                        document.getElementById('auth-modal').classList.remove('hidden');
-                    }, 600);
+                    // [로그인 UX 완화] 첫 방문 자동 auth-modal(600ms hard gate) 제거 — 비로그인 공개 탐색 허용.
+                    //   로그인은 실제 인증 필요 행동(픽 저장/변경·글·댓글·좋아요·프로필·관리자) 시점에만 openAuthModal()로 유도.
+                    //   guest 초기화는 onAuthStateChange(INITIAL_SESSION) else-branch가 이미 처리. 서버 RLS/RPC 권한은 불변.
+                    //   recovery/signup/auth callback·관리자 가드·명시적 로그인 버튼은 각자 경로로 그대로 동작.
                 }
                 // 로그인 상태는 onAuthStateChange(INITIAL_SESSION)이 이미 처리
             });
