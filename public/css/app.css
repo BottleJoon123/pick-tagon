@@ -32,7 +32,8 @@ body {
     color: #fff;
     overflow-x: hidden;
     min-height: 100vh;
-    padding-bottom: 72px;
+    /* 모바일 하단 5개 내비(고정) + iOS safe-area 만큼 본문 하단 여백 확보 → 마지막 콘텐츠가 가리지 않게 */
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
 }
 @media(min-width:1024px){ body { padding-bottom:0; } }
 
@@ -2278,3 +2279,164 @@ textarea, select {
 @media (max-width: 400px) {
     .arc-state-btn { font-size: 11px; padding: 7px 11px; }
 }
+
+/* ============================================================
+   모바일 글로벌 내비 개편 — 핵심 5개 + '더보기' 바텀시트
+   (핵심 5개: 홈·대진·랭킹·커뮤니티·더보기. 보조 route는 시트로.)
+   ============================================================ */
+
+/* ── 하단 고정 내비 (5열 고정 grid) ── */
+#mobile-nav {
+    /* background/blur/border-top은 위 #mobile-nav 규칙에서 상속 */
+    padding-bottom: env(safe-area-inset-bottom);   /* iOS 홈 인디케이터 여백 */
+}
+.mobile-nav-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);   /* 5개 동일 폭 — 라벨 길이와 무관하게 고정 */
+    align-items: stretch;
+    width: 100%;
+    padding: 4px 2px 2px;
+}
+.bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 48px;            /* 최소 터치 영역 ≥44px */
+    min-width: 44px;
+    padding: 6px 2px;
+    background: transparent;
+    border: 0;
+    color: var(--pt-ink-2);      /* 비활성: 충분한 대비(#B3B5BC) */
+    cursor: pointer;
+    font-family: inherit;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.18s ease;
+}
+.bottom-nav-item .bnav-ico { width: 22px; height: 22px; display: block; }
+.bottom-nav-item .bnav-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    font-style: italic;
+    text-transform: uppercase;
+    letter-spacing: 0;
+    line-height: 1;
+    white-space: nowrap;         /* 라벨 줄바꿈으로 인한 레이아웃 폭 변화 방지 */
+}
+.bottom-nav-item.active { color: var(--red); }   /* 활성: 픽타곤 red */
+@media (hover: hover) {
+    .bottom-nav-item:hover { color: var(--pt-ink-0); }
+}
+.bottom-nav-item:focus-visible {
+    outline: 2px solid var(--red);
+    outline-offset: -2px;
+    border-radius: 10px;
+    color: var(--pt-ink-0);
+}
+
+/* ── '더보기' 바텀시트 ── */
+body.more-sheet-lock { overflow: hidden; }   /* 열림 중 body scroll 방지 */
+.more-sheet-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 500;                /* 콘텐츠(z-1)·하단 내비(z-50) 위, auth-modal(z-600) 아래 */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    background: rgba(0, 0, 0, 0.62);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+}
+/* hidden cascade 방어 — Tailwind .hidden(display:none)이 .more-sheet-overlay(display:flex)에 밀리지 않도록
+   더 높은 특이도로 명시(초기 로드 sheet flash 0, CSS 순서 비의존). */
+.more-sheet-overlay.hidden { display: none; }
+.more-sheet-panel {
+    width: 100%;
+    max-height: 82vh;
+    overflow-y: auto;
+    background: var(--pt-bg-1);
+    border-top: 1px solid var(--pt-line-2);
+    border-top-left-radius: 18px;
+    border-top-right-radius: 18px;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.55);
+    padding-bottom: env(safe-area-inset-bottom);
+    animation: moreSheetUp 0.22s ease-out;
+}
+@keyframes moreSheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .more-sheet-panel { animation: none; } }
+.more-sheet-header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 18px 10px;
+}
+.more-sheet-header::before {   /* 그랩 핸들 */
+    content: "";
+    position: absolute;
+    top: 8px; left: 50%;
+    width: 36px; height: 4px;
+    transform: translateX(-50%);
+    background: var(--pt-line-3);
+    border-radius: 2px;
+}
+.more-sheet-title {
+    margin: 0;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 18px;
+    font-weight: 800;
+    font-style: italic;
+    text-transform: uppercase;
+    letter-spacing: 0;
+    color: var(--pt-ink-0);
+}
+.more-sheet-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px; height: 40px;
+    background: var(--pt-bg-3);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 11px;
+    color: var(--pt-ink-2);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.more-sheet-close:hover { background: var(--pt-bg-2); color: var(--pt-ink-0); }
+.more-sheet-close:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+.more-sheet-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 4px 12px 8px;
+}
+.more-sheet-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    min-height: 52px;
+    padding: 12px 14px;
+    background: var(--pt-bg-2);
+    border: 1px solid var(--pt-line-1);
+    border-radius: 12px;
+    color: var(--pt-ink-1);
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.more-sheet-item .msi-ico { width: 22px; height: 22px; flex: none; color: var(--pt-ink-2); }
+.more-sheet-item .msi-label { flex: 1 1 auto; font-size: 15px; font-weight: 600; letter-spacing: 0; }
+.more-sheet-item .msi-chev { width: 18px; height: 18px; flex: none; color: var(--pt-ink-3); }
+.more-sheet-item:hover { background: var(--pt-bg-3); border-color: var(--pt-line-2); color: var(--pt-ink-0); }
+.more-sheet-item:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+.more-sheet-item.active {
+    background: rgba(225, 6, 0, 0.10);
+    border-color: rgba(225, 6, 0, 0.50);
+    color: var(--pt-ink-0);
+}
+.more-sheet-item.active .msi-ico { color: var(--red); }
+.more-sheet-safe { height: 4px; }

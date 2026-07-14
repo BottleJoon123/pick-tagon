@@ -77,7 +77,7 @@
 <link href="/css/tokens.css" rel="stylesheet">
 <link href="/css/theme-bridge.css" rel="stylesheet">
 <link rel="stylesheet" href="./src/tailwind.css">
-<link href="/css/app.css?v=23" rel="stylesheet">
+<link href="/css/app.css?v=24" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 <!-- Supabase — defer: head 파싱 블로킹 제거. createClient는 initSupabase(window.onload)에서만 호출되므로
      defer(파싱 후·DOMContentLoaded 전 실행)로도 초기화 시점에 window.supabase 보장됨. -->
@@ -261,45 +261,71 @@
     </div>
 </nav>
 
-<!-- Mobile Bottom Navigation -->
-<nav id="mobile-nav" class="lg:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center py-2 px-1">
-    <button onclick="navigateTo('home')" id="mob-nav-home" class="bottom-nav-item active flex flex-col items-center gap-0.5 px-2 py-1">
-        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
-        <span class="barlow text-[9px] font-bold italic uppercase">홈</span>
-    </button>
-    <button onclick="navigateTo('matchups')" id="mob-nav-matchups" class="bottom-nav-item flex flex-col items-center gap-0.5 px-2 py-1 text-gray-600">
-        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14h-4v-4h4v4zm0-6h-4V7h4v4z"/></svg>
-        <span class="barlow text-[9px] font-bold italic uppercase">대진</span>
-    </button>
-    <button onclick="navigateTo('ufc-rankings')" id="mob-nav-ufc-rankings" class="bottom-nav-item flex flex-col items-center gap-0.5 px-2 py-1 text-gray-600">
-        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-        <span class="barlow text-[9px] font-bold italic uppercase">UFC</span>
-    </button>
-    <button onclick="navigateTo('rankings')" id="mob-nav-rankings" class="bottom-nav-item flex flex-col items-center gap-0.5 px-2 py-1 text-gray-600">
-        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M7 13h10v2H7zm0-4h10v2H7zm0-4h10v2H7zm0 12h10v2H7z"/></svg>
-        <span class="barlow text-[9px] font-bold italic uppercase">유저랭킹</span>
-    </button>
-    <button onclick="navigateTo('mma-news')" id="mob-nav-mma-news" class="bottom-nav-item flex flex-col items-center gap-0.5 px-2 py-1 text-gray-600">
-        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8h16v10zM6 10h8v2H6zm0 4h12v2H6zm10-4h2v2h-2z"/></svg>
-        <span class="barlow text-[9px] font-bold italic uppercase">뉴스</span>
-    </button>
-    <button onclick="navigateTo('community')" id="mob-nav-community" class="bottom-nav-item flex flex-col items-center gap-0.5 px-2 py-1 text-gray-600">
-        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M21 6h-2v9H6v2c0 .55.45 1 1 1h11l4 4V7c0-.55-.45-1-1-1zm-4 6V3c0-.55-.45-1-1-1H3c-.55 0-1 .45-1 1v14l4-4h10c.55 0 1-.45 1-1z"/></svg>
-        <span class="barlow text-[9px] font-bold italic uppercase">커뮤</span>
-    </button>
-    <button onclick="navigateTo('profile')" id="mob-nav-profile" class="bottom-nav-item flex flex-col items-center gap-0.5 px-2 py-1 text-gray-600">
-        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-        <span class="barlow text-[9px] font-bold italic uppercase">프로필</span>
-    </button>
-    <button onclick="navigateTo('archive')" id="mob-nav-archive" class="bottom-nav-item flex flex-col items-center gap-0.5 px-2 py-1 text-gray-600">
-        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v2c0 .72.41 1.35 1 1.68V18c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V9.68c.59-.33 1-.96 1-1.68V6c0-1.1-.9-2-2-2zm-1 14H5V10h14v8zm1-10H4V6h16v2zm-6 4h-4v2h4v-2z"/></svg>
-        <span class="barlow text-[9px] font-bold italic uppercase">아카이브</span>
-    </button>
-    <button onclick="openAdminGate()" id="mob-nav-admin" class="hidden bottom-nav-item flex flex-col items-center gap-0.5 px-2 py-1 text-gray-700">
-        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32a.49.49 0 00-.6-.22l-2.39.96a7.03 7.03 0 00-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 00-.6.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.6.22l2.39-.96c.5.37 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6a3.6 3.6 0 110-7.2 3.6 3.6 0 010 7.2z"/></svg>
-        <span class="barlow text-[9px] font-bold italic uppercase">Admin</span>
-    </button>
+<!-- Mobile Bottom Navigation — 핵심 5개(홈·대진·랭킹·커뮤니티·더보기). 보조 route는 더보기 시트로. -->
+<nav id="mobile-nav" class="lg:hidden fixed bottom-0 left-0 w-full z-50" role="navigation" aria-label="주요 메뉴">
+    <div class="mobile-nav-grid">
+        <button type="button" onclick="navigateTo('home')" id="mob-nav-home" class="bottom-nav-item active" aria-current="page" aria-label="홈">
+            <svg class="bnav-ico" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+            <span class="bnav-label">홈</span>
+        </button>
+        <button type="button" onclick="navigateTo('matchups')" id="mob-nav-matchups" class="bottom-nav-item" aria-label="대진·픽">
+            <svg class="bnav-ico" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14h-4v-4h4v4zm0-6h-4V7h4v4z"/></svg>
+            <span class="bnav-label">대진</span>
+        </button>
+        <button type="button" onclick="navigateTo('rankings')" id="mob-nav-rankings" class="bottom-nav-item" aria-label="랭킹">
+            <svg class="bnav-ico" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24"><path d="M7 13h10v2H7zm0-4h10v2H7zm0-4h10v2H7zm0 12h10v2H7z"/></svg>
+            <span class="bnav-label">랭킹</span>
+        </button>
+        <button type="button" onclick="navigateTo('community')" id="mob-nav-community" class="bottom-nav-item" aria-label="커뮤니티">
+            <svg class="bnav-ico" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24"><path d="M21 6h-2v9H6v2c0 .55.45 1 1 1h11l4 4V7c0-.55-.45-1-1-1zm-4 6V3c0-.55-.45-1-1-1H3c-.55 0-1 .45-1 1v14l4-4h10c.55 0 1-.45 1-1z"/></svg>
+            <span class="bnav-label">커뮤니티</span>
+        </button>
+        <button type="button" onclick="openMoreSheet()" id="mob-nav-more" class="bottom-nav-item" aria-label="더보기" aria-haspopup="dialog" aria-expanded="false" aria-controls="more-sheet-modal">
+            <svg class="bnav-ico" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24"><path d="M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 0h6v6h-6z"/></svg>
+            <span class="bnav-label">더보기</span>
+        </button>
+    </div>
 </nav>
+
+<!-- 더보기 바텀시트 (모바일 전용) — 보조 route: UFC 랭킹·뉴스·아카이브·프로필 (+어드민은 adminUnlocked 시). id가 -modal로 끝나 기존 모달 history 체계에 통합. -->
+<div id="more-sheet-modal" class="hidden more-sheet-overlay lg:hidden" role="dialog" aria-modal="true" aria-labelledby="more-sheet-title" onclick="if(event.target===this)closeMoreSheet()">
+    <div class="more-sheet-panel">
+        <div class="more-sheet-header">
+            <h2 id="more-sheet-title" class="more-sheet-title">더보기</h2>
+            <button type="button" class="more-sheet-close" onclick="closeMoreSheet()" aria-label="더보기 닫기">
+                <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+        </div>
+        <div class="more-sheet-list">
+            <button type="button" onclick="moreSheetGo('ufc-rankings')" id="more-item-ufc-rankings" class="more-sheet-item">
+                <svg class="msi-ico" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                <span class="msi-label">UFC 랭킹</span>
+                <svg class="msi-chev" aria-hidden="true" fill="none" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <button type="button" onclick="moreSheetGo('mma-news')" id="more-item-mma-news" class="more-sheet-item">
+                <svg class="msi-ico" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8h16v10zM6 10h8v2H6zm0 4h12v2H6zm10-4h2v2h-2z"/></svg>
+                <span class="msi-label">뉴스</span>
+                <svg class="msi-chev" aria-hidden="true" fill="none" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <button type="button" onclick="moreSheetGo('archive')" id="more-item-archive" class="more-sheet-item">
+                <svg class="msi-ico" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v2c0 .72.41 1.35 1 1.68V18c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V9.68c.59-.33 1-.96 1-1.68V6c0-1.1-.9-2-2-2zm-1 14H5V10h14v8zm1-10H4V6h16v2zm-6 4h-4v2h4v-2z"/></svg>
+                <span class="msi-label">아카이브</span>
+                <svg class="msi-chev" aria-hidden="true" fill="none" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <button type="button" onclick="moreSheetGo('profile')" id="more-item-profile" class="more-sheet-item">
+                <svg class="msi-ico" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                <span class="msi-label">프로필</span>
+                <svg class="msi-chev" aria-hidden="true" fill="none" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <button type="button" onclick="moreSheetGo('admin')" id="mob-nav-admin" data-route="admin" class="hidden more-sheet-item">
+                <svg class="msi-ico" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32a.49.49 0 00-.6-.22l-2.39.96a7.03 7.03 0 00-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 00-.6.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.6.22l2.39-.96c.5.37 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6a3.6 3.6 0 110-7.2 3.6 3.6 0 010 7.2z"/></svg>
+                <span class="msi-label">관리자</span>
+                <svg class="msi-chev" aria-hidden="true" fill="none" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+        </div>
+        <div class="more-sheet-safe" aria-hidden="true"></div>
+    </div>
+</div>
 
 <main class="relative" style="z-index:1;overflow:hidden">
     <!-- [SECTION: HOME] -->
@@ -2712,6 +2738,13 @@
        FIGHT CARD RENDERING
     ============================== */
     var _currentPage = 'home';
+    // [모바일 nav] route → 하단 5개 버튼 그룹 매핑. 보조 route는 '더보기'(more)로 묶어 active 표현.
+    //   데스크톱 nav(nav-<id>)는 이 매핑을 쓰지 않고 기존대로 route id 그대로 유지.
+    var MOBILE_NAV_GROUP = {
+        'home': 'home', 'matchups': 'matchups', 'rankings': 'rankings', 'community': 'community',
+        'ufc-rankings': 'more', 'mma-news': 'more', 'archive': 'more', 'profile': 'more', 'admin': 'more'
+    };
+    var _moreSheetNavPending = null;   // 더보기 항목 클릭 시: 시트 history 소비 후 이동할 route(popstate 훅에서 처리)
     // [로그인 UX] auth 준비 상태 — Supabase 내부 localStorage 형식을 추정하지 않고 공식 onAuthStateChange
     //   (INITIAL_SESSION) 결과로만 guest/로그인을 판정한다. 확정 전 profile 요청은 pending으로 보류.
     window.__picktagonAuthReady = false;
@@ -2768,15 +2801,17 @@
         const desktopNav = document.getElementById('nav-' + id);
         if(desktopNav) desktopNav.classList.add('active');
 
-        document.querySelectorAll('.bottom-nav-item').forEach(btn => {
-            btn.classList.remove('active', 'text-ufcRed');
-            btn.classList.add('text-gray-500');
+        // [모바일 nav] 핵심 5개 버튼 active — 보조 route(ufc-rankings/mma-news/archive/profile)는 '더보기' 그룹으로 매핑.
+        //   메뉴 id마다 하드코딩하지 않고 MOBILE_NAV_GROUP 매핑 1곳으로 처리. active 색은 CSS(.bottom-nav-item.active)가 담당.
+        var _navGroup = MOBILE_NAV_GROUP[id] || null;
+        document.querySelectorAll('.bottom-nav-item').forEach(function(btn) {
+            var on = !!(_navGroup && btn.id === 'mob-nav-' + _navGroup);
+            btn.classList.toggle('active', on);
+            if (on) btn.setAttribute('aria-current', 'page');
+            else btn.removeAttribute('aria-current');
         });
-        const mobNav = document.getElementById('mob-nav-' + id);
-        if(mobNav) {
-            mobNav.classList.add('active', 'text-ufcRed');
-            mobNav.classList.remove('text-gray-500');
-        }
+        // 더보기 시트가 열려 있으면 내부 보조 항목 active도 현재 route로 동기화
+        if (typeof syncMoreSheetActive === 'function') syncMoreSheetActive();
         if(id === 'home') { renderHomeNews(); initHome(); }
         if(id === 'octagon') {
             window.scrollTo(0, 0);
@@ -2863,7 +2898,8 @@
         'result-modal':          'closeResultModal',
         'pw-update-modal':       'closePasswordUpdateModal',
         'recovery-modal':        'closeRecoveryModal',  // Back/Esc 시 keydown 리스너까지 정리
-        'archive-detail-modal':  'closeArchiveDetailModal'  // body 스크롤 복원 + Esc 리스너 정리
+        'archive-detail-modal':  'closeArchiveDetailModal',  // body 스크롤 복원 + Esc 리스너 정리
+        'more-sheet-modal':      'closeMoreSheet'       // body 스크롤 복원 + focus 복귀 + aria-expanded 갱신
     };
 
     function _openModalEls() {
@@ -2926,6 +2962,12 @@
     window.addEventListener('popstate', function(e) {
         if (_suppressModalPop) {            // 우리가 부른 수동-close 동기화 pop
             _suppressModalPop = false;
+            // 더보기 항목 클릭: 시트 history 엔트리가 방금 소비됐으니, 이제 route를 push(엔트리 정확히 1개).
+            if (_moreSheetNavPending) {
+                var _pend = _moreSheetNavPending;
+                _moreSheetNavPending = null;
+                if (typeof navigateTo === 'function') navigateTo(_pend);
+            }
             return;
         }
         var top = _topModalEl();
@@ -5945,6 +5987,95 @@ async function publishPost() {
     function skipAuth() {
         closeAuthModal();
         showToast('로그인 없이 둘러볼 수 있어요');
+    }
+
+    /* ==============================
+       모바일 '더보기' 바텀시트
+       - id 'more-sheet-modal'이 -modal로 끝나 기존 modal-history observer가 open/close 시 history 1개를 push/consume.
+       - MODAL_CLOSE_FN에 closeMoreSheet 등록 → Back으로 닫힐 때도 body scroll·focus·aria 정리.
+       - 항목 이동은 moreSheetGo: 시트 history 엔트리를 먼저 소비(popstate 훅) 후 navigateTo → history 엔트리 정확히 1개.
+    ============================== */
+    function syncMoreSheetActive() {
+        var sheet = document.getElementById('more-sheet-modal');
+        if (!sheet) return;
+        var items = sheet.querySelectorAll('.more-sheet-item');
+        for (var i = 0; i < items.length; i++) {
+            // route는 data-route 우선(어드민 항목은 id가 mob-nav-admin이라 fallback 불가), 없으면 id에서 유도.
+            var route = items[i].getAttribute('data-route') || items[i].id.replace('more-item-', '');
+            var on = route === _currentPage;
+            items[i].classList.toggle('active', on);
+            if (on) items[i].setAttribute('aria-current', 'page');
+            else items[i].removeAttribute('aria-current');
+        }
+    }
+    function openMoreSheet() {
+        var sheet = document.getElementById('more-sheet-modal');
+        if (!sheet || !sheet.classList.contains('hidden')) return;   // 이미 열림 → 연타 중복 방지
+        syncMoreSheetActive();                                       // 현재 secondary route 항목 active 표시
+        document.body.classList.add('more-sheet-lock');              // body scroll 방지
+        sheet.classList.remove('hidden');                           // → observer가 history 엔트리 1개 push
+        var moreBtn = document.getElementById('mob-nav-more');
+        if (moreBtn) moreBtn.setAttribute('aria-expanded', 'true');
+        var first = sheet.querySelector('.more-sheet-item:not(.hidden)');   // 열릴 때 첫 항목에 focus
+        if (first) { try { first.focus(); } catch (e) {} }
+    }
+    function closeMoreSheet(skipFocus) {
+        var sheet = document.getElementById('more-sheet-modal');
+        if (!sheet || sheet.classList.contains('hidden')) return;    // 멱등 — 이미 닫힘
+        sheet.classList.add('hidden');                              // → 수동 close면 observer가 history.back()로 엔트리 소비
+        document.body.classList.remove('more-sheet-lock');          // scroll 복원
+        var moreBtn = document.getElementById('mob-nav-more');
+        if (moreBtn) moreBtn.setAttribute('aria-expanded', 'false');
+        // 닫힐 때 더보기 버튼으로 focus 복귀. observer의 history.back()(엔트리 소비) popstate가 focus를 body로
+        //   되돌린 뒤에 실행되도록 double-rAF로 1회 defer(paint 직전, popstate task 이후) — polling 아님.
+        if (!skipFocus && moreBtn) {
+            var _refocus = function() { try { moreBtn.focus(); } catch (e) {} };
+            if (typeof requestAnimationFrame === 'function') requestAnimationFrame(function() { requestAnimationFrame(_refocus); });
+            else setTimeout(_refocus, 50);
+        }
+    }
+    function moreSheetGo(id) {
+        var sheet = document.getElementById('more-sheet-modal');
+        if (!sheet || sheet.classList.contains('hidden')) {         // 시트가 이미 닫혀 있으면 소비할 엔트리 없음 → 즉시 이동
+            _moreSheetNavPending = null;
+            navigateTo(id);
+            return;
+        }
+        _moreSheetNavPending = id;      // popstate(_suppressModalPop) 훅이 소비 후 navigateTo(id)
+        closeMoreSheet(true);           // skipFocus: 이동하므로 더보기 버튼 focus 복귀 생략
+    }
+    // 더보기 시트: Escape 닫기 + Tab focus trap (최상위 모달일 때만). 단일 keydown listener로 처리(중복 없음).
+    document.addEventListener('keydown', function(e) {
+        if (e.key !== 'Escape' && e.key !== 'Tab') return;
+        var sheet = document.getElementById('more-sheet-modal');
+        if (!sheet || sheet.classList.contains('hidden')) return;
+        if (typeof _topModalEl !== 'function' || _topModalEl() !== sheet) return;
+        if (e.key === 'Escape') { closeMoreSheet(); return; }
+        // Tab: 시트 내부(닫기 버튼 + visible·non-disabled 메뉴)로 순환. hidden admin 등은 제외.
+        var focusables = Array.prototype.slice.call(sheet.querySelectorAll('.more-sheet-close, .more-sheet-item'))
+            .filter(function(el) { return !el.classList.contains('hidden') && !el.disabled && el.offsetParent !== null; });
+        if (!focusables.length) return;
+        var first = focusables[0], last = focusables[focusables.length - 1];
+        var active = document.activeElement;
+        if (!sheet.contains(active)) { e.preventDefault(); first.focus(); return; }   // focus 유출 → 첫 번째로 복귀
+        if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); }       // 첫 → 마지막
+        else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); } // 마지막 → 첫
+    });
+    if (typeof window !== 'undefined') {
+        window.openMoreSheet = openMoreSheet; window.closeMoreSheet = closeMoreSheet;
+        window.moreSheetGo = moreSheetGo; window.syncMoreSheetActive = syncMoreSheetActive;
+    }
+    // 모바일→데스크톱(≥1024px) 전환 시 열린 시트 정리 — matchMedia change 1회 등록(resize polling 없음).
+    //   skipFocus=true: 데스크톱에선 모바일 더보기 버튼이 hidden이라 focus를 보내지 않음. history 엔트리는 정상 소비.
+    if (typeof window !== 'undefined' && window.matchMedia) {
+        var _mqlDesktop = window.matchMedia('(min-width: 1024px)');
+        var _onDesktopChange = function(ev) {
+            if (!ev.matches) return;
+            var sheet = document.getElementById('more-sheet-modal');
+            if (sheet && !sheet.classList.contains('hidden')) closeMoreSheet(true);
+        };
+        if (_mqlDesktop.addEventListener) _mqlDesktop.addEventListener('change', _onDesktopChange);
+        else if (_mqlDesktop.addListener) _mqlDesktop.addListener(_onDesktopChange);   // 구형 Safari fallback
     }
 
     function logoutUser() {
