@@ -9,6 +9,11 @@
 var _fightCardCache = {};
 var _betSlipIsChange = false;
 
+// 선택 전 Hero CTA — canonical odds/payout만 사용, 항상 '픽하기' 행동 단서 포함(빈 오버레이 aria-label에만 의존 금지).
+function _fcPickCta(odds) {
+    return odds ? ('픽하기 &nbsp;·&nbsp; +' + Math.round(odds * 100) + 'P') : '픽하기 ›';
+}
+
 // ── 체급 약어 → 한국어 전체 이름 맵 ───────────────────────────────
 var _DIV_KR = {
     'hw': '헤비웨이트', 'lhw': '라이트헤비웨이트',
@@ -31,6 +36,21 @@ function openPickSlipFromCard(fightId) {
     var f1Last = fight.f1.name.split(' ').pop();
     var f2Last = fight.f2.name.split(' ').pop();
     openPickSlip(fightId, f1Last + ' vs ' + f2Last, fight.f1.name, fight.f1.odds || 1.9, fight.f2.name, fight.f2.odds || 1.9);
+}
+
+// 카드의 파이터 선택 버튼(red/blue) → 해당 side를 pre-select 해 픽 슬립을 연다.
+//   비로그인은 write 경로 진입 전 openAuthModal('pick')로 유도(자동 재실행/pending intent 없음).
+function pickFighterFromCard(fightId, side) {
+    if (typeof currentUser === 'undefined' || !currentUser) {
+        if (typeof openAuthModal === 'function') openAuthModal('pick');
+        else showToast('⚠ 픽은 로그인 후 가능합니다');
+        return;
+    }
+    var fight = _fightCardCache[fightId];
+    if (!fight) return;
+    var f1Last = fight.f1.name.split(' ').pop();
+    var f2Last = fight.f2.name.split(' ').pop();
+    openPickSlip(fightId, f1Last + ' vs ' + f2Last, fight.f1.name, fight.f1.odds || 1.9, fight.f2.name, fight.f2.odds || 1.9, side);
 }
 
 // ── Dot Form Helper ──────────────────────────────────────────────
@@ -95,9 +115,9 @@ function _renderHeroHdr(fight, isMain, tagColor) {
             '<span style="font-size:7px;font-weight:900;font-style:italic;text-transform:uppercase;padding:3px 8px;border-radius:999px;flex-shrink:0;line-height:1.5;letter-spacing:0.02em;' + tagSt + '">' + tagShort + '</span>' +
             '<span style="font-size:7px;font-weight:900;font-style:italic;text-transform:uppercase;color:rgba(107,114,128,1);flex-shrink:0;white-space:nowrap;letter-spacing:0.02em;">' + divShort + '</span>' +
             '<div style="flex:1;min-width:0;"></div>' +
-            '<button data-no-pick="1" onclick="event.stopPropagation();sharePicktagonMatchCard(\'' + fight.id + '\')" style="font-size:15px;padding:4px 7px;border:1px solid rgba(255,255,255,0.1);border-radius:999px;background:transparent;color:rgba(107,114,128,1);cursor:pointer;flex-shrink:0;line-height:1;">📤</button>' +
-            '<button onclick="toggleStatsOverlay(\'' + fight.id + '\')" style="font-size:15px;padding:4px 7px;border:1px solid rgba(255,255,255,0.15);border-radius:999px;background:transparent;color:rgba(156,163,175,1);cursor:pointer;flex-shrink:0;line-height:1;">ℹ️</button>' +
-            '<button onclick="toggleAnalysis(\'' + fight.id + '\')" id="analysis-btn-' + fight.id + '" style="font-size:8px;font-weight:900;font-style:italic;text-transform:uppercase;background:transparent;border:none;color:rgba(107,114,128,1);cursor:pointer;flex-shrink:0;padding:4px;line-height:1;"><span id="analysis-btn-label-' + fight.id + '">▼</span></button>' +
+            '<button type="button" data-no-pick="1" class="fc-aux-btn" aria-label="이 경기 공유하기" title="이 경기 공유하기" onclick="event.stopPropagation();sharePicktagonMatchCard(\'' + fight.id + '\')" style="font-size:15px;border:1px solid rgba(255,255,255,0.1);border-radius:999px;background:transparent;color:rgba(107,114,128,1);cursor:pointer;flex-shrink:0;line-height:1;">📤</button>' +
+            '<button type="button" id="stats-btn-' + fight.id + '" class="fc-aux-btn" aria-label="스탯 비교 보기" title="스탯 비교 보기" aria-expanded="false" aria-controls="stats-overlay-' + fight.id + '" onclick="toggleStatsOverlay(\'' + fight.id + '\')" style="font-size:15px;border:1px solid rgba(255,255,255,0.15);border-radius:999px;background:transparent;color:rgba(156,163,175,1);cursor:pointer;flex-shrink:0;line-height:1;">ℹ️</button>' +
+            '<button type="button" onclick="toggleAnalysis(\'' + fight.id + '\')" id="analysis-btn-' + fight.id + '" class="fc-aux-btn" aria-label="경기 분석 보기" title="경기 분석 보기" aria-expanded="false" aria-controls="analysis-' + fight.id + '" style="font-size:8px;font-weight:900;font-style:italic;text-transform:uppercase;background:transparent;border:none;color:rgba(107,114,128,1);cursor:pointer;flex-shrink:0;line-height:1;"><span id="analysis-btn-label-' + fight.id + '">▼</span></button>' +
             '</div>';
     }
     return '<div class="flex items-center justify-between px-5 lg:px-10 py-3 lg:py-4 border-b border-white/10 bg-black/30">' +
@@ -106,9 +126,9 @@ function _renderHeroHdr(fight, isMain, tagColor) {
         '<span class="oswald-sharp text-[8px] lg:text-xs text-gray-500 font-black italic tracking-widest uppercase">' + _divLabel(fight.division) + '</span>' +
         '</div>' +
         '<div class="flex items-center gap-2 lg:gap-3">' +
-        '<button data-no-pick="1" onclick="event.stopPropagation(); sharePicktagonMatchCard(\'' + fight.id + '\')" class="oswald-sharp text-[9px] lg:text-[10px] text-gray-500 hover:text-ufcRed transition font-black italic uppercase tracking-widest border border-white/10 hover:border-ufcRed/40 px-3 py-1.5 rounded-full active:scale-95">📤 공유</button>' +
-        '<button onclick="toggleStatsOverlay(\'' + fight.id + '\')" class="oswald-sharp text-[8px] lg:text-[10px] text-gray-400 hover:text-white transition font-black italic uppercase tracking-widest border border-white/15 px-2.5 py-1 rounded-full">ℹ️ STATS</button>' +
-        '<button onclick="toggleAnalysis(\'' + fight.id + '\')" id="analysis-btn-' + fight.id + '" class="oswald-sharp text-[8px] lg:text-xs text-gray-500 hover:text-ufcRed transition font-black italic uppercase tracking-widest flex items-center gap-1"><span id="analysis-btn-label-' + fight.id + '">▼ ANALYSIS</span></button>' +
+        '<button type="button" data-no-pick="1" title="이 경기 공유하기" onclick="event.stopPropagation(); sharePicktagonMatchCard(\'' + fight.id + '\')" class="fc-aux-btn oswald-sharp text-[9px] lg:text-[10px] text-gray-500 hover:text-ufcRed transition font-black italic uppercase tracking-widest border border-white/10 hover:border-ufcRed/40 px-3 rounded-full active:scale-95">📤 공유</button>' +
+        '<button type="button" id="stats-btn-' + fight.id + '" title="스탯 비교 보기" aria-expanded="false" aria-controls="stats-overlay-' + fight.id + '" onclick="toggleStatsOverlay(\'' + fight.id + '\')" class="fc-aux-btn oswald-sharp text-[8px] lg:text-[10px] text-gray-400 hover:text-white transition font-black italic uppercase tracking-widest border border-white/15 px-2.5 rounded-full">ℹ️ STATS</button>' +
+        '<button type="button" onclick="toggleAnalysis(\'' + fight.id + '\')" id="analysis-btn-' + fight.id + '" title="경기 분석 보기" aria-expanded="false" aria-controls="analysis-' + fight.id + '" class="fc-aux-btn oswald-sharp text-[8px] lg:text-xs text-gray-500 hover:text-ufcRed transition font-black italic uppercase tracking-widest gap-1"><span id="analysis-btn-label-' + fight.id + '">▼ ANALYSIS</span></button>' +
         '</div>' +
         '</div>';
 }
@@ -120,7 +140,7 @@ function renderHeroCard(fight, idx) {
     const bias = fight.leftBias || 0.5;
     const redA = (Math.max(0, bias - 0.5) * 2 * 0.5).toFixed(2);
     const blueA = (Math.max(0, 0.5 - bias) * 2 * 0.5).toFixed(2);
-    const glowStyle = `box-shadow: 0 0 48px rgba(210,10,10,${redA}), 0 0 48px rgba(37,99,235,${blueA}); cursor:pointer;`;
+    const glowStyle = `box-shadow: 0 0 48px rgba(210,10,10,${redA}), 0 0 48px rgba(37,99,235,${blueA});`;
     const f1Last = fight.f1.name.split(' ').pop();
     const f2Last = fight.f2.name.split(' ').pop();
     const f1Img = fight.f1.imgUrl || '';
@@ -134,7 +154,7 @@ function renderHeroCard(fight, idx) {
 
     _fightCardCache[fight.id] = fight;
     return `
-    <div id="card-${fight.id}" onclick="if(event.target.closest('button,[data-no-pick]')) return; openPickSlipFromCard('${fight.id}')" class="fc-hero-card glass-card ${isMain ? 'rounded-[2.5rem] lg:rounded-[4rem]' : 'rounded-[2rem] lg:rounded-[3rem]'} overflow-hidden transition-all duration-500" style="${glowStyle}">
+    <div id="card-${fight.id}" class="fc-hero-card glass-card ${isMain ? 'rounded-[2.5rem] lg:rounded-[4rem]' : 'rounded-[2rem] lg:rounded-[3rem]'} overflow-hidden transition-all duration-500" style="${glowStyle}">
         ${_renderHeroHdr(fight, isMain, tagColor)}
 
         <!-- Community Pick Bar -->
@@ -166,8 +186,17 @@ function renderHeroCard(fight, idx) {
             <div class="absolute inset-x-0 top-0 h-1/5 pointer-events-none" style="background:linear-gradient(to bottom,rgba(8,8,8,0.40) 0%,transparent 100%);"></div>
             <!-- Bottom Fade -->
             <div class="absolute inset-x-0 bottom-0 h-2/3 pointer-events-none" style="background:linear-gradient(to top,#0a0a0a 0%,transparent 100%);"></div>
+
+            <!-- 파이터 선택 버튼 (각 절반 = 큰 터치 타깃). 보조 컨트롤(선수 정보/VS)은 이 버튼 밖 형제 요소 → interactive 중첩 0. -->
+            <button type="button" id="bet-btn-f1-${fight.id}" onclick="pickFighterFromCard('${fight.id}','left')"
+                aria-pressed="false" aria-label="${escapeHtml(fight.f1.name)} 승리로 선택"
+                class="fc-pick-btn fc-pick-l"><span class="fc-pick-check" aria-hidden="true">✓</span></button>
+            <button type="button" id="bet-btn-f2-${fight.id}" onclick="pickFighterFromCard('${fight.id}','right')"
+                aria-pressed="false" aria-label="${escapeHtml(fight.f2.name)} 승리로 선택"
+                class="fc-pick-btn fc-pick-r"><span class="fc-pick-check" aria-hidden="true">✓</span></button>
+
             <!-- VS Center -->
-            <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
                 <div class="flex flex-col items-center">
                     <div style="width:1px; height:${isMain ? '64px' : '52px'}; background:linear-gradient(to bottom, transparent, rgba(210,10,10,0.7));"></div>
                     <div class="${isMain ? 'w-14 h-14' : 'w-11 h-11'} rounded-full flex items-center justify-center flex-shrink-0"
@@ -177,23 +206,26 @@ function renderHeroCard(fight, idx) {
                     <div style="width:1px; height:${isMain ? '64px' : '52px'}; background:linear-gradient(to top, transparent, rgba(210,10,10,0.7));"></div>
                 </div>
             </div>
-            <!-- F1 Info (bottom-left) -->
-            <div class="absolute bottom-0 left-0 w-[48%] p-4 lg:p-6 z-20 fc-hero-info">
+
+            <!-- F1 Info (bottom-left) — pointer-events none: 이름/CTA 클릭은 아래 pick 버튼으로 전달, 선수정보 버튼만 클릭 가능 -->
+            <div class="absolute bottom-0 left-0 w-[48%] p-4 lg:p-6 z-30 fc-hero-info pointer-events-none">
                 <div class="flex gap-1 mb-1.5">${renderDotForm(fight.f1.recent)}</div>
-                <h4 data-no-pick="1"
-                    class="oswald-sharp ${isMain ? 'text-xl lg:text-3xl' : 'text-lg lg:text-2xl'} font-black italic uppercase tracking-tighter leading-tight text-white mb-1">${fight.f1.name}</h4>
-                <p id="cta-l-${fight.id}" class="oswald-sharp ${fight.f1.odds ? 'text-xs' : 'text-[9px]'} text-ufcRed italic font-bold tracking-widest mb-2">${fight.f1.odds ? `ODDS ${fight.f1.odds} &nbsp;·&nbsp; +${Math.round(fight.f1.odds * 100)}P` : 'TAP TO PICK ›'}</p>
-                <button data-no-pick="1" onclick="event.stopPropagation(); openFighterProfile(${JSON.stringify(fight.f1).replace(/\"/g, '&quot;')})"
-                    class="oswald-sharp text-xs lg:text-sm text-gray-300 hover:text-white bg-black/40 hover:bg-ufcRed/15 border border-white/20 hover:border-ufcRed/50 px-4 py-2 rounded-xl italic uppercase tracking-wide transition active:scale-95">👤 선수 정보</button>
+                <span data-no-pick="1"
+                    class="block oswald-sharp ${isMain ? 'text-xl lg:text-3xl' : 'text-lg lg:text-2xl'} font-black italic uppercase tracking-tighter leading-tight text-white mb-1">${fight.f1.name}</span>
+                <p id="cta-l-${fight.id}" class="oswald-sharp text-xs text-ufcRed italic font-bold tracking-widest mb-1">${_fcPickCta(fight.f1.odds)}</p>
+                ${fight.f1.odds ? `<span class="fc-odds-meta oswald-sharp block text-[9px] text-gray-500 italic mb-2">배당 ${fight.f1.odds}</span>` : ''}
+                <button type="button" data-no-pick="1" onclick="event.stopPropagation(); openFighterProfile(${JSON.stringify(fight.f1).replace(/\"/g, '&quot;')})"
+                    class="fc-info-inline-btn oswald-sharp text-xs lg:text-sm text-gray-300 hover:text-white bg-black/40 hover:bg-ufcRed/15 border border-white/20 hover:border-ufcRed/50 px-4 py-2 rounded-xl italic uppercase tracking-wide transition active:scale-95" aria-label="${escapeHtml(fight.f1.name)} 선수 정보" title="${escapeHtml(fight.f1.name)} 선수 정보">👤 선수 정보</button>
             </div>
             <!-- F2 Info (bottom-right) -->
-            <div class="absolute bottom-0 right-0 w-[48%] p-4 lg:p-6 z-20 text-right fc-hero-info">
+            <div class="absolute bottom-0 right-0 w-[48%] p-4 lg:p-6 z-30 text-right fc-hero-info pointer-events-none">
                 <div class="flex gap-1 mb-1.5 justify-end">${renderDotForm(fight.f2.recent)}</div>
-                <h4 data-no-pick="1"
-                    class="oswald-sharp ${isMain ? 'text-xl lg:text-3xl' : 'text-lg lg:text-2xl'} font-black italic uppercase tracking-tighter leading-tight text-white mb-1">${fight.f2.name}</h4>
-                <p id="cta-r-${fight.id}" class="oswald-sharp ${fight.f2.odds ? 'text-xs' : 'text-[9px]'} text-ufcBlue italic font-bold tracking-widest mb-2">${fight.f2.odds ? `ODDS ${fight.f2.odds} &nbsp;·&nbsp; +${Math.round(fight.f2.odds * 100)}P` : 'TAP TO PICK ›'}</p>
-                <button data-no-pick="1" onclick="event.stopPropagation(); openFighterProfile(${JSON.stringify(fight.f2).replace(/\"/g, '&quot;')})"
-                    class="oswald-sharp text-xs lg:text-sm text-gray-300 hover:text-white bg-black/40 hover:bg-ufcBlue/15 border border-white/20 hover:border-ufcBlue/50 px-4 py-2 rounded-xl italic uppercase tracking-wide transition active:scale-95">선수 정보 👤</button>
+                <span data-no-pick="1"
+                    class="block oswald-sharp ${isMain ? 'text-xl lg:text-3xl' : 'text-lg lg:text-2xl'} font-black italic uppercase tracking-tighter leading-tight text-white mb-1">${fight.f2.name}</span>
+                <p id="cta-r-${fight.id}" class="oswald-sharp text-xs text-ufcBlue italic font-bold tracking-widest mb-1">${_fcPickCta(fight.f2.odds)}</p>
+                ${fight.f2.odds ? `<span class="fc-odds-meta oswald-sharp block text-[9px] text-gray-500 italic mb-2">배당 ${fight.f2.odds}</span>` : ''}
+                <button type="button" data-no-pick="1" onclick="event.stopPropagation(); openFighterProfile(${JSON.stringify(fight.f2).replace(/\"/g, '&quot;')})"
+                    class="fc-info-inline-btn oswald-sharp text-xs lg:text-sm text-gray-300 hover:text-white bg-black/40 hover:bg-ufcBlue/15 border border-white/20 hover:border-ufcBlue/50 px-4 py-2 rounded-xl italic uppercase tracking-wide transition active:scale-95" aria-label="${escapeHtml(fight.f2.name)} 선수 정보" title="${escapeHtml(fight.f2.name)} 선수 정보">선수 정보 👤</button>
             </div>
         </div>
 
@@ -201,8 +233,8 @@ function renderHeroCard(fight, idx) {
         <div id="stats-overlay-${fight.id}" data-no-pick="1" class="hidden relative z-40 border-t border-white/10" style="background:#0d0d0d;">
             <div class="flex items-center justify-between px-5 py-3 border-b border-white/10">
                 <span class="oswald-sharp text-[9px] font-black italic uppercase tracking-widest text-gray-400">📊 TALE OF THE TAPE</span>
-                <button onclick="toggleStatsOverlay('${fight.id}')"
-                    class="oswald-sharp text-[9px] text-gray-400 hover:text-white border border-white/20 px-3 py-1.5 rounded-full transition">✕ CLOSE</button>
+                <button type="button" onclick="toggleStatsOverlay('${fight.id}')" title="스탯 닫기"
+                    class="fc-aux-btn oswald-sharp text-[9px] text-gray-400 hover:text-white border border-white/20 px-3 rounded-full transition">✕ CLOSE</button>
             </div>
             <div class="p-5 lg:p-8">
                 ${renderTaleOfTapeHTML(fight)}
@@ -212,14 +244,14 @@ function renderHeroCard(fight, idx) {
         <!-- Analysis Section (collapsible, 4 tabs) -->
         <div id="analysis-${fight.id}" data-no-pick="1" class="hidden border-t border-white/10 bg-black/20">
             <div class="flex border-b border-white/10 bg-black/30">
-                <button onclick="switchAnalysisTab('${fight.id}','radar')" id="atab-radar-${fight.id}"
-                    class="oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest px-4 lg:px-6 py-3 text-ufcRed border-b-2 border-ufcRed transition">차트</button>
-                <button onclick="switchAnalysisTab('${fight.id}','stats')" id="atab-stats-${fight.id}"
-                    class="oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest px-4 lg:px-6 py-3 text-gray-500 border-b-2 border-transparent hover:text-gray-300 transition">스탯</button>
-                <button onclick="switchAnalysisTab('${fight.id}','insight')" id="atab-insight-${fight.id}"
-                    class="oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest px-4 lg:px-6 py-3 text-gray-500 border-b-2 border-transparent hover:text-gray-300 transition">분석</button>
-                <button onclick="switchAnalysisTab('${fight.id}','recent')" id="atab-recent-${fight.id}"
-                    class="oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest px-4 lg:px-6 py-3 text-gray-500 border-b-2 border-transparent hover:text-gray-300 transition">최근전적</button>
+                <button type="button" onclick="switchAnalysisTab('${fight.id}','radar')" id="atab-radar-${fight.id}"
+                    class="fc-aux-btn fc-atab oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest px-4 lg:px-6 text-ufcRed border-b-2 border-ufcRed transition">차트</button>
+                <button type="button" onclick="switchAnalysisTab('${fight.id}','stats')" id="atab-stats-${fight.id}"
+                    class="fc-aux-btn fc-atab oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest px-4 lg:px-6 text-gray-500 border-b-2 border-transparent hover:text-gray-300 transition">스탯</button>
+                <button type="button" onclick="switchAnalysisTab('${fight.id}','insight')" id="atab-insight-${fight.id}"
+                    class="fc-aux-btn fc-atab oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest px-4 lg:px-6 text-gray-500 border-b-2 border-transparent hover:text-gray-300 transition">분석</button>
+                <button type="button" onclick="switchAnalysisTab('${fight.id}','recent')" id="atab-recent-${fight.id}"
+                    class="fc-aux-btn fc-atab oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest px-4 lg:px-6 text-gray-500 border-b-2 border-transparent hover:text-gray-300 transition">최근전적</button>
             </div>
             <div id="atab-content-radar-${fight.id}" class="p-6 lg:p-10">
                 <div class="text-center mb-4">
@@ -263,7 +295,7 @@ function renderStripRow(fight) {
 
     _fightCardCache[fight.id] = fight;
     return `
-    <div id="card-${fight.id}" onclick="openPickSlipFromCard('${fight.id}')" class="fc-strip-card glass-card rounded-2xl overflow-hidden transition-all duration-300 border ${glow} cursor-pointer">
+    <div id="card-${fight.id}" class="fc-strip-card glass-card rounded-2xl overflow-hidden transition-all duration-300 border ${glow}">
         <!-- Thin community pick bar at top -->
         <div id="live-bar-${fight.id}" class="h-1 flex w-full bg-white/5">
             <div class="live-bar-left h-full transition-all duration-700" style="width:50%; background:var(--red)"></div>
@@ -278,36 +310,37 @@ function renderStripRow(fight) {
             </div>
             <!-- F1 Thumbnail -->
             ${f1Img ? `<div class="flex-shrink-0 w-10 h-14 rounded-lg overflow-hidden border border-white/10" style="background-image:url('${f1Img}');background-size:cover;background-position:center 15%;"></div>` : ''}
-            <!-- Fighter 1 -->
-            <div class="fc-red-side flex-1 min-w-0">
-                <div class="flex items-center gap-1.5">
-                    <span class="oswald-sharp text-xs lg:text-sm font-black italic uppercase text-white truncate">${fight.f1.name}</span>
-                    <div class="flex gap-0.5 flex-shrink-0">${renderDotForm(fight.f1.recent)}</div>
-                </div>
-                <div class="flex items-center gap-1.5 mt-0.5">
+            <!-- Fighter 1 (real pick button; span-only content → interactive 중첩 0) -->
+            <button type="button" id="bet-btn-f1-${fight.id}" onclick="pickFighterFromCard('${fight.id}','left')"
+                aria-pressed="false" aria-label="${escapeHtml(fight.f1.name)} 승리로 선택"
+                class="fc-strip-pick fc-red-side flex-1 min-w-0">
+                <span class="block oswald-sharp text-xs lg:text-sm font-black italic uppercase text-white truncate">${fight.f1.name}</span>
+                <span class="flex items-center gap-1.5 mt-0.5">
                     ${fight.f1.odds ? `<span class="oswald-sharp text-[9px] text-ufcRed italic font-bold">×${fight.f1.odds}</span>` : ''}
                     <span id="live-pct-l-${fight.id}" class="oswald-sharp text-[8px] text-gray-500 italic"></span>
-                </div>
-            </div>
+                    <span class="fc-strip-check" aria-hidden="true">✓</span>
+                </span>
+            </button>
             <!-- VS -->
             <div class="flex-shrink-0 px-1">
                 <span class="oswald-sharp text-[10px] font-black italic text-gray-700">VS</span>
             </div>
             <!-- Fighter 2 -->
-            <div class="fc-blue-side flex-1 min-w-0 text-right">
-                <div class="flex items-center justify-end gap-1.5">
-                    <div class="flex gap-0.5 flex-shrink-0">${renderDotForm(fight.f2.recent)}</div>
-                    <span class="oswald-sharp text-xs lg:text-sm font-black italic uppercase text-white truncate">${fight.f2.name}</span>
-                </div>
-                <div class="flex items-center justify-end gap-1.5 mt-0.5">
+            <button type="button" id="bet-btn-f2-${fight.id}" onclick="pickFighterFromCard('${fight.id}','right')"
+                aria-pressed="false" aria-label="${escapeHtml(fight.f2.name)} 승리로 선택"
+                class="fc-strip-pick fc-blue-side flex-1 min-w-0 text-right">
+                <span class="block oswald-sharp text-xs lg:text-sm font-black italic uppercase text-white truncate">${fight.f2.name}</span>
+                <span class="flex items-center justify-end gap-1.5 mt-0.5">
+                    <span class="fc-strip-check" aria-hidden="true">✓</span>
                     <span id="live-pct-r-${fight.id}" class="oswald-sharp text-[8px] text-gray-500 italic"></span>
                     ${fight.f2.odds ? `<span class="oswald-sharp text-[9px] text-ufcBlue italic font-bold">×${fight.f2.odds}</span>` : ''}
-                </div>
-            </div>
+                </span>
+            </button>
             <!-- F2 Thumbnail -->
             ${f2Img ? `<div class="flex-shrink-0 w-10 h-14 rounded-lg overflow-hidden border border-white/10" style="background-image:url('${f2Img}');background-size:cover;background-position:center 15%;"></div>` : ''}
-            <button data-no-pick="1" onclick="event.stopPropagation(); sharePicktagonMatchCard('${fight.id}')"
-                class="flex-shrink-0 oswald-sharp text-[9px] text-gray-600 hover:text-ufcRed transition font-black italic uppercase border border-white/8 hover:border-ufcRed/40 px-2 py-1.5 rounded-lg">📤</button>
+            <button type="button" data-no-pick="1" onclick="event.stopPropagation(); sharePicktagonMatchCard('${fight.id}')"
+                aria-label="이 경기 공유하기" title="이 경기 공유하기"
+                class="fc-aux-btn flex-shrink-0 oswald-sharp text-[9px] text-gray-600 hover:text-ufcRed transition font-black italic uppercase border border-white/8 hover:border-ufcRed/40 rounded-lg">📤</button>
             <div id="live-total-${fight.id}" class="hidden"></div>
         </div>
         <!-- MY PICK (compact, populated by updateAllFightCards) -->
@@ -484,12 +517,16 @@ function toggleAnalysis(fightId) {
         const isMob = window.innerWidth < 640;
         btnLabel.textContent = isHidden ? (isMob ? '▲' : '▲ ANALYSIS') : (isMob ? '▼' : '▼ ANALYSIS');
     }
+    const aBtn = document.getElementById(`analysis-btn-${fightId}`);
+    if (aBtn) aBtn.setAttribute('aria-expanded', String(isHidden));   // isHidden(토글 전) === 토글 후 열림 상태
     if (isHidden) switchAnalysisTab(fightId, 'radar');
 }
 
 function toggleStatsOverlay(fightId) {
     const overlay = document.getElementById(`stats-overlay-${fightId}`);
     if (overlay) overlay.classList.toggle('hidden');
+    const sBtn = document.getElementById(`stats-btn-${fightId}`);
+    if (sBtn && overlay) sBtn.setAttribute('aria-expanded', String(!overlay.classList.contains('hidden')));
 }
 
 function updateEventTotalPicks() {
@@ -509,8 +546,8 @@ function updateAllFightCards() {
         const myPickEl = document.getElementById(`my-pick-${fight.id}`);
         const cardEl = document.getElementById(`card-${fight.id}`);
 
-        if (btn1) { btn1.disabled = false; btn1.classList.remove('opacity-40', 'cursor-not-allowed'); }
-        if (btn2) { btn2.disabled = false; btn2.classList.remove('opacity-40', 'cursor-not-allowed'); }
+        if (btn1) { btn1.disabled = false; btn1.classList.remove('opacity-40', 'cursor-not-allowed', 'fc-pick-selected'); btn1.setAttribute('aria-pressed', 'false'); btn1.removeAttribute('aria-disabled'); btn1.removeAttribute('title'); btn1.setAttribute('aria-label', fight.f1.name + ' 승리로 선택'); }
+        if (btn2) { btn2.disabled = false; btn2.classList.remove('opacity-40', 'cursor-not-allowed', 'fc-pick-selected'); btn2.setAttribute('aria-pressed', 'false'); btn2.removeAttribute('aria-disabled'); btn2.removeAttribute('title'); btn2.setAttribute('aria-label', fight.f2.name + ' 승리로 선택'); }
         if (settledDiv) { settledDiv.classList.add('hidden'); settledDiv.classList.remove('fc-settled-win', 'fc-settled-lose'); settledDiv.style.background = ''; }
         if (myPickEl) { myPickEl.classList.add('hidden'); myPickEl.innerHTML = ''; myPickEl.style.background = ''; }
         if (cardEl) { cardEl.classList.remove('fc-card-pending', 'fc-card-settled'); }
@@ -519,36 +556,41 @@ function updateAllFightCards() {
         if (_cached) {
             const ctaLr = document.getElementById(`cta-l-${fight.id}`);
             const ctaRr = document.getElementById(`cta-r-${fight.id}`);
-            if (ctaLr) { ctaLr.innerHTML = _cached.f1.odds ? `ODDS ${_cached.f1.odds} &nbsp;·&nbsp; +${Math.round(_cached.f1.odds * 100)}P` : 'TAP TO PICK ›'; ctaLr.style.color = ''; }
-            if (ctaRr) { ctaRr.innerHTML = _cached.f2.odds ? `ODDS ${_cached.f2.odds} &nbsp;·&nbsp; +${Math.round(_cached.f2.odds * 100)}P` : 'TAP TO PICK ›'; ctaRr.style.color = ''; }
+            if (ctaLr) { ctaLr.innerHTML = _fcPickCta(_cached.f1.odds); ctaLr.style.color = ''; }
+            if (ctaRr) { ctaRr.innerHTML = _fcPickCta(_cached.f2.odds); ctaRr.style.color = ''; }
         }
 
         if (pending) {
-            if (btn1) { btn1.disabled = true; btn1.classList.add('opacity-40', 'cursor-not-allowed'); }
-            if (btn2) { btn2.disabled = true; btn2.classList.add('opacity-40', 'cursor-not-allowed'); }
+            const isLeft = pending.side === 'left';
+            const pickedBtn = isLeft ? btn1 : btn2;
+            const otherBtn  = isLeft ? btn2 : btn1;
+            // 픽 유지 상태: 선택한 파이터를 aria-pressed로 강조. 둘 다 클릭 가능 유지 —
+            //   선택쪽 재클릭=방식/라운드 편집, 반대쪽=change_pick(기존 의미 보존).
+            if (pickedBtn) { pickedBtn.setAttribute('aria-pressed', 'true'); pickedBtn.classList.add('fc-pick-selected'); }
+            if (otherBtn)  { otherBtn.setAttribute('aria-pressed', 'false'); otherBtn.classList.remove('fc-pick-selected'); }
             if (cardEl) cardEl.classList.add('fc-card-pending');
             if (myPickEl) {
-                const isLeft = pending.side === 'left';
                 myPickEl.className = `fc-my-pick ${isLeft ? 'fc-pick-red' : 'fc-pick-blue'}`;
                 myPickEl.style.background = '';
-                myPickEl.innerHTML = `<span class="block max-w-full oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest truncate ${isLeft ? 'text-ufcRed' : 'text-blue-400'}">★ MY PICK · ${escapeHtml(pending.pick)}</span>`;
+                myPickEl.innerHTML = `<span class="block max-w-full oswald-sharp text-[10px] lg:text-xs font-black italic uppercase tracking-widest truncate ${isLeft ? 'text-ufcRed' : 'text-blue-400'}">✓ 선택됨 · ${escapeHtml(pending.pick)}</span>`;
             }
             const ctaL = document.getElementById(`cta-l-${fight.id}`);
             const ctaR = document.getElementById(`cta-r-${fight.id}`);
             if (ctaL) {
-                if (pending.side === 'left') { ctaL.innerHTML = '★ MY PICK'; ctaL.style.color = '#10b981'; }
-                else { ctaL.innerHTML = 'CHANGE PICK ›'; ctaL.style.color = ''; }
+                if (pending.side === 'left') { ctaL.innerHTML = '✓ 선택됨'; ctaL.style.color = '#10b981'; }
+                else { ctaL.innerHTML = '변경하기 ›'; ctaL.style.color = ''; }
             }
             if (ctaR) {
-                if (pending.side === 'right') { ctaR.innerHTML = '★ MY PICK'; ctaR.style.color = '#10b981'; }
-                else { ctaR.innerHTML = 'CHANGE PICK ›'; ctaR.style.color = ''; }
+                if (pending.side === 'right') { ctaR.innerHTML = '✓ 선택됨'; ctaR.style.color = '#10b981'; }
+                else { ctaR.innerHTML = '변경하기 ›'; ctaR.style.color = ''; }
             }
             return;
         }
 
         if (settled && settledDiv && settledText) {
-            if (btn1) { btn1.disabled = true; btn1.classList.add('opacity-40', 'cursor-not-allowed'); }
-            if (btn2) { btn2.disabled = true; btn2.classList.add('opacity-40', 'cursor-not-allowed'); }
+            // 결과 확정: 실제 disabled로 선택 차단 + 사유를 accessible name/title로 제공(색상만 아닌 상태 전달).
+            if (btn1) { btn1.disabled = true; btn1.classList.add('opacity-40', 'cursor-not-allowed'); btn1.setAttribute('aria-disabled', 'true'); btn1.title = '결과가 확정되어 선택할 수 없습니다'; btn1.setAttribute('aria-label', fight.f1.name + ' — 경기 종료, 선택 불가'); }
+            if (btn2) { btn2.disabled = true; btn2.classList.add('opacity-40', 'cursor-not-allowed'); btn2.setAttribute('aria-disabled', 'true'); btn2.title = '결과가 확정되어 선택할 수 없습니다'; btn2.setAttribute('aria-label', fight.f2.name + ' — 경기 종료, 선택 불가'); }
             if (cardEl) cardEl.classList.add('fc-card-settled');
             const ctaL = document.getElementById(`cta-l-${fight.id}`);
             const ctaR = document.getElementById(`cta-r-${fight.id}`);
@@ -640,10 +682,11 @@ function initRadarChart(fightId) {
     });
 }
 
-function openPickSlip(fightId, match, f1Name, f1Odds, f2Name, f2Odds) {
+function openPickSlip(fightId, match, f1Name, f1Odds, f2Name, f2Odds, preSide) {
     const cost = typeof BET_COST !== 'undefined' ? BET_COST : 100;
     if (!currentUser) {
-        showToast('⚠ 베팅은 로그인 후 가능합니다');
+        if (typeof openAuthModal === 'function') openAuthModal('pick');   // 행동 시점 인증(자동 재실행 없음)
+        else showToast('⚠ 베팅은 로그인 후 가능합니다');
         return;
     }
     if (typeof state !== 'undefined' && state.settled && state.settled[fightId]) {
@@ -691,6 +734,9 @@ function openPickSlip(fightId, match, f1Name, f1Odds, f2Name, f2Odds) {
     requestAnimationFrame(function() {
         if (panelEl) panelEl.classList.add('bs-open');
     });
+    // 카드에서 파이터를 이미 골랐으면(preSide) 파이터 선택 단계를 건너뛰고 확인 단계로 진행.
+    if (preSide === 'left') selectPickFighter('left', fightId, match, f1Name, safeF1Odds);
+    else if (preSide === 'right') selectPickFighter('right', fightId, match, f2Name, safeF2Odds);
 }
 
 function selectPickFighter(side, fightId, match, name, odds) {

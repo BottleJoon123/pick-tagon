@@ -2440,3 +2440,101 @@ body.more-sheet-lock { overflow: hidden; }   /* 열림 중 body scroll 방지 */
 }
 .more-sheet-item.active .msi-ico { color: var(--red); }
 .more-sheet-safe { height: 4px; }
+
+/* ============================================================
+   대진표 파이터 선택 UI 개편 — 실제 <button> 기반 픽 타깃
+   (색상만이 아닌 체크+텍스트로 선택 상태 구분, 44px 터치, focus-visible)
+   ============================================================ */
+
+/* Hero 카드: 각 절반을 덮는 오버레이 pick 버튼 (이름/CTA는 위 info 레이어에 표시) */
+.fc-pick-btn {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 50%;
+    margin: 0; padding: 0;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    z-index: 10;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+.fc-pick-l { left: 0; }
+.fc-pick-r { right: 0; }
+@media (hover: hover) {
+    .fc-pick-l:hover { background: linear-gradient(to top, rgba(225,6,0,0.18), transparent 62%); }
+    .fc-pick-r:hover { background: linear-gradient(to top, rgba(37,99,235,0.18), transparent 62%); }
+}
+.fc-pick-l:focus-visible { outline: 2px solid var(--red); outline-offset: -3px; border-radius: 8px; }
+.fc-pick-r:focus-visible { outline: 2px solid #2563eb; outline-offset: -3px; border-radius: 8px; }
+.fc-pick-btn:disabled { cursor: not-allowed; }
+/* 선택 상태 = 색 + 링 + 체크 뱃지 (색상만으로 구분하지 않음) */
+.fc-pick-l.fc-pick-selected { background: linear-gradient(to top, rgba(225,6,0,0.28), transparent 66%); box-shadow: inset 0 0 0 2px rgba(225,6,0,0.75); }
+.fc-pick-r.fc-pick-selected { background: linear-gradient(to top, rgba(37,99,235,0.28), transparent 66%); box-shadow: inset 0 0 0 2px rgba(37,99,235,0.75); }
+.fc-pick-check {
+    position: absolute;
+    top: 12px; left: 50%;
+    transform: translateX(-50%) scale(0.6);
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    font-size: 15px; font-weight: 900; color: #fff;
+    opacity: 0;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    pointer-events: none;
+}
+.fc-pick-l .fc-pick-check { background: var(--red); }
+.fc-pick-r .fc-pick-check { background: #2563eb; }
+.fc-pick-selected .fc-pick-check { opacity: 1; transform: translateX(-50%) scale(1); }
+/* 선수 정보(보조): info 레이어는 pointer-events:none, 이 버튼만 클릭 가능 */
+.fc-info-inline-btn { pointer-events: auto; position: relative; z-index: 31; min-height: 44px; display: inline-flex; align-items: center; }
+.fc-info-inline-btn:focus-visible { outline: 2px solid var(--pt-ink-1); outline-offset: 2px; }
+
+/* Strip(prelim) 카드: 각 파이터 side가 실제 pick 버튼 */
+.fc-strip-pick {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 44px;
+    padding: 3px 4px;
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+@media (hover: hover) {
+    .fc-red-side.fc-strip-pick:hover { background: rgba(225,6,0,0.10); }
+    .fc-blue-side.fc-strip-pick:hover { background: rgba(37,99,235,0.10); }
+}
+.fc-red-side.fc-strip-pick:focus-visible { outline: 2px solid var(--red); outline-offset: -2px; }
+.fc-blue-side.fc-strip-pick:focus-visible { outline: 2px solid #2563eb; outline-offset: -2px; }
+.fc-strip-pick:disabled { cursor: not-allowed; }
+.fc-red-side.fc-pick-selected { background: rgba(225,6,0,0.14); box-shadow: inset 0 0 0 1.5px rgba(225,6,0,0.6); }
+.fc-blue-side.fc-pick-selected { background: rgba(37,99,235,0.14); box-shadow: inset 0 0 0 1.5px rgba(37,99,235,0.6); }
+.fc-strip-check { display: none; color: #22c55e; font-weight: 900; font-size: 11px; }
+.fc-pick-selected .fc-strip-check { display: inline; }
+
+/* ============================================================
+   대진표 픽 UI HOLD 보강 — 보조 컨트롤 44px + 루트 가로 넘침 clip
+   ============================================================ */
+/* 카드 보조 컨트롤(공유·STATS·ANALYSIS·분석 탭·닫기) — 최소 44×44 터치 + focus-visible.
+   icon-only 버튼은 마크업에서 aria-label/title 제공, 신규 letter-spacing 없음. */
+.fc-aux-btn { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+.fc-aux-btn:focus-visible { outline: 2px solid var(--pt-ink-1); outline-offset: 2px; }
+
+/* 극소폭(예: 200% 확대 ≈195px)에서 모바일 상단 헤더를 실제로 맞춤 — overflow 은폐(clip/hidden) 없이.
+   브랜드 워드마크만 숨기고 로고 아이콘 + accessible name(h1 aria-label) 유지, 좌우 여백 축소.
+   포인트·로그인/로그아웃(우측 그룹)은 flex-shrink:0로 자르지 않고 화면 안에 유지. */
+@media (max-width: 300px) {
+    .mob-brand-word { display: none; }
+    .mobile-top-header { padding-left: 10px; padding-right: 10px; }
+}
+
+/* 홈 로고 버튼 — 실제 <button>(키보드 Tab/Enter/Space). 기본 배경·border·padding 제거,
+   min 44×44 터치, focus-visible 링. h1 heading 구조와 svg/워드마크/truncate는 마크업에서 유지. */
+.mob-logo-btn { background: transparent; border: 0; padding: 0; margin: 0; cursor: pointer; color: inherit; font: inherit; min-width: 44px; min-height: 44px; max-width: 100%; }
+.mob-logo-btn:focus-visible { outline: 2px solid var(--pt-red-500); outline-offset: 2px; border-radius: 6px; }
