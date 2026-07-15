@@ -47,6 +47,52 @@ function renderFaceOffGlow(leftBias) {
     }
 }
 
+// ── 날짜 전용 포맷터 ───────────────────────────────────────────────
+// event_date는 V1에서 절대 시각이 아니라 "관리자가 입력한 달력 날짜"(전 이벤트 00:00 UTC placeholder).
+//   따라서 시각/timezone을 만들지 않고 날짜만 정직하게 렌더한다.
+//   · ISO 앞 YYYY-MM-DD만 사용, 숫자 엄격 검증 + Date.UTC round-trip(2026-02-30 등 거부)
+//   · 브라우저 로컬 tz 변환 금지 → Intl formatter를 timeZone:'UTC'로 고정(어느 tz에서도 동일 결과)
+//   · 결과 예: "7월 19일 일요일" / invalid·null → 빈 문자열
+var _koDateOnlyFmt = null;
+function _koDateFormatter() {
+    if (!_koDateOnlyFmt) {
+        _koDateOnlyFmt = new Intl.DateTimeFormat('ko-KR', { timeZone: 'UTC', month: 'long', day: 'numeric', weekday: 'long' });
+    }
+    return _koDateOnlyFmt;
+}
+function formatEventDateOnly(raw) {
+    if (!raw || typeof raw !== 'string') return { text: '', iso: '' };
+    var m = raw.slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return { text: '', iso: '' };
+    var y = +m[1], mo = +m[2], d = +m[3];
+    if (mo < 1 || mo > 12 || d < 1 || d > 31) return { text: '', iso: '' };
+    var dt = new Date(Date.UTC(y, mo - 1, d));
+    // round-trip 검증: 실제 존재하는 날짜만 통과(윤년/월말 반영, 2026-02-30 거부)
+    if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== (mo - 1) || dt.getUTCDate() !== d) return { text: '', iso: '' };
+    return { text: _koDateFormatter().format(dt), iso: m[1] + '-' + m[2] + '-' + m[3] };
+}
+
+// 홈 히어로 일정 — 자정 placeholder 기반 가짜 D/H/M/S 카운트다운을 구동/표시하지 않고,
+//   날짜 + "시작 시각 미정" 중립 상태만 렌더한다(신뢰 가능한 starts_at 없음 → timer 미시작).
+function renderHeroSchedule(rawDate) {
+    // 이전 버전이 시작했을 수 있는 카운트다운 interval 정리(신규 timer는 만들지 않음).
+    if (window._homeCountdownTimer) { clearInterval(window._homeCountdownTimer); window._homeCountdownTimer = null; }
+    var cd = document.getElementById('hero-countdown');
+    var when = document.getElementById('hero-event-when');
+    var dateEl = document.getElementById('hero-event-date');
+    var statusEl = document.getElementById('hero-event-timestatus');
+    var fmt = formatEventDateOnly(rawDate);
+    if (cd) cd.classList.add('hidden');                       // 가짜 카운트다운 숨김(레이아웃은 when 블록이 대체)
+    if (when) when.classList.remove('hidden');
+    if (fmt.text) {
+        if (dateEl) { dateEl.textContent = fmt.text; dateEl.setAttribute('datetime', fmt.iso); }
+        if (statusEl) statusEl.textContent = '시작 시각 미정';   // 실제 경기 시각 데이터 없음(추측 금지)
+    } else {
+        if (dateEl) { dateEl.textContent = ''; dateEl.removeAttribute('datetime'); }
+        if (statusEl) statusEl.textContent = '일정 미정';
+    }
+}
+
 async function initHomeData() {
     if (typeof sb === 'undefined' || !sb) return;
     try {
@@ -56,11 +102,10 @@ async function initHomeData() {
             var heroLabel = document.getElementById('hero-event-label');
             var redEl = document.getElementById('hero-red-name');
             var blueEl = document.getElementById('hero-blue-name');
-            var cdEl = document.getElementById('hero-countdown');
             if (heroLabel) heroLabel.textContent = 'NO UPCOMING EVENT';
             if (redEl) redEl.textContent = 'TBA';
             if (blueEl) blueEl.textContent = 'TBA';
-            if (cdEl) cdEl.style.display = 'none';
+            renderHeroSchedule(null);   // upcoming 없음 → 가짜 카운트다운 숨김 + "일정 미정" 중립 상태
             return;
         }
         var { event, matchup } = data;
@@ -72,9 +117,9 @@ async function initHomeData() {
         var dateEl = document.getElementById('event-date-label');
         if (nameEl) nameEl.textContent = event.title || '';
         if (dateEl) {
-            var d = new Date(event.event_date);
-            dateEl.textContent = isNaN(d.getTime()) ? '' :
-                d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric', weekday: 'short' }).toUpperCase();
+            // 날짜 전용·브라우저 tz 무관 렌더(기존 toLocaleDateString은 로컬 tz에 따라 하루 어긋나는 버그였음).
+            //   시각/KST/UTC 문구는 표시하지 않음. (대진표 헤더는 admin.js applyEventInfo가 덮어쓸 수 있음 — 보고 참조)
+            dateEl.textContent = formatEventDateOnly(event.event_date).text;
         }
         var redEl = document.getElementById('hero-red-name');
         var blueEl = document.getElementById('hero-blue-name');
@@ -94,7 +139,8 @@ async function initHomeData() {
             blueImg.style.backgroundPosition = 'top center, top center';
             blueImg.style.backgroundRepeat = 'no-repeat, no-repeat';
         }
-        startCountdown(event.event_date);
+        // event_date는 자정 placeholder(시각 신뢰 불가) → 가짜 D/H/M/S 카운트다운 대신 날짜+중립 상태.
+        renderHeroSchedule(event.event_date);
         var bias = matchup.left_bias != null ? Number(matchup.left_bias) : 0.5;
         renderFaceOffGlow(isNaN(bias) ? 0.5 : bias);
         // _dbMatchups가 없을 때만 ticker 갱신 (_dbMatchups 기반 renderHomeTicker가 더 풍부)

@@ -353,7 +353,7 @@
                 <div class="flex flex-col gap-6">
                     <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                         <button onclick="navigateTo('matchups')" class="btn-red">ENTER OCTAGON →</button>
-                        <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-3 flex-wrap">
                             <span class="barlow text-[10px] font-bold italic tracking-[0.15em] text-gray-500 uppercase">Next Event</span>
                             <div class="flex gap-2" id="hero-countdown">
                                 <div class="countdown-unit"><span class="countdown-num" id="cd-d">--</span><span class="countdown-label">Days</span></div>
@@ -361,11 +361,16 @@
                                 <div class="countdown-unit"><span class="countdown-num" id="cd-m">--</span><span class="countdown-label">Min</span></div>
                                 <div class="countdown-unit"><span class="countdown-num" id="cd-s">--</span><span class="countdown-label">Sec</span></div>
                             </div>
+                            <!-- 날짜 전용 신뢰 메타 — home.js가 채운 뒤 표시(자정 placeholder 기반 가짜 카운트다운 대체). 시각/KST/현지/출처 문구 없음. -->
+                            <div id="hero-event-when" class="hidden flex flex-col leading-tight min-w-0">
+                                <time id="hero-event-date" class="barlow text-sm font-black italic text-white uppercase truncate"></time>
+                                <span id="hero-event-timestatus" class="barlow text-[10px] font-bold italic tracking-[0.15em] text-gray-500 uppercase">시작 시각 미정</span>
+                            </div>
                         </div>
                     </div>
                     <!-- Stats row -->
                     <div class="hero-stats grid grid-cols-3 gap-4 lg:gap-8 max-w-lg">
-                        <div><div class="stat-counter" id="stat-fights">0</div><div class="barlow text-[10px] font-bold italic tracking-[0.15em] text-gray-500 uppercase">Total Fights</div></div>
+                        <div title="아카이브 경기와 현재 이벤트 대진 합계"><div class="stat-counter" id="stat-fights">0</div><div class="barlow text-[10px] font-bold italic tracking-[0.15em] text-gray-500 uppercase">누적 경기</div></div>
                         <div><div class="stat-counter" id="stat-picks">0</div><div class="barlow text-[10px] font-bold italic tracking-[0.15em] text-gray-500 uppercase">Your Picks</div></div>
                         <div><div class="stat-counter" id="stat-pts">0</div><div class="barlow text-[10px] font-bold italic tracking-[0.15em] text-gray-500 uppercase">Points</div></div>
                     </div>
@@ -484,8 +489,8 @@
                         <p id="event-total-picks" class="oswald-sharp text-lg lg:text-2xl font-black italic text-white">0</p>
                     </div>
                     <div id="event-countdown-widget" class="glass-card px-4 lg:px-8 py-2 lg:py-3 rounded-full border border-ufcRed/30 text-center" style="box-shadow:0 0 20px rgba(225,6,0,0.1)">
-                        <p id="event-countdown-label" class="oswald-sharp text-[8px] lg:text-[10px] text-gray-500 tracking-widest uppercase italic">Pick Closes</p>
-                        <p id="event-countdown-value" class="oswald-sharp text-lg lg:text-2xl font-black italic text-ufcRed">—</p>
+                        <p id="event-countdown-label" class="oswald-sharp text-[8px] lg:text-[10px] text-gray-500 tracking-widest uppercase italic">픽 마감</p>
+                        <p id="event-countdown-value" class="oswald-sharp text-sm lg:text-base font-black italic text-gray-400">시각 미정</p>
                     </div>
                     <button onclick="openH2H()" class="glass-card px-4 lg:px-6 py-2 lg:py-3 rounded-full border border-white/20 hover:border-white/40 transition oswald-sharp text-[10px] lg:text-xs font-black italic uppercase text-gray-300 hover:text-white tracking-widest">
                         ⚔️ H2H 비교
@@ -2640,7 +2645,7 @@
 <script src="/js/pixel-fighters.js?v=1"></script>
 <script src="/js/h2h.js?v=25"></script>
 <script src="/js/news-admin.js?v=7"></script>
-<script src="/js/home.js?v=9"></script>
+<script src="/js/home.js?v=10"></script>
 <script src="/js/share-card.js?v=19"></script>
 <script>
     /* ==============================
