@@ -511,9 +511,10 @@ async function fetchUpcomingMatchups() {
     try {
         // 전체 이벤트 1회 쿼리 (sidebar + upcoming 동시 처리)
         var allEvRes = await sb.from('events')
-            .select('id, title, event_date, status')
+            .select('id, title, event_date, status, picks_locked_at')
             .order('event_date', { ascending: true });
         if (allEvRes.error || !allEvRes.data) {
+            if (typeof startEventCountdown === 'function') startEventCountdown(null);
             if (typeof renderEventSidebar === 'function') renderEventSidebar();
             if (typeof renderFightCards === 'function') renderFightCards();
             return;
@@ -523,6 +524,7 @@ async function fetchUpcomingMatchups() {
         }
         var event = allEvRes.data.find(function(e) { return e.status === 'upcoming'; });
         if (!event) {
+            if (typeof startEventCountdown === 'function') startEventCountdown(null);
             if (typeof renderEventSidebar === 'function') renderEventSidebar();
             if (typeof renderFightCards === 'function') renderFightCards();
             return;
@@ -536,12 +538,13 @@ async function fetchUpcomingMatchups() {
         if (event.event_date) {
             var dateEl = document.getElementById('event-date-label');
             if (dateEl) {
-                var d = new Date(event.event_date);
-                var formatted = d.toLocaleDateString('ko-KR', {year:'numeric', month:'long', day:'numeric', weekday:'short'}).toUpperCase();
-                dateEl.textContent = formatted;
+                var formattedDate = typeof formatEventDateOnly === 'function'
+                    ? formatEventDateOnly(event.event_date)
+                    : { text: '', iso: '' };
+                dateEl.textContent = formattedDate.text || '';
             }
-            if (typeof startEventCountdown === 'function') startEventCountdown(event.event_date);
         }
+        if (typeof startEventCountdown === 'function') startEventCountdown(event.picks_locked_at);
 
         var mRes = await sb.from('matchups')
             .select('id, event_id, red_fighter_id, blue_fighter_id, red_fighter_name, blue_fighter_name, red_image_url, blue_image_url, weight_class, card_segment, sort_order, is_main_event, left_bias, result_status, result_winner, result_winner_side, result_method, result_round, result_time')
