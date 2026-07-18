@@ -77,7 +77,7 @@
 <link href="/css/tokens.css" rel="stylesheet">
 <link href="/css/theme-bridge.css" rel="stylesheet">
 <link rel="stylesheet" href="./src/tailwind.css">
-<link href="/css/app.css?v=27" rel="stylesheet">
+<link href="/css/app.css?v=28" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 <!-- Supabase — defer: head 파싱 블로킹 제거. createClient는 initSupabase(window.onload)에서만 호출되므로
      defer(파싱 후·DOMContentLoaded 전 실행)로도 초기화 시점에 window.supabase 보장됨. -->
@@ -448,14 +448,15 @@
     <section id="ufc-rankings" class="section-animate max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-20 lg:pt-8 lg:pb-20">
         <!-- Header -->
         <div class="mb-6 lg:mb-10 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
-            <div class="sx-head">
+            <div class="sx-head min-w-0">
                 <p class="oswald-sharp text-ufcRed text-[10px] lg:text-sm tracking-[0.3em] font-black italic uppercase mb-1">OFFICIAL</p>
-                <h3 class="oswald-sharp text-3xl lg:text-6xl font-black italic tracking-tighter uppercase leading-none">UFC 랭킹</h3>
-                <p class="text-gray-500 oswald-sharp uppercase tracking-widest mt-2 text-[10px] lg:text-sm italic" id="ufc-rank-updated">공식 UFC 랭킹 데이터</p>
+                <h3 class="oswald-sharp text-3xl lg:text-6xl font-black italic tracking-tighter uppercase leading-none">UFC · <span id="ur-division-title">랭킹</span></h3>
+                <p class="text-gray-500 oswald-sharp uppercase tracking-widest mt-2 text-[10px] lg:text-sm italic" id="ufc-rank-updated">랭킹 데이터</p>
             </div>
             <!-- Search + 자동 갱신 -->
             <div class="flex gap-3 flex-wrap">
-                <input id="ufc-rank-search" type="text" placeholder="🔍 선수 검색..."
+                <label for="ufc-rank-search" class="sr-only">선수 이름 검색</label>
+                <input id="ufc-rank-search" type="text" placeholder="🔍 선수 이름 검색..."
                     class="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ufcRed placeholder-gray-600 w-full lg:w-56"
                     oninput="renderUFCRankings()">
                 <button id="btn-fetch-rankings" onclick="fetchAndSyncUFCRankings()"
@@ -465,13 +466,17 @@
             </div>
         </div>
 
-        <!-- Division Tabs -->
-        <div class="flex gap-2 overflow-x-auto pb-3 mb-8 lg:mb-10 scrollbar-hide" id="division-tabs">
-            <!-- rendered by JS -->
-        </div>
+        <div class="ur-layout">
+            <!-- Division Nav: desktop sticky left / mobile horizontal chips -->
+            <nav class="ur-division-nav" id="division-tabs" aria-label="체급 선택">
+                <!-- rendered by renderUFCRankingTabs() -->
+            </nav>
 
-        <!-- Rankings Table -->
-        <div id="ufc-rankings-content"></div>
+            <!-- Rankings Content -->
+            <div id="ufc-rankings-content" aria-live="polite" aria-busy="false">
+                <!-- rendered by renderUFCRankings() -->
+            </div>
+        </div>
     </section>
 
     <!-- [SECTION: MATCHUPS] - Multi-Fight Card System -->
@@ -4686,6 +4691,15 @@ async function publishPost() {
         document.getElementById('fighter-profile-modal').classList.add('hidden');
         if (fpRadarChart) { fpRadarChart.destroy(); fpRadarChart = null; }
     }
+    // Escape: fighter-profile-modal이 보이고 && 현재 최상위 모달일 때만 닫기(auth-modal과 동일 패턴).
+    // 다른 모달(더보기 시트/아카이브 드로어 등)이 위에 떠 있으면 이 리스너는 아무 것도 하지 않는다.
+    document.addEventListener('keydown', function(e) {
+        if (e.key !== 'Escape') return;
+        var m = document.getElementById('fighter-profile-modal');
+        if (m && !m.classList.contains('hidden') && typeof _topModalEl === 'function' && _topModalEl() === m) {
+            closeFighterProfile();
+        }
+    });
 
     function renderFighterHistory(name) {
         const el = document.getElementById('fp-history');
@@ -4830,45 +4844,51 @@ async function publishPost() {
     }
 
     var _ufcRankFetching = false;
+    var _ufcRankStatus = 'loading';   // 'loading' | 'ready' | 'empty' | 'error' — 상태별 렌더 분기(잔상 방지)
+    var _ufcRankUpdatedAt = null;     // ufc_rankings.updated_at MAX(신뢰 가능한 DB 시각만. 브라우저 현재 날짜 사용 금지)
+    var _UFC_RANK_CACHE_KEY = 'picktagon_ufc_rankings_v3';   // v3: 시드 fallback 제거 + updatedAt 동봉 스키마로 교체(구v2 캐시는 자동 무시)
+
+    // DB에서 성공적으로 받은 데이터만 이 스키마로 저장한다(가짜 seed는 저장 대상 아님 → 캐시 자체가 검증된 값).
+    function saveUFCRankings() {
+        try {
+            localStorage.setItem(_UFC_RANK_CACHE_KEY, JSON.stringify({ v: 3, updatedAt: _ufcRankUpdatedAt, divisions: ufcRankingsDB }));
+        } catch (e) { /* storage 비활성 무시 */ }
+    }
+    // 검증 가능한 캐시만 사용: v3 스키마 + divisions 객체 존재. 형식이 다르면(구v2 등) 무시하고 null 반환.
+    function _readCachedUFCRankings() {
+        try {
+            var raw = localStorage.getItem(_UFC_RANK_CACHE_KEY);
+            if (!raw) return null;
+            var parsed = JSON.parse(raw);
+            if (!parsed || parsed.v !== 3 || typeof parsed.divisions !== 'object' || !parsed.divisions) return null;
+            return parsed;
+        } catch (e) { return null; }
+    }
+
     function loadUFCRankings() {
         if (_ufcRankFetching) return;   // [perf] 로딩 중 중복 호출 방지(연속 진입/Back)
+        function _rerender() {
+            if (document.getElementById('ufc-rankings-content')) { renderUFCRankingTabs(); renderUFCRankings(); }
+        }
         if (sb) {
             _ufcRankFetching = true;
-            // fighters 테이블과 병렬 로드 — height_cm/reach_cm으로 정확한 신체 데이터 cross-reference
-            Promise.all([
-                sb.from('ufc_rankings').select('*').order('division').order('rank_position'),
-                sb.from('fighters').select('name, name_en, height_cm, reach_cm').limit(500)
-            ]).then(function(results) {
-                var rankRes = results[0];
-                var fighterRes = results[1];
-                // fighters 이름 소문자 lookup map
-                var fMap = {};
-                (fighterRes.data || []).forEach(function(f) {
-                    if (f.name)    fMap[f.name.toLowerCase().trim()]    = f;
-                    if (f.name_en) fMap[f.name_en.toLowerCase().trim()] = f;
-                });
+            _ufcRankStatus = 'loading';
+            sb.from('ufc_rankings').select('*').order('division').order('rank_position')
+              .then(function(rankRes) {
+                if (rankRes.error) throw rankRes.error;
                 if (rankRes.data && rankRes.data.length > 0) {
-                    // flat rows → nested object (ufcRankingsDB format)
+                    // flat rows → nested object (ufcRankingsDB format). 신체/전적/피니시율은 렌더 시
+                    // _lookupRankFighter()로 fighters 테이블에서 실시간 보강(중복 fighters 쿼리 제거).
                     var built = {};
+                    var maxUpdated = null;
                     rankRes.data.forEach(function(row) {
                         if (!built[row.division]) built[row.division] = { champion: null, fighters: [] };
-                        // fighters.height_cm 우선 사용, 없으면 ufc_rankings.height fallback
-                        var fData = fMap[(row.fighter_name || '').toLowerCase().trim()];
-                        var height = (fData && fData.height_cm)
-                            ? Math.round(parseFloat(fData.height_cm)) + ' cm'
-                            : (row.height || '—');
-                        var reach  = (fData && fData.reach_cm)
-                            ? Math.round(parseFloat(fData.reach_cm)) + ' cm'
-                            : (row.reach || '—');
                         var fighter = {
                             name: row.fighter_name_ko || row.fighter_name,
                             name_en: row.fighter_name,
-                            nation: row.nation || '',
                             record: row.record || '',
-                            height: height,
-                            reach: reach,
-                            trend: row.trend || '→',
-                            stats: row.stats || [75,75,75,75,75]
+                            height: row.height || '—',
+                            reach: row.reach || '—'
                         };
                         if (row.rank_position === 'C') {
                             built[row.division].champion = fighter;
@@ -4876,33 +4896,35 @@ async function publishPost() {
                             fighter.rank = parseInt(row.rank_position) || 0;
                             built[row.division].fighters.push(fighter);
                         }
+                        if (row.updated_at && (!maxUpdated || row.updated_at > maxUpdated)) maxUpdated = row.updated_at;
                     });
-                    // sort fighters by rank within each division
                     Object.values(built).forEach(function(d) {
                         d.fighters.sort(function(a,b){ return a.rank - b.rank; });
                     });
                     ufcRankingsDB = built;
-                    saveUFCRankings(); // localStorage 캐시 갱신
-                    if (document.getElementById('ufc-rankings-content')) {
-                        renderUFCRankingTabs(); renderUFCRankings();
-                    }
-                    var updated = document.getElementById('ufc-rank-updated');
-                    if (updated) updated.textContent = 'DB 기준 · ' + new Date().toLocaleDateString('ko-KR');
+                    _ufcRankUpdatedAt = maxUpdated;
+                    _ufcRankStatus = 'ready';
+                    saveUFCRankings();
                 } else {
-                    // Supabase 비어있으면 시드 데이터 사용
-                    const stored = localStorage.getItem('picktagon_ufc_rankings_v2');
-                    ufcRankingsDB = stored ? JSON.parse(stored) : JSON.parse(JSON.stringify(UFC_RANKINGS_SEED));
+                    // DB 응답은 성공했지만 0행 — 검증된 로컬 캐시가 있으면 사용, 없으면 빈 상태(가짜 seed 금지).
+                    var cached = _readCachedUFCRankings();
+                    if (cached) { ufcRankingsDB = cached.divisions; _ufcRankUpdatedAt = cached.updatedAt; _ufcRankStatus = 'ready'; }
+                    else { ufcRankingsDB = {}; _ufcRankUpdatedAt = null; _ufcRankStatus = 'empty'; }
                 }
-            }).catch(function(e) { console.warn('[loadUFCRankings]', e); })
-              .then(function() { _ufcRankFetching = false; });   // 성공/실패 모두 플래그 해제 → 실패 시 다음 진입 재시도
+                _rerender();
+              }).catch(function(e) {
+                console.warn('[loadUFCRankings]', e);
+                var cached = _readCachedUFCRankings();
+                if (cached) { ufcRankingsDB = cached.divisions; _ufcRankUpdatedAt = cached.updatedAt; _ufcRankStatus = 'ready'; }
+                else { _ufcRankStatus = 'error'; }
+                _rerender();
+              }).then(function() { _ufcRankFetching = false; });   // 성공/실패 모두 플래그 해제 → 실패 시 다음 진입 재시도
         } else {
-            const stored = localStorage.getItem('picktagon_ufc_rankings_v2');
-            ufcRankingsDB = stored ? JSON.parse(stored) : JSON.parse(JSON.stringify(UFC_RANKINGS_SEED));
+            var cached = _readCachedUFCRankings();
+            if (cached) { ufcRankingsDB = cached.divisions; _ufcRankUpdatedAt = cached.updatedAt; _ufcRankStatus = 'ready'; }
+            else { _ufcRankStatus = 'error'; }
+            _rerender();
         }
-    }
-
-    function saveUFCRankings() {
-        localStorage.setItem('picktagon_ufc_rankings_v2', JSON.stringify(ufcRankingsDB));
     }
 
     // ── UFC 랭킹 자동 갱신 (UFC.com 공식 데이터 — Jina.ai 프록시, 키 불필요) ──
@@ -5006,59 +5028,80 @@ async function publishPost() {
         }
     }
 
+    // 체급 그룹 라벨(표시 전용, UFC_DIVISIONS 순서는 그대로 사용 — id 목록 자체는 변경하지 않음)
+    function _ufcDivisionGroupFor(id) {
+        if (id === 'p4p') return '파운드 포 파운드';
+        return id.indexOf('w-') === 0 ? '여자부' : '남자부';
+    }
     function renderUFCRankingTabs() {
         const tabs = document.getElementById('division-tabs');
         if (!tabs) return;
-        tabs.innerHTML = UFC_DIVISIONS.map(d => `
-            <button onclick="switchDivision('${d.id}')" id="div-tab-${d.id}"
-                class="oswald-sharp flex-shrink-0 px-4 lg:px-6 py-2 lg:py-3 rounded-xl font-black italic text-[10px] lg:text-xs uppercase tracking-widest transition-all border
-                ${currentDivision === d.id ? 'bg-ufcRed/15 border-ufcRed/50 text-white' : 'border-white/10 text-gray-500 hover:text-white hover:border-white/30'}">
-                ${d.icon} ${d.label}
-            </button>
-        `).join('');
+        let lastGroup = null;
+        tabs.innerHTML = UFC_DIVISIONS.map(d => {
+            const group = _ufcDivisionGroupFor(d.id);
+            const groupHtml = group !== lastGroup
+                ? `<div class="ur-division-group-label">${escapeHtml(group)}</div>` : '';
+            lastGroup = group;
+            const divData = ufcRankingsDB[d.id];
+            const hasData = !!(divData && ((divData.fighters && divData.fighters.length) || divData.champion));
+            const isActive = currentDivision === d.id;
+            return groupHtml + `<button type="button" onclick="switchDivision('${d.id}')" id="div-tab-${d.id}"
+                class="ur-division-item${isActive ? ' is-active' : ''}${!hasData ? ' is-dim' : ''}"
+                ${isActive ? 'aria-current="true"' : ''}${!hasData ? ' disabled title="데이터 없음"' : ''}>
+                <span>${d.icon} ${escapeHtml(d.label)}</span>
+            </button>`;
+        }).join('');
     }
 
-    let _rankImgMap = null;     // lowercase name_en → image_url
-    let _rankFighterMap = null; // lowercase name_en → full fighters row
+    let _rankFighterMap = null; // lowercase name_en → full fighters row (사진/전적/신체/피니시율 단일 소스)
+    let _rankFighterLoadPromise = null; // in-flight fighters 조회 공유 Promise(boolean 아님) — 동시 호출도 fighters SELECT 1회.
 
-    async function _loadRankImgs() {
-        if (!sb || _rankImgMap !== null) return;
-        _rankImgMap = {};
-        _rankFighterMap = {};
-        const { data } = await sb.from('fighters').select(
+    // 반환: Promise<boolean> — true=로드 완료(map 사용 가능), false=실패/sb 없음(map은 null 유지, 다음 진입에서 재시도 가능).
+    // 이미 로딩 중이면 같은 Promise를 반환하므로 모든 호출자가 "실제 완료" 시점에만 깨어난다(즉시-resolve 재귀 없음).
+    function _loadRankImgs() {
+        if (_rankFighterMap !== null) return Promise.resolve(true);
+        if (_rankFighterLoadPromise) return _rankFighterLoadPromise;
+        if (!sb) return Promise.resolve(false);
+
+        _rankFighterLoadPromise = sb.from('fighters').select(
             'id, name, name_en, division, wins, losses, draws, rank, height, reach, height_cm, weight_kg, reach_cm, ko_rate, sub_rate, dec_rate, stats, image_url, style, odds'
-        );
-        (data || []).forEach(f => {
-            const key = (f.name_en || '').toLowerCase().trim();
-            if (!key) return;
-            if (f.image_url) _rankImgMap[key] = f.image_url;
-            _rankFighterMap[key] = f;
+        ).then(function(res) {
+            if (res.error) throw res.error;
+            const fighterMap = {};
+            (res.data || []).forEach(function(f) {
+                const key = (f.name_en || '').toLowerCase().trim();
+                if (!key) return;
+                fighterMap[key] = f;
+            });
+            _rankFighterMap = fighterMap;
+            renderUFCRankings();
+            return true;
+        }).catch(function(e) {
+            console.warn('[_loadRankImgs]', e);
+            return false;   // map은 임의 데이터로 채우지 않음 — null 유지
+        }).finally(function() {
+            _rankFighterLoadPromise = null;   // 성공/실패 무관 정리 → 다음 명시적 진입에서 재시도 가능
         });
-        renderUFCRankings();
+        return _rankFighterLoadPromise;
     }
 
+    // 정확 매칭 우선. 실패 시 성(last name) 부분일치로 재시도하되, 후보가 2명 이상이면
+    // 어느 쪽인지 확정할 수 없으므로 null(안전 미매칭) — 엉뚱한 선수 프로필/사진 연결 방지.
     function _lookupRankFighter(name) {
         if (!_rankFighterMap) return null;
         const key = (name || '').toLowerCase().trim();
         if (_rankFighterMap[key]) return _rankFighterMap[key];
         const lastName = key.split(' ').pop();
         if (lastName && lastName.length >= 4) {
-            const found = Object.keys(_rankFighterMap).find(k => k.includes(lastName));
-            if (found) return _rankFighterMap[found];
+            const matches = Object.keys(_rankFighterMap).filter(k => k.includes(lastName));
+            if (matches.length === 1) return _rankFighterMap[matches[0]];
         }
         return null;
     }
 
     function _getRankImg(name) {
-        if (!_rankImgMap) return null;
-        const key = (name || '').toLowerCase().trim();
-        if (_rankImgMap[key]) return _rankImgMap[key];
-        const lastName = key.split(' ').pop();
-        if (lastName && lastName.length >= 4) {
-            const found = Object.keys(_rankImgMap).find(k => k.includes(lastName));
-            if (found) return _rankImgMap[found];
-        }
-        return null;
+        const f = _lookupRankFighter(name);
+        return (f && f.image_url) ? f.image_url : null;
     }
 
     function switchDivision(divId) {
@@ -5067,110 +5110,223 @@ async function publishPost() {
         renderUFCRankings();
     }
 
+    // 실 fighters row로 record/height/reach/사진을 보강(ufc_rankings 자체 컬럼은 커버리지 낮음).
+    // 매칭 실패 시 ufc_rankings의 원본 값(있으면)까지만 사용 — 추측 보강 없음.
+    function _ufcEnrichFighter(f) {
+        const fd = _lookupRankFighter(f.name_en || f.name);
+        let record = (f.record && f.record !== '—') ? f.record : null;
+        if (fd && (fd.wins != null || fd.losses != null || fd.draws != null)) {
+            record = (fd.wins || 0) + '-' + (fd.losses || 0) + (fd.draws ? '-' + fd.draws : '');
+        }
+        const height = (fd && fd.height_cm) ? Math.round(fd.height_cm) + 'cm' : ((f.height && f.height !== '—') ? f.height : null);
+        const reach  = (fd && fd.reach_cm)  ? Math.round(fd.reach_cm)  + 'cm' : ((f.reach  && f.reach  !== '—') ? f.reach  : null);
+        const image  = (fd && fd.image_url) ? fd.image_url : null;
+        return { record, height, reach, image };
+    }
+
+    // 체급 KO/SUB/DEC 분포 — fighters.ko_rate/sub_rate/dec_rate 실측치 평균(null 제외, 0으로 대체 금지).
+    // 표본이 적으면(5명 미만) 신뢰 불가로 보고 섹션 자체를 숨긴다. 100%로 강제 정규화하지 않는다.
+    function _ufcFinishDistribution(fighters, champion) {
+        const pool = champion ? fighters.concat([champion]) : fighters;
+        const rates = [];
+        pool.forEach(f => {
+            const fd = _lookupRankFighter(f.name_en || f.name);
+            if (fd && fd.ko_rate != null && fd.sub_rate != null && fd.dec_rate != null) {
+                rates.push({ ko: Number(fd.ko_rate), sub: Number(fd.sub_rate), dec: Number(fd.dec_rate) });
+            }
+        });
+        if (rates.length < 5) return null;
+        const avg = (key) => rates.reduce((s, r) => s + r[key], 0) / rates.length;
+        return { ko: avg('ko'), sub: avg('sub'), dec: avg('dec'), n: rates.length };
+    }
+
+    // XSS 안전: onclick에 raw JSON을 보간하지 않고 index로 캐시된 fighter 객체를 조회한다.
+    let _ufcRankViewCache = [];
+    function _ufcRankRowClick(e) {
+        const btn = e.target.closest('[data-ur-idx]');
+        if (!btn || !btn.dataset || btn.dataset.urIdx === undefined) return;
+        const fighter = _ufcRankViewCache[parseInt(btn.dataset.urIdx, 10)];
+        if (fighter) openUFCFighterProfile(fighter);
+    }
+
+    function _ufcRowHtml(f, divInfo, idx, isChamp) {
+        const enrich = _ufcEnrichFighter(f);
+        const initials = (f.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+        const rankBadge = isChamp ? 'C' : String(f.rank);
+        const accentCls = isChamp ? 'is-champion' : (f.rank <= 3 ? 'is-top3' : '');
+        const label = (divInfo ? divInfo.label + ' ' : '') + (isChamp ? '챔피언' : f.rank + '위') + ' ' + f.name + ' 프로필 보기';
+        return `<button type="button" class="ur-row ${accentCls}" data-ur-idx="${idx}" aria-label="${escapeHtml(label)}">
+            <span class="ur-row-rank">${escapeHtml(rankBadge)}</span>
+            <span class="ur-row-fighter">
+                <span class="ur-row-avatar">
+                    ${enrich.image ? `<img src="${escapeHtml(enrich.image)}" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : ''}
+                    <span class="ur-row-initials"${enrich.image ? ' style="display:none"' : ''}>${escapeHtml(initials)}</span>
+                </span>
+                <span class="ur-row-name">
+                    <span class="ur-row-en">${escapeHtml(f.name_en || f.name)}</span>
+                    ${(f.name && f.name !== f.name_en) ? `<span class="ur-row-ko">${escapeHtml(f.name)}</span>` : ''}
+                </span>
+            </span>
+            <span class="ur-row-record">${enrich.record ? escapeHtml(enrich.record) : '—'}</span>
+            <span class="ur-row-physical">
+                ${enrich.height ? `<span>${escapeHtml(enrich.height)}</span>` : ''}
+                ${enrich.reach ? `<span>리치 ${escapeHtml(enrich.reach)}</span>` : ''}
+            </span>
+        </button>`;
+    }
+
+    // .ur-row 그리드/패딩/border-bottom을 상속하지 않는 별도 인터랙티브 요소(.ur-champion-name).
+    // 컨텐더 행과 동일하게 _ufcRankViewCache index로 클릭 위임(raw JSON 미보간).
+    function _ufcChampionCardHtml(c, divInfo) {
+        const enrich = _ufcEnrichFighter(c);
+        const metaParts = [enrich.record, enrich.height, enrich.reach ? '리치 ' + enrich.reach : null].filter(Boolean);
+        const idx = _ufcRankViewCache.length;
+        _ufcRankViewCache.push({ ...c, isChampion: true, division: divInfo?.label });
+        const label = (divInfo ? divInfo.label + ' ' : '') + '챔피언 ' + c.name + ' 프로필 보기';
+        return `
+        <div class="ur-champion-card">
+            <div class="ur-champion-photo">
+                ${enrich.image ? `<img src="${escapeHtml(enrich.image)}" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : ''}
+                <span class="ur-champion-initials"${enrich.image ? ' style="display:none"' : ''}>${escapeHtml((c.name || '?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase())}</span>
+            </div>
+            <div class="ur-champion-info">
+                <span class="ur-champion-tag">CHAMPION</span>
+                <button type="button" class="ur-champion-name" data-ur-idx="${idx}" aria-label="${escapeHtml(label)}">${escapeHtml(c.name)}</button>
+                <p class="ur-champion-meta">${escapeHtml(metaParts.join(' · '))}</p>
+            </div>
+        </div>`;
+    }
+
     function renderUFCRankings() {
         const content = document.getElementById('ufc-rankings-content');
         if (!content) return;
-
-        const query = (document.getElementById('ufc-rank-search')?.value || '').toLowerCase();
-        const divData = ufcRankingsDB[currentDivision];
-        const divInfo = UFC_DIVISIONS.find(d => d.id === currentDivision);
-        if (!divData) return;
-
-        const _champMeta = (c) => {
-            const parts = [c.record].filter(Boolean);
-            if (c.height && c.height !== '—') parts.push(c.height);
-            if (c.reach && c.reach !== '—') parts.push('리치 ' + c.reach);
-            return parts.join(' · ');
-        };
-
-        // Filter by search
-        let fighters = divData.fighters || [];
-        if (query) {
-            fighters = fighters.filter(f =>
-                f.name.toLowerCase().includes(query) ||
-                (f.nation || '').toLowerCase().includes(query)
-            );
+        if (!content.dataset.urBound) {
+            content.addEventListener('click', _ufcRankRowClick);
+            content.dataset.urBound = '1';
         }
 
-        content.innerHTML = `
-        <!-- Champion Banner -->
-        ${divData.champion ? `
-        <div class="glass-card rounded-[2rem] p-6 lg:p-10 mb-6 border border-yellow-500/30 mb-8"
-            style="background:linear-gradient(135deg,rgba(234,179,8,0.08) 0%,rgba(0,0,0,0) 60%)">
-            <div class="flex items-center justify-between flex-wrap gap-4">
-                <div class="flex items-center gap-5">
-                    <div class="w-14 h-14 lg:w-20 lg:h-20 rounded-2xl bg-yellow-500/10 border-2 border-yellow-500/40 overflow-hidden flex items-center justify-center flex-shrink-0">
-                        ${_getRankImg(divData.champion.name_en || divData.champion.name)
-                            ? `<img src="${_getRankImg(divData.champion.name_en || divData.champion.name)}" class="w-full h-full object-cover object-top" onerror="this.parentElement.innerHTML='<span class=\\'text-2xl lg:text-4xl\\'>🏆</span>'">`
-                            : `<span class="text-2xl lg:text-4xl">🏆</span>`}
-                    </div>
-                    <div>
-                        <p class="oswald-sharp text-[9px] text-yellow-400 uppercase tracking-[0.3em] font-black italic mb-1">Champion · ${divInfo?.label || ''}</p>
-                        <h4 class="oswald-sharp text-2xl lg:text-4xl font-black italic text-white uppercase tracking-tighter cursor-pointer hover:text-yellow-400 transition"
-                            onclick='openUFCFighterProfile(${JSON.stringify({...divData.champion, isChampion:true, division: divInfo?.label}).replace(/'/g,"&#39;")})'>
-                            ${divData.champion.nation} ${divData.champion.name}
-                        </h4>
-                        <p class="oswald-sharp text-xs text-gray-500 italic uppercase mt-1">${_champMeta(divData.champion)}</p>
-                    </div>
-                </div>
-                <button class="oswald-sharp bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/20 font-black px-6 py-3 rounded-xl italic uppercase text-xs tracking-widest transition"
-                    onclick='openUFCFighterProfile(${JSON.stringify({...divData.champion, isChampion:true, division: divInfo?.label}).replace(/'/g,"&#39;")})'>
-                    프로필 보기 →
-                </button>
-            </div>
-        </div>` : ((typeof adminUnlocked !== 'undefined' && adminUnlocked) ? `
-        <div class="glass-card rounded-2xl p-5 mb-8 border border-white/10 text-center">
-            <p class="oswald-sharp text-xs text-gray-600 italic uppercase tracking-widest">챔피언 공석 — 어드민에서 추가하세요</p>
-        </div>` : '')}
+        const titleEl = document.getElementById('ur-division-title');
+        const updatedEl = document.getElementById('ufc-rank-updated');
+        const divInfo = UFC_DIVISIONS.find(d => d.id === currentDivision);
+        if (titleEl) titleEl.textContent = (divInfo ? divInfo.label : '') + ' 랭킹';
+        if (updatedEl) {
+            const fmt = (typeof formatEventDateOnly === 'function') ? formatEventDateOnly(_ufcRankUpdatedAt) : { text: '' };
+            updatedEl.textContent = fmt.text ? ('최종 갱신 · ' + fmt.text) : '랭킹 데이터';
+        }
 
-        <!-- Rankings Table -->
-        <div class="glass-card rounded-[2rem] overflow-hidden">
-            <div class="grid grid-cols-12 px-5 lg:px-10 py-4 border-b border-white/5 bg-black/30">
-                <span class="col-span-1 oswald-sharp text-[8px] text-gray-600 font-black italic uppercase tracking-widest text-center">#</span>
-                <span class="col-span-6 oswald-sharp text-[8px] text-gray-600 font-black italic uppercase tracking-widest pl-2">선수</span>
-                <span class="col-span-3 oswald-sharp text-[8px] text-gray-600 font-black italic uppercase tracking-widest text-center hidden lg:block">전적</span>
-                <span class="col-span-5 lg:col-span-2 oswald-sharp text-[8px] text-gray-600 font-black italic uppercase tracking-widest text-center">신장</span>
+        // ── 상태 우선 처리(로딩/오류/빈 상태) — 이전 체급 데이터 잔상 금지 ──
+        if (_ufcRankStatus === 'loading' && Object.keys(ufcRankingsDB).length === 0) {
+            content.setAttribute('aria-busy', 'true');
+            content.innerHTML = `<div class="ur-state-block" role="status">불러오는 중...</div>`;
+            return;
+        }
+        if (_ufcRankStatus === 'error' && Object.keys(ufcRankingsDB).length === 0) {
+            content.setAttribute('aria-busy', 'false');
+            content.innerHTML = `<div class="ur-state-block" role="status">랭킹 데이터를 불러오지 못했어요. 잠시 후 다시 시도해주세요.</div>`;
+            return;
+        }
+        content.setAttribute('aria-busy', 'false');
+
+        const divData = ufcRankingsDB[currentDivision];
+        if (!divData) {
+            content.innerHTML = `<div class="ur-state-block" role="status">이 체급은 아직 랭킹 데이터가 없어요.</div>`;
+            return;
+        }
+
+        const query = (document.getElementById('ufc-rank-search')?.value || '').trim().toLowerCase();
+        const _matchesQuery = (f) => !query || (f.name || '').toLowerCase().includes(query) || (f.name_en || '').toLowerCase().includes(query);
+        const fighters = (divData.fighters || []).filter(_matchesQuery);
+        const championMatches = !!divData.champion && _matchesQuery(divData.champion);
+
+        _ufcRankViewCache = [];
+        let champHtml = '';
+        if (query) {
+            // 검색 중: 챔피언이 이름/영문 이름으로 일치할 때만 챔피언 카드 표시. P4P 설명 등 중립 안내는 숨김.
+            if (championMatches) {
+                champHtml = _ufcChampionCardHtml(divData.champion, divInfo);
+            }
+        } else if (divData.champion) {
+            champHtml = _ufcChampionCardHtml(divData.champion, divInfo);
+        } else if (currentDivision === 'p4p') {
+            champHtml = `
+        <div class="ur-p4p-note">
+            <p class="ur-p4p-title">체급 통합 순위</p>
+            <p class="ur-p4p-sub">${escapeHtml(divInfo ? divInfo.label : '')} · 체급 구분 없는 종합 랭킹입니다.</p>
+        </div>`;
+        } else {
+            champHtml = `
+        <div class="ur-p4p-note">
+            <p class="ur-p4p-title">챔피언 정보 없음</p>
+            <p class="ur-p4p-sub">${escapeHtml(divInfo ? divInfo.label : '')} 챔피언 데이터가 아직 없어요.</p>
+        </div>`;
+        }
+
+        // 검색 중에는 피니시 분포(전체 체급 기준 통계)가 필터 결과와 무관해 보일 수 있어 숨김.
+        const dist = query ? null : _ufcFinishDistribution(divData.fighters || [], divData.champion);
+        const distHtml = dist ? `
+        <div class="ur-finish-dist" role="group" aria-label="피니시 방식 분포">
+            <div class="ur-fd-row"><span class="ur-fd-label">KO/TKO</span><div class="ur-fd-bar"><i style="width:${dist.ko}%"></i></div><span class="ur-fd-val">${dist.ko.toFixed(0)}%</span></div>
+            <div class="ur-fd-row"><span class="ur-fd-label">SUB</span><div class="ur-fd-bar sub"><i style="width:${dist.sub}%"></i></div><span class="ur-fd-val">${dist.sub.toFixed(0)}%</span></div>
+            <div class="ur-fd-row"><span class="ur-fd-label">DEC</span><div class="ur-fd-bar dec"><i style="width:${dist.dec}%"></i></div><span class="ur-fd-val">${dist.dec.toFixed(0)}%</span></div>
+            <p class="ur-fd-foot">선수별 평균 결착 비율 · ${dist.n}명 기준</p>
+        </div>` : '';
+
+        // 챔피언 또는 컨텐더 중 하나라도 일치하면 "검색 결과 없음" 표시 금지 — 둘 다 없을 때만 단일 표시.
+        const noResultsAtAll = query && !championMatches && fighters.length === 0;
+        const rowsHtml = fighters.length === 0
+            ? (noResultsAtAll
+                ? `<div class="ur-state-block" role="status">검색 결과 없음</div>`
+                : (query ? '' : `<div class="ur-state-block" role="status">이 체급에는 랭커가 없어요</div>`))
+            : fighters.map(f => {
+                const idx = _ufcRankViewCache.length;
+                _ufcRankViewCache.push({ ...f, division: divInfo?.label });
+                return _ufcRowHtml(f, divInfo, idx, false);
+            }).join('');
+
+        content.innerHTML = champHtml + distHtml + `
+        <div class="ur-table">
+            <div class="ur-table-head">
+                <span>#</span><span>선수</span><span>전적</span><span class="ur-col-physical">신장·리치</span>
             </div>
-            ${fighters.length === 0
-                ? `<div class="px-10 py-12 text-center oswald-sharp text-xs text-gray-600 italic uppercase tracking-widest">검색 결과 없음</div>`
-                : fighters.map(f => `
-            <div class="grid grid-cols-12 px-5 lg:px-10 py-4 lg:py-5 border-b border-white/5 items-center hover:bg-white/3 transition cursor-pointer group"
-                onclick='openUFCFighterProfile(${JSON.stringify({...f, division: divInfo?.label}).replace(/'/g,"&#39;")})'>
-                <div class="col-span-1 text-center">
-                    <span class="oswald-sharp font-black italic text-base lg:text-xl ${f.rank<=3?'text-ufcRed':'text-gray-500'}">${f.rank}</span>
-                </div>
-                <div class="col-span-6 flex items-center gap-3 pl-2">
-                    <div class="w-9 h-9 lg:w-11 lg:h-11 rounded-xl bg-white/5 border border-white/10 overflow-hidden flex items-center justify-center flex-shrink-0">
-                        ${_getRankImg(f.name_en || f.name)
-                            ? `<img src="${_getRankImg(f.name_en || f.name)}" class="w-full h-full object-cover object-top" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
-                            : ''}
-                        <span class="oswald-sharp font-black italic text-[10px] text-gray-400 w-full h-full flex items-center justify-center ${_getRankImg(f.name_en || f.name) ? 'hidden' : ''}">${f.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</span>
-                    </div>
-                    <div>
-                        <p class="oswald-sharp font-black italic text-sm lg:text-base text-white uppercase tracking-tighter group-hover:text-ufcRed transition">${f.nation} ${f.name}</p>
-                        <p class="oswald-sharp text-[9px] text-gray-600 italic uppercase tracking-widest lg:hidden">${f.record}</p>
-                    </div>
-                </div>
-                <div class="col-span-3 text-center hidden lg:block">
-                    <span class="oswald-sharp font-black italic text-sm text-white">${f.record}</span>
-                </div>
-                <div class="col-span-5 lg:col-span-2 text-center">
-                    ${f.height && f.height !== '—' ? `<p class="oswald-sharp text-[10px] lg:text-xs text-gray-400 italic">${f.height}</p>` : ''}
-                    ${f.reach && f.reach !== '—' ? `<p class="oswald-sharp text-[10px] lg:text-xs text-gray-500 italic">리치 ${f.reach}</p>` : ''}
-                </div>
-            </div>`).join('')}
+            <div class="ur-table-body">${rowsHtml}</div>
         </div>`;
     }
 
     let ufcProfileRadar = null;
 
-    function openUFCFighterProfile(fighter) {
+    // fighters 테이블 미매칭(또는 조회 실패) 시 안전 fallback — 신뢰할 fighter_id 없으므로
+    // 픽타곤 전적/실제 fighters.stats를 사용하지 않고 랭킹 row 자체 데이터만으로 표시.
+    function _openUFCFallbackProfile(fighter) {
+        const modal = document.getElementById('fighter-profile-modal');
+        modal.classList.remove('hidden');
+
+        const initials = fighter.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+        document.getElementById('fp-initials').textContent = initials;
+        document.getElementById('fp-name').textContent = fighter.name;
+        document.getElementById('fp-record').textContent = fighter.record || '—';
+        // fighters 미매칭 fallback: 신뢰할 fighter_id 없음 → 픽타곤 전적 줄 안전 숨김(스테일 방지).
+        _renderPicktagonRecord(fighter.id);
+        document.getElementById('fp-height').textContent = fighter.height || '—';
+        document.getElementById('fp-reach').textContent = fighter.reach || '—';
+        document.getElementById('fp-odds').textContent = fighter.odds ? `×${fighter.odds}` : '—';
+        document.getElementById('fp-rank-badge').textContent = fighter.isChampion ? '🏆 CHAMPION' : `#${fighter.rank}`;
+        document.getElementById('fp-division-badge').textContent = fighter.division || '';
+
+        // 레이팅 — fighters 테이블 미매칭(이 분기) 이므로 신뢰할 fighters.stats가 없다.
+        // ufc_rankings의 합성 stats를 레이팅으로 쓰지 않고 empty state로 처리(가짜 75 차단).
+        _renderRatingSection(null);
+
+        renderFighterHistory(fighter.name);
+    }
+
+    async function openUFCFighterProfile(fighter) {
         if (typeof fighter === 'string') fighter = JSON.parse(fighter);
 
-        // _rankFighterMap 아직 미로드 시 on-demand 로딩 후 재시도
+        // _rankFighterMap 아직 미로드 시 공유 Promise를 최대 1회만 대기(자기 재귀 없음).
+        // 실패/sb 없음이면 즉시 안전 fallback 프로필을 정확히 1회 연다 — 다음 명시적 진입에서 재시도.
         if (_rankFighterMap === null) {
-            _loadRankImgs().then(() => openUFCFighterProfile(fighter));
-            return;
+            const loaded = await _loadRankImgs();
+            if (!loaded || _rankFighterMap === null) { _openUFCFallbackProfile(fighter); return; }
         }
         // fighters 테이블 데이터가 있으면 openFighterProfile로 위임 (영어 이름 우선)
         const dbRow = _lookupRankFighter(fighter.name_en || fighter.name);
@@ -5197,27 +5353,7 @@ async function publishPost() {
             return;
         }
 
-        // fallback: fighters 테이블 미매칭 시 기존 로직 사용
-        const modal = document.getElementById('fighter-profile-modal');
-        modal.classList.remove('hidden');
-
-        const initials = fighter.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-        document.getElementById('fp-initials').textContent = initials;
-        document.getElementById('fp-name').textContent = fighter.name;
-        document.getElementById('fp-record').textContent = fighter.record || '—';
-        // fighters 미매칭 fallback: 신뢰할 fighter_id 없음 → 픽타곤 전적 줄 안전 숨김(스테일 방지).
-        _renderPicktagonRecord(fighter.id);
-        document.getElementById('fp-height').textContent = fighter.height || '—';
-        document.getElementById('fp-reach').textContent = fighter.reach || '—';
-        document.getElementById('fp-odds').textContent = fighter.odds ? `×${fighter.odds}` : '—';
-        document.getElementById('fp-rank-badge').textContent = fighter.isChampion ? '🏆 CHAMPION' : `#${fighter.rank}`;
-        document.getElementById('fp-division-badge').textContent = fighter.division || '';
-
-        // 레이팅 — fighters 테이블 미매칭(이 분기) 이므로 신뢰할 fighters.stats가 없다.
-        // ufc_rankings의 합성 stats를 레이팅으로 쓰지 않고 empty state로 처리(가짜 75 차단).
-        _renderRatingSection(null);
-
-        renderFighterHistory(fighter.name);
+        _openUFCFallbackProfile(fighter);
     }
 
     /* ==============================

@@ -2538,3 +2538,166 @@ body.more-sheet-lock { overflow: hidden; }   /* 열림 중 body scroll 방지 */
    min 44×44 터치, focus-visible 링. h1 heading 구조와 svg/워드마크/truncate는 마크업에서 유지. */
 .mob-logo-btn { background: transparent; border: 0; padding: 0; margin: 0; cursor: pointer; color: inherit; font: inherit; min-width: 44px; min-height: 44px; max-width: 100%; }
 .mob-logo-btn:focus-visible { outline: 2px solid var(--pt-red-500); outline-offset: 2px; border-radius: 6px; }
+
+/* ============================================================
+   UFC 랭킹 UI/UX 개편 1차 — handoff 기반 실데이터 구현
+   #ufc-rankings 스코프. --pt-* 토큰만 사용. 카드 radius 8px 이하,
+   카드 안 카드 없음(챔피언 카드·행만 실제 카드/행). 신규 letter-spacing 0.
+   ============================================================ */
+#ufc-rankings .ur-layout {
+    display: block;
+}
+@media (min-width: 1024px) {
+    #ufc-rankings .ur-layout { display: grid; grid-template-columns: 200px 1fr; gap: 24px; align-items: start; }
+}
+
+/* ── 체급 네비: 데스크톱 sticky 세로 목록 / 모바일 가로 스크롤 칩 ── */
+#ufc-rankings .ur-division-nav {
+    display: flex; gap: 6px; overflow-x: auto; padding: 8px; margin-bottom: 20px;
+    background: var(--pt-bg-2); border: 1px solid var(--pt-line-1); border-radius: var(--pt-r-sm);
+    -webkit-overflow-scrolling: touch;
+}
+#ufc-rankings .ur-division-nav::-webkit-scrollbar { display: none; }
+#ufc-rankings .ur-division-nav { scrollbar-width: none; }
+@media (min-width: 1024px) {
+    #ufc-rankings .ur-division-nav {
+        flex-direction: column; overflow-x: visible; position: sticky; top: 84px;
+        margin-bottom: 0; align-items: stretch;
+    }
+}
+#ufc-rankings .ur-division-group-label {
+    display: none; padding: 10px 10px 4px; font-family: var(--pt-font-eyebrow); font-size: 10px;
+    letter-spacing: 0; color: var(--pt-ink-3); font-weight: 600; white-space: nowrap;
+}
+@media (min-width: 1024px) {
+    #ufc-rankings .ur-division-group-label:first-child { padding-top: 2px; }
+    #ufc-rankings .ur-division-group-label { display: block; }
+}
+#ufc-rankings .ur-division-item {
+    flex-shrink: 0; display: flex; align-items: center; gap: 6px;
+    padding: 10px 14px; min-height: 44px; border-radius: var(--pt-r-xs);
+    font-family: var(--pt-font-body); font-size: 13px; font-weight: 700;
+    color: var(--pt-ink-2); background: transparent; border: 1px solid transparent;
+    cursor: pointer; white-space: nowrap; letter-spacing: 0; transition: background var(--pt-dur-fast), color var(--pt-dur-fast);
+}
+#ufc-rankings .ur-division-item:hover:not(:disabled) { background: var(--pt-bg-3); color: var(--pt-ink-0); }
+#ufc-rankings .ur-division-item.is-active { background: var(--pt-red-500); color: #fff; }
+#ufc-rankings .ur-division-item.is-dim { opacity: 0.38; cursor: default; }
+#ufc-rankings .ur-division-item:disabled { pointer-events: none; }
+#ufc-rankings .ur-division-item:focus-visible { outline: 2px solid var(--pt-ink-1); outline-offset: 2px; }
+@media (min-width: 1024px) { #ufc-rankings .ur-division-item { width: 100%; justify-content: flex-start; } }
+
+/* ── 챔피언 카드 / 중립 안내 (카드 하나만 — 안에 중첩 카드 없음) ── */
+#ufc-rankings .ur-champion-card {
+    display: flex; align-items: center; gap: 16px; padding: 18px 20px; margin-bottom: 16px;
+    background: var(--pt-bg-2); border: 1px solid var(--pt-line-2); border-radius: var(--pt-r-sm);
+}
+#ufc-rankings .ur-champion-photo {
+    position: relative; flex-shrink: 0; width: 72px; height: 72px; border-radius: var(--pt-r-sm);
+    background: var(--pt-bg-0); border: 1px solid var(--pt-line-2); overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+}
+#ufc-rankings .ur-champion-photo img { width: 100%; height: 100%; object-fit: cover; object-position: top center; }
+#ufc-rankings .ur-champion-initials { font-family: var(--pt-font-display); font-weight: 800; font-size: 22px; color: var(--pt-ink-1); letter-spacing: 0; }
+#ufc-rankings .ur-champion-info { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+#ufc-rankings .ur-champion-tag {
+    align-self: flex-start; font-family: var(--pt-font-eyebrow); font-size: 10px; font-weight: 700; letter-spacing: 0;
+    background: linear-gradient(90deg, var(--pt-warn), var(--pt-belt-brown)); color: var(--pt-bg-1); padding: 3px 10px; border-radius: var(--pt-r-xs);
+}
+/* 챔피언 버튼은 .ur-row(그리드/패딩/border-bottom)를 상속하지 않는 별도 인터랙티브 요소 — 44px 터치 보장 */
+#ufc-rankings .ur-champion-name {
+    display: inline-flex; align-items: center; text-align: left; background: none; border: 0; padding: 0; margin: 0;
+    cursor: pointer; min-height: 44px;
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900; text-transform: uppercase;
+    font-size: 22px; line-height: 1.05; color: var(--pt-ink-0); letter-spacing: 0;
+}
+@media (min-width: 640px) {
+    #ufc-rankings .ur-champion-name { font-size: 28px; }
+}
+#ufc-rankings .ur-champion-name:hover { color: var(--pt-warn); }
+#ufc-rankings .ur-champion-name:focus-visible { outline: 2px solid var(--pt-warn); outline-offset: 3px; border-radius: 4px; }
+#ufc-rankings .ur-champion-meta { font-family: var(--pt-font-mono); font-size: 12px; color: var(--pt-ink-3); letter-spacing: 0; }
+
+#ufc-rankings .ur-p4p-note {
+    padding: 18px 20px; margin-bottom: 16px; background: var(--pt-bg-2); border: 1px solid var(--pt-line-1); border-radius: var(--pt-r-sm);
+}
+#ufc-rankings .ur-p4p-title {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900; text-transform: uppercase;
+    font-size: 20px; color: var(--pt-ink-0); letter-spacing: 0; margin: 0;
+}
+#ufc-rankings .ur-p4p-sub { font-family: var(--pt-font-body); font-size: 12px; color: var(--pt-ink-3); margin: 4px 0 0; letter-spacing: 0; }
+
+/* ── 피니시 분포(표본 충분할 때만 렌더 — JS에서 조건부 출력) ── */
+#ufc-rankings .ur-finish-dist {
+    display: flex; flex-direction: column; gap: 8px; padding: 16px 20px; margin-bottom: 16px;
+    background: var(--pt-bg-2); border: 1px solid var(--pt-line-1); border-radius: var(--pt-r-sm);
+}
+#ufc-rankings .ur-fd-row { display: grid; grid-template-columns: 52px 1fr 40px; align-items: center; gap: 10px; }
+#ufc-rankings .ur-fd-label { font-family: var(--pt-font-eyebrow); font-size: 10px; letter-spacing: 0; color: var(--pt-ink-2); font-weight: 600; }
+#ufc-rankings .ur-fd-bar { height: 6px; border-radius: var(--pt-r-pill); background: var(--pt-bg-4); overflow: hidden; }
+#ufc-rankings .ur-fd-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--pt-red-700), var(--pt-red-500)); }
+#ufc-rankings .ur-fd-bar.sub i { background: linear-gradient(90deg, var(--pt-corner-blue-deep), var(--pt-corner-blue)); }
+#ufc-rankings .ur-fd-bar.dec i { background: linear-gradient(90deg, var(--pt-ink-4), var(--pt-ink-2)); }
+#ufc-rankings .ur-fd-val { font-family: var(--pt-font-mono); font-size: 11px; font-weight: 700; color: var(--pt-ink-1); text-align: right; letter-spacing: 0; }
+#ufc-rankings .ur-fd-foot { font-family: var(--pt-font-mono); font-size: 10px; color: var(--pt-ink-4); margin: 2px 0 0; letter-spacing: 0; }
+
+/* ── 랭킹 테이블 ── */
+#ufc-rankings .ur-table { background: var(--pt-bg-2); border: 1px solid var(--pt-line-1); border-radius: var(--pt-r-sm); overflow: hidden; }
+#ufc-rankings .ur-table-head, #ufc-rankings .ur-row {
+    display: grid; grid-template-columns: 40px minmax(0,1fr) 84px 120px; align-items: center; gap: 10px;
+    padding: 10px 16px;
+}
+#ufc-rankings .ur-table-head {
+    background: var(--pt-bg-3); border-bottom: 1px solid var(--pt-line-1);
+    font-family: var(--pt-font-eyebrow); font-size: 9px; letter-spacing: 0; color: var(--pt-ink-3); font-weight: 700;
+}
+#ufc-rankings .ur-col-physical { text-align: right; }
+#ufc-rankings .ur-row {
+    width: 100%; min-height: 56px; background: none; border: 0; border-bottom: 1px solid var(--pt-line-1);
+    cursor: pointer; text-align: left; color: inherit; font: inherit; transition: background var(--pt-dur-fast);
+}
+#ufc-rankings .ur-table-body .ur-row:last-child { border-bottom: 0; }
+#ufc-rankings .ur-row:hover { background: var(--pt-bg-3); }
+#ufc-rankings .ur-row:focus-visible { outline: 2px solid var(--pt-ink-1); outline-offset: -2px; background: var(--pt-bg-3); }
+#ufc-rankings .ur-row-rank {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800; font-size: 17px;
+    color: var(--pt-ink-3); letter-spacing: 0; text-align: center;
+}
+#ufc-rankings .ur-row.is-top3 .ur-row-rank { color: var(--pt-red-500); }
+#ufc-rankings .ur-row.is-champion .ur-row-rank { color: var(--pt-warn); }
+#ufc-rankings .ur-row-fighter { display: flex; align-items: center; gap: 10px; min-width: 0; }
+#ufc-rankings .ur-row-avatar {
+    flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; overflow: hidden;
+    background: var(--pt-bg-4); border: 1px solid var(--pt-line-2);
+    display: flex; align-items: center; justify-content: center;
+}
+#ufc-rankings .ur-row-avatar img { width: 100%; height: 100%; object-fit: cover; object-position: top center; }
+#ufc-rankings .ur-row-initials { font-family: var(--pt-font-display); font-weight: 800; font-size: 11px; color: var(--pt-ink-1); letter-spacing: 0; }
+#ufc-rankings .ur-row-name { min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+#ufc-rankings .ur-row-en {
+    font-family: var(--pt-font-body); font-weight: 800; font-size: 13px; color: var(--pt-ink-0); text-transform: uppercase;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; word-break: keep-all; letter-spacing: 0;
+}
+#ufc-rankings .ur-row-ko {
+    font-family: var(--pt-font-body); font-size: 11px; color: var(--pt-ink-3);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; word-break: keep-all; letter-spacing: 0;
+}
+#ufc-rankings .ur-row-record { font-family: var(--pt-font-mono); font-size: 12px; color: var(--pt-ink-2); text-align: center; white-space: nowrap; letter-spacing: 0; }
+#ufc-rankings .ur-row-physical { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); letter-spacing: 0; }
+
+#ufc-rankings .ur-state-block {
+    padding: 48px 20px; text-align: center; font-family: var(--pt-font-body); font-size: 13px;
+    color: var(--pt-ink-3); background: var(--pt-bg-2); border: 1px solid var(--pt-line-1); border-radius: var(--pt-r-sm);
+    letter-spacing: 0;
+}
+
+/* ── 반응형: 좁은 화면에서 저중요도 열 축약(내용 자체를 반응형으로 재배치, overflow 은폐 아님) ── */
+@media (max-width: 639px) {
+    #ufc-rankings .ur-table-head, #ufc-rankings .ur-row { grid-template-columns: 34px minmax(0,1fr) 72px; }
+    #ufc-rankings .ur-col-physical, #ufc-rankings .ur-row-physical { display: none; }
+}
+@media (max-width: 339px) {
+    #ufc-rankings .ur-table-head, #ufc-rankings .ur-row { grid-template-columns: 28px minmax(0,1fr); }
+    #ufc-rankings .ur-table-head span:nth-child(3), #ufc-rankings .ur-row-record { display: none; }
+    #ufc-rankings .ur-champion-card { flex-wrap: wrap; }
+}
