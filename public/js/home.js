@@ -31,20 +31,56 @@ async function fetchMainEvent(sb) {
         || null;
     if (!matchup) return null;
 
-    return { event: event, matchup: matchup };
+    // matchups 전체를 함께 반환 — 홈 '주요 대진' 미리보기가 같은 응답을 재사용(신규 쿼리 0).
+    return { event: event, matchup: matchup, matchups: matchups };
 }
 
-function renderFaceOffGlow(leftBias) {
-    var card = document.getElementById('hero-faceoff-card');
-    if (card) {
-        if (leftBias > 0.65) {
-            card.style.boxShadow = '0 0 32px rgba(210,10,10,0.35)';
-        } else if (leftBias < 0.35) {
-            card.style.boxShadow = '0 0 32px rgba(37,99,235,0.35)';
-        } else {
-            card.style.boxShadow = '';
-        }
-    }
+// ── 주요 대진 compact 미리보기 ─────────────────────────────────────
+// fetchMainEvent가 이미 받은 matchups 배열 재사용(신규 Supabase 요청 0).
+//   메인이벤트 제외 → 카드 위계(main→prelim→early) + sort_order 순 결정적 정렬 → 최대 4경기.
+//   실데이터 없으면 섹션 숨김. 항목 클릭 = 공개 대진표 이동(홈에서 픽 저장/변경 없음, 로그인 모달 자동 오픈 없음).
+var _HOME_MU_SEG_RANK = { main: 0, prelim: 1, early: 2 };
+var _HOME_MU_SEG_LABEL = { main: '메인 카드', prelim: '프리림', early: '얼리 프리림' };
+
+function renderHomeMatchupPreview(matchups, mainMatchup) {
+    var sec = document.getElementById('home-matchup-preview');
+    var list = document.getElementById('home-matchup-list');
+    if (!sec || !list) return;
+    var pool = Array.isArray(matchups) ? matchups.filter(function (m) {
+        return m && m.red_fighter_name && m.blue_fighter_name && (!mainMatchup || m.id !== mainMatchup.id);
+    }) : [];
+    if (!pool.length) { sec.classList.add('hidden'); list.innerHTML = ''; return; }
+
+    // sort_order가 세그먼트별로 중복되므로(main 1..N, prelim 1..N) 카드 위계 우선 정렬로 순서를 결정적으로 고정.
+    var items = pool.slice().sort(function (a, b) {
+        var ra = _HOME_MU_SEG_RANK[a.card_segment] != null ? _HOME_MU_SEG_RANK[a.card_segment] : 3;
+        var rb = _HOME_MU_SEG_RANK[b.card_segment] != null ? _HOME_MU_SEG_RANK[b.card_segment] : 3;
+        if (ra !== rb) return ra - rb;
+        var so = (a.sort_order || 0) - (b.sort_order || 0);
+        if (so) return so;
+        return String(a.id).localeCompare(String(b.id));
+    }).slice(0, 4);
+
+    list.innerHTML = items.map(function (m) {
+        var red = escapeHtml(m.red_fighter_name);
+        var blue = escapeHtml(m.blue_fighter_name);
+        // 체급 라벨은 대진표 화면과 동일한 _divLabel(weight_class) 재사용 — 새 매핑/추측 없음.
+        var rawWc = m.weight_class || '';
+        var divLabel = (typeof _divLabel === 'function') ? _divLabel(rawWc) : rawWc;
+        // 미지원 코드 중립화: 번역 맵에 없어 raw 그대로 돌아온 영문 코드(wmw/wfw 등)는 의미를 추측하지 않고
+        // 체급 메타만 생략(segment 메타는 유지). 알려진 mw/fw/w-flw 등 번역은 그대로.
+        if (divLabel && divLabel === rawWc && /^[a-z][a-z-]*$/i.test(rawWc)) divLabel = '';
+        var seg = _HOME_MU_SEG_LABEL[m.card_segment] || (m.card_segment ? String(m.card_segment).toUpperCase() : '');
+        var metaParts = [];
+        if (seg) metaParts.push(escapeHtml(seg));
+        if (divLabel) metaParts.push(escapeHtml(divLabel));
+        return '<button type="button" class="home-mu-item" onclick="navigateTo(\'matchups\')" aria-label="대진표 보기: ' + red + ' 대 ' + blue + '">' +
+            (metaParts.length ? '<span class="home-mu-seg">' + metaParts.join(' · ') + '</span>' : '') +
+            '<span class="home-mu-names">' + red + '<i class="home-mu-vs">vs</i>' + blue + '</span>' +
+            '<span class="home-mu-go" aria-hidden="true">→</span>' +
+            '</button>';
+    }).join('');
+    sec.classList.remove('hidden');
 }
 
 // ── 날짜 전용 포맷터 ───────────────────────────────────────────────
@@ -100,18 +136,24 @@ async function initHomeData() {
         if (typeof updateHeroStats === 'function') updateHeroStats();   // active count 확정 후 Total Fights 최종 표시
         if (!data) {
             var heroLabel = document.getElementById('hero-event-label');
+            var heroTitle = document.getElementById('hero-event-title');
             var redEl = document.getElementById('hero-red-name');
             var blueEl = document.getElementById('hero-blue-name');
             if (heroLabel) heroLabel.textContent = 'NO UPCOMING EVENT';
+            if (heroTitle) heroTitle.textContent = '예정된 이벤트 없음';
             if (redEl) redEl.textContent = 'TBA';
             if (blueEl) blueEl.textContent = 'TBA';
             renderHeroSchedule(null);   // upcoming 없음 → 가짜 카운트다운 숨김 + "일정 미정" 중립 상태
+            renderHomeMatchupPreview(null, null);   // 실데이터 없음 → 주요 대진 섹션 숨김
             return;
         }
-        var { event, matchup } = data;
+        var { event, matchup, matchups } = data;
 
+        // status='upcoming' 필터 결과이므로 'LIVE EVENT' 미표시(실제 라이브 신호 없음 — 추측 금지).
         var heroLabel = document.getElementById('hero-event-label');
-        if (heroLabel) heroLabel.textContent = 'LIVE EVENT · ' + (event.title || '');
+        if (heroLabel) heroLabel.textContent = 'UPCOMING';
+        var heroTitle = document.getElementById('hero-event-title');
+        if (heroTitle) heroTitle.textContent = event.title || '다가오는 이벤트';
 
         var nameEl = document.getElementById('event-name-label');
         var dateEl = document.getElementById('event-date-label');
@@ -141,8 +183,8 @@ async function initHomeData() {
         }
         // event_date는 자정 placeholder(시각 신뢰 불가) → 가짜 D/H/M/S 카운트다운 대신 날짜+중립 상태.
         renderHeroSchedule(event.event_date);
-        var bias = matchup.left_bias != null ? Number(matchup.left_bias) : 0.5;
-        renderFaceOffGlow(isNaN(bias) ? 0.5 : bias);
+        // (홈 1차) left_bias 기반 glow 호출 제거 — left_bias는 커뮤니티 픽 비율이 아니며 표시/해석하지 않는다.
+        renderHomeMatchupPreview(matchups, matchup);   // 같은 응답 재사용 — 메인이벤트 제외 상위 4경기
         // _dbMatchups가 없을 때만 ticker 갱신 (_dbMatchups 기반 renderHomeTicker가 더 풍부)
         if (typeof _dbMatchups === 'undefined' || !Array.isArray(_dbMatchups) || !_dbMatchups.length) {
             renderHomeTickerFromMainEvent(event, matchup);
@@ -288,26 +330,34 @@ function getNewsCategoryImg(category, idx) {
     return pool[i % pool.length];
 }
 
-function renderNewsCards(newsItems) {
-    if (!newsItems || !newsItems.length) return '<p class="col-span-3 text-center text-gray-600 oswald-sharp text-xs italic uppercase">등록된 뉴스가 없습니다</p>';
-    return '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">' +
-        newsItems.map(function(item, i) {
-            var title = item.title || '', url = item.url || '#', source = item.source || '', date = item.date || '';
-            var imgSrc = item.thumbnail_url || getNewsCategoryImg(item.category, i);
-            var fbUrl = _NEWS_FALLBACK_POOL[(i + 1) % _NEWS_FALLBACK_POOL.length];
-            var safeTitle = String(title).replace(/</g,'&lt;');
-            var safeSource = String(source).replace(/</g,'&lt;');
-            return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="block group no-underline text-inherit">' +
-                '<div class="glass-card rounded-2xl overflow-hidden border border-white/6 hover:border-white/20 transition-all duration-300 hover:scale-[1.02]">' +
-                '<div class="relative overflow-hidden" style="height:170px">' +
-                '<img src="' + imgSrc + '" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.src=\'' + fbUrl + '\'">' +
-                '<div class="absolute inset-0 pointer-events-none" style="background:linear-gradient(to top,rgba(0,0,0,0.55) 0%,transparent 55%)"></div>' +
-                (safeSource ? '<div class="absolute top-3 left-3 barlow text-[10px] font-bold italic tracking-widest uppercase px-2 py-1 rounded" style="background:rgba(225,6,0,0.9);color:#fff">' + safeSource + '</div>' : '') +
-                '</div>' +
-                '<div class="p-4">' +
-                '<div class="oswald-sharp text-sm lg:text-base font-black italic uppercase text-white line-clamp-2 group-hover:text-ufcRed transition leading-snug">' + safeTitle + '</div>' +
-                '<div class="barlow text-[10px] text-gray-500 italic mt-2">' + date + '</div>' +
-                '</div></div></a>';
+// (홈 1차) 홈 뉴스 프리뷰 — 실데이터만: 제목·출처·상대시간·실제 URL.
+//   image_url 없으면(현재 news_cache 대부분) 기사와 무관한 Unsplash 대체사진을 쓰지 않고 text-first 카드로 렌더.
+//   위 카테고리 풀은 뉴스 화면(buildNewsCardHtml)이 계속 사용하므로 유지 — 홈에서는 미사용.
+function renderHomeNewsCards(newsItems) {
+    if (!newsItems || !newsItems.length) return '<div class="home-news-empty">등록된 뉴스가 없습니다</div>';
+    return '<div class="home-news-grid">' +
+        newsItems.map(function (n) {
+            var title = (typeof newsDisplayTitle === 'function') ? newsDisplayTitle(n) : (n.title || '');
+            var ft = (typeof formatNewsTime === 'function') ? formatNewsTime(n) : { rel: '', abs: '' };
+            var src = (n.source ? String(n.source).trim() : '');
+            var url = (n.url && /^https?:\/\//i.test(n.url)) ? n.url : '';
+            var catLbl = (typeof NEWS_CATEGORY_LABEL !== 'undefined' && NEWS_CATEGORY_LABEL[n.category]) || '뉴스';
+            var img = n.image_url || n.thumbnail_url || '';
+            // 실제 기사 이미지가 있을 때만 썸네일 — 로드 실패 시 가짜 대체 없이 제거(text-first 유지).
+            var media = img
+                ? '<img class="home-news-thumb" src="' + escapeHtml(img) + '" alt="" loading="lazy" decoding="async" onerror="this.remove()">'
+                : '';
+            var metaBits = [];
+            if (src) metaBits.push('<span class="home-news-src">' + escapeHtml(src) + '</span>');
+            if (ft.rel) metaBits.push('<time class="home-news-time" title="' + escapeHtml(ft.abs) + '">' + escapeHtml(ft.rel) + '</time>');
+            var body = '<span class="home-news-body">' +
+                '<span class="home-news-cat">' + escapeHtml(catLbl) + '</span>' +
+                '<span class="home-news-title">' + escapeHtml(title) + '</span>' +
+                (metaBits.length ? '<span class="home-news-meta">' + metaBits.join('<span class="home-news-dot">·</span>') + '</span>' : '') +
+                '</span>';
+            return url
+                ? '<a class="home-news-item" href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">' + media + body + '</a>'
+                : '<div class="home-news-item">' + media + body + '</div>';
         }).join('') +
     '</div>';
 }

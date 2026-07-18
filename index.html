@@ -77,7 +77,7 @@
 <link href="/css/tokens.css" rel="stylesheet">
 <link href="/css/theme-bridge.css" rel="stylesheet">
 <link rel="stylesheet" href="./src/tailwind.css">
-<link href="/css/app.css?v=28" rel="stylesheet">
+<link href="/css/app.css?v=29" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 <!-- Supabase — defer: head 파싱 블로킹 제거. createClient는 initSupabase(window.onload)에서만 호출되므로
      defer(파싱 후·DOMContentLoaded 전 실행)로도 초기화 시점에 window.supabase 보장됨. -->
@@ -332,85 +332,56 @@
 <main class="relative" style="z-index:1;overflow:hidden">
     <!-- [SECTION: HOME] -->
     <section id="home" class="section-animate active">
-        <!-- Hero Content -->
-        <div class="relative z-10 px-5 lg:px-16 pt-10 lg:pt-20 pb-12 lg:pb-20 max-w-[1440px] mx-auto w-full">
-            <!-- Watermark -->
-            <div aria-hidden="true" class="absolute inset-x-0 top-1/2 -z-10 -translate-y-1/2 text-center text-[12vw] font-black italic whitespace-nowrap select-none opacity-5 pointer-events-none text-white">PREDICT</div>
-
-            <!-- Premium Headline -->
-            <div class="flex flex-col gap-4 lg:gap-5 mb-8">
-                <p id="hero-event-label" class="barlow text-sm uppercase tracking-[0.3em] hero-sub">NEXT EVENT</p>
-                <h1 class="oswald-sharp text-[clamp(3.2rem,10vw,8rem)] font-black italic uppercase leading-[0.9] tracking-tight text-white hero-line">
-                    <span class="block">PREDICT. COMPETE.</span>
-                    <span class="block" style="background:linear-gradient(to right,#ef4444,#f87171); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">WIN.</span>
-                </h1>
-                <p class="barlow text-sm lg:text-base font-light text-gray-400 max-w-lg hero-sub">UFC 데이터 기반 정밀 예측 시스템 — 승부를 지배하라.</p>
-            </div>
-
-            <!-- CTA + Face-off row -->
-            <div class="hero-cta flex flex-col xl:flex-row items-start xl:items-center gap-8 xl:gap-12">
-                <!-- Left: CTA + Countdown + Stats -->
-                <div class="flex flex-col gap-6">
-                    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                        <button onclick="navigateTo('matchups')" class="btn-red">ENTER OCTAGON →</button>
-                        <div class="flex items-center gap-3 flex-wrap">
-                            <span class="barlow text-[10px] font-bold italic tracking-[0.15em] text-gray-500 uppercase">Next Event</span>
-                            <div class="flex gap-2" id="hero-countdown">
-                                <div class="countdown-unit"><span class="countdown-num" id="cd-d">--</span><span class="countdown-label">Days</span></div>
-                                <div class="countdown-unit"><span class="countdown-num" id="cd-h">--</span><span class="countdown-label">Hrs</span></div>
-                                <div class="countdown-unit"><span class="countdown-num" id="cd-m">--</span><span class="countdown-label">Min</span></div>
-                                <div class="countdown-unit"><span class="countdown-num" id="cd-s">--</span><span class="countdown-label">Sec</span></div>
-                            </div>
-                            <!-- 날짜 전용 신뢰 메타 — home.js가 채운 뒤 표시(자정 placeholder 기반 가짜 카운트다운 대체). 시각/KST/현지/출처 문구 없음. -->
-                            <div id="hero-event-when" class="hidden flex flex-col leading-tight min-w-0">
-                                <time id="hero-event-date" class="barlow text-sm font-black italic text-white uppercase truncate"></time>
-                                <span id="hero-event-timestatus" class="barlow text-[10px] font-bold italic tracking-[0.15em] text-gray-500 uppercase">시작 시각 미정</span>
-                            </div>
-                        </div>
+        <!-- Event-first Hero — 실제 upcoming 이벤트 제목(H1)과 메인이벤트 파이터가 첫 화면의 주인공.
+             거대 마케팅 H1/워터마크 제거. 섹션 자체가 히어로(장식 floating card 중첩 없음). -->
+        <div class="relative z-10 px-5 lg:px-16 pt-8 lg:pt-14 pb-10 lg:pb-14 max-w-[1440px] mx-auto w-full">
+            <div class="home-hero-grid">
+                <!-- 이벤트 정보 -->
+                <div class="home-hero-info">
+                    <p id="hero-event-label" class="home-eyebrow">NEXT EVENT</p>
+                    <h1 id="hero-event-title" class="home-event-title">다가오는 이벤트</h1>
+                    <!-- 가짜 D/H/M/S 카운트다운 — 신뢰 가능한 시각 없음. renderHeroSchedule가 hidden 유지(타이머 미기동). -->
+                    <div class="hidden" id="hero-countdown" aria-hidden="true">
+                        <div class="countdown-unit"><span class="countdown-num" id="cd-d">--</span><span class="countdown-label">Days</span></div>
+                        <div class="countdown-unit"><span class="countdown-num" id="cd-h">--</span><span class="countdown-label">Hrs</span></div>
+                        <div class="countdown-unit"><span class="countdown-num" id="cd-m">--</span><span class="countdown-label">Min</span></div>
+                        <div class="countdown-unit"><span class="countdown-num" id="cd-s">--</span><span class="countdown-label">Sec</span></div>
                     </div>
-                    <!-- Stats row -->
-                    <div class="hero-stats grid grid-cols-3 gap-4 lg:gap-8 max-w-lg">
-                        <div title="아카이브 경기와 현재 이벤트 대진 합계"><div class="stat-counter" id="stat-fights">0</div><div class="barlow text-[10px] font-bold italic tracking-[0.15em] text-gray-500 uppercase">누적 경기</div></div>
-                        <div><div class="stat-counter" id="stat-picks">0</div><div class="barlow text-[10px] font-bold italic tracking-[0.15em] text-gray-500 uppercase">Your Picks</div></div>
-                        <div><div class="stat-counter" id="stat-pts">0</div><div class="barlow text-[10px] font-bold italic tracking-[0.15em] text-gray-500 uppercase">Points</div></div>
+                    <!-- 날짜 전용 신뢰 메타 — home.js renderHeroSchedule가 채운 뒤 표시. 시각/KST/현지/출처 문구 없음. -->
+                    <div id="hero-event-when" class="hidden home-event-when">
+                        <time id="hero-event-date" class="home-event-date"></time>
+                        <span id="hero-event-timestatus" class="home-event-timestatus">시작 시각 미정</span>
                     </div>
                 </div>
 
-                <!-- Right: Main Event Face-off card -->
-                <div id="hero-faceoff-card" class="hero-faceoff relative overflow-hidden rounded-[1.5rem] border border-white/10 p-5 lg:p-6 flex-shrink-0 w-full xl:max-w-[460px] transition-all duration-700">
-                    <!-- Red/blue corner gradients (stronger) -->
-                    <div class="absolute inset-y-0 left-0 w-3/5 pointer-events-none" style="background:linear-gradient(to right,rgba(225,6,0,0.28) 0%,rgba(225,6,0,0.07) 60%,transparent 100%)"></div>
-                    <div class="absolute inset-y-0 right-0 w-3/5 pointer-events-none" style="background:linear-gradient(to left,rgba(31,111,235,0.24) 0%,rgba(31,111,235,0.07) 60%,transparent 100%)"></div>
-                    <!-- Top edge highlight (red → blue) -->
-                    <div class="absolute inset-x-0 top-0 h-px pointer-events-none" style="background:linear-gradient(to right,rgba(225,6,0,0.7),rgba(255,255,255,0.06) 50%,rgba(31,111,235,0.6))"></div>
-                    <!-- Grid cage texture -->
-                    <div class="hero-grid-overlay absolute inset-0 pointer-events-none"></div>
-                    <div class="relative">
-                        <!-- Card header -->
-                        <div class="flex items-center justify-between mb-4">
-                            <span class="barlow text-[9px] font-bold italic tracking-[0.22em] uppercase px-2 py-0.5 rounded" style="background:rgba(225,6,0,0.14);border:1px solid rgba(225,6,0,0.28);color:rgba(255,110,90,1)">Main Event</span>
-                            <span class="barlow text-[9px] font-bold italic tracking-[0.18em] text-white/25 uppercase">Face-off</span>
+                <!-- 메인이벤트 파이터 — 실사진/실명만. 배경이미지는 장식이며 의미는 인접 이름 텍스트가 전달. -->
+                <div class="home-hero-face-wrap">
+                    <p class="home-face-head"><span class="home-face-head-tag">Main Event</span></p>
+                    <div class="home-hero-face">
+                        <div class="home-face-side">
+                            <div id="hero-red-img" class="home-face-img" style="background:linear-gradient(to bottom,rgba(225,6,0,0.35),rgba(40,40,50,0.6),rgba(0,0,0,0.95))"></div>
+                            <div id="hero-red-name" class="home-face-name">TBA</div>
+                            <div class="hero-corner-pill hero-corner-red mt-1.5">Red Corner</div>
                         </div>
-                        <!-- Fighter grid -->
-                        <div class="grid grid-cols-[1fr_auto_1fr] items-end gap-2 lg:gap-4">
-                            <!-- Red corner -->
-                            <div class="flex flex-col items-center">
-                                <div id="hero-red-img" class="hero-fighter-img h-44 lg:h-56 w-24 lg:w-28 rounded-[999px_999px_16px_16px] border border-red-400/30 bg-cover bg-top" style="background:linear-gradient(to bottom,rgba(225,6,0,0.35),rgba(40,40,50,0.6),rgba(0,0,0,0.95))"></div>
-                                <div id="hero-red-name" class="hero-fighter-name oswald-sharp mt-3 font-black italic uppercase text-white/90">TBA</div>
-                                <div class="hero-corner-pill hero-corner-red mt-1.5">Red Corner</div>
-                            </div>
-                            <!-- VS -->
-                            <div class="flex flex-col items-center justify-center pb-10 gap-1">
-                                <div class="hero-vs-badge oswald-sharp font-black italic leading-none text-white">VS</div>
-                            </div>
-                            <!-- Blue corner -->
-                            <div class="flex flex-col items-center">
-                                <div id="hero-blue-img" class="hero-fighter-img h-44 lg:h-56 w-24 lg:w-28 rounded-[999px_999px_16px_16px] border border-blue-400/30 bg-cover bg-top" style="background:linear-gradient(to bottom,rgba(37,99,235,0.35),rgba(40,40,50,0.6),rgba(0,0,0,0.95))"></div>
-                                <div id="hero-blue-name" class="hero-fighter-name oswald-sharp mt-3 font-black italic uppercase text-white/90">TBA</div>
-                                <div class="hero-corner-pill hero-corner-blue mt-1.5">Blue Corner</div>
-                            </div>
+                        <div class="hero-vs-badge home-face-vs oswald-sharp font-black italic leading-none text-white">VS</div>
+                        <div class="home-face-side">
+                            <div id="hero-blue-img" class="home-face-img" style="background:linear-gradient(to bottom,rgba(37,99,235,0.35),rgba(40,40,50,0.6),rgba(0,0,0,0.95))"></div>
+                            <div id="hero-blue-name" class="home-face-name">TBA</div>
+                            <div class="hero-corner-pill hero-corner-blue mt-1.5">Blue Corner</div>
                         </div>
                     </div>
+                </div>
+
+                <!-- 공개 CTA — 로그인 없이 대진표 진입 -->
+                <div class="home-hero-actions">
+                    <button type="button" onclick="navigateTo('matchups')" class="btn-red home-cta-main">대진표 보기 →</button>
+                </div>
+
+                <!-- 실데이터 통계 -->
+                <div class="home-hero-stats grid grid-cols-3 gap-4 lg:gap-8 max-w-lg">
+                    <div title="아카이브 경기와 현재 이벤트 대진 합계"><div class="stat-counter" id="stat-fights">0</div><div class="barlow text-[10px] font-bold italic text-gray-500 uppercase">누적 경기</div></div>
+                    <div><div class="stat-counter" id="stat-picks">0</div><div class="barlow text-[10px] font-bold italic text-gray-500 uppercase">Your Picks</div></div>
+                    <div><div class="stat-counter" id="stat-pts">0</div><div class="barlow text-[10px] font-bold italic text-gray-500 uppercase">Points</div></div>
                 </div>
             </div>
         </div>
@@ -430,13 +401,20 @@
             </div>
         </div>
 
-        <!-- News grid -->
+        <!-- 주요 대진 — fetchMainEvent가 이미 받은 matchups 응답 재사용(신규 쿼리 0). 실데이터 없으면 hidden 유지. -->
+        <div id="home-matchup-preview" class="hidden relative z-10 px-5 lg:px-16 pt-10 lg:pt-12 max-w-[1440px] mx-auto w-full">
+            <div class="home-sec-head">
+                <h2 class="home-sec-title">주요 대진</h2>
+                <button type="button" onclick="navigateTo('matchups')" class="home-sec-more">전체 대진표 →</button>
+            </div>
+            <div id="home-matchup-list" class="home-mu-grid"></div>
+        </div>
+
+        <!-- 최신 뉴스 — 실제 news_cache dedupe 상위 3건(출처·상대시간 표시, 가짜 이미지 없음) -->
         <div class="relative z-10 px-5 lg:px-16 py-10 lg:py-14 max-w-[1440px] mx-auto w-full">
-            <div class="flex items-center justify-between mb-7">
-                <div class="sx-head">
-                    <h3 class="barlow text-xl lg:text-2xl font-black italic tracking-wide uppercase text-white">Latest News</h3>
-                </div>
-                <button onclick="navigateTo('mma-news')" class="barlow text-xs font-bold italic tracking-widest text-gray-500 hover:text-white transition uppercase">전체보기 →</button>
+            <div class="home-sec-head">
+                <h2 class="home-sec-title">최신 뉴스</h2>
+                <button type="button" onclick="navigateTo('mma-news')" class="home-sec-more">전체보기 →</button>
             </div>
             <div id="home-news-grid" class="text-left">
                 <!-- rendered by renderHomeNews() -->
@@ -2649,8 +2627,8 @@
 <script src="/js/fights-render.js?v=27"></script>
 <script src="/js/pixel-fighters.js?v=1"></script>
 <script src="/js/h2h.js?v=25"></script>
-<script src="/js/news-admin.js?v=7"></script>
-<script src="/js/home.js?v=10"></script>
+<script src="/js/news-admin.js?v=8"></script>
+<script src="/js/home.js?v=11"></script>
 <script src="/js/share-card.js?v=19"></script>
 <script>
     /* ==============================

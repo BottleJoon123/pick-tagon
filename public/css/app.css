@@ -2701,3 +2701,186 @@ body.more-sheet-lock { overflow: hidden; }   /* 열림 중 body scroll 방지 */
     #ufc-rankings .ur-table-head span:nth-child(3), #ufc-rankings .ur-row-record { display: none; }
     #ufc-rankings .ur-champion-card { flex-wrap: wrap; }
 }
+
+/* ============================================================
+   홈 UI/UX 고도화 1차 — 이벤트 중심 히어로 + 주요 대진 + 뉴스 프리뷰
+   #home 스코프. --pt-* 토큰 우선. 신규 letter-spacing 0, vw 기반 font-size 없음,
+   카드 radius 8px 이하(파이터 이미지 상단 arch 형태 제외), hover로 크기 변화 없음,
+   prefers-reduced-motion 대응. 전역 overflow 규칙 신규 추가 없음.
+   ============================================================ */
+#home .home-hero-grid {
+    display: grid;
+    grid-template-areas: 'info' 'face' 'actions' 'stats';
+    row-gap: 24px;
+}
+@media (min-width: 1024px) {
+    #home .home-hero-grid {
+        grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+        grid-template-areas: 'info face' 'actions face' 'stats face';
+        column-gap: 56px;
+        row-gap: 28px;
+        align-items: start;
+    }
+}
+#home .home-hero-info { grid-area: info; min-width: 0; }
+#home .home-hero-face-wrap { grid-area: face; min-width: 0; }
+#home .home-hero-actions { grid-area: actions; }
+#home .home-hero-stats { grid-area: stats; }
+
+#home .home-eyebrow {
+    font-family: var(--pt-font-eyebrow); font-size: 13px; letter-spacing: 0;
+    color: var(--pt-red-300); text-transform: uppercase; margin-bottom: 10px;
+}
+#home .home-event-title {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900; text-transform: uppercase;
+    font-size: 30px; line-height: 1.05; color: var(--pt-ink-0);
+    word-break: keep-all; overflow-wrap: break-word; letter-spacing: 0;
+}
+@media (min-width: 640px)  { #home .home-event-title { font-size: 42px; } }
+@media (min-width: 1024px) { #home .home-event-title { font-size: 54px; } }
+#home .home-event-when { display: flex; flex-direction: column; gap: 2px; margin-top: 14px; }
+/* hidden cascade: 유틸리티 .hidden이 위 display:flex 특이도에 밀리지 않게 — 스크립트 실행 전/응답 지연 중 flash 0 */
+#home .home-event-when.hidden { display: none; }
+#home .home-event-date { font-family: var(--pt-font-mono); font-size: 14px; font-weight: 700; color: var(--pt-ink-1); letter-spacing: 0; }
+#home .home-event-timestatus { font-family: var(--pt-font-body); font-size: 12px; color: var(--pt-ink-3); letter-spacing: 0; }
+
+#home .home-cta-main { min-height: 44px; }
+#home .btn-red:focus-visible { outline: 2px solid var(--pt-ink-0); outline-offset: 3px; }
+
+/* ── 메인이벤트 파이터(섹션 일부 — 별도 카드 래핑 없음) ── */
+#home .home-face-head { display: flex; margin-bottom: 12px; }
+#home .home-face-head-tag {
+    font-family: var(--pt-font-eyebrow); font-size: 11px; letter-spacing: 0; text-transform: uppercase;
+    background: var(--pt-bg-2); border: 1px solid var(--pt-red-700); color: var(--pt-red-300);
+    padding: 3px 10px; border-radius: var(--pt-r-xs);
+}
+#home .home-hero-face {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: end; column-gap: 10px;
+}
+#home .home-face-side { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+#home .home-face-img {
+    width: 112px; height: 184px;
+    border-radius: 999px 999px 8px 8px;   /* 상단 arch 형태 + 카드성 모서리는 8px 이하 */
+    border: 1px solid var(--pt-line-2);
+    background-size: cover; background-position: top center; background-repeat: no-repeat;
+}
+@media (min-width: 1024px) { #home .home-face-img { width: 150px; height: 248px; } }
+@media (max-width: 339px)  { #home .home-face-img { width: 72px; height: 128px; } }
+#home .home-face-name {
+    margin-top: 10px;
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900; text-transform: uppercase;
+    font-size: 15px; line-height: 1.15; color: var(--pt-ink-0);
+    text-align: center; word-break: keep-all; overflow-wrap: break-word; max-width: 100%; letter-spacing: 0;
+}
+@media (min-width: 1024px) { #home .home-face-name { font-size: 18px; } }
+#home .home-face-vs { align-self: center; }
+
+/* ── 섹션 헤더(주요 대진/최신 뉴스 공용) ── */
+#home .home-sec-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+#home .home-sec-title {
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900; text-transform: uppercase;
+    font-size: 20px; color: var(--pt-ink-0); letter-spacing: 0;
+}
+@media (min-width: 1024px) { #home .home-sec-title { font-size: 24px; } }
+#home .home-sec-more {
+    min-height: 44px; display: inline-flex; align-items: center;
+    background: none; border: 0; cursor: pointer; padding: 0 4px;
+    font-family: var(--pt-font-body); font-size: 12px; font-weight: 700;
+    color: var(--pt-ink-3); text-transform: uppercase; letter-spacing: 0;
+    transition: color var(--pt-dur-fast);
+}
+#home .home-sec-more:hover { color: var(--pt-ink-0); }
+#home .home-sec-more:focus-visible { outline: 2px solid var(--pt-ink-0); outline-offset: 2px; border-radius: 4px; }
+
+/* ── 주요 대진 compact 그리드(고정 min-height → 데이터 길이에 따른 레이아웃 이동 최소화) ── */
+#home .home-mu-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+@media (min-width: 640px)  { #home .home-mu-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1024px) { #home .home-mu-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; } }
+#home .home-mu-item {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+    min-height: 96px; padding: 12px 14px; position: relative;
+    background: var(--pt-bg-2); border: 1px solid var(--pt-line-1); border-radius: var(--pt-r-sm);
+    cursor: pointer; text-align: left; color: inherit; font: inherit;
+    transition: border-color var(--pt-dur-fast), background var(--pt-dur-fast);
+}
+#home .home-mu-item:hover { background: var(--pt-bg-3); border-color: var(--pt-line-2); }
+#home .home-mu-item:focus-visible { outline: 2px solid var(--pt-ink-0); outline-offset: 2px; }
+#home .home-mu-seg { font-family: var(--pt-font-eyebrow); font-size: 10px; letter-spacing: 0; color: var(--pt-ink-3); text-transform: uppercase; }
+#home .home-mu-names {
+    display: block; min-width: 0; max-width: 100%; padding-right: 18px;
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 800; text-transform: uppercase;
+    font-size: 14px; line-height: 1.25; color: var(--pt-ink-0);
+    word-break: keep-all; overflow-wrap: break-word; letter-spacing: 0;
+}
+#home .home-mu-vs { font-style: italic; font-weight: 900; color: var(--pt-red-300); padding: 0 6px; }
+#home .home-mu-go {
+    position: absolute; right: 12px; bottom: 10px;
+    font-family: var(--pt-font-display); font-style: italic; font-weight: 900; color: var(--pt-ink-4);
+    transition: color var(--pt-dur-fast);
+}
+#home .home-mu-item:hover .home-mu-go { color: var(--pt-red-300); }
+
+/* ── 홈 뉴스 프리뷰(text-first — 실제 기사 이미지 있을 때만 썸네일) ── */
+#home .home-news-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+@media (min-width: 1024px) { #home .home-news-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; } }
+#home .home-news-item {
+    display: flex; gap: 12px; align-items: stretch;
+    min-height: 96px; padding: 14px 16px;
+    background: var(--pt-bg-2); border: 1px solid var(--pt-line-1); border-radius: var(--pt-r-sm);
+    text-decoration: none; color: inherit;
+    transition: border-color var(--pt-dur-fast), background var(--pt-dur-fast);
+}
+#home a.home-news-item:hover { background: var(--pt-bg-3); border-color: var(--pt-line-2); }
+#home .home-news-item:focus-visible { outline: 2px solid var(--pt-ink-0); outline-offset: 2px; }
+#home .home-news-thumb {
+    flex-shrink: 0; width: 72px; height: 72px; object-fit: cover; align-self: center;
+    border-radius: var(--pt-r-xs); border: 1px solid var(--pt-line-1);
+}
+#home .home-news-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
+#home .home-news-cat {
+    align-self: flex-start;
+    font-family: var(--pt-font-eyebrow); font-size: 10px; letter-spacing: 0; text-transform: uppercase;
+    color: var(--pt-red-300); background: var(--pt-bg-3); border: 1px solid var(--pt-line-1);
+    padding: 2px 8px; border-radius: var(--pt-r-xs);
+}
+#home .home-news-title {
+    font-family: var(--pt-font-body); font-size: 14px; font-weight: 700; line-height: 1.45;
+    color: var(--pt-ink-1); word-break: keep-all; letter-spacing: 0;
+    overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+#home .home-news-meta {
+    margin-top: auto; display: flex; align-items: center; gap: 6px; min-width: 0;
+    font-family: var(--pt-font-mono); font-size: 11px; color: var(--pt-ink-3); letter-spacing: 0;
+}
+#home .home-news-src { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+#home .home-news-time { flex-shrink: 0; }
+#home .home-news-dot { color: var(--pt-ink-4); }
+#home .home-news-empty {
+    padding: 32px 16px; text-align: center;
+    font-family: var(--pt-font-body); font-size: 13px; color: var(--pt-ink-3);
+    background: var(--pt-bg-2); border: 1px solid var(--pt-line-1); border-radius: var(--pt-r-sm);
+}
+
+/* 극소폭(≤339px): 제목·CTA 축소로 파이터 얼굴/이름이 첫 화면 안에 유지되게(overflow 은폐 아님 — 콘텐츠 자체 축소) */
+@media (max-width: 339px) {
+    #home .home-event-title { font-size: 24px; }
+    #home .home-cta-main { padding: 12px 22px; font-size: 1rem; letter-spacing: 0; }
+}
+
+/* 초극소폭(≤259px, 195 포함): 파이터 geometry 실축소 — 72×2+VS52+gap20=216px가 콘텐츠 폭(195px 기준 155px)을
+   초과해 내부 overlap 발생. root/body overflow 은폐 없이 실제 크기(44×2+VS36+gap12=136px ≤ 155px)로 해결. */
+@media (max-width: 259px) {
+    #home .home-hero-face { column-gap: 6px; }
+    #home .home-face-img { width: 44px; height: 78px; }   /* 72:128 비율 유지 */
+    #home .home-face-vs.hero-vs-badge { width: 36px; height: 36px; font-size: 1.05rem; }
+    #home .home-face-name { font-size: 12px; margin-top: 6px; }
+    #home .home-face-side .hero-corner-pill { font-size: 7px; padding: 2px 5px; letter-spacing: 0; }
+    /* 홈 통계: 2.5rem 숫자가 3열(≈41px/열)을 넘어 겹침 → scoped 축소 */
+    #home .home-hero-stats { gap: 8px; }
+    #home .home-hero-stats .stat-counter { font-size: 1.35rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #home .home-mu-item, #home .home-news-item, #home .home-sec-more, #home .home-mu-go { transition: none; }
+}

@@ -24,24 +24,35 @@
                 title: n.title,
                 url: n.url,
                 thumbnail_url: n.image_url || '',
+                image_url: n.image_url || '',
                 category: n.category || 'ufc',
                 source: n.source || '',
+                // 신뢰 가능한 원본 발행시각 보존 → formatNewsTime 상대시간 + dedupe 대표선택 tiebreak.
+                published_at: n.published_at,
                 date: d.getFullYear() + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0')
             };
         });
+    }
+
+    // (홈 1차) 홈 뉴스 프리뷰: 뉴스 화면과 동일한 getDedupedNews 공용 로직으로 중복 제거 후 최신 3건.
+    //   dedupe 로직 자체(news-render-helpers.js)는 변경하지 않으며, news_cache 쿼리 수도 기존과 동일
+    //   (cachedNews 있으면 0회, 없으면 limit 6 1회 — 추가 쿼리 없음).
+    var _HOME_NEWS_MAX = 3;
+    function _paintHomeNews(grid, list) {
+        var deduped = (typeof getDedupedNews === 'function') ? getDedupedNews(list) : list;
+        if (typeof renderHomeNewsCards === 'function') {
+            grid.innerHTML = renderHomeNewsCards(deduped.slice(0, _HOME_NEWS_MAX));
+            grid.dataset.loaded = '1';
+        }
     }
 
     function renderHomeNews() {
         var grid = document.getElementById('home-news-grid');
         if (!grid) return;
 
-        // 캐시-퍼스트: cachedNews 이미 있으면 즉시 렌더 (Supabase 재요청 불필요)
-        if (cachedNews && cachedNews.length > 0 && typeof renderNewsCards === 'function') {
-            var cached = cachedNews.slice(0, 6).map(function(n) {
-                return { title: n.title, url: n.url, thumbnail_url: n.image_url || '', category: n.category || 'ufc', source: n.source || '', date: n.date || '' };
-            });
-            grid.innerHTML = renderNewsCards(cached);
-            grid.dataset.loaded = '1';
+        // 캐시-퍼스트: cachedNews 이미 있으면 즉시 렌더 (Supabase 재요청 불필요, 뉴스 화면과 dedupe 메모 공유)
+        if (cachedNews && cachedNews.length > 0) {
+            _paintHomeNews(grid, cachedNews);
             return;
         }
 
@@ -51,27 +62,21 @@
         }
 
         if (!sb) {
-            grid.innerHTML = '<div class="col-span-3 glass-card rounded-[2rem] p-12 text-center text-gray-600 oswald-sharp text-xs italic uppercase tracking-widest">등록된 뉴스가 없습니다</div>';
+            grid.innerHTML = '<div class="home-news-empty">등록된 뉴스가 없습니다</div>';
             return;
         }
 
-        if (sb) {
-            sb.from('news_cache')
-                .select('*')
-                .order('published_at', { ascending: false })
-                .limit(6)
-                .then(function(res) {
-                    if (res.data && res.data.length > 0) {
-                        var items = _mapNewsCacheItems(res.data);
-                        if (typeof renderNewsCards === 'function') {
-                            grid.innerHTML = renderNewsCards(items);
-                            grid.dataset.loaded = '1';
-                        }
-                    } else {
-                        grid.innerHTML = '<div class="col-span-3 glass-card rounded-[2rem] p-12 text-center text-gray-600 oswald-sharp text-xs italic uppercase tracking-widest">등록된 뉴스가 없습니다</div>';
-                    }
-                });
-        }
+        sb.from('news_cache')
+            .select('*')
+            .order('published_at', { ascending: false })
+            .limit(6)
+            .then(function(res) {
+                if (res.data && res.data.length > 0) {
+                    _paintHomeNews(grid, _mapNewsCacheItems(res.data));
+                } else {
+                    grid.innerHTML = '<div class="home-news-empty">등록된 뉴스가 없습니다</div>';
+                }
+            });
     }
 
     function renderHomeNewsLegacy() {
