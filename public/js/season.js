@@ -28,6 +28,14 @@ var seasonData = {
 
 var seasonResetSubmitting = false;
 
+// 이번 세션에서 RPC가 실제로 성공했는지 추적 — localStorage에 남은 과거 시즌/HOF 캐시를
+// 공개 화면에 "현재 DB 값"처럼 표시하지 않기 위한 가드(공개 표시는 RPC 성공 데이터만).
+var _seasonDbLoaded = false;
+var _hofDbLoaded = false;
+function isDbSeasonLoaded() {
+    return _seasonDbLoaded && !!(seasonData.current && seasonData.current.id != null);
+}
+
 // adminHofFilter: 'all' | 'visible' | 'hidden'  — persists across re-renders
 var adminHofFilter = 'all';
 function setAdminHofFilter(f) {
@@ -54,11 +62,14 @@ function loadCurrentSeasonFromDB() {
         if (res.error || !res.data || res.data.length === 0) return;
         var row = res.data[0];
         seasonData.current = { name: row.name, startDate: row.start_date, id: row.id };
+        _seasonDbLoaded = true;
         saveSeason();
         var badge = document.getElementById('current-season-badge');
         if (badge) badge.textContent = row.name;
         var sub = document.getElementById('rankings-season-subtitle');
         if (sub) sub.textContent = '· ' + row.name;
+        // 랭킹 테이블 푸터의 시즌 표기도 DB 로드 후 갱신(가짜 시즌명 금지 정책과 동일 소스)
+        if (typeof _renderLbFooter === 'function') _renderLbFooter();
     }).catch(function() {});
 }
 
@@ -69,6 +80,7 @@ function loadHallOfFameFromDB() {
     if (!sb) { renderHallOfFame(); return Promise.resolve(); }
     return sb.rpc('get_hall_of_fame').then(function(res) {
         if (!res.error && Array.isArray(res.data)) {
+            _hofDbLoaded = true;
             if (res.data.length > 0) {
                 // DB는 season_id DESC 순 반환 → 그룹화 후 oldest-first로 저장
                 // (renderHallOfFame이 .reverse()로 newest-first 표시)
@@ -146,13 +158,16 @@ function renderHallOfFame() {
     const label = document.getElementById('hof-season-label');
     if (!list) return;
 
-    const hof = [...(seasonData.hallOfFame || [])].reverse(); // newest first
+    // 공개 HOF는 이번 세션 RPC 성공 데이터만 — localStorage 캐시(과거 세션 값)를 실값처럼 표시하지 않는다.
+    const hof = _hofDbLoaded ? [...(seasonData.hallOfFame || [])].reverse() : []; // newest first
 
-    // Season badge on rankings page
+    // Season badge on rankings page — 이번 세션 DB 로드 성공 시즌만 표시.
+    //   RPC 성공 전/실패 시 placeholder·localStorage 캐시명을 노출하지 않는다(중립 상태 = 빈 값).
+    const _dbSeason = isDbSeasonLoaded() ? seasonData.current : null;
     const badge = document.getElementById('current-season-badge');
-    if (badge) badge.textContent = seasonData.current?.name || 'Season 1';
+    if (badge) badge.textContent = _dbSeason ? (_dbSeason.name || '') : '';
     const sub = document.getElementById('rankings-season-subtitle');
-    if (sub) sub.textContent = seasonData.current?.name ? '· ' + seasonData.current.name : '';
+    if (sub) sub.textContent = _dbSeason && _dbSeason.name ? '· ' + _dbSeason.name : '';
     if (label) label.textContent = `총 ${hof.length}시즌 완료`;
 
     if (hof.length === 0) {

@@ -1773,6 +1773,83 @@ textarea, select {
 .lb-dist-bar { height: 7px; border-radius: 999px; background: var(--pt-bg-4, #232730); overflow: hidden; }
 .lb-dist-bar > div { height: 100%; border-radius: 999px; }
 
+/* ── 유저 랭킹 고도화 1차 추가분 (.lb-* 스코프, --pt-* 토큰, 신규 letter-spacing 0) ── */
+
+/* 게스트 CTA 카드 — 가짜 내 행 대신 compact 로그인 안내(자동 모달 없음) */
+.lb-guest-card {
+    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    padding: 16px 18px; background: var(--pt-bg-2, #14161B);
+    border: 1px solid var(--pt-line-2, rgba(255,255,255,0.10)); border-radius: var(--pt-r-sm, 8px);
+}
+/* hidden cascade 방어 — Tailwind .hidden(display:none)이 로드 순서에 따라 display:flex에 밀리지 않도록
+   (.more-sheet-overlay.hidden 과 동일 패턴) */
+.lb-guest-card.hidden { display: none; }
+.lb-guest-login-btn {
+    flex-shrink: 0; min-height: 44px; padding: 0 20px;
+    display: inline-flex; align-items: center; cursor: pointer;
+    background: var(--pt-red-500, #E10600); color: #fff; border: 0; border-radius: var(--pt-r-pill, 999px);
+    font-family: var(--pt-font-display, 'Barlow Condensed', sans-serif); font-style: italic; font-weight: 900;
+    font-size: 14px; text-transform: uppercase; letter-spacing: 0;
+    transition: background var(--pt-dur-fast, 120ms);
+}
+.lb-guest-login-btn:hover { background: var(--pt-red-300, #FF5D55); }
+.lb-guest-login-btn:focus-visible { outline: 2px solid var(--pt-ink-0, #fff); outline-offset: 2px; }
+
+/* 필터·정렬 컨트롤 — 실제 button + aria-pressed, 터치 44px, 추가 네트워크 0 */
+.lb-controls {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 8px 10px; background: var(--pt-bg-2, #14161B);
+    border: 1px solid var(--pt-line-1, rgba(255,255,255,0.06)); border-radius: var(--pt-r-sm, 8px);
+    overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.lb-controls::-webkit-scrollbar { display: none; }
+.lb-ctrl-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.lb-ctrl-lab {
+    font-family: var(--pt-font-eyebrow, 'Bebas Neue', sans-serif); font-size: 10px; letter-spacing: 0;
+    color: var(--pt-ink-3, #71757F); text-transform: uppercase; flex-shrink: 0;
+}
+.lb-ctrl-sep { width: 1px; height: 18px; background: var(--pt-line-2, rgba(255,255,255,0.10)); flex-shrink: 0; }
+.lb-chip {
+    display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+    min-height: 44px; padding: 0 12px; border-radius: var(--pt-r-pill, 999px);
+    background: var(--pt-bg-3, #1B1E25); border: 1px solid var(--pt-line-2, rgba(255,255,255,0.10));
+    font-family: var(--pt-font-body, 'Barlow', sans-serif); font-size: 12px; font-weight: 700;
+    color: var(--pt-ink-2, #B3B5BC); letter-spacing: 0; white-space: nowrap;
+    transition: color var(--pt-dur-fast, 120ms), background var(--pt-dur-fast, 120ms), border-color var(--pt-dur-fast, 120ms);
+}
+.lb-chip:hover { color: var(--pt-ink-0, #fff); border-color: var(--pt-line-3, rgba(255,255,255,0.18)); }
+.lb-chip[aria-pressed="true"] { background: var(--pt-ink-0, #fff); color: var(--pt-bg-0, #07080A); border-color: var(--pt-ink-0, #fff); }
+.lb-chip:focus-visible { outline: 2px solid var(--pt-ink-0, #fff); outline-offset: 2px; }
+.lb-chip-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+/* 테이블 푸터 — 전체 인원(summary 실값)·DB 시즌명 */
+.lb-table-foot {
+    padding: 10px 14px; border-top: 1px solid var(--pt-line-1, rgba(255,255,255,0.06));
+    background: rgba(255,255,255,0.02);
+    font-family: var(--pt-font-mono, 'JetBrains Mono', monospace); font-size: 11px;
+    color: var(--pt-ink-3, #71757F); letter-spacing: 0; text-align: right;
+}
+
+/* 벨트 레일 YOU 태그 — 색상만이 아니라 텍스트로도 현재 등급 전달 */
+.lb-you-tag {
+    flex-shrink: 0; font-family: var(--pt-font-eyebrow, 'Bebas Neue', sans-serif);
+    font-size: 9px; letter-spacing: 0; color: var(--pt-red-300, #FF5D55);
+    border: 1px solid var(--pt-red-700, #9A0400); border-radius: var(--pt-r-xs, 4px);
+    padding: 1px 5px; text-transform: uppercase;
+}
+
+/* 행 내 faction 표시 — 실제 값이 있을 때만 렌더(합성 없음) */
+.lb-row-faction {
+    margin-left: 6px; font-family: var(--pt-font-body, 'Barlow', sans-serif);
+    font-size: 10px; font-weight: 600; font-style: normal;
+    color: var(--pt-ink-3, #71757F); text-transform: none; letter-spacing: 0;
+    white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lb-chip, .lb-guest-login-btn { transition: none; }
+}
+
 /* ════════════════════════════════════════════════════════════════
    Mobile compact surfaces — common header + rankings + archive
    (Polish 1차) — 표현계층 전용. 데스크톱(≥1024px) 미적용.

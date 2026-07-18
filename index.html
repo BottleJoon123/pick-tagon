@@ -77,7 +77,7 @@
 <link href="/css/tokens.css" rel="stylesheet">
 <link href="/css/theme-bridge.css" rel="stylesheet">
 <link rel="stylesheet" href="./src/tailwind.css">
-<link href="/css/app.css?v=29" rel="stylesheet">
+<link href="/css/app.css?v=30" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 <!-- Supabase — defer: head 파싱 블로킹 제거. createClient는 initSupabase(window.onload)에서만 호출되므로
      defer(파싱 후·DOMContentLoaded 전 실행)로도 초기화 시점에 window.supabase 보장됨. -->
@@ -605,6 +605,15 @@
             </div>
         </div>
 
+        <!-- 게스트: 가짜 닉네임/순위/포인트 없이 공개 랭킹은 그대로, compact 로그인 안내만 (자동 모달 없음) -->
+        <div id="lb-guest-card" class="hidden lb-guest-card mb-5 lg:mb-7">
+            <div class="min-w-0">
+                <p class="oswald-sharp text-sm lg:text-base font-black italic uppercase text-white">내 순위를 보려면 로그인하세요</p>
+                <p class="text-gray-500 text-xs mt-1">픽을 등록하면 포인트·벨트·전체 순위가 집계됩니다.</p>
+            </div>
+            <button type="button" onclick="openAuthModal('profile')" class="lb-guest-login-btn">로그인 →</button>
+        </div>
+
         <!-- Ranking Tabs -->
         <div class="flex gap-2 mb-5">
             <button id="rank-tab-player" onclick="setRankTab('player')"
@@ -615,6 +624,26 @@
                 class="oswald-sharp text-xs font-black italic uppercase px-4 py-2 rounded-xl border transition border-white/10 text-gray-500">
                 🏟️ 집단 랭킹
             </button>
+        </div>
+
+        <!-- 필터·정렬 — 이미 로드한 v2 행에서만 처리(추가 네트워크 0) -->
+        <div id="lb-controls" class="lb-controls mb-3 lg:mb-4">
+            <div class="lb-ctrl-group" role="group" aria-label="벨트 필터">
+                <span class="lb-ctrl-lab">벨트</span>
+                <button type="button" class="lb-chip" data-lb-belt="all" aria-pressed="true">전체</button>
+                <button type="button" class="lb-chip" data-lb-belt="white" aria-pressed="false"><span class="lb-chip-dot" style="background:#ECECEE;border:1px solid #71757F"></span>화이트</button>
+                <button type="button" class="lb-chip" data-lb-belt="blue" aria-pressed="false"><span class="lb-chip-dot" style="background:#1F6FEB"></span>블루</button>
+                <button type="button" class="lb-chip" data-lb-belt="purple" aria-pressed="false"><span class="lb-chip-dot" style="background:#8B3FE3"></span>퍼플</button>
+                <button type="button" class="lb-chip" data-lb-belt="brown" aria-pressed="false"><span class="lb-chip-dot" style="background:#B5803A"></span>브라운</button>
+                <button type="button" class="lb-chip" data-lb-belt="black" aria-pressed="false"><span class="lb-chip-dot" style="background:#E10600"></span>블랙</button>
+            </div>
+            <span class="lb-ctrl-sep" aria-hidden="true"></span>
+            <div class="lb-ctrl-group" role="group" aria-label="정렬">
+                <span class="lb-ctrl-lab">정렬</span>
+                <button type="button" class="lb-chip" data-lb-sort="rank" aria-pressed="true">공식 순위</button>
+                <button type="button" class="lb-chip" data-lb-sort="acc" aria-pressed="false">승률</button>
+                <button type="button" class="lb-chip" data-lb-sort="picks" aria-pressed="false">정산 픽</button>
+            </div>
         </div>
 
         <!-- Main grid: table + sidebar (desktop) -->
@@ -630,6 +659,7 @@
                     <span class="oswald-sharp text-[10px] lg:text-[11px] text-gray-400 font-black italic uppercase tracking-widest text-center lb-cell-picks">픽</span>
                 </div>
                 <div id="leaderboard-list"></div>
+                <div id="lb-table-foot" class="lb-table-foot hidden"><span id="lb-foot-meta"></span></div>
             </div>
             <!-- Sidebar (desktop only) -->
             <aside id="lb-sidebar" class="hidden lg:flex flex-col gap-4">
@@ -2623,7 +2653,7 @@
 <script src="/js/admin.js?v=27"></script>
 <script src="/js/profile.js?v=4"></script>
 <script src="/js/archive.js?v=20"></script>
-<script src="/js/season.js?v=1"></script>
+<script src="/js/season.js?v=2"></script>
 <script src="/js/fights-render.js?v=27"></script>
 <script src="/js/pixel-fighters.js?v=1"></script>
 <script src="/js/h2h.js?v=25"></script>
@@ -3166,6 +3196,15 @@
     function refreshUI() {
         document.getElementById('nav-points').innerText = state.points.toLocaleString() + ' P';
         document.getElementById('nav-points-mobile').innerText = state.points.toLocaleString() + ' P';
+
+        // 랭킹 화면 표시 중 auth 상태가 마지막 렌더 시점과 달라졌으면(로그인 완료/계정 전환) 즉시 재렌더.
+        //   마지막 렌더의 사용자 id를 추적해 비교 — 최초 렌더 전(undefined)이나 상태 동일 시에는 재렌더하지
+        //   않아 refreshUI 다발 호출로 인한 RPC 중복이 없다(DOM 스니핑 방식은 첫 렌더 전 창에서 위양성).
+        if (typeof _currentPage !== 'undefined' && _currentPage === 'rankings' && typeof renderLeaderboard === 'function'
+            && typeof _lbRenderedForUser !== 'undefined' && _lbRenderedForUser !== null
+            && _lbRenderedForUser.id !== (currentUser ? currentUser.id : null)) {
+            renderLeaderboard();
+        }
 
         const ptsEl = document.getElementById('prof-pts');
         const totEl = document.getElementById('prof-tot');
@@ -3980,15 +4019,20 @@ async function publishPost() {
         return Object.assign({ idx: 4 }, _LB_TIERS[4]);
     }
     // 전체 유저 기준 요약(get_leaderboard_summary). 성공 시 벨트 레일/분포를 전체 기준으로 교체.
-    let _lbSummary = null, _lbAllCache = [], _lbMyPointsCache = 0;
-    function loadLeaderboardSummary() {
+    // _lbSeq: 재진입·계정 전환 race guard — 늦은 응답이 최신 렌더를 덮어쓰지 못하게 한다.
+    let _lbSummary = null, _lbRows = [], _lbMyPoints = null, _lbSeq = 0;
+    let _lbFilterBelt = 'all', _lbSort = 'rank', _lbCtxFailed = false;
+    let _lbRenderedForUser = null;   // 마지막 renderLeaderboard 시점의 {id: userId|null} — refreshUI 훅의 변화 감지용
+    function loadLeaderboardSummary(seq) {
         if (!sb) return;
         sb.rpc('get_leaderboard_summary').then(function(res) {
+            if (seq !== _lbSeq) return;                       // stale 응답 폐기
             if (res && !res.error && res.data) {
                 _lbSummary = Array.isArray(res.data) ? res.data[0] : res.data;
                 _applyLbScopeLabels();
-                if (typeof _renderBeltRail === 'function') _renderBeltRail(_lbAllCache, _lbMyPointsCache);
-                if (typeof _renderBeltDistribution === 'function') _renderBeltDistribution(_lbAllCache);
+                _renderBeltRail(_lbRows, _lbMyPoints);
+                _renderBeltDistribution(_lbRows);
+                _renderLbFooter();
             }
         }).catch(function(){ /* summary 실패 시 표시 범위 기준 fallback 유지 */ });
     }
@@ -3999,41 +4043,120 @@ async function publishPost() {
         var b = document.getElementById('lb-dist-scope-label');
         if (b) b.textContent = '전체 기준';
     }
+    // 재진입 시 summary가 실패하면 이전 '전체 기준' 라벨이 stale하게 남지 않도록 기본 라벨로 되돌린다.
+    function _resetLbScopeLabels() {
+        var a = document.getElementById('lb-scope-label');
+        if (a) a.textContent = '표시 범위 기준 집계';
+        var b = document.getElementById('lb-dist-scope-label');
+        if (b) b.textContent = '표시 범위 기준';
+    }
+    // 테이블 푸터: 전체 인원(summary 실값) + DB 로드된 시즌명만(가짜 'Season 1' 금지)
+    function _renderLbFooter() {
+        var foot = document.getElementById('lb-table-foot');
+        var meta = document.getElementById('lb-foot-meta');
+        if (!foot || !meta) return;
+        var parts = [];
+        if (_lbSummary && typeof _lbSummary.total_users === 'number') parts.push('전체 ' + _lbSummary.total_users.toLocaleString() + '명');
+        if (typeof isDbSeasonLoaded === 'function' && isDbSeasonLoaded() && seasonData.current.name) parts.push(seasonData.current.name);
+        if (!parts.length) { foot.classList.add('hidden'); return; }
+        meta.textContent = parts.join(' · ');
+        foot.classList.remove('hidden');
+    }
 
-    // My Rank 히어로 / 내 주변 / 최근 5픽 — 로그인 + RPC 성공 시 전체 기준 실데이터로 교체.
+    // My Rank 히어로 / 내 주변 / 최근 5픽 — 로그인 + 인증 RPC(get_my_leaderboard_context) 성공 시에만 권위값 표시.
     let _myLbContext = null;
-    function loadMyLeaderboardContext() {
-        _myLbContext = null; // 매 렌더 시작 시 초기화(없으면 리스트가 gap-next 제어)
-        if (!sb || !currentUser) { _applyMyContext(null); return; }
+    function loadMyLeaderboardContext(seq) {
+        _myLbContext = null; // 매 렌더 시작 시 초기화
+        if (!sb || !currentUser) { return; }
         sb.rpc('get_my_leaderboard_context').then(function(res) {
+            if (seq !== _lbSeq) return;                       // 계정 전환/재진입 후 늦은 응답 폐기(A→B 잔상 방지)
             if (res && !res.error && res.data && res.data.my_rank != null) {
                 _myLbContext = res.data;
                 _applyMyContext(res.data);
             } else {
-                _applyMyContext(null); // 깨지지 않게 기존 표시 유지
+                _lbCtxFailed = true;                          // v2가 아직 안 왔으면 rows 도착 시 fallback 재적용
+                _applyMyLbFallbackFromRows();                 // 인증 컨텍스트 실패 → 내 v2 행만 제한적 fallback
             }
-        }).catch(function() { _applyMyContext(null); });
+        }).catch(function() { if (seq === _lbSeq) { _lbCtxFailed = true; _applyMyLbFallbackFromRows(); } });
+    }
+    // 인증 컨텍스트 실패 시: 공개 v2 행 중 내 user_id와 일치하는 행만으로 제한적 표시(합성 없음).
+    function _applyMyLbFallbackFromRows() {
+        if (!currentUser) return;
+        var mine = _lbRows.find(function(r) { return r.user_id && r.user_id === currentUser.id; });
+        if (!mine) return;                                    // top 50 밖 + context 실패 → '—' 유지(억지 표시 없음)
+        var set = function(id, txt) { var el = document.getElementById(id); if (el) el.textContent = txt; };
+        set('my-rank-num', mine.rank != null ? mine.rank : '—');
+        set('my-rank-pts', Number(mine.points || 0).toLocaleString() + ' P');
+        set('my-rank-acc', mine.accuracy == null ? '—' : mine.accuracy + '%');
+        set('my-rank-picks', mine.settled_picks || 0);
+        _setMyBeltBadge(mine.belt);
+        _lbMyPoints = mine.points || 0;
+        _renderBeltRail(_lbRows, _lbMyPoints);
+        _renderMyBeltProgress(mine.points || 0, mine.belt);
+    }
+    function _setMyBeltBadge(beltName) {
+        var el = document.getElementById('my-belt-badge');
+        if (!el || !beltName) return;
+        // 서버 belt 문자열('White'…) 기준 — 기존 getBeltInfo 클래스 체계 재사용
+        var styles = { White: 'bg-white text-black', Blue: 'bg-blue-600 text-white', Purple: 'bg-purple-600 text-white', Brown: 'bg-yellow-700 text-white', Black: 'bg-black text-ufcRed border border-ufcRed/50' };
+        el.className = 'oswald-sharp text-[9px] lg:text-[11px] px-3 py-1 rounded-full font-black italic uppercase ' + (styles[beltName] || 'bg-white text-black');
+        el.innerText = beltName + ' Belt';
+    }
+    // 다음 벨트 진행바 — 서버 belt/points 기준(클라 임계값은 서버와 동일함을 확인, 표시 산술만)
+    function _renderMyBeltProgress(points, beltName) {
+        var fill = document.getElementById('lb-belt-progress-fill');
+        var distEl = document.getElementById('lb-belt-dist');
+        var tier = _LB_TIERS.find(function(t) { return t.name === beltName; }) || _lbTier(points);
+        var idx = _LB_TIERS.indexOf(tier);
+        if (tier.key === 'black') {
+            if (fill) { fill.style.width = '100%'; fill.style.background = tier.color; }
+            if (distEl) distEl.textContent = '최고 등급 도달';
+        } else {
+            var next = _LB_TIERS[idx + 1];
+            var span = tier.max - tier.min;
+            var pct = Math.max(0, Math.min(100, Math.round(((points - tier.min) / (span || 1)) * 100)));
+            if (fill) { fill.style.width = pct + '%'; fill.style.background = 'linear-gradient(90deg, ' + tier.color + ', ' + next.color + ')'; }
+            if (distEl) distEl.innerHTML = next.name + ' 벨트까지 <span class="text-gray-300 font-black">' + Math.max(0, tier.max + 1 - points).toLocaleString() + ' P</span>';
+        }
     }
     function _applyMyContext(ctx) {
         var formEl = document.getElementById('my-recent-form');
-        if (!ctx) { _myLbContext = null; if (formEl) formEl.innerHTML = ''; return; } // 비로그인/실패 → 기존 fallback 유지
-        var numEl = document.getElementById('my-rank-num');
-        if (numEl && ctx.my_rank != null) numEl.innerText = ctx.my_rank;
+        if (!ctx) { _myLbContext = null; if (formEl) formEl.innerHTML = ''; return; }
+        var set = function(id, txt) { var el = document.getElementById(id); if (el) el.textContent = txt; };
+        if (ctx.my_rank != null) set('my-rank-num', ctx.my_rank);
+        if (ctx.my_points != null) set('my-rank-pts', Number(ctx.my_points).toLocaleString() + ' P');
+        if (ctx.my_belt) _setMyBeltBadge(ctx.my_belt);
+        // 내 정확도/픽: nearby_rankers의 is_me 행(서버 계산값)
+        var meRow = (ctx.nearby_rankers || []).find(function(n) { return n.is_me; });
+        if (meRow) {
+            set('my-rank-acc', meRow.accuracy == null ? '—' : meRow.accuracy + '%');
+            set('my-rank-picks', meRow.settled_picks || 0);
+        }
         var gapEl = document.getElementById('lb-gap-next');
         if (gapEl) {
-            if (!ctx.points_to_next_rank || ctx.points_to_next_rank <= 0) {
-                // 선두: 바로 아래 랭커 대비 리드 (nearby에서 계산)
+            if (ctx.my_rank === 1) {
+                // 선두 판정은 공식 순위(my_rank===1)로만 — gap 값 falsy를 선두로 오인하지 않는다.
                 var below = (ctx.nearby_rankers || []).filter(function(n){ return n.rank > ctx.my_rank; })
                                                       .sort(function(a,b){ return a.rank - b.rank; })[0];
                 gapEl.innerHTML = below
                     ? below.rank + '위 대비 <span class="text-green-400 font-black">+' + Number((ctx.my_points||0) - (below.points||0)).toLocaleString() + ' P</span> 리드'
                     : '전체 1위';
-            } else {
+            } else if (typeof ctx.points_to_next_rank === 'number' && ctx.points_to_next_rank >= 0) {
                 gapEl.innerHTML = (ctx.my_rank - 1) + '위까지 <span class="text-ufcRed font-black">+' + Number(ctx.points_to_next_rank).toLocaleString() + ' P</span>';
+            } else {
+                gapEl.textContent = '';                        // gap 데이터 없음 → 추측 표시 금지
             }
         }
+        // 상위 % — 서버 my_rank/total_users 산술(rank 1 → 상위 8% 형태). percentile(이긴 비율)의 '상위 100%' 오표기 제거.
         var rollEl = document.getElementById('my-rolling-info');
-        if (rollEl && ctx.percentile != null) rollEl.textContent = '전체 상위 ' + ctx.percentile + '%';
+        if (rollEl && ctx.my_rank != null && ctx.total_users > 0) {
+            rollEl.textContent = '전체 ' + ctx.total_users.toLocaleString() + '명 중 상위 ' + Math.max(1, Math.ceil(ctx.my_rank / ctx.total_users * 100)) + '%';
+        }
+        if (ctx.my_points != null) {
+            _lbMyPoints = ctx.my_points;
+            _renderBeltRail(_lbRows, _lbMyPoints);
+            _renderMyBeltProgress(ctx.my_points, ctx.my_belt);
+        }
         if (Array.isArray(ctx.nearby_rankers) && ctx.nearby_rankers.length) _renderLbNeighborsFromContext(ctx.nearby_rankers);
         if (formEl) {
             var form = Array.isArray(ctx.recent_form) ? ctx.recent_form : [];
@@ -4056,7 +4179,7 @@ async function publishPost() {
             return '<div class="lb-neighbor-row ' + (isMe ? 'is-me' : '') + '">' +
                 '<span class="oswald-sharp text-xs font-black italic ' + (isMe ? 'text-ufcRed' : 'text-gray-400') + ' text-center">' + (u.rank != null ? u.rank : '—') + '</span>' +
                 '<div class="flex items-center gap-2 min-w-0">' +
-                    '<span class="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-black oswald-sharp italic text-white flex-shrink-0" style="background:' + tier.grad + '">' + _lbInitials(nm) + '</span>' +
+                    '<span class="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-black oswald-sharp italic text-white flex-shrink-0" style="background:' + tier.grad + '">' + escapeHtml(_lbInitials(nm)) + '</span>' +
                     '<span class="oswald-sharp text-xs font-black italic text-white uppercase truncate ' + (isMe ? 'text-ufcRed' : '') + '">' + (isMe ? '★ ' : '') + escapeHtml(nm) + '</span>' +
                 '</div>' +
                 '<span class="oswald-sharp text-xs font-black italic text-yellow-400 whitespace-nowrap">' + Number(u.points || 0).toLocaleString() + '<span class="text-gray-500 text-[9px] ml-0.5">P</span></span>' +
@@ -4068,175 +4191,204 @@ async function publishPost() {
     function renderLeaderboard() {
         const list = document.getElementById('leaderboard-list');
         if(!list) return;
+        const seq = ++_lbSeq;                                  // 재진입/계정 전환 race guard
+        _bindLbControls();
 
-        const recentFights = state.history.filter(h => h.res !== 'PENDING').slice(0, 10);
-        const recentWins = recentFights.filter(h => h.res === 'WIN').length;
-        const myNickname = getDisplayUsername();
+        const isLogin = (typeof currentUser !== 'undefined') && !!currentUser;
+        _lbRenderedForUser = { id: isLogin ? currentUser.id : null };
+        const heroCard = document.getElementById('my-rank-card');
+        const guestCard = document.getElementById('lb-guest-card');
+        if (heroCard) heroCard.classList.toggle('hidden', !isLogin);
+        if (guestCard) guestCard.classList.toggle('hidden', isLogin);
 
-        // 내 순위 히어로 — 정적 필드 (실데이터만)
-        // 적중률은 canonical(win/(win+lose))만. 미로드/0건 → '—'. state.success/total 비율 금지.
-        const _accView = (typeof currentUserAccuracyView === 'function') ? currentUserAccuracyView() : { acc: null, accText: '—', settled: 0 };
-        const myAcc = _accView.accText;
-        const myBelt = getBeltInfo(state.points);
-        const myTier = _lbTier(state.points);
         const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
-        set('my-rank-pts', state.points.toLocaleString() + ' P');
-        set('my-rank-acc', myAcc);
-        set('my-rank-picks', state.total);
-        // canonical stats 로드 후 적중률/분석가 표시를 다시 패치 (미로드 시 '—' → 로드 후 정확값)
-        if (typeof refreshAccuracyDisplays === 'function') refreshAccuracyDisplays();
 
-        const avatarEl = document.getElementById('my-rank-avatar');
-        if (avatarEl) { avatarEl.textContent = _lbInitials(myNickname); avatarEl.style.background = myTier.grad; }
-
-        const myBeltBadge = document.getElementById('my-belt-badge');
-        if (myBeltBadge) {
-            myBeltBadge.className = `oswald-sharp text-[9px] lg:text-[11px] px-3 py-1 rounded-full font-black italic uppercase ${myBelt.bg} ${myBelt.text}`;
-            myBeltBadge.innerText = myBelt.name + ' Belt';
+        if (isLogin) {
+            // 신원(내 프로필)만 로컬 표시 — 공식 랭킹 수치(순위/포인트/정확도/픽)는 서버 RPC 도착 전 '—'.
+            //   로컬 state.points/total을 공식 수치처럼 표시하지 않는다(진실성 규칙).
+            const myNickname = getDisplayUsername();
+            set('my-rank-nickname', myNickname);
+            const avatarEl = document.getElementById('my-rank-avatar');
+            if (avatarEl) { avatarEl.textContent = _lbInitials(myNickname); avatarEl.style.background = 'var(--pt-bg-3, #1B1E25)'; }
+            set('my-rank-num', '—');
+            set('my-rank-pts', '—');
+            set('my-rank-acc', '—');
+            set('my-rank-picks', '—');
+            const rollingEl = document.getElementById('my-rolling-info');
+            if (rollingEl) rollingEl.textContent = '';
+            const gapEl = document.getElementById('lb-gap-next');
+            if (gapEl) gapEl.textContent = '';
+            const beltBadge = document.getElementById('my-belt-badge');
+            if (beltBadge) { beltBadge.className = 'oswald-sharp text-[9px] lg:text-[11px] px-3 py-1 rounded-full font-black italic uppercase bg-white/10 text-gray-300'; beltBadge.innerText = '— Belt'; }
+            const fill = document.getElementById('lb-belt-progress-fill');
+            if (fill) { fill.style.width = '0%'; }
+            const distEl = document.getElementById('lb-belt-dist');
+            if (distEl) distEl.textContent = '';
+            const formEl = document.getElementById('my-recent-form');
+            if (formEl) formEl.innerHTML = '';
+            const factionEl = document.getElementById('my-rank-faction');
+            if (factionEl) factionEl.innerHTML = getFactionBadge(currentFaction, 'sm');
+            // 분석가 타입(개인 재미 라벨, canonical 적중률 기반) — 랭킹 수치 아님, 로그인 시만
+            const analystEl = document.getElementById('my-rank-analyst');
+            if (analystEl) {
+                const _accView = (typeof currentUserAccuracyView === 'function') ? currentUserAccuracyView() : { acc: null, settled: 0 };
+                const stateSettled = Object.values(state.settled || {});
+                const methodBonusCount = stateSettled.filter(function(s) { return s.hadMethodBonus; }).length;
+                const upsetWins = stateSettled.filter(function(s) { return s.hadUpsetBonus && s.result === 'WIN'; }).length;
+                const analyst = getAnalystType(_accView.acc, _accView.settled, state.total, methodBonusCount, upsetWins);
+                analystEl.textContent = analyst.title;
+                analystEl.className = 'oswald-sharp text-[9px] italic tracking-widest mt-1 hidden lg:block ' + analyst.color;
+            }
+            if (typeof refreshAccuracyDisplays === 'function') refreshAccuracyDisplays();
         }
-        const rollingEl = document.getElementById('my-rolling-info');
-        if (rollingEl) rollingEl.textContent = recentFights.length > 0 ? `최근 ${recentFights.length}경기 · ${recentWins}승` : '예측 기록 없음';
 
+        // 시즌 배지: 이번 세션에서 DB 로드 성공한 시즌만 표시 — placeholder/과거 localStorage 캐시를 실값처럼 표시 금지
         const badge = document.getElementById('current-season-badge');
-        if (badge && !badge.textContent) badge.textContent = seasonData.current?.name || 'Season 1';
+        if (badge) badge.textContent = (typeof isDbSeasonLoaded === 'function' && isDbSeasonLoaded()) ? (seasonData.current.name || '') : '';
 
-        set('my-rank-nickname', myNickname);
-        const factionEl = document.getElementById('my-rank-faction');
-        if (factionEl) factionEl.innerHTML = getFactionBadge(currentFaction, 'sm');
-
-        const analystEl = document.getElementById('my-rank-analyst');
-        if (analystEl) {
-            const stateSettled = Object.values(state.settled || {});
-            const analystAcc = _accView.acc; // canonical(win/(win+lose)) — state.success/total 비율 금지
-            const methodBonusCount = stateSettled.filter(function(s) { return s.hadMethodBonus; }).length;
-            const upsetWins = stateSettled.filter(function(s) { return s.hadUpsetBonus && s.result === 'WIN'; }).length;
-            const analyst = getAnalystType(analystAcc, _accView.settled, state.total, methodBonusCount, upsetWins);
-            analystEl.textContent = analyst.title;
-            analystEl.className = 'oswald-sharp text-[9px] italic tracking-widest mt-1 hidden lg:block ' + analyst.color;
-        }
-
-        // 다음 벨트까지 진행바 (실데이터: 내 포인트 / 현재 등급 구간)
-        const fill = document.getElementById('lb-belt-progress-fill');
-        const distEl = document.getElementById('lb-belt-dist');
-        if (myTier.key === 'black') {
-            if (fill) { fill.style.width = '100%'; fill.style.background = myTier.color; }
-            if (distEl) distEl.textContent = '최고 등급 도달';
-        } else {
-            const next = _LB_TIERS[myTier.idx + 1];
-            const span = myTier.max - myTier.min;
-            const pct = Math.max(0, Math.min(100, Math.round(((state.points - myTier.min) / (span || 1)) * 100)));
-            if (fill) { fill.style.width = pct + '%'; fill.style.background = `linear-gradient(90deg, ${myTier.color}, ${next.color})`; }
-            if (distEl) distEl.innerHTML = `${next.name} 벨트까지 <span class="text-gray-300 font-black">${(myTier.max + 1 - state.points).toLocaleString()} P</span>`;
-        }
-
+        _lbMyPoints = null;                                    // 권위 포인트는 context/내 v2 행 도착 시 설정
+        _myLbContext = null;                                   // 이전 계정 context 즉시 무효화(A→B/로그아웃 잔상 방지)
+        _lbCtxFailed = false;
+        _lbSummary = null;                                     // stale summary·'전체 기준' 라벨 혼합 금지 — 성공 응답 시에만 재승격
+        _resetLbScopeLabels();
+        _renderLbFooter();
         // DB 랭킹 불러오기 (get_leaderboard_v2 우선, 실패 시 get_leaderboard fallback)
         if (sb) {
+            // 캐시된 v2 행 즉시 재렌더 — 새 계정 기준으로 ★/YOU/내 주변을 응답 도착 전에 중립화(잔상 0, 합성 없음)
+            if (_lbRows.length) renderLeaderboardList(list);
             loadRealRankings().then(function(rows) {
-                renderLeaderboardList(list, rows || [], myNickname);
+                if (seq !== _lbSeq) return;                    // stale 응답 폐기
+                _lbRows = rows || [];
+                renderLeaderboardList(list);
+                _renderLbFooter();
+                if (_lbCtxFailed) _applyMyLbFallbackFromRows(); // context가 rows보다 먼저 실패한 순서에서도 내 v2 행 fallback 적용
             });
-            loadLeaderboardSummary();
-            loadMyLeaderboardContext();
+            loadLeaderboardSummary(seq);
+            loadMyLeaderboardContext(seq);
         } else {
-            renderLeaderboardList(list, [], myNickname);
+            _lbRows = [];
+            renderLeaderboardList(list);
         }
     }
 
-    function renderLeaderboardList(list, dbUsers, myNickname) {
-        var all = dbUsers.map(function(u) {
-            return {
-                name: u.nickname || 'UNKNOWN',
-                points: u.points || 0,
-                total: u.total_picks || 0,
-                success: u.success_picks || 0,
-                accuracy: (typeof u.accuracy === 'number') ? u.accuracy : null,
-                movement: (typeof u.movement === 'number') ? u.movement : null,
-                isUser: u.nickname === myNickname
-            };
+    // 필터/정렬 버튼 1회 바인딩 — 추가 네트워크 없이 _lbRows 캐시에서만 재렌더
+    function _bindLbControls() {
+        var wrap = document.getElementById('lb-controls');
+        if (!wrap || wrap.dataset.bound) return;
+        wrap.dataset.bound = '1';
+        wrap.addEventListener('click', function(e) {
+            var btn = e.target.closest('button[data-lb-belt], button[data-lb-sort]');
+            if (!btn) return;
+            if (btn.dataset.lbBelt) _lbFilterBelt = btn.dataset.lbBelt;
+            if (btn.dataset.lbSort) _lbSort = btn.dataset.lbSort;
+            wrap.querySelectorAll('button[data-lb-belt]').forEach(function(b) { b.setAttribute('aria-pressed', String(b.dataset.lbBelt === _lbFilterBelt)); });
+            wrap.querySelectorAll('button[data-lb-sort]').forEach(function(b) { b.setAttribute('aria-pressed', String(b.dataset.lbSort === _lbSort)); });
+            var list = document.getElementById('leaderboard-list');
+            if (list) renderLeaderboardList(list);
         });
-        // 내 행: 라이브 포인트는 state, 적중률은 canonical(win/(win+lose)) 우선
-        const myDbRow = all.find(function(u) { return u.isUser; });
-        const _myCanon = (typeof currentUserAccuracyView === 'function') ? currentUserAccuracyView() : { ready: false, acc: null };
-        const myEntry = {
-            name: myNickname,
-            points: state.points,
-            total: myDbRow ? myDbRow.total : state.total,
-            success: myDbRow ? myDbRow.success : state.success,
-            accuracy: _myCanon.ready ? _myCanon.acc : ((myDbRow && typeof myDbRow.accuracy === 'number') ? myDbRow.accuracy : null),
-            movement: (myDbRow && typeof myDbRow.movement === 'number') ? myDbRow.movement : null,
-            isUser: true
-        };
-        if (!myDbRow) all.push(myEntry);
-        else all = all.map(u => u.isUser ? myEntry : u);
+    }
 
-        all.sort(function(a,b) { return b.points - a.points; });
-        const myIdx = all.findIndex(u => u.isUser);
-        const userRank = myIdx + 1;
-        const myRankNumEl = document.getElementById('my-rank-num');
-        if (myRankNumEl) myRankNumEl.innerText = userRank;
-
-        // 추월 거리 (히어로) — context 있으면 그쪽이 권위값, 없을 때만 리스트가 채움
-        const gapEl = document.getElementById('lb-gap-next');
-        if (gapEl && !_myLbContext) {
-            if (myIdx === 0) {
-                const lead = all.length > 1 ? state.points - all[1].points : 0;
-                gapEl.innerHTML = all.length > 1 ? `2위 대비 <span class="text-green-400 font-black">+${lead.toLocaleString()} P</span> 리드` : '표시 범위 1위';
-            } else if (myIdx > 0) {
-                const gap = all[myIdx - 1].points - state.points;
-                gapEl.innerHTML = `${userRank - 1}위까지 <span class="text-ufcRed font-black">+${gap.toLocaleString()} P</span>`;
-            }
+    // 공개 랭킹 목록 — get_leaderboard_v2 응답 행만 사용(게스트/내 행 합성 0).
+    //   · 공식 순위 = server rank 그대로(어떤 정렬에서도 재계산 금지)
+    //   · 내 행 판별 = user_id 일치(닉네임 비교 금지, user_id는 DOM 미노출)
+    //   · 필터/정렬은 이미 로드한 행에서만(추가 네트워크 0)
+    function _lbServerTier(u) {
+        // 서버 belt 문자열 우선(공식값). 구 RPC fallback 행만 points로 파생.
+        if (u.belt) { var t = _LB_TIERS.find(function(x) { return x.name === u.belt; }); if (t) return Object.assign({ idx: _LB_TIERS.indexOf(t) }, t); }
+        return _lbTier(u.points || 0);
+    }
+    function _lbApplyViewTransform(rows) {
+        var out = rows;
+        if (_lbFilterBelt !== 'all') out = out.filter(function(u) { return _lbServerTier(u).key === _lbFilterBelt; });
+        out = out.slice();
+        if (_lbSort === 'acc') {
+            // 승률: null 마지막, 동률 points desc → server rank asc
+            out.sort(function(a, b) {
+                var an = (a.accuracy == null), bn = (b.accuracy == null);
+                if (an !== bn) return an ? 1 : -1;
+                if (!an && a.accuracy !== b.accuracy) return b.accuracy - a.accuracy;
+                if ((b.points || 0) !== (a.points || 0)) return (b.points || 0) - (a.points || 0);
+                return (a.rank || 1e9) - (b.rank || 1e9);
+            });
+        } else if (_lbSort === 'picks') {
+            // 정산 픽: settled desc, 동률 points desc → server rank asc
+            out.sort(function(a, b) {
+                if ((b.settled_picks || 0) !== (a.settled_picks || 0)) return (b.settled_picks || 0) - (a.settled_picks || 0);
+                if ((b.points || 0) !== (a.points || 0)) return (b.points || 0) - (a.points || 0);
+                return (a.rank || 1e9) - (b.rank || 1e9);
+            });
+        } else {
+            out.sort(function(a, b) { return (a.rank || 1e9) - (b.rank || 1e9); }); // 공식 순위 오름차순
         }
+        return out;
+    }
+    function renderLeaderboardList(list) {
+        var myId = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.id : null;
+        var view = _lbApplyViewTransform(_lbRows);
 
-        // 벨트 진행 레일 — summary 있으면 전체 기준, 없으면 표시 범위 기준 fallback
-        _lbAllCache = all; _lbMyPointsCache = state.points;
-        _renderBeltRail(all, state.points);
-        // 사이드바: 내 주변 ±2, 벨트 분포
-        _renderLbNeighbors(all, myIdx);
-        _renderBeltDistribution(all);
+        // 벨트 레일/분포 — summary 있으면 전체 기준, 없으면 로드된 v2 행 기준 fallback (내 포인트는 권위값 도착 시만)
+        _renderBeltRail(_lbRows, _lbMyPoints);
+        _renderBeltDistribution(_lbRows);
+        // 내 주변: context 도착 전 임시 — 내 v2 행 주변(실행만). context 도착 시 권위값으로 교체됨.
+        if (!_myLbContext) _renderLbNeighbors(_lbRows, myId);
 
-        const medals = ['🥇','🥈','🥉'];
-        list.innerHTML = all.map(function(u, i) {
-            const rank = i + 1;
-            // accuracy: canonical RPC 값(win/(win+lose))만. 없으면 추측 금지 → null('—').
-            const acc = (typeof u.accuracy === 'number') ? u.accuracy : null;
-            const tier = _lbTier(u.points);
-            const isUser = u.isUser;
-            const gapSub = (i > 0) ? `${rank-1}위까지 +${(all[i-1].points - u.points).toLocaleString()} P` : '표시 범위 1위';
-            // 순위 변동(▲▼): movement 값이 있고 0이 아닐 때만 표시 (snapshot 없으면 null → 미표시)
-            const mv = (typeof u.movement === 'number' && u.movement !== 0) ? u.movement : null;
-            const mvHtml = (mv === null) ? '' :
-                `<div class="oswald-sharp text-[8px] lg:text-[9px] font-black italic leading-none mt-0.5 ${mv > 0 ? 'text-green-400' : 'text-red-500'}">${mv > 0 ? '▲' : '▼'}${Math.abs(mv)}</div>`;
-            return `
-            <div class="lb-row ${rank<=3?`lb-row-top${rank}`:''} ${isUser?'lb-row-me':''}">
-                <div class="text-center">
-                    ${rank <= 3 ? `<span class="text-lg lg:text-xl">${medals[rank-1]}</span>` : `<span class="oswald-sharp text-gray-400 font-black italic text-base lg:text-lg">${rank}</span>`}
-                    ${mvHtml}
-                </div>
-                <div class="flex items-center gap-2 lg:gap-3 min-w-0">
-                    <div class="w-8 h-8 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-[10px] lg:text-xs font-black oswald-sharp italic text-white flex-shrink-0" style="background:${tier.grad}">${_lbInitials(u.name)}</div>
-                    <div class="min-w-0 leading-tight">
-                        <p class="oswald-sharp font-black italic text-sm lg:text-[15px] text-white tracking-tight uppercase truncate leading-tight ${isUser?'text-ufcRed':''}">${isUser ? '★ ' : ''}${escapeHtml(u.name)}</p>
-                        <p class="oswald-sharp text-[10px] lg:text-[11px] italic text-gray-500 tracking-wide leading-tight mt-0.5 hidden lg:block">${gapSub}</p>
-                        <p class="oswald-sharp text-[10px] italic uppercase tracking-wide leading-tight mt-0.5 lg:hidden ${tierTextClass(tier.key)}">${tier.name} · ${acc===null?'—':acc+'%'} · ${u.total}픽</p>
-                    </div>
-                </div>
-                <div class="text-center lb-cell-belt">
-                    <span class="oswald-sharp text-[10px] lg:text-[11px] font-black italic uppercase px-2.5 py-1 rounded-full" style="background:${tier.color}1f;color:${tier.color};">${tier.name}</span>
-                </div>
-                <div class="text-right">
-                    <span class="oswald-sharp font-black italic text-base lg:text-lg text-yellow-400">${u.points.toLocaleString()}<span class="text-gray-500 text-[9px] lg:text-[11px] ml-0.5">P</span></span>
-                </div>
-                <div class="lb-cell-acc">
-                    <span class="oswald-sharp font-black italic text-sm lg:text-[15px] ${acc !== null && acc >= 70 ? 'text-ufcRed' : acc !== null && acc >= 50 ? 'text-white' : 'text-gray-400'}">${acc===null?'—':acc+'%'}</span>
-                    <div class="lb-acc-bar"><div style="width:${acc===null?0:acc}%"></div></div>
-                </div>
-                <div class="text-center lb-cell-picks">
-                    <span class="oswald-sharp font-black italic text-sm lg:text-[15px] text-gray-300">${u.total}</span>
-                </div>
-            </div>`;
+        var medals = ['🥇','🥈','🥉'];
+        var isRankSort = (_lbSort === 'rank');
+        list.innerHTML = view.map(function(u, i) {
+            var rank = (u.rank != null) ? u.rank : null;      // 공식 순위 = server rank (index 재계산 금지)
+            var acc = (typeof u.accuracy === 'number') ? u.accuracy : null;
+            var tier = _lbServerTier(u);
+            var isUser = !!(myId && u.user_id && u.user_id === myId);
+            // 추월 거리: 공식 순위 정렬 뷰에서만(다른 정렬에선 의미가 없어 미표시). 인접 실행 행 기준 파생.
+            var gapSub = '';
+            if (isRankSort) {
+                // 인접 라벨은 항상 실제 server rank로 표기 — 벨트 필터로 중간 순위가 빠져도 '2위' 가정 금지
+                gapSub = (i > 0 && view[i-1].rank != null)
+                    ? view[i-1].rank + '위까지 +' + Math.max(0, (view[i-1].points || 0) - (u.points || 0)).toLocaleString() + ' P'
+                    : (rank === 1 ? (view.length > 1 && view[1].rank != null ? view[1].rank + '위 대비 +' + Math.max(0, (u.points||0) - (view[1].points||0)).toLocaleString() + ' P 리드' : '전체 1위') : '');
+            }
+            var mv = (typeof u.movement === 'number' && u.movement !== 0) ? u.movement : null;
+            var mvHtml = (mv === null) ? '' :
+                '<div class="oswald-sharp text-[8px] lg:text-[9px] font-black italic leading-none mt-0.5 ' + (mv > 0 ? 'text-green-400' : 'text-red-500') + '" role="img" aria-label="순위 ' + (mv > 0 ? '상승' : '하락') + ' ' + Math.abs(mv) + '">' + (mv > 0 ? '▲' : '▼') + Math.abs(mv) + '</div>';
+            var factionHtml = (u.faction_emoji || u.faction_name)
+                ? '<span class="lb-row-faction">' + escapeHtml((typeof factionEmoji === 'function' ? factionEmoji(u.faction_emoji || '') : (u.faction_emoji || ''))) + (u.faction_name ? ' ' + escapeHtml(u.faction_name) : '') + '</span>'
+                : '';
+            return '' +
+            '<div class="lb-row ' + (rank != null && rank <= 3 ? 'lb-row-top' + rank : '') + ' ' + (isUser ? 'lb-row-me' : '') + '">' +
+                '<div class="text-center">' +
+                    (rank != null && rank <= 3
+                        ? '<span class="text-lg lg:text-xl" role="img" aria-label="' + rank + '위">' + medals[rank-1] + '</span>'
+                        : '<span class="oswald-sharp text-gray-400 font-black italic text-base lg:text-lg">' + (rank != null ? rank : '—') + '</span>') +
+                    mvHtml +
+                '</div>' +
+                '<div class="flex items-center gap-2 lg:gap-3 min-w-0">' +
+                    '<div class="w-8 h-8 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-[10px] lg:text-xs font-black oswald-sharp italic text-white flex-shrink-0" style="background:' + tier.grad + '">' + escapeHtml(_lbInitials(u.nickname)) + '</div>' +
+                    '<div class="min-w-0 leading-tight">' +
+                        '<p class="oswald-sharp font-black italic text-sm lg:text-[15px] tracking-tight uppercase truncate leading-tight ' + (isUser ? 'text-ufcRed' : 'text-white') + '">' + (isUser ? '★ ' : '') + escapeHtml(u.nickname || 'UNKNOWN') + factionHtml + '</p>' +
+                        (gapSub ? '<p class="oswald-sharp text-[10px] lg:text-[11px] italic text-gray-500 tracking-wide leading-tight mt-0.5 hidden lg:block">' + gapSub + '</p>' : '') +
+                        '<p class="oswald-sharp text-[10px] italic uppercase tracking-wide leading-tight mt-0.5 lg:hidden ' + tierTextClass(tier.key) + '">' + tier.name + ' · ' + (acc === null ? '—' : acc + '%') + ' · ' + (u.settled_picks || 0) + '픽</p>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="text-center lb-cell-belt">' +
+                    '<span class="oswald-sharp text-[10px] lg:text-[11px] font-black italic uppercase px-2.5 py-1 rounded-full" style="background:' + tier.color + '1f;color:' + tier.color + ';">' + tier.name + '</span>' +
+                '</div>' +
+                '<div class="text-right">' +
+                    '<span class="oswald-sharp font-black italic text-base lg:text-lg text-yellow-400">' + Number(u.points || 0).toLocaleString() + '<span class="text-gray-500 text-[9px] lg:text-[11px] ml-0.5">P</span></span>' +
+                '</div>' +
+                '<div class="lb-cell-acc">' +
+                    '<span class="oswald-sharp font-black italic text-sm lg:text-[15px] ' + (acc !== null && acc >= 70 ? 'text-ufcRed' : acc !== null && acc >= 50 ? 'text-white' : 'text-gray-400') + '">' + (acc === null ? '—' : acc + '%') + '</span>' +
+                    '<div class="lb-acc-bar"><div style="width:' + (acc === null ? 0 : acc) + '%"></div></div>' +
+                '</div>' +
+                '<div class="text-center lb-cell-picks">' +
+                    '<span class="oswald-sharp font-black italic text-sm lg:text-[15px] text-gray-300">' + (u.settled_picks || 0) + '</span>' +
+                '</div>' +
+            '</div>';
         }).join('');
 
-        if (dbUsers.length === 0) {
-            list.innerHTML += '<div class="px-6 lg:px-10 py-8 text-center"><p class="oswald-sharp text-xs text-gray-600 italic uppercase tracking-widest">더 많은 파이터를 기다리는 중…</p></div>';
+        if (_lbRows.length === 0) {
+            list.innerHTML = '<div class="px-6 lg:px-10 py-8 text-center"><p class="oswald-sharp text-xs text-gray-600 italic uppercase tracking-widest">더 많은 파이터를 기다리는 중…</p></div>';
+        } else if (view.length === 0) {
+            list.innerHTML = '<div class="px-6 lg:px-10 py-8 text-center"><p class="oswald-sharp text-xs text-gray-600 italic uppercase tracking-widest">해당 벨트의 랭커가 아직 없습니다</p></div>';
         }
     }
 
@@ -4244,7 +4396,9 @@ async function publishPost() {
         return key === 'black' ? 'text-ufcRed' : key === 'brown' ? 'text-yellow-500' : key === 'purple' ? 'text-purple-400' : key === 'blue' ? 'text-blue-400' : 'text-gray-300';
     }
 
-    function _renderBeltRail(all, myPoints) {
+    // 벨트 레일 — counts는 summary(전체) 우선, 없으면 로드된 v2 행의 서버 belt 기준.
+    //   myPoints=null(게스트/권위값 미도착)이면 YOU 강조·승급 힌트를 만들지 않는다(합성 금지).
+    function _renderBeltRail(rows, myPoints) {
         const rail = document.getElementById('lb-belt-rail');
         if (!rail) return;
         let counts;
@@ -4253,11 +4407,12 @@ async function publishPost() {
             counts = [d.white||0, d.blue||0, d.purple||0, d.brown||0, d.black||0];
         } else {
             counts = [0,0,0,0,0];
-            (all || []).forEach(function(u) { counts[_lbTier(u.points).idx]++; });
+            (rows || []).forEach(function(u) { counts[_lbServerTier(u).idx]++; });
         }
-        const myTier = _lbTier(myPoints);
+        const hasMe = (typeof myPoints === 'number');
+        const myTier = hasMe ? _lbTier(myPoints) : null;
         rail.innerHTML = _LB_TIERS.map(function(t, i) {
-            const isCur = i === myTier.idx;
+            const isCur = hasMe && i === myTier.idx;
             let youBar = '';
             if (isCur && t.key !== 'black') {
                 const span = t.max - t.min;
@@ -4272,6 +4427,7 @@ async function publishPost() {
                 <div class="flex items-center gap-1 lg:gap-1.5">
                     <span class="w-2 h-2 lg:w-3 lg:h-3 rounded-full flex-shrink-0" style="background:${t.color};box-shadow:0 0 8px ${t.color}66;${t.key==='white'?'border:1px solid #71757F;':''}"></span>
                     <span class="oswald-sharp text-[9px] lg:text-xs font-black italic uppercase text-white truncate flex-1 min-w-0">${t.name}</span>
+                    ${isCur ? '<span class="lb-you-tag">YOU</span>' : ''}
                 </div>
                 <div class="flex items-center justify-between gap-1 mt-1">
                     <span class="oswald-sharp text-[8px] lg:text-[10px] italic text-gray-600 uppercase tracking-wide truncate hidden lg:inline">${rangeTxt}</span>
@@ -4282,41 +4438,44 @@ async function publishPost() {
             </div>`;
         }).join('');
 
-        // 힌트 라인
+        // 힌트 라인 — 내 권위 포인트가 있을 때만 승급 문구, 게스트/미도착은 중립 안내
         const hint = document.getElementById('lb-belt-hint');
         if (hint) {
-            if (myTier.key === 'black') {
+            if (!hasMe) {
+                hint.textContent = '픽 포인트 기반 · 예측 기록이 쌓일수록 등급이 올라갑니다';
+            } else if (myTier.key === 'black') {
                 hint.innerHTML = `현재 등급 <span class="text-white font-black">블랙 벨트</span> · 최고 등급에 도달했습니다`;
             } else {
                 const next = _LB_TIERS[myTier.idx + 1];
-                hint.innerHTML = `현재 등급 <span class="text-white font-black">${myTier.name} 벨트</span> · ${next.name} 벨트 승급까지 <span class="text-ufcRed font-black">${(myTier.max + 1 - myPoints).toLocaleString()} P</span> · ${_lbSummary ? '전체' : '표시 범위'} 기준 인원`;
+                hint.innerHTML = `현재 등급 <span class="text-white font-black">${myTier.name} 벨트</span> · ${next.name} 벨트 승급까지 <span class="text-ufcRed font-black">${Math.max(0, myTier.max + 1 - myPoints).toLocaleString()} P</span> · ${_lbSummary ? '전체' : '표시 범위'} 기준 인원`;
             }
         }
     }
 
-    function _renderLbNeighbors(all, myIdx) {
+    // 내 주변(context 미도착 시 임시) — 내 user_id와 일치하는 실제 v2 행 주변만. 없으면 중립 안내.
+    function _renderLbNeighbors(rows, myId) {
         const el = document.getElementById('lb-neighbors');
         if (!el) return;
-        const start = Math.max(0, myIdx - 2);
-        const end = Math.min(all.length, myIdx + 3);
-        const slice = all.slice(start, end);
+        if (!myId) { el.innerHTML = '<p class="oswald-sharp text-[10px] text-gray-600 italic uppercase tracking-widest text-center py-3">로그인하면 내 주변 순위가 표시됩니다</p>'; return; }
+        const myIdx = rows.findIndex(function(u) { return u.user_id && u.user_id === myId; });
+        if (myIdx === -1) { el.innerHTML = '<p class="oswald-sharp text-[10px] text-gray-600 italic uppercase tracking-widest text-center py-3">내 순위 불러오는 중…</p>'; return; }
+        const slice = rows.slice(Math.max(0, myIdx - 2), Math.min(rows.length, myIdx + 3));
         el.innerHTML = slice.map(function(u) {
-            const rank = all.indexOf(u) + 1;
-            const tier = _lbTier(u.points);
-            const isMe = u.isUser;
+            const tier = _lbServerTier(u);
+            const isMe = !!(u.user_id && u.user_id === myId);
             return `
             <div class="lb-neighbor-row ${isMe?'is-me':''}">
-                <span class="oswald-sharp text-xs font-black italic ${isMe?'text-ufcRed':'text-gray-400'} text-center">${rank}</span>
+                <span class="oswald-sharp text-xs font-black italic ${isMe?'text-ufcRed':'text-gray-400'} text-center">${u.rank != null ? u.rank : '—'}</span>
                 <div class="flex items-center gap-2 min-w-0">
-                    <span class="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-black oswald-sharp italic text-white flex-shrink-0" style="background:${tier.grad}">${_lbInitials(u.name)}</span>
-                    <span class="oswald-sharp text-xs font-black italic text-white uppercase truncate ${isMe?'text-ufcRed':''}">${isMe?'★ ':''}${escapeHtml(u.name)}</span>
+                    <span class="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-black oswald-sharp italic text-white flex-shrink-0" style="background:${tier.grad}">${escapeHtml(_lbInitials(u.nickname))}</span>
+                    <span class="oswald-sharp text-xs font-black italic text-white uppercase truncate ${isMe?'text-ufcRed':''}">${isMe?'★ ':''}${escapeHtml(u.nickname || 'UNKNOWN')}</span>
                 </div>
-                <span class="oswald-sharp text-xs font-black italic text-yellow-400 whitespace-nowrap">${u.points.toLocaleString()}<span class="text-gray-500 text-[9px] ml-0.5">P</span></span>
+                <span class="oswald-sharp text-xs font-black italic text-yellow-400 whitespace-nowrap">${Number(u.points||0).toLocaleString()}<span class="text-gray-500 text-[9px] ml-0.5">P</span></span>
             </div>`;
         }).join('');
     }
 
-    function _renderBeltDistribution(all) {
+    function _renderBeltDistribution(rows) {
         const el = document.getElementById('lb-belt-dist-list');
         if (!el) return;
         let counts, total;
@@ -4326,8 +4485,8 @@ async function publishPost() {
             total = _lbSummary.total_users || counts.reduce(function(a,b){return a+b;}, 0) || 1;
         } else {
             counts = [0,0,0,0,0];
-            (all || []).forEach(function(u) { counts[_lbTier(u.points).idx]++; });
-            total = (all ? all.length : 0) || 1;
+            (rows || []).forEach(function(u) { counts[_lbServerTier(u).idx]++; });
+            total = (rows ? rows.length : 0) || 1;
         }
         el.innerHTML = _LB_TIERS.slice().reverse().map(function(t) {
             const i = _LB_TIERS.indexOf(t);
@@ -6391,6 +6550,8 @@ async function publishPost() {
         // 아카이브 '내 픽 결과' 리캡 캐시 무효화 — 이전 계정 리캡이 다음 사용자/비로그인에 잔존·혼입 방지
         if (typeof window.invalidateArchiveRecap === 'function') window.invalidateArchiveRecap();
         resetLivePickBarsNeutral();
+        // 랭킹 화면 표시 중 로그아웃/세션 만료 → 내 정보 즉시 중립화(게스트 카드 전환, _lbSeq로 늦은 응답 폐기)
+        if (typeof _currentPage !== 'undefined' && _currentPage === 'rankings' && typeof renderLeaderboard === 'function') renderLeaderboard();
     };
 
     async function loadAllEventPickCounts() {
@@ -6469,20 +6630,25 @@ async function publishPost() {
 
     async function loadRealRankings() {
         if (!sb) return [];
-        // get_leaderboard_v2 우선 (전체 기준 + settled accuracy + faction/belt)
+        // get_leaderboard_v2 우선 — 서버 공식 필드(rank/user_id/belt/percentile/movement) 그대로 보존.
+        //   user_id는 내부 is-me 판별 전용(DOM 텍스트/attribute 미노출), rank는 화면의 공식 순위 원본.
         try {
             const v2 = await sb.rpc('get_leaderboard_v2', { p_limit: 50 });
             if (v2 && !v2.error && Array.isArray(v2.data)) {
                 return v2.data.map(function(r) {
                     var sp = (typeof r.settled_picks === 'number') ? r.settled_picks : 0;
                     return {
+                        rank: (typeof r.rank === 'number') ? r.rank : null,
+                        user_id: r.user_id || null,
                         nickname: r.nickname || 'UNKNOWN',
+                        belt: r.belt || null,
                         points: r.points || 0,
-                        total_picks: sp,            // 표시 픽 수 = settled 기준
-                        settled_picks: sp,          // 구 RPC 방어용으로 보존
-                        success_picks: r.wins || 0,
-                        // settled_picks===0이면 구 RPC가 accuracy=0을 줘도 null로 정규화(success/total 추측 금지)
+                        settled_picks: sp,
+                        wins: r.wins || 0,
+                        losses: r.losses || 0,
+                        // settled=0이면 accuracy=0이 와도 null 정규화(0%가 아니라 '—')
                         accuracy: (sp === 0) ? null : ((typeof r.accuracy === 'number') ? r.accuracy : null),
+                        percentile: (typeof r.percentile === 'number') ? r.percentile : null,
                         faction_emoji: r.faction_emoji || null,
                         faction_name: r.faction_name || null,
                         movement: (typeof r.movement === 'number') ? r.movement : null
@@ -6490,17 +6656,19 @@ async function publishPost() {
                 });
             }
         } catch (e) { /* fall through to legacy */ }
-        // fallback: 기존 get_leaderboard (top-N, accuracy 추정은 렌더에서 fallback 처리)
+        // fallback: 구 get_leaderboard — rank/user_id/belt 미제공(제한 표시: 순위 '—', 내 행 강조 없음)
         try {
             const v1 = await sb.rpc('get_leaderboard', { p_limit: 20 });
             if (v1 && !v1.error && Array.isArray(v1.data)) {
                 return v1.data.map(function(r) {
                     return {
+                        rank: null, user_id: null, belt: null, percentile: null, movement: null,
                         nickname: r.nickname || 'UNKNOWN',
                         points: r.points || 0,
-                        total_picks: r.total_picks || 0,
-                        success_picks: r.success_picks || 0,
-                        accuracy: null
+                        settled_picks: r.total_picks || 0,
+                        wins: r.success_picks || 0, losses: null,
+                        accuracy: null,
+                        faction_emoji: null, faction_name: null
                     };
                 });
             }
