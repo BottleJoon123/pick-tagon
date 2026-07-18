@@ -2630,7 +2630,7 @@
 </script>
 <script src="/js/config.js"></script>
 <script src="/js/data/fights.js"></script>
-<script src="/js/data/constants.js"></script>
+<script src="/js/data/constants.js?v=1"></script>
 <script src="/js/state.js?v=2"></script>
 <script src="/js/storage.js"></script>
 <script src="/js/utils.js?v=4"></script>
@@ -5028,9 +5028,10 @@ async function publishPost() {
         }
     }
 
-    // 체급 그룹 라벨(표시 전용, UFC_DIVISIONS 순서는 그대로 사용 — id 목록 자체는 변경하지 않음)
+    // 체급 그룹 라벨(표시 전용): UFC_DIVISIONS에 정의된 순서를 그대로 사용해 그룹 라벨을 삽입하고, 남자·여자 P4P는 동일한 P4P 그룹으로 묶는다.
     function _ufcDivisionGroupFor(id) {
-        if (id === 'p4p') return '파운드 포 파운드';
+        // 남자/여자 P4P는 모두 '파운드 포 파운드' 그룹(연속 배치) — 여자부보다 먼저 판정해 w-p4p가 여자부로 새지 않게.
+        if (id === 'p4p' || id === 'w-p4p') return '파운드 포 파운드';
         return id.indexOf('w-') === 0 ? '여자부' : '남자부';
     }
     function renderUFCRankingTabs() {
@@ -5247,7 +5248,8 @@ async function publishPost() {
             }
         } else if (divData.champion) {
             champHtml = _ufcChampionCardHtml(divData.champion, divInfo);
-        } else if (currentDivision === 'p4p') {
+        } else if (currentDivision === 'p4p' || currentDivision === 'w-p4p') {
+            // P4P(남/여)는 체급 통합 순위라 챔피언 개념이 없음 — champion row 부재를 "정보 없음"이 아닌 안내로 표시(가짜 챔피언 합성 금지).
             champHtml = `
         <div class="ur-p4p-note">
             <p class="ur-p4p-title">체급 통합 순위</p>

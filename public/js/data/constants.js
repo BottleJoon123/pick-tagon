@@ -22,6 +22,7 @@ const FIGHT_METHOD_TEXT_CLASS = {
 
 const UFC_DIVISION_SHORT_LABELS = {
     p4p: 'P4P',
+    'w-p4p': '여자 P4P',
     flw: '플라이급',
     bw: '밴텀급',
     fw: '페더급',
@@ -36,6 +37,7 @@ const UFC_DIVISION_SHORT_LABELS = {
 };
 
 const UFC_DIVISION_FULL_LABELS = {
+    'w-p4p': '여자 P4P',
     flw: '플라이급',
     bw: '밴텀급',
     fw: '페더급',
@@ -147,7 +149,8 @@ var YOUTUBE_CARDS = [
 
 /* UFC rankings static seed data (Phase 9C extraction from index.html). */
 const UFC_DIVISIONS = [
-    { id: 'p4p',  label: 'P4P 남자', icon: '👑' },
+    { id: 'p4p',   label: 'P4P 남자', icon: '👑' },
+    { id: 'w-p4p', label: 'P4P 여자', icon: '👑' },
     { id: 'hw',   label: '헤비급',   icon: '🏔' },
     { id: 'lhw',  label: '라이트헤비급', icon: '⚡' },
     { id: 'mw',   label: '미들급',   icon: '🔥' },
