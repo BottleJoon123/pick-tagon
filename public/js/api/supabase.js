@@ -94,7 +94,8 @@ function loadPostsFromDB() {
                             && c.user_id === currentUser.id && typeof getDisplayUsername === 'function') {
                             displayUser = getDisplayUsername() || c.user_nick;
                         }
-                        return { user: displayUser, userId: c.user_id || null, text: c.content, commentId: c.id, parentCommentId: c.parent_comment_id || null };
+                        // createdAt: 이미 SELECT 중인 created_at 원본 ISO 보존 — 상대시간/최근활동 판단용(신규 쿼리 아님)
+                        return { user: displayUser, userId: c.user_id || null, text: c.content, commentId: c.id, parentCommentId: c.parent_comment_id || null, createdAt: c.created_at || null };
                     });
                 var faction = (r.users && r.users.factions) ? r.users.factions : null;
                 return {
@@ -105,12 +106,13 @@ function loadPostsFromDB() {
                     title: r.title || '',
                     content: r.content || '',
                     likes: r.likes || 0,
-                    date: (r.created_at || '').slice(0, 10).replace(/-/g, '.'),
+                    date: (r.created_at || '').slice(0, 10).replace(/-/g, '.'),   // 표시 호환용(레거시)
+                    createdAt: r.created_at || null,   // 원본 ISO(timestamptz) 보존 — 정렬·상대시간·최근활동은 이 값 사용
                     comments: comments,
-                    belt: r.belt || 'White Belt',
+                    belt: r.belt || null,              // belt 없으면 합성하지 않음(표시계층이 중립 처리)
                     isPickShare: r.is_pick_share || false,
                     faction: faction,
-                    viewCount: r.view_count != null ? r.view_count : 0,
+                    viewCount: (typeof r.view_count === 'number') ? r.view_count : null,  // null이면 0 단정 금지(UI 생략)
                     isPinned: r.is_pinned === true,
                     category: r.category || 'general',
                 };

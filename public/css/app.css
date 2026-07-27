@@ -956,7 +956,7 @@ textarea, select {
 .matchup-card {
     background: #131313;
     border: 1px solid #242424;
-    border-radius: 10px;
+    border-radius: 8px;
     padding: 18px 20px;
     cursor: pointer;
     transition: border-color 0.2s, box-shadow 0.2s;
@@ -1063,7 +1063,7 @@ textarea, select {
 .ticker {
     display: flex; align-items: center; gap: 12px;
     background: var(--pt-bg-2); border: 1px solid var(--pt-line-1);
-    border-radius: 12px; padding: 11px 18px; margin-bottom: 14px; overflow: hidden;
+    border-radius: 8px; padding: 11px 18px; margin-bottom: 14px; overflow: hidden;
 }
 .tk-label {
     display: flex; align-items: center; gap: 6px; flex-shrink: 0;
@@ -1193,7 +1193,7 @@ textarea, select {
 .fcard {
     display: grid; grid-template-columns: 46px 1fr; gap: 14px;
     background: var(--pt-bg-2); border: 1px solid var(--pt-line-1);
-    border-radius: 14px; padding: 18px 20px; cursor: pointer;
+    border-radius: 8px; padding: 18px 20px; cursor: pointer;
     transition: background 0.15s, border-color 0.15s;
 }
 .fcard:hover { background: var(--pt-bg-3); border-color: var(--pt-line-2); }
@@ -1309,7 +1309,7 @@ textarea, select {
     .feed-list { gap: 8px; }
 
     /* 카드 세로 밀도 ↓ */
-    .fcard { grid-template-columns: 34px 1fr; gap: 9px; padding: 11px 12px; border-radius: 10px; }
+    .fcard { grid-template-columns: 34px 1fr; gap: 9px; padding: 11px 12px; border-radius: 8px; }
     .fc-ava { width: 34px; height: 34px; font-size: 13px; border-width: 1.5px; }
 
     /* 메타 헤더: 한 줄 압축 (belt/HOT 텍스트 배지는 아바타 링·카드 테두리로 대체) */
@@ -1353,7 +1353,7 @@ textarea, select {
 }
 .side-card {
   background: var(--pt-bg-2); border: 1px solid var(--pt-line-1);
-  border-radius: 14px; padding: 16px 18px;
+  border-radius: 8px; padding: 16px 18px;
 }
 .side-card.me {
   background: radial-gradient(120% 120% at 0% 0%, rgba(139,63,227,0.10), transparent 60%), var(--pt-bg-2);
@@ -2961,3 +2961,61 @@ body.more-sheet-lock { overflow: hidden; }   /* 열림 중 body scroll 방지 */
 @media (prefers-reduced-motion: reduce) {
     #home .home-mu-item, #home .home-news-item, #home .home-sec-more, #home .home-mu-go { transition: none; }
 }
+
+/* ══ 커뮤니티 고도화 후속 1차 — 접근성·데이터 진실성 표현 (신규 letter-spacing 0) ══ */
+
+/* 제목·스니펫 열기 — 카드 내부의 실제 button (Enter/Space·스크린리더 접근). 시각은 기존 그대로. */
+.fc-open {
+    display: block; width: 100%; text-align: left;
+    background: none; border: 0; padding: 0; margin: 0; cursor: pointer;
+    color: inherit; font: inherit; letter-spacing: 0;
+}
+.fc-open:focus-visible { outline: 2px solid var(--pt-ink-0, #fff); outline-offset: 3px; border-radius: 4px; }
+/* 제목 2줄 이하(데스크톱 포함) — span 전환에 따른 블록화 + clamp */
+.fc-open .fc-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* 작성자·댓글 닉네임 button 리셋 — 폰트/색은 기존 클래스가 결정 */
+button.fc-user { background: none; border: 0; padding: 0; margin: 0; cursor: pointer; text-align: left; }
+button.post-comment-nick-link {
+    background: none; border: 0; padding: 0; margin: 0; cursor: pointer; text-align: left;
+    font: inherit; color: inherit; letter-spacing: 0;
+}
+/* '자세히' button 리셋 — fc-foot의 폰트·색 상속 유지 */
+button.fc-share { background: none; border: 0; padding: 0; margin: 0; cursor: pointer; color: inherit; font: inherit; letter-spacing: 0; }
+/* pick strip 카드 button 리셋 — 레이아웃(flex-basis·padding·배경)은 기존 .matchup-card가 결정 */
+button.matchup-card { display: block; text-align: left; color: inherit; font: inherit; letter-spacing: 0; }
+/* 반응 많은 글 행 button 리셋 */
+button.side-trow { background: none; border: 0; padding: 0; margin: 0; width: 100%; font: inherit; color: inherit; letter-spacing: 0; }
+
+button.fc-user:focus-visible, button.post-comment-nick-link:focus-visible, button.fc-share:focus-visible,
+button.matchup-card:focus-visible, button.side-trow:focus-visible, .fc-rec:focus-visible,
+.pick-strip-more:focus-visible, .side-cta:focus-visible, .side-act:focus-visible,
+.comm-write-fab:focus-visible {
+    outline: 2px solid var(--pt-ink-0, #fff); outline-offset: 2px;
+}
+
+/* 추천 완료 상태 — aria-pressed와 시각 상태 일치(.on과 동일 톤) */
+.fc-rec[aria-pressed="true"] { border-color: rgba(232,0,13,0.4); color: var(--red); background: rgba(232,0,13,0.08); }
+
+/* 필터·정렬·기간 컨트롤 — 최소 터치 타깃 44px + focus-visible */
+#community .comm-filter-btn, #community .comm-sort-btn { min-height: 44px; display: inline-flex; align-items: center; }
+#community .comm-dropdown { min-height: 44px; }
+#community .comm-filter-btn:focus-visible, #community .comm-sort-btn:focus-visible,
+#community .comm-dropdown:focus-visible { outline: 2px solid var(--pt-ink-0, #fff); outline-offset: 2px; }
+
+/* Composer 닫기 — 44×44 히트 영역 */
+.comm-composer-close {
+    min-width: 44px; min-height: 44px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: none; border: 0; cursor: pointer;
+}
+.comm-composer-close:focus-visible { outline: 2px solid var(--pt-ink-0, #fff); outline-offset: 2px; }
+
+/* 실픽 집계 0표 — 추정 비율(leftBias 등) 대신 중립 트랙 + '아직 픽 없음' */
+.ps-bar.is-empty .ps-bar-fill { background: var(--pt-bg-4, #232730); }
+.ps-pct-none, .side-pick-none {
+    font-family: 'Oswald', sans-serif; font-size: 10px; font-weight: 900; font-style: italic;
+    text-transform: uppercase; color: var(--pt-ink-4, #565A63); letter-spacing: 0;
+}
+.ps-pct-none { width: 100%; text-align: center; }
+.side-pick-bar.is-empty > i { background: var(--pt-bg-4, #232730); }

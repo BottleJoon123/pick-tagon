@@ -57,8 +57,9 @@
         keys.forEach(function(k) {
             var btn = document.getElementById(prefix + k);
             if (!btn) return;
-            if (k === active) btn.classList.add('active');
-            else btn.classList.remove('active');
+            var on = (k === active);
+            btn.classList.toggle('active', on);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');   // 시각 active와 aria 상태 일치
         });
     }
 
@@ -99,6 +100,56 @@
         return String(n);
     }
 
+    /* ── 공용 시간 헬퍼 ──────────────────────────────────────────────
+       createdAt(timestamptz ISO 원본)을 우선 사용, 레거시 date("YYYY.MM.DD")는 자정 fallback.
+       상대시간 규칙: <1분 '방금 전' / N분 / N시간 / 어제(로컬 달력) / N일 / 7일 이상 YYYY.MM.DD.
+       invalid·null → null(호출측이 요소 생략), 미래 시각 → 절대일자(추측 금지). */
+    function _postTime(p) {
+        if (!p) return null;
+        if (p.createdAt) { var t = new Date(p.createdAt); if (!isNaN(t)) return t; }
+        if (p.date) { var d = new Date(String(p.date).replace(/\./g, '-') + 'T00:00:00'); if (!isNaN(d)) return d; }
+        return null;
+    }
+    function _fmtAbsDate(t) {
+        return t.getFullYear() + '.' + String(t.getMonth() + 1).padStart(2, '0') + '.' + String(t.getDate()).padStart(2, '0');
+    }
+    function _relTime(t) {
+        if (!t || isNaN(t)) return null;
+        var now = new Date();
+        var diff = now - t;                      // ms
+        if (diff < 0) return _fmtAbsDate(t);     // 미래 시각 → 절대일자(중립)
+        if (diff < 60 * 1000) return '방금 전';   // 실제 1분 미만만
+        if (diff < 60 * 60 * 1000) return Math.floor(diff / 60000) + '분 전';
+        if (diff < 24 * 60 * 60 * 1000) return Math.floor(diff / 3600000) + '시간 전';
+        // 로컬 달력 기준 '어제' (timezone 이동으로 날짜가 깨지지 않게 달력 일자 비교)
+        var y = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+        if (t.getFullYear() === y.getFullYear() && t.getMonth() === y.getMonth() && t.getDate() === y.getDate()) return '어제';
+        var days = Math.floor(diff / 86400000);
+        if (days < 7) return days + '일 전';
+        return _fmtAbsDate(t);
+    }
+    function _isTodayLocal(t) {
+        if (!t || isNaN(t)) return false;
+        var now = new Date();
+        return t.getFullYear() === now.getFullYear() && t.getMonth() === now.getMonth() && t.getDate() === now.getDate();
+    }
+
+    /* faction 배지 안전 래퍼 — utils.getFactionBadge는 emoji_icon을 raw 삽입하므로
+       (utils.js는 이번 라운드 수정 범위 밖) 커뮤니티 렌더 경로에서는 escape된 사본으로 호출한다.
+       정상 이모지는 escapeHtml에 영향받지 않고, 마크업이 섞인 값만 텍스트로 무력화된다. */
+    function _safeFactionBadge(f, size) {
+        if (!f || !f.emoji_icon || typeof getFactionBadge !== 'function') return '';
+        return getFactionBadge({ id: f.id, name: f.name, emoji_icon: escapeHtml(String(f.emoji_icon)) }, size);
+    }
+
+    /* '반응' 점수 — 현재 로드된 rows의 likes/댓글 수/조회수에서 파생한 결정적 값.
+       실시간 인기·기간별 증가율 데이터가 아니므로 UI에서 '실시간/트렌딩/+%'로 부르지 않는다.
+       (인기 정렬·반응 많은 글·반응 많음 배지가 모두 이 하나의 공식을 공유) */
+    function _hotScore(p) {
+        var vc = (typeof p.viewCount === 'number') ? p.viewCount : 0;
+        return (p.likes || 0) * 2 + (p.comments || []).length * 3 + Math.log10(vc + 1);
+    }
+
     // 카테고리별 글 수 (실데이터) → 칩 카운트
     function renderFilterCounts() {
         var realPosts = (typeof posts !== 'undefined' && posts)
@@ -120,9 +171,63 @@
         renderFeed();
     }
 
-    function toggleWriter() { document.getElementById('write-panel').classList.toggle('hidden'); }
+    /* ── 모달 focus trap 공용 헬퍼 ──
+       Tab/Shift+Tab을 컨테이너 내 보이는 focusable 요소로 순환시킨다.
+       (hidden/disabled 제외 — offsetParent 검사로 display:none 계열 배제) */
+    function _trapTab(e, container) {
+        var f = Array.prototype.filter.call(
+            container.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'),
+            function(el) { return !el.disabled && el.offsetParent !== null; });
+        if (!f.length) { e.preventDefault(); return; }
+        var first = f[0], last = f[f.length - 1];
+        var inside = container.contains(document.activeElement);
+        if (e.shiftKey) {
+            if (!inside || document.activeElement === first) { e.preventDefault(); last.focus(); }
+        } else {
+            if (!inside || document.activeElement === last) { e.preventDefault(); first.focus(); }
+        }
+    }
 
-    /* ── Activity ticker (recent activity, not live presence) ── */
+    /* ── 글쓰기 Composer 열기/닫기 ──
+       접근성: 열림 시 첫 입력(제목)으로 focus + body scroll lock + Escape + Tab trap,
+       닫힘 시 트리거로 focus 복귀. 리스너는 열림/닫힘 짝으로 add/remove(중복 0). */
+    var _writerTrigger = null;
+    var _writerEscHandler = null;
+    function toggleWriter() {
+        var panel = document.getElementById('write-panel');
+        if (!panel) return;
+        var opening = panel.classList.contains('hidden');
+        if (opening) {
+            _writerTrigger = (document.activeElement && document.activeElement !== document.body) ? document.activeElement : null;
+            panel.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            var tit = document.getElementById('post-tit');
+            if (tit) tit.focus();
+            if (_writerEscHandler) document.removeEventListener('keydown', _writerEscHandler, true);
+            _writerEscHandler = function(e) {
+                if (e.key !== 'Escape' && e.key !== 'Tab') return;
+                // 위에 다른 모달(-modal, 예: auth)이 떠 있으면 그쪽이 우선 — Escape/Tab 모두 통과
+                if (typeof _openModalEls === 'function' && _openModalEls().length > 0) return;
+                if (e.key === 'Tab') { _trapTab(e, panel); return; }
+                toggleWriter();
+            };
+            document.addEventListener('keydown', _writerEscHandler, true);   // capture: auth 등 위 모달의 Escape 소비 전에 모달 상태를 판단(이중 닫힘 방지)
+        } else {
+            panel.classList.add('hidden');
+            if (_writerEscHandler) { document.removeEventListener('keydown', _writerEscHandler, true); _writerEscHandler = null; }
+            // 다른 모달이 열려 있지 않을 때만 body scroll lock 해제
+            var othersOpen = (typeof _openModalEls === 'function') && _openModalEls().length > 0;
+            if (!othersOpen) document.body.style.overflow = '';
+            if (_writerTrigger && document.contains(_writerTrigger)) { try { _writerTrigger.focus(); } catch (e) {} }
+            _writerTrigger = null;
+        }
+    }
+
+    /* ── Activity ticker (recent activity, not live presence) ──
+       실제 createdAt 기준으로만 표기. 최근 7일 내 활동이 하나도 없으면 ticker 전체 숨김.
+       '방금'은 실제 1분 미만일 때만(_relTime), 댓글 항목은 실제 최근 댓글 createdAt이 있을 때만.
+       polling/setInterval 없음 — 피드 렌더 시점의 스냅샷. */
+    var _TICKER_RECENT_MS = 7 * 24 * 60 * 60 * 1000;   // '최근 활동' 창 = 7일
     function renderActivityTicker() {
         var el = document.getElementById('activity-ticker');
         if (!el) return;
@@ -132,30 +237,40 @@
             : [];
         if (!realPosts.length) { el.classList.add('hidden'); el.innerHTML = ''; return; }
 
-        var sorted = realPosts.slice().sort(function(a, b) {
-            return (b.date || '').localeCompare(a.date || '');
-        });
-        var latest = sorted[0];
-
-        // 오늘 작성된 글 수
         var now = new Date();
-        var todayCount = realPosts.filter(function(p) {
-            if (!p.date) return false;
-            var dt = new Date(String(p.date).replace(/\./g, '-'));
-            return dt.getFullYear() === now.getFullYear()
-                && dt.getMonth() === now.getMonth()
-                && dt.getDate() === now.getDate();
-        }).length;
-
         var items = [];
-        if (latest) {
-            items.push('방금 <span class="tk-name">' + escapeHtml(latest.author || '익명') + '</span>님이 글을 올렸어요');
+
+        // 1) 최근 글 — 실제 작성 시각이 7일 이내일 때만, 실제 상대시간으로.
+        //    미래 시각(clock skew) 글은 최신 후보에서 제외 — 과거 글의 티커 항목을 삼키지 않게.
+        var latest = null, latestT = null;
+        realPosts.forEach(function(p) {
+            var t = _postTime(p);
+            if (t && t <= now && (!latestT || t > latestT)) { latest = p; latestT = t; }
+        });
+        if (latest && latestT && (now - latestT) >= 0 && (now - latestT) < _TICKER_RECENT_MS) {
+            items.push('<span class="tk-name">' + escapeHtml(latest.author || '익명') + '</span>님이 '
+                + escapeHtml(_relTime(latestT) || '') + ' 글을 올렸어요');
         }
-        var withCom = sorted.find(function(p) { return (p.comments || []).length > 0; });
-        if (withCom) {
-            items.push('<span class="tk-name">' + escapeHtml(withCom.author || '익명') + '</span>님 글에 새 댓글');
+
+        // 2) 최근 댓글 — comment.createdAt이 실제로 7일 이내일 때만 (댓글 존재만으로 '새 댓글' 금지)
+        var comPost = null, comT = null;
+        realPosts.forEach(function(p) {
+            (p.comments || []).forEach(function(c) {
+                if (!c.createdAt) return;                    // 레거시(작성시각 없음) 제외
+                var t = new Date(c.createdAt);
+                if (!isNaN(t) && (!comT || t > comT)) { comT = t; comPost = p; }
+            });
+        });
+        if (comPost && comT && (now - comT) >= 0 && (now - comT) < _TICKER_RECENT_MS) {
+            items.push('<span class="tk-name">' + escapeHtml(comPost.author || '익명') + '</span>님 글에 '
+                + escapeHtml(_relTime(comT) || '') + ' 댓글');
         }
-        items.push('오늘 새 글 <span class="tk-name">' + todayCount + '</span>');
+
+        // 3) 오늘 새 글 수 — createdAt 로컬 달력 기준, 0이면 표기 생략
+        var todayCount = realPosts.filter(function(p) { return _isTodayLocal(_postTime(p)); }).length;
+        if (todayCount > 0) items.push('오늘 새 글 <span class="tk-name">' + todayCount + '</span>');
+
+        if (!items.length) { el.classList.add('hidden'); el.innerHTML = ''; return; }  // 최근 활동 없음 → 숨김
 
         el.classList.remove('hidden');
         el.innerHTML =
@@ -200,11 +315,12 @@
                 '</div>'
             ].join(''));
         } else {
+            // 게스트 CTA — 클릭 시에만 로그인 모달(자동 모달·profile 라우팅 flash 없음)
             blocks.push([
                 '<div class="side-card me">',
                 '  <div class="side-head"><span class="side-title">내 픽타곤</span></div>',
-                '  <p class="side-empty">로그인하면 내 랭킹과 픽 기록을 볼 수 있어요.</p>',
-                '  <button class="side-cta" onclick="navigateTo(\'profile\')">로그인 / 프로필 →</button>',
+                '  <p class="side-empty">로그인하면 내 포인트와 픽 기록을 볼 수 있어요.</p>',
+                '  <button type="button" class="side-cta" onclick="if(typeof openAuthModal===\'function\')openAuthModal(\'profile\')">로그인 →</button>',
                 '</div>'
             ].join(''));
         }
@@ -218,11 +334,19 @@
         if (!main && fights.length) main = fights[0];
         var pickHtml;
         if (main) {
-            var lp = 50, rp = 50;
+            // 비율은 실제 사용자 픽 집계(eventPickCounts, get_event_pick_ratios)만 사용.
+            // leftBias는 관리자 입력 추정값이라 커뮤니티 비율로 표시하지 않는다 → 집계 0표면 '아직 픽 없음' 중립.
             var ec = (typeof eventPickCounts !== 'undefined') && eventPickCounts[main.id];
-            if (ec && (ec.c0 + ec.c1) > 0) { lp = Math.round(ec.c0 / (ec.c0 + ec.c1) * 100); rp = 100 - lp; }
-            else if (main.leftBias != null) { lp = Math.round(main.leftBias * 100); rp = 100 - lp; }
+            var hasVotes = !!(ec && (ec.c0 + ec.c1) > 0);
             var ev = escapeHtml(main._eventTitle || '');
+            var barHtml = hasVotes
+                ? (function() {
+                    var lp = Math.round(ec.c0 / (ec.c0 + ec.c1) * 100), rp = 100 - lp;
+                    return '<div class="side-pick-bar"><i style="width:' + lp + '%;background:#e10600"></i><i style="width:' + rp + '%;background:#2f7bf0"></i></div>'
+                         + '<div class="side-pick-pct"><span style="color:#FF5D55">' + lp + '%</span><span style="color:#6FA8FF">' + rp + '%</span></div>';
+                })()
+                : '<div class="side-pick-bar is-empty"><i style="width:100%"></i></div>'
+                + '<div class="side-pick-pct"><span class="side-pick-none">아직 픽 없음</span></div>';
             pickHtml = [
                 '<div class="side-head"><span class="side-title">오늘의 픽</span>' + (ev ? '<span class="side-meta">' + ev + '</span>' : '') + '</div>',
                 '<div class="side-pick-names">',
@@ -230,39 +354,39 @@
                 '  <span class="side-pick-vs">VS</span>',
                 '  <span class="side-pick-n r">' + escapeHtml(main.f2.name) + '</span>',
                 '</div>',
-                '<div class="side-pick-bar"><i style="width:' + lp + '%;background:#e10600"></i><i style="width:' + rp + '%;background:#2f7bf0"></i></div>',
-                '<div class="side-pick-pct"><span style="color:#FF5D55">' + lp + '%</span><span style="color:#6FA8FF">' + rp + '%</span></div>'
+                barHtml
             ].join('');
         } else {
             pickHtml = '<div class="side-head"><span class="side-title">오늘의 픽</span></div><p class="side-empty">예정된 경기가 없어요.</p>';
         }
         blocks.push('<div class="side-card">' + pickHtml + '</div>');
 
-        // ── 3. 트렌딩 글 (likes*2 + 댓글 수 기준) ──
+        // ── 3. 반응 많은 글 — 현재 로드된 posts의 likes/댓글/조회 파생 점수(_hotScore).
+        //    실시간 트렌딩/증가율 데이터가 아니므로 '트렌딩·+%'로 부르지 않는다.
         var real = (typeof posts !== 'undefined' && posts) ? posts.filter(function(p) { return !p.isPickShare; }) : [];
-        // 트렌딩 점수: likes*2 + 댓글*3 + log10(view_count+1) (조회수는 약하게 반영, 없으면 0)
-        function _trendScore(p) {
-            var vc = p.viewCount != null ? p.viewCount : 0;
-            return (p.likes || 0) * 2 + (p.comments || []).length * 3 + Math.log10(vc + 1);
-        }
         var trend = real.slice().sort(function(a, b) {
-            return _trendScore(b) - _trendScore(a);
+            var d = _hotScore(b) - _hotScore(a);
+            if (d !== 0) return d;
+            var ta = _postTime(a), tb = _postTime(b);                      // 동률: createdAt desc → dbId desc
+            var td = (tb ? tb.getTime() : 0) - (ta ? ta.getTime() : 0);
+            if (td !== 0) return td;
+            return (b.dbId || 0) - (a.dbId || 0);
         }).slice(0, 5);
         var trendHtml;
         if (trend.length) {
             trendHtml = '<div class="side-trend">' + trend.map(function(p, i) {
                 var idx = posts.indexOf(p);
                 var title = escapeHtml(_stripCatPrefix(p.title || '') || '(제목 없음)');
-                return '<div class="side-trow" onclick="openPostDetail(' + idx + ')">'
+                return '<button type="button" class="side-trow" onclick="openPostDetail(' + idx + ')">'
                      + '<span class="side-trow-rank' + (i < 3 ? ' top' : '') + '">' + (i + 1) + '</span>'
                      + '<span class="side-trow-t">' + title + '</span>'
                      + '<span class="side-trow-c">🔥 ' + (p.likes || 0) + '</span>'
-                     + '</div>';
+                     + '</button>';
             }).join('') + '</div>';
         } else {
             trendHtml = '<p class="side-empty">아직 글이 없어요.</p>';
         }
-        blocks.push('<div class="side-card"><div class="side-head"><span class="side-title">트렌딩 글</span></div>' + trendHtml + '</div>');
+        blocks.push('<div class="side-card"><div class="side-head"><span class="side-title">반응 많은 글</span><span class="side-meta">로드된 글 기준</span></div>' + trendHtml + '</div>');
 
         // ── 4. 빠른 액션 (기존 함수 재사용) ──
         blocks.push([
@@ -302,24 +426,23 @@
         var eventTitle = (fights[0] && fights[0]._eventTitle) || '';
 
         var cards = featured.map(function(fight) {
-            // Live pick percentages — eventPickCounts: { c0: red, c1: blue } (index.html var)
+            // 커뮤니티 픽 % — 실제 사용자 픽 집계(eventPickCounts ← get_event_pick_ratios)만 사용.
+            // leftBias(관리자 입력 추정값)는 집계가 아니므로 fallback으로 쓰지 않는다 → 0표는 중립 '아직 픽 없음'.
             var ec = (typeof eventPickCounts !== 'undefined') && eventPickCounts[fight.id];
-            var leftPct = 50, rightPct = 50;
-            if (ec && (ec.c0 + ec.c1) > 0) {
+            var hasVotes = !!(ec && (ec.c0 + ec.c1) > 0);
+            var leftPct = 0, rightPct = 0;
+            if (hasVotes) {
                 leftPct  = Math.round(ec.c0 / (ec.c0 + ec.c1) * 100);
-                rightPct = 100 - leftPct;
-            } else if (fight.leftBias != null) {
-                leftPct  = Math.round(fight.leftBias * 100);
                 rightPct = 100 - leftPct;
             }
 
-            // Tag class
+            // Tag class — 실 tag만. 없으면 중립 '경기' 라벨.
             var tag = (fight.tag || '').toUpperCase();
             var tagCls = 'matchup-tag-bout';
             if (tag.includes('MAIN EVENT') && !tag.includes('CO')) tagCls = 'matchup-tag-main';
             else if (tag.includes('CO')) tagCls = 'matchup-tag-co';
 
-            // Picked state
+            // Picked state — 실제 pending/settled 픽만
             var isPending  = state.pendings && state.pendings[fight.id];
             var isSettled  = state.settled  && state.settled[fight.id];
             var hasPick    = !!(isPending || isSettled);
@@ -330,13 +453,22 @@
             var rec2 = escapeHtml((fight.f2 && fight.f2.record) || '');
             var fid  = escapeHtml(fight.id);
 
-            // Two-color community-pick bar: left red → right blue (handoff colors)
             var barGradient = 'linear-gradient(90deg,#e10600 ' + leftPct + '%,#2f7bf0 ' + leftPct + '%)';
+            var pctHtml = hasVotes
+                ? `<div class="ps-bar"><div class="ps-bar-fill" style="background:${barGradient}"></div></div>
+                   <div class="ps-pct">
+                       <span style="color:#FF5D55;">${leftPct}%</span>
+                       <span class="ps-pct-lbl">커뮤니티 픽</span>
+                       <span style="color:#6FA8FF;">${rightPct}%</span>
+                   </div>`
+                : `<div class="ps-bar is-empty"><div class="ps-bar-fill"></div></div>
+                   <div class="ps-pct"><span class="ps-pct-none">아직 픽 없음 · 첫 픽을 남겨보세요</span></div>`;
 
+            // 실제 button — 키보드(Enter/Space) 접근 + 해당 카드로 스크롤 이동 보존
             return `
-            <div class="matchup-card ${tagCls === 'matchup-tag-main' ? 'card-main' : ''}" onclick="navigateTo('matchups'); setTimeout(function(){ var el=document.getElementById('card-${fid}'); if(el) el.scrollIntoView({behavior:'smooth',block:'center'}); },350);">
+            <button type="button" class="matchup-card ${tagCls === 'matchup-tag-main' ? 'card-main' : ''}" onclick="navigateTo('matchups'); setTimeout(function(){ var el=document.getElementById('card-${fid}'); if(el) el.scrollIntoView({behavior:'smooth',block:'center'}); },350);" aria-label="${f1} 대 ${f2} 경기로 이동">
                 <div class="ps-top">
-                    <span class="matchup-tag ${tagCls}">${escapeHtml(fight.tag || 'BOUT')}</span>
+                    <span class="matchup-tag ${tagCls}">${escapeHtml(fight.tag || '경기')}</span>
                     <span class="ps-pick ${hasPick ? 'picked' : 'unpicked'}">${hasPick ? '✓ PICKED' : '미픽'}</span>
                 </div>
                 <div class="ps-fighters">
@@ -350,15 +482,8 @@
                         ${rec2 ? `<div class="ps-rec">${rec2}</div>` : ''}
                     </div>
                 </div>
-                <div class="ps-bar">
-                    <div class="ps-bar-fill" style="background:${barGradient}"></div>
-                </div>
-                <div class="ps-pct">
-                    <span style="color:#FF5D55;">${leftPct}%</span>
-                    <span class="ps-pct-lbl">커뮤니티 픽</span>
-                    <span style="color:#6FA8FF;">${rightPct}%</span>
-                </div>
-            </div>`;
+                ${pctHtml}
+            </button>`;
         }).join('');
 
         var moreLabel = restCount > 0
@@ -368,15 +493,17 @@
         container.innerHTML =
             '<div class="pick-strip-head">' +
                 '<span class="pick-strip-title">🥊 오늘의 픽' + (eventTitle ? ' · ' + escapeHtml(eventTitle) : '') + '</span>' +
-                '<button class="pick-strip-more" onclick="navigateTo(\'matchups\')">' + moreLabel + '</button>' +
+                '<button type="button" class="pick-strip-more" onclick="navigateTo(\'matchups\')">' + moreLabel + '</button>' +
             '</div>' +
             '<div class="pick-strip">' + cards + '</div>';
     }
 
-    /* ── Belt tier helper (post.belt "White Belt" → "white") ── */
+    /* ── Belt tier helper (post.belt "White Belt" → "white") ──
+       belt 값이 없거나 비정상이면 null → 벨트 pill 미출력 + 아바타 링 중립(합성 금지). */
     function _beltTier(beltStr) {
-        var first = (beltStr || 'White').trim().split(' ')[0].toLowerCase();
-        if (['white','blue','purple','brown','black'].indexOf(first) === -1) return 'white';
+        if (!beltStr) return null;
+        var first = String(beltStr).trim().split(' ')[0].toLowerCase();
+        if (['white','blue','purple','brown','black'].indexOf(first) === -1) return null;
         return first;
     }
 
@@ -386,32 +513,42 @@
         if (!container) return;
 
         if (!filtered || filtered.length === 0) {
+            // 빈 결과 — 어떤 필터 때문인지 알려준다(내 글 > 카테고리 > 시간 > 전체 없음 순)
             var _isMine = (typeof communityMyPosts !== 'undefined' && communityMyPosts
                 && typeof currentUser !== 'undefined' && currentUser);
-            var _emptyMsg = _isMine ? '아직 작성한 글이 없습니다 · 첫 글을 남겨보세요' : '표시할 게시글이 없습니다';
+            var _emptyMsg;
+            if (_isMine) _emptyMsg = '아직 작성한 글이 없습니다 · 첫 글을 남겨보세요';
+            else if (typeof communityFilter !== 'undefined' && communityFilter !== 'all' && CAT_LABEL[communityFilter])
+                _emptyMsg = '“' + CAT_LABEL[communityFilter].lbl + '” 카테고리에 글이 없습니다';
+            else if (typeof communityTimeFilter !== 'undefined' && communityTimeFilter !== 'all')
+                _emptyMsg = '선택한 기간에 작성된 글이 없습니다';
+            else _emptyMsg = '표시할 게시글이 없습니다';
             container.innerHTML = `<div style="padding:28px 20px;text-align:center;font-family:'Oswald',sans-serif;font-size:13px;color:#666;text-transform:uppercase;letter-spacing:.1em;font-style:italic;">${_emptyMsg}</div>`;
             return;
         }
 
         var cards = filtered.map(function(p) {
             var origIdx  = posts.indexOf(p);
-            var beltRaw  = p.belt || 'White Belt';
-            var beltName = escapeHtml(beltRaw.trim().split(' ')[0] || 'White');
-            var beltTier = _beltTier(beltRaw);
+            // belt: 서버 값이 있을 때만 pill·링 표시(null → 중립, White 합성 금지)
+            var beltTier = _beltTier(p.belt);
+            var beltName = beltTier ? escapeHtml(String(p.belt).trim().split(' ')[0]) : '';
             var author   = escapeHtml(p.author || 'UNKNOWN');
             var initials = escapeHtml(((p.author || '?').trim().charAt(0) || '?').toUpperCase());
-            var date     = escapeHtml(p.date || '');
+            // 작성 시각: createdAt 기반 실제 상대시간(없으면 생략)
+            var rel      = _relTime(_postTime(p));
+            var metaHtml = rel ? '<span class="fc-meta">· ' + escapeHtml(rel) + '</span>' : '';
             var rawTitle = p.title || '';
             var title    = escapeHtml(_stripCatPrefix(rawTitle));
             var snippet  = escapeHtml(p.content || '');
             var isLiked  = likedPostIds.has(p.dbId);
             var cntCom   = (p.comments || []).length;
             var likes    = p.likes || 0;
-            // 조회수: 실제 view_count (C3-1). 없으면 0. 숫자만이므로 _fmtCount로 안전 포맷.
-            var views    = _fmtCount(p.viewCount != null ? p.viewCount : 0);
-            // HOT: 추천 임계값 기반 더미 규칙 (Phase C3에서 트렌딩 점수로 대체)
-            var isHot    = likes >= 5;
-            var isPinned = p.isPinned === true; // C3-2 공지 고정
+            // 조회수: 실제 view_count. null(미제공)이면 표시 생략 — 0 단정 금지.
+            var viewsHtml = (typeof p.viewCount === 'number') ? '<span class="fc-views">👁 ' + _fmtCount(p.viewCount) + '</span>' : '';
+            // '반응 많음' — 인기 정렬·사이드바와 동일한 단일 공식(_hotScore)만 사용.
+            //   임계값 10 ≈ 추천 5개 상당(댓글·조회 포함). '실시간 인기/HOT'로 부르지 않음.
+            var isHot    = _hotScore(p) >= 10;
+            var isPinned = p.isPinned === true; // 서버 is_pinned만. 작성자 role 신호가 없어 '운영자 공지'가 아닌 '고정'으로 표기.
 
             // Category tag → fc-cat cat-{kind}
             var cat = _postCategory(p);
@@ -424,30 +561,35 @@
             var factionSrc = p.faction
                 || (p.author === getDisplayUsername() && typeof currentFaction !== 'undefined' ? currentFaction : null);
             var factionBadge = (typeof getFactionBadge === 'function' && factionSrc)
-                ? getFactionBadge(factionSrc) + ' '
+                ? _safeFactionBadge(factionSrc) + ' '
                 : '';
 
+            // 카드: div onclick(마우스 편의) + 제목·스니펫은 실제 button(fc-open, Enter/Space·SR 접근).
+            // 내부 컨트롤(작성자/자세히/추천)은 별도 button + stopPropagation — interactive 중첩 없음.
+            // user_id는 DOM에 노출하지 않는다 — 작성자 활동은 인덱스로 posts[]에서 메모리 참조.
             return `
-            <div class="fcard belt-card-${beltTier} ${isPinned ? 'pinned' : ''} ${isHot ? 'hot' : ''}" id="post-row-${origIdx}" onclick="openPostDetail(${origIdx})">
-                <div class="fc-ava belt-${beltTier}">${initials}</div>
+            <div class="fcard ${beltTier ? 'belt-card-' + beltTier : ''} ${isPinned ? 'pinned' : ''} ${isHot ? 'hot' : ''}" id="post-row-${origIdx}" onclick="openPostDetail(${origIdx})">
+                <div class="fc-ava ${beltTier ? 'belt-' + beltTier : ''}">${initials}</div>
                 <div class="fc-body">
                     <div class="fc-head">
-                        ${isPinned ? '<span class="fc-pin">📌 공지</span>' : ''}
-                        <span class="fc-user fc-user-link" data-uid="${escapeHtml(p.userId || '')}" data-nick="${author}" onclick="event.stopPropagation(); openUserActivity(this)">${factionBadge}${author}</span>
-                        <span class="fc-belt belt-${beltTier}">${beltName}</span>
+                        ${isPinned ? '<span class="fc-pin">📌 고정</span>' : ''}
+                        <button type="button" class="fc-user fc-user-link" onclick="event.stopPropagation(); openUserActivityByPost(${origIdx})">${factionBadge}${author}</button>
+                        ${beltTier ? '<span class="fc-belt belt-' + beltTier + '">' + beltName + '</span>' : ''}
                         <span class="fc-cat ${catCls}">${catLbl}</span>
-                        <span class="fc-meta">· ${date}</span>
-                        ${isHot ? '<span class="fc-hot">🔥 HOT</span>' : ''}
+                        ${metaHtml}
+                        ${isHot ? '<span class="fc-hot">🔥 반응 많음</span>' : ''}
                     </div>
-                    <div class="fc-title">${title}</div>
-                    <div class="fc-snippet">${snippet}</div>
+                    <button type="button" class="fc-open" onclick="event.stopPropagation(); openPostDetail(${origIdx})">
+                        <span class="fc-title">${title}</span>
+                        <span class="fc-snippet">${snippet}</span>
+                    </button>
                     <div class="fc-foot">
                         <span class="fc-react ${likes > 0 ? 'hot' : ''}">🔥 ${likes}</span>
                         <span class="fc-cmt">💬 ${cntCom}</span>
-                        <span class="fc-views">👁 ${views}</span>
-                        <span class="fc-share" onclick="event.stopPropagation(); openPostDetail(${origIdx});">자세히</span>
-                        <button class="fc-rec ${isLiked ? 'on' : ''}" onclick="event.stopPropagation(); likePost(${origIdx});">
-                            ${isLiked ? '✓ 추천' : '+ 추천'}
+                        ${viewsHtml}
+                        <button type="button" class="fc-share" onclick="event.stopPropagation(); openPostDetail(${origIdx});">자세히</button>
+                        <button type="button" class="fc-rec ${isLiked ? 'on' : ''}" aria-pressed="${isLiked ? 'true' : 'false'}" onclick="event.stopPropagation(); likePost(${origIdx});">
+                            ${isLiked ? '✓ 추천 완료' : '+ 추천'}
                         </button>
                     </div>
                 </div>
@@ -460,11 +602,21 @@
     function togglePostExpand(origIdx) { /* no-op: replaced by openPostDetail */ }
 
     /* ── 유저 활동 요약 모달 (표현계층 · 현재 로드된 커뮤니티 데이터만 집계) ──
-       트리거: 게시글/댓글 작성자 닉네임 클릭 (data-uid/data-nick 엘리먼트 전달).
-       user_id 는 매칭 키로만 쓰고 UI 에는 노출하지 않는다. DB/RPC 호출 없음. */
-    function openUserActivity(el) {
-        var uid  = (el && el.dataset && el.dataset.uid)  || '';
-        var nick = (el && el.dataset && el.dataset.nick) || '';
+       트리거: 게시글/댓글 작성자 닉네임 클릭. user_id는 DOM(data attribute)에 노출하지 않고
+       posts[] 메모리에서 인덱스/commentId로 참조해 매칭 키로만 쓴다. DB/RPC 호출 없음. */
+    function openUserActivityByPost(origIdx) {
+        var p = (typeof posts !== 'undefined' && posts) ? posts[origIdx] : null;
+        if (!p) return;
+        _openUserActivity(p.userId || '', p.author || '');
+    }
+    function openUserActivityByComment(commentId) {
+        var p = _detailPost();                       // dbId 권위값 — stale index로 다른 글 댓글 참조 금지
+        if (!p) return;
+        var c = (p.comments || []).find(function(x) { return x.commentId === commentId; });
+        if (!c) return;
+        _openUserActivity(c.userId || '', c.user || '');
+    }
+    function _openUserActivity(uid, nick) {
         if (!nick) return;
         _renderUserActivity(uid, nick);
         var m = document.getElementById('user-activity-modal');
@@ -496,13 +648,14 @@
         });
         var likesSum = myPosts.reduce(function(s, p) { return s + (p.likes || 0); }, 0);
         var recent = myPosts.slice().sort(function(a, b) {
-            return (b.date || '').localeCompare(a.date || '');
+            var ta = _postTime(a), tb = _postTime(b);
+            return (tb ? tb.getTime() : 0) - (ta ? ta.getTime() : 0);
         }).slice(0, 3);
 
         // faction/belt 는 본인 글 중 하나에서 추론 (현재 로드 범위 내). 없으면 생략.
         var rep = myPosts.find(function(p) { return p.faction; }) || myPosts[0] || null;
         var factionBadge = (rep && rep.faction && typeof getFactionBadge === 'function')
-            ? getFactionBadge(rep.faction) : '';
+            ? _safeFactionBadge(rep.faction) : '';
         var beltStr = rep && rep.belt ? escapeHtml(rep.belt) : '';
 
         var initial = escapeHtml(((nick || '?').trim().charAt(0) || '?').toUpperCase());
@@ -581,7 +734,7 @@
             return _postCategory(p) === communityFilter;
         });
 
-        // 3. Time filter
+        // 3. Time filter — createdAt(원본 timestamptz) 기준. 시각 없는 레거시 행은 date 자정 fallback.
         if (communityTimeFilter !== 'all') {
             var now    = new Date();
             var cutoff = new Date(now);
@@ -589,32 +742,39 @@
             if (communityTimeFilter === 'week')  cutoff.setDate(now.getDate() - 7);
             if (communityTimeFilter === 'month') cutoff.setDate(now.getDate() - 30);
             filtered = filtered.filter(function(p) {
-                var d = new Date(p.date.replace(/\./g, '-'));
-                return d >= cutoff;
+                var d = _postTime(p);
+                return d && d >= cutoff;
             });
         }
 
-        // 4. Sort
+        // 4. Sort — posts 원본은 건드리지 않음(slice 후 정렬). 동률은 createdAt desc → dbId desc(결정적).
         filtered = filtered.slice();
+        var _tieBreak = function(a, b) {
+            var ta = _postTime(a), tb = _postTime(b);
+            var td = (tb ? tb.getTime() : 0) - (ta ? ta.getTime() : 0);
+            if (td !== 0) return td;
+            return (b.dbId || 0) - (a.dbId || 0);
+        };
         if (communitySortMode === 'recommend') {
-            filtered.sort(function(a, b) { return (b.likes || 0) - (a.likes || 0); });
-        } else if (communitySortMode === 'hot') {
             filtered.sort(function(a, b) {
-                var sa = (b.likes || 0) * 2 + (b.comments ? b.comments.length : 0);
-                var sb2 = (a.likes || 0) * 2 + (a.comments ? a.comments.length : 0);
-                return sa - sb2;
+                var d = (b.likes || 0) - (a.likes || 0);
+                return d !== 0 ? d : _tieBreak(a, b);
+            });
+        } else if (communitySortMode === 'hot') {
+            // 인기 = 현재 로드된 rows의 likes/댓글/조회 파생 점수(_hotScore, 결정적)
+            filtered.sort(function(a, b) {
+                var d = _hotScore(b) - _hotScore(a);
+                return d !== 0 ? d : _tieBreak(a, b);
             });
         } else {
-            filtered.sort(function(a, b) {
-                return (b.date || '').localeCompare(a.date || '');
-            });
+            filtered.sort(_tieBreak);   // 최신 = createdAt desc
         }
 
-        // 4b. Pinned(공지) 항상 상단. pinned끼리는 최신순, 일반글은 위 정렬(최신/인기) 그대로 유지(안정 정렬).
+        // 4b. Pinned(고정) 항상 상단. pinned끼리는 최신순, 일반글은 위 정렬 순서 유지(안정 정렬).
         filtered.sort(function(a, b) {
             var ap = a.isPinned === true, bp = b.isPinned === true;
             if (ap !== bp) return ap ? -1 : 1;
-            if (ap && bp) return (b.date || '').localeCompare(a.date || '');
+            if (ap && bp) return _tieBreak(a, b);
             return 0;
         });
 
@@ -624,11 +784,27 @@
     function likePost(i) {
         // [로그인 UX] 좋아요는 인증 필요 행동 — write/낙관적 UI 전에 중단하고 로그인 모달 유도(자동 재실행 없음).
         if (!currentUser) { if (typeof openAuthModal === 'function') { openAuthModal('community'); } else { showToast('⚠ 추천은 로그인 후 가능합니다'); } return; }
-        var dbId = posts[i].dbId;
-        if (likedPostIds.has(dbId)) { showToast('이미 추천한 게시글입니다'); return; }
-        posts[i].likes++;
+        var p = posts[i];
+        if (!p) return;
+        var dbId = p.dbId;
+        if (likedPostIds.has(dbId)) { showToast('이미 추천한 게시글입니다'); return; }   // 서버가 단방향(UNIQUE)이라 unlike 없음
+        p.likes++;
         likedPostIds.add(dbId);
-        likePostInDB(dbId);
+        // RPC 실패 시 optimistic 증가 롤백 — likePostInDB(index.html)가 실패 콜백을 호출.
+        // 요청 시점 세션(uid)을 캡처해, 계정 전환/로그아웃 후 늦게 도착한 실패가
+        // 다른 세션의 likedPostIds/posts.likes를 감소시키지 않게 한다(레이스 가드).
+        var myUid = currentUser.id;
+        likePostInDB(dbId, function() {
+            if (!currentUser || currentUser.id !== myUid) return;   // 세션 변경 → stale 실패 폐기
+            if (!likedPostIds.has(dbId)) return;                    // 재조회로 서버 진실 반영됨 → 이중 롤백 금지
+            var cur = posts.find(function(x) { return x.dbId === dbId; });
+            if (cur && cur.likes > 0) cur.likes--;
+            likedPostIds.delete(dbId);
+            save();
+            renderFeed();
+            if (_detailPostDbId === dbId) { _syncDetailLikeBtn(); _renderDetailStats(cur); }
+            showToast('⚠ 추천 반영에 실패했어요');
+        });
         save();
         renderFeed();
     }
@@ -637,6 +813,20 @@
     var _detailPostIdx    = -1;
     var _detailPostDbId   = null;
     var _detailEscHandler = null;
+    var _detailTrigger    = null;   // 모달을 연 트리거 — 닫을 때 focus 복귀
+
+    // 상세 모달의 권위 식별자는 dbId(_detailPostDbId). posts 재할당·재정렬·계정 전환으로
+    // index가 stale일 수 있으므로, 좋아요/댓글/수정/삭제/고정은 반드시 이 헬퍼로
+    // 현재 posts 배열에서 dbId를 재해석한 글만 다룬다(배열 index를 identity로 쓰지 않는다).
+    function _detailPost() {
+        if (_detailPostDbId == null || typeof posts === 'undefined' || !posts) return null;
+        var p = (_detailPostIdx >= 0 && _detailPostIdx < posts.length) ? posts[_detailPostIdx] : null;
+        if (p && p.dbId === _detailPostDbId) return p;
+        for (var k = 0; k < posts.length; k++) {
+            if (posts[k].dbId === _detailPostDbId) { _detailPostIdx = k; return posts[k]; }
+        }
+        return null;   // 재조회로 사라진 글(삭제 등) → 어떤 mutator도 동작하지 않음
+    }
 
     // ── 조회수 증가 (localStorage TTL 중복 방지 + SECURITY DEFINER RPC) ──
     // TTL 6시간: 빠른 새로고침/연속 클릭으로 인한 중복 집계는 막되, 시간 간격을 둔
@@ -654,22 +844,32 @@
             return true; // localStorage 불가 → 모달 열림은 막지 않음(중복방지만 포기)
         }
     }
+    // ── 상세 stats 공용 렌더 — 댓글/추천/조회 어느 경로로 갱신돼도 👁 조회수가 누락되지 않게 단일화
+    function _renderDetailStats(p) {
+        var statsEl = document.getElementById('pd-stats');
+        if (!statsEl || !p) return;
+        var txt = '🔥 ' + (p.likes || 0) + '  💬 ' + (p.comments || []).length;
+        if (typeof p.viewCount === 'number') txt += '  👁 ' + _fmtCount(p.viewCount);   // null이면 생략(0 단정 금지)
+        statsEl.textContent = txt;
+    }
+    // TTL 키는 RPC 발사 전에 기록(_shouldCountView)되므로, 실패하면 키를 해제해
+    // 다음 열람 때 정상 재시도되게 한다(실패했는데 6시간 차단되는 결함 방지). 반복 재시도/polling 없음.
+    function _clearViewTTL(dbId) {
+        try { localStorage.removeItem('picktagon_post_viewed_v1_' + dbId); } catch (e) {}
+    }
     function _incrementPostView(p) {
         if (!p || p.dbId == null || typeof sb === 'undefined' || !sb) return;
         if (!_shouldCountView(p.dbId)) return;
         sb.rpc('increment_post_view', { p_post_id: p.dbId }).then(function(res) {
-            if (res.error) { console.warn('[view] increment failed:', res.error.message); return; }
+            if (res.error) { console.warn('[view] increment failed:', res.error.message); _clearViewTTL(p.dbId); return; }
             var nv = res.data;
-            if (typeof nv !== 'number' || nv < 0) return; // 존재하지 않는 글 등 → 무시
+            if (typeof nv !== 'number' || nv < 0) return; // 존재하지 않는 글 등 → 재시도 무의미, TTL 유지
             p.viewCount = nv;
             // 상세 모달이 같은 글로 열려 있으면 stats 즉시 갱신
-            if (_detailPostDbId === p.dbId) {
-                var statsEl = document.getElementById('pd-stats');
-                if (statsEl) statsEl.textContent = '🔥 ' + (p.likes || 0) + '  💬 ' + (p.comments || []).length + '  👁 ' + _fmtCount(nv);
-            }
-            // 피드 카드 + 사이드바 트렌딩 반영
+            if (_detailPostDbId === p.dbId) _renderDetailStats(p);
+            // 피드 카드 + 사이드바 반영
             if (typeof renderFeed === 'function') renderFeed();
-        });
+        }).catch(function() { _clearViewTTL(p.dbId); });   // 네트워크 실패 → TTL 해제
     }
 
     function openPostDetail(origIdx) {
@@ -684,17 +884,12 @@
         clearReplyTarget();
 
         var rawTitle = p.title || '';
-        var cat = _getPostCategory(rawTitle);
+        // 카테고리 권위값 = DB p.category(_postCategory) — 피드와 동일 소스.
+        // 제목 접두사 단독 판정 금지: category='general'+접두사 없음 글이 '분석'으로 오표시되던 결함 수정.
+        var cat = _postCategory(p);
         var catColors = {
             analysis: '#e8000d', fighter: '#f59e0b', live: '#10b981',
-            news:     '#3b82f6', humor:   '#a855f7'
-        };
-        var catDisplay = {
-            analysis: { cls: 'cat-analysis', lbl: '🔥 분석' },
-            fighter:  { cls: 'cat-fighter',  lbl: '🗣️ 파이터' },
-            live:     { cls: 'cat-live',      lbl: '🔴 라이브' },
-            news:     { cls: 'cat-news',      lbl: '📰 뉴스' },
-            humor:    { cls: 'cat-humor',     lbl: '😂 유머' }
+            news:     '#3b82f6', humor:   '#a855f7', general: '#333'
         };
 
         var bar = document.getElementById('pd-cat-bar');
@@ -704,11 +899,10 @@
         if (badge) {
             if (p.isPickShare) {
                 badge.className = 'post-type-tag pick'; badge.textContent = '🎯 픽';
-            } else if (catDisplay[cat]) {
-                badge.className = 'post-type-tag ' + catDisplay[cat].cls;
-                badge.textContent = catDisplay[cat].lbl;
             } else {
-                badge.className = 'post-type-tag post'; badge.textContent = '✍️ 분석';
+                var cd = CAT_LABEL[cat] || CAT_LABEL.general;
+                badge.className = 'post-type-tag ' + cd.cls;
+                badge.textContent = cd.lbl;
             }
         }
 
@@ -722,7 +916,7 @@
             var factionSrc = p.faction
                 || (p.author === getDisplayUsername() && typeof currentFaction !== 'undefined' ? currentFaction : null);
             var factionBadge = (typeof getFactionBadge === 'function' && factionSrc)
-                ? getFactionBadge(factionSrc) + ' ' : '';
+                ? _safeFactionBadge(factionSrc) + ' ' : '';
             var isSelf = p.author === getDisplayUsername();
             var safeAuthor = escapeHtml(p.author || '').replace(/'/g, "\\'");
             var battleBtn = (!isSelf && currentUser && typeof isBattleFeatureEnabled === 'function' && isBattleFeatureEnabled())
@@ -731,26 +925,42 @@
                        onmouseover="this.style.color='#e8000d';this.style.borderColor='rgba(232,0,13,.4)'"
                        onmouseout="this.style.color='#444';this.style.borderColor='#222'">⚡ 옥타곤</button>`
                 : '';
+            // belt는 서버 값이 있을 때만 표시(White 합성 금지)
             authorEl.innerHTML = '✍️ ' + factionBadge + escapeHtml(p.author || 'UNKNOWN')
-                + ' · ' + escapeHtml(p.belt || 'White Belt') + ' ' + battleBtn;
+                + (p.belt ? ' · ' + escapeHtml(p.belt) : '') + ' ' + battleBtn;
         }
 
         _renderDetailComments(p.comments || []);
         _syncDetailLikeBtn();
+        _renderDetailStats(p);
 
-        var statsEl = document.getElementById('pd-stats');
-        if (statsEl) statsEl.textContent = '🔥 ' + (p.likes || 0) + '  💬 ' + (p.comments || []).length + '  👁 ' + _fmtCount(p.viewCount != null ? p.viewCount : 0);
+        // 트리거 저장(닫을 때 focus 복귀) — 열기 직전 activeElement
+        _detailTrigger = (document.activeElement && document.activeElement !== document.body) ? document.activeElement : null;
 
         var modal = document.getElementById('post-detail-modal');
         if (modal) modal.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
+        // 초기 focus — 모달 내 유의미한 첫 컨트롤(닫기 버튼)
+        var closeBtn = document.getElementById('pd-close-btn');
+        if (closeBtn) closeBtn.focus();
 
         // 조회수 증가는 모달 열림 이후 fire-and-forget (실패해도 모달 동작에 영향 없음)
         _incrementPostView(p);
 
-        if (_detailEscHandler) document.removeEventListener('keydown', _detailEscHandler);
-        _detailEscHandler = function(e) { if (e.key === 'Escape') closePostDetail(); };
-        document.addEventListener('keydown', _detailEscHandler);
+        if (_detailEscHandler) document.removeEventListener('keydown', _detailEscHandler, true);
+        _detailEscHandler = function(e) {
+            if (e.key !== 'Escape' && e.key !== 'Tab') return;
+            // 모달 스택 최상위일 때만 처리 — 위에 auth/유저활동 모달이 떠 있으면 그쪽이 우선.
+            if (typeof _topModalEl === 'function') {
+                var top = _topModalEl();
+                if (top && top.id !== 'post-detail-modal') return;
+            }
+            if (e.key === 'Tab') { var m = document.getElementById('post-detail-modal'); if (m) _trapTab(e, m); return; }
+            // 답글 모드에서 입력창 Escape는 답글 취소(인라인 핸들러)가 우선 — capture라 여기서 양보해야 함
+            if (_replyTargetCommentId && document.activeElement === document.getElementById('pd-com-input')) return;
+            closePostDetail();
+        };
+        document.addEventListener('keydown', _detailEscHandler, true);   // capture: 동일 keydown에서 위 모달이 먼저 닫혀도 스택 오판 없음
 
         // Own-post controls
         var isOwn = !!(currentUser && p.userId && p.userId === currentUser.id);
@@ -776,7 +986,7 @@
     }
     function togglePinCurrentPost() {
         if (typeof adminUnlocked === 'undefined' || !adminUnlocked) return; // UX 게이트
-        var p = posts[_detailPostIdx];
+        var p = _detailPost();                       // dbId 권위값 — stale index로 다른 글 고정 금지
         if (!p || p.dbId == null) return;
         if (typeof sb === 'undefined' || !sb) { showToast('⚠ 연결 오류'); return; }
         var next = !(p.isPinned === true);
@@ -800,12 +1010,26 @@
     function closePostDetail() {
         var modal = document.getElementById('post-detail-modal');
         if (modal) modal.classList.add('hidden');
-        document.body.style.overflow = '';
+        // 다른 모달(-modal)이 아직 열려 있으면 body scroll lock을 풀지 않는다(중첩 모달 보호)
+        var othersOpen = (typeof _openModalEls === 'function') && _openModalEls().length > 0;
+        if (!othersOpen) document.body.style.overflow = '';
+        // 트리거로 focus 복귀 — 열림 중 renderFeed(조회수 반영 등)로 원 노드가 교체됐으면
+        // 같은 글(dbId) 카드의 열기 버튼을 재탐색해 복귀한다(노드 참조는 identity가 아님).
+        var _trig = _detailTrigger;
+        _detailTrigger = null;
+        if (_trig && document.contains(_trig)) { try { _trig.focus(); } catch (e) {} }
+        else if (_detailPostDbId != null && typeof posts !== 'undefined' && posts) {
+            var _ci = -1;
+            for (var _k = 0; _k < posts.length; _k++) { if (posts[_k].dbId === _detailPostDbId) { _ci = _k; break; } }
+            var _row = (_ci >= 0) ? document.getElementById('post-row-' + _ci) : null;
+            var _btn = _row && _row.querySelector('button.fc-open');
+            if (_btn) { try { _btn.focus(); } catch (e) {} }
+        }
         clearReplyTarget();
         _detailPostIdx  = -1;
         _detailPostDbId = null;
         if (_detailEscHandler) {
-            document.removeEventListener('keydown', _detailEscHandler);
+            document.removeEventListener('keydown', _detailEscHandler, true);
             _detailEscHandler = null;
         }
         var editForm = document.getElementById('pd-edit-form');
@@ -836,8 +1060,12 @@
         var replyBtn = (!isReply && currentUser && c.commentId != null)
             ? `<button class="pd-reply-btn" data-nick="${escapeHtml(c.user || '')}" onclick="startReply(${c.commentId}, this.dataset.nick)">↳ 답글</button>`
             : '';
+        // user_id를 DOM에 노출하지 않음 — commentId로 메모리(posts[].comments)에서 참조.
+        var nickHtml = (c.commentId != null)
+            ? `<button type="button" class="post-comment-nick-link" onclick="openUserActivityByComment(${c.commentId})">${escapeHtml(c.user || '')}</button>`
+            : `<span>${escapeHtml(c.user || '')}</span>`;
         return `<div class="post-comment-block${isReply ? ' is-reply' : ''}">
-                <div class="post-comment-nick"><span class="post-comment-nick-link" data-uid="${escapeHtml(c.userId || '')}" data-nick="${escapeHtml(c.user || '')}" onclick="openUserActivity(this)">${escapeHtml(c.user || '')}</span><span class="pc-actions">${replyBtn}${battleBtn}${delBtn}</span></div>
+                <div class="post-comment-nick">${nickHtml}<span class="pc-actions">${replyBtn}${battleBtn}${delBtn}</span></div>
                 <p class="post-comment-txt">${escapeHtml(c.text || '')}</p>
             </div>`;
     }
@@ -911,9 +1139,8 @@
     }
 
     async function sendDetailComment() {
-        if (_detailPostIdx < 0) return;
-        var p = posts[_detailPostIdx];
-        if (!p || p.dbId !== _detailPostDbId) return;
+        var p = _detailPost();                       // dbId 권위값(재할당 후에도 같은 글로 재해석)
+        if (!p) return;
         var input = document.getElementById('pd-com-input');
         var text  = input ? input.value.trim() : '';
         if (!text) return;
@@ -945,15 +1172,14 @@
         clearReplyTarget();   // 전송 성공 후 답글 모드 해제
         save();
         _renderDetailComments(p.comments);
-        var statsEl = document.getElementById('pd-stats');
-        if (statsEl) statsEl.textContent = '🔥 ' + (p.likes || 0) + '  💬 ' + p.comments.length;
+        _renderDetailStats(p);   // 공용 렌더 — 👁 조회수 누락 방지
     }
 
     // C3-5: soft delete a comment via RPC. Own comment or admin; server enforces.
     async function deleteDetailComment(commentId) {
-        if (commentId == null || _detailPostIdx < 0) return;
-        var p = posts[_detailPostIdx];
-        if (!p || p.dbId !== _detailPostDbId) return;
+        if (commentId == null) return;
+        var p = _detailPost();                       // dbId 권위값(재할당 후에도 같은 글로 재해석)
+        if (!p) return;
         if (!currentUser) return;
         if (!confirm('이 댓글을 삭제하시겠습니까?')) return;
         if (!sb) { showToast('⚠ 연결 오류'); return; }
@@ -968,25 +1194,21 @@
         p.comments = (p.comments || []).filter(function(c) { return c.commentId !== commentId; });
         save();
         _renderDetailComments(p.comments);
-        var statsEl = document.getElementById('pd-stats');
-        if (statsEl) statsEl.textContent = '🔥 ' + (p.likes || 0) + '  💬 ' + p.comments.length + '  👁 ' + _fmtCount(p.viewCount != null ? p.viewCount : 0);
+        _renderDetailStats(p);   // 공용 렌더 — 👁 조회수 누락 방지
         if (typeof renderFeed === 'function') renderFeed();
         showToast('🗑 댓글을 삭제했어요');
     }
 
     function likePostFromDetail() {
-        if (_detailPostIdx < 0) return;
-        likePost(_detailPostIdx);
+        var p = _detailPost();                       // dbId 권위값 — stale index로 다른 글 추천 금지
+        if (!p) return;
+        likePost(posts.indexOf(p));
         _syncDetailLikeBtn();
-        var p = posts[_detailPostIdx];
-        if (p) {
-            var statsEl = document.getElementById('pd-stats');
-            if (statsEl) statsEl.textContent = '🔥 ' + (p.likes || 0) + '  💬 ' + (p.comments || []).length;
-        }
+        _renderDetailStats(p);   // 공용 렌더 — 👁 조회수 누락 방지
     }
 
     function _syncDetailLikeBtn() {
-        var p   = (_detailPostIdx >= 0) ? posts[_detailPostIdx] : null;
+        var p   = _detailPost();
         var btn = document.getElementById('pd-like-btn');
         if (!btn || !p) return;
         var isLiked = likedPostIds.has(p.dbId);
@@ -1017,7 +1239,7 @@
     /* ── Own Post Edit / Delete ── */
 
     function startOwnPostEdit() {
-        var p = posts[_detailPostIdx];
+        var p = _detailPost();                       // dbId 권위값
         if (!p || !currentUser || p.userId !== currentUser.id) return;
         var titleInput   = document.getElementById('pd-edit-title');
         var contentInput = document.getElementById('pd-edit-content');
@@ -1034,7 +1256,7 @@
     }
 
     async function saveOwnPostEdit() {
-        var p = posts[_detailPostIdx];
+        var p = _detailPost();                       // dbId 권위값 — stale index로 다른 글 UPDATE 금지
         if (!p || !currentUser || p.userId !== currentUser.id) return;
         var titleInput   = document.getElementById('pd-edit-title');
         var contentInput = document.getElementById('pd-edit-content');
@@ -1071,7 +1293,7 @@
 
     // C3-5: soft delete via RPC. Author or admin; server enforces (delete_post).
     async function deleteOwnPost() {
-        var p = posts[_detailPostIdx];
+        var p = _detailPost();                       // dbId 권위값 — stale index로 다른 글 삭제 금지
         if (!p || p.dbId == null) return;
         var isOwn   = !!(currentUser && p.userId && p.userId === currentUser.id);
         var isAdmin = (typeof adminUnlocked !== 'undefined' && adminUnlocked);

@@ -77,7 +77,7 @@
 <link href="/css/tokens.css" rel="stylesheet">
 <link href="/css/theme-bridge.css" rel="stylesheet">
 <link rel="stylesheet" href="./src/tailwind.css">
-<link href="/css/app.css?v=30" rel="stylesheet">
+<link href="/css/app.css?v=31" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 <!-- Supabase — defer: head 파싱 블로킹 제거. createClient는 initSupabase(window.onload)에서만 호출되므로
      defer(파싱 후·DOMContentLoaded 전 실행)로도 초기화 시점에 window.supabase 보장됨. -->
@@ -783,18 +783,19 @@
         <!-- 글쓰기 Composer — desktop centered modal / mobile bottom sheet -->
         <!-- lg:pt-28(=112px): 데스크톱 sticky 상단 내비(높이 104, bottom 112)가 z-50으로 모달 위에 그려지므로
              centered 모달을 내비 아래 가용 영역에 배치해 헤더의 닫기(×)가 가려지지 않게 한다 -->
-        <div id="write-panel" class="hidden fixed inset-0 z-[640] flex items-end lg:items-center justify-center lg:px-4 lg:pt-28 lg:pb-4" style="background:rgba(0,0,0,0.9)" onclick="if(event.target===this)toggleWriter()">
+        <div id="write-panel" class="hidden fixed inset-0 z-[640] flex items-end lg:items-center justify-center lg:px-4 lg:pt-28 lg:pb-4" style="background:rgba(0,0,0,0.9)" onclick="if(event.target===this)toggleWriter()"
+            role="dialog" aria-modal="true" aria-labelledby="write-panel-title">
             <div class="comm-composer-sheet w-full lg:max-w-2xl flex flex-col">
                 <div class="flex items-center justify-between px-5 lg:px-7 py-4 border-b border-white/10 flex-shrink-0">
                     <div class="flex items-center gap-2">
-                        <span class="text-ufcRed">✍</span>
-                        <h4 class="oswald-sharp text-base lg:text-lg font-black italic text-white uppercase tracking-tight">글쓰기</h4>
+                        <span class="text-ufcRed" aria-hidden="true">✍</span>
+                        <h4 id="write-panel-title" class="oswald-sharp text-base lg:text-lg font-black italic text-white uppercase tracking-tight">글쓰기</h4>
                     </div>
-                    <button onclick="toggleWriter()" aria-label="닫기" class="oswald-sharp text-gray-400 hover:text-white text-2xl leading-none px-2 transition">×</button>
+                    <button type="button" onclick="toggleWriter()" aria-label="닫기" class="comm-composer-close oswald-sharp text-gray-400 hover:text-white text-2xl leading-none transition">×</button>
                 </div>
                 <div class="px-5 lg:px-7 py-4 overflow-y-auto flex-1 min-h-0">
                     <div class="flex gap-2 mb-3 flex-wrap">
-                        <select id="post-cat" class="comm-dropdown" style="min-width:110px;">
+                        <select id="post-cat" class="comm-dropdown" style="min-width:110px;" aria-label="카테고리">
                             <option value="">카테고리</option>
                             <option value="analysis">🔥 분석</option>
                             <option value="fighter">🗣️ 파이터</option>
@@ -803,19 +804,19 @@
                             <option value="humor">😂 유머</option>
                             <option value="general">💬 자유</option>
                         </select>
-                        <input type="text" id="post-tit"
+                        <input type="text" id="post-tit" aria-label="제목"
                             class="flex-1 bg-black/40 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-ufcRed text-sm"
                             style="min-width:180px;"
                             placeholder="제목을 입력하세요">
                     </div>
-                    <textarea id="post-con" rows="8"
+                    <textarea id="post-con" rows="8" aria-label="내용"
                         class="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-ufcRed font-light text-sm resize-none"
                         style="min-height:200px;"
                         placeholder="옥타곤의 승자를 예측하는 분석을 남겨주세요"></textarea>
                 </div>
                 <div class="flex justify-end gap-3 px-5 lg:px-7 py-4 border-t border-white/10 flex-shrink-0">
-                    <button onclick="toggleWriter()" class="oswald-sharp text-gray-500 hover:text-white transition italic uppercase text-xs">Cancel</button>
-                    <button onclick="publishPost()" class="oswald-sharp bg-white text-black font-black px-6 py-2 rounded-lg italic transition-all uppercase text-xs">Publish</button>
+                    <button type="button" onclick="toggleWriter()" class="oswald-sharp text-gray-500 hover:text-white transition italic uppercase text-xs px-3 py-2">Cancel</button>
+                    <button type="button" onclick="publishPost()" class="oswald-sharp bg-white text-black font-black px-6 py-2 rounded-lg italic transition-all uppercase text-xs">Publish</button>
                 </div>
             </div>
         </div>
@@ -828,21 +829,22 @@
 
         <!-- 통합 필터 바 (카테고리 칩+카운트 | 정렬 토글 | 시간 드롭다운) -->
         <div class="comm-filter-bar">
-            <div class="chip-row">
-                <button onclick="setCommunityFilter('all')"      id="cf-all"      class="comm-filter-btn active">전체 <span class="chip-count" id="cc-all">0</span></button>
-                <button onclick="setCommunityFilter('analysis')" id="cf-analysis" class="comm-filter-btn">🔥 분석 <span class="chip-count" id="cc-analysis">0</span></button>
-                <button onclick="setCommunityFilter('fighter')"  id="cf-fighter"  class="comm-filter-btn">🗣️ 파이터 <span class="chip-count" id="cc-fighter">0</span></button>
-                <button onclick="setCommunityFilter('live')"     id="cf-live"     class="comm-filter-btn">🔴 라이브 <span class="chip-count" id="cc-live">0</span></button>
-                <button onclick="setCommunityFilter('news')"     id="cf-news"     class="comm-filter-btn">📰 뉴스 <span class="chip-count" id="cc-news">0</span></button>
-                <button onclick="setCommunityFilter('humor')"    id="cf-humor"    class="comm-filter-btn">😂 유머 <span class="chip-count" id="cc-humor">0</span></button>
-                <button onclick="setCommunityFilter('general')"  id="cf-general"  class="comm-filter-btn">💬 자유 <span class="chip-count" id="cc-general">0</span></button>
+            <div class="chip-row" role="group" aria-label="카테고리 필터">
+                <button type="button" onclick="setCommunityFilter('all')"      id="cf-all"      class="comm-filter-btn active" aria-pressed="true">전체 <span class="chip-count" id="cc-all">0</span></button>
+                <button type="button" onclick="setCommunityFilter('analysis')" id="cf-analysis" class="comm-filter-btn" aria-pressed="false">🔥 분석 <span class="chip-count" id="cc-analysis">0</span></button>
+                <button type="button" onclick="setCommunityFilter('fighter')"  id="cf-fighter"  class="comm-filter-btn" aria-pressed="false">🗣️ 파이터 <span class="chip-count" id="cc-fighter">0</span></button>
+                <button type="button" onclick="setCommunityFilter('live')"     id="cf-live"     class="comm-filter-btn" aria-pressed="false">🔴 라이브 <span class="chip-count" id="cc-live">0</span></button>
+                <button type="button" onclick="setCommunityFilter('news')"     id="cf-news"     class="comm-filter-btn" aria-pressed="false">📰 뉴스 <span class="chip-count" id="cc-news">0</span></button>
+                <button type="button" onclick="setCommunityFilter('humor')"    id="cf-humor"    class="comm-filter-btn" aria-pressed="false">😂 유머 <span class="chip-count" id="cc-humor">0</span></button>
+                <button type="button" onclick="setCommunityFilter('general')"  id="cf-general"  class="comm-filter-btn" aria-pressed="false">💬 자유 <span class="chip-count" id="cc-general">0</span></button>
             </div>
-            <div class="sort-row">
-                <button onclick="setCommunitySort('hot')"     id="cs-hot"       class="comm-sort-btn">🔥 인기</button>
-                <button onclick="setCommunitySort('latest')"  id="cs-latest"    class="comm-sort-btn active">최신</button>
-                <button onclick="setCommunitySortFollowing()" id="cs-following"  class="comm-sort-btn disabled">팔로잉</button>
-                <button onclick="setCommunityMyPosts()" id="cf-mine" class="comm-sort-btn comm-mine-btn" aria-pressed="false">👤 내 글</button>
-                <select id="time-select" onchange="setCommunityTime(this.value)" class="comm-dropdown">
+            <div class="sort-row" role="group" aria-label="정렬">
+                <button type="button" onclick="setCommunitySort('hot')"     id="cs-hot"       class="comm-sort-btn" aria-pressed="false">🔥 인기</button>
+                <button type="button" onclick="setCommunitySort('latest')"  id="cs-latest"    class="comm-sort-btn active" aria-pressed="true">최신</button>
+                <!-- 팔로우 관계 데이터가 아직 없어 비활성 — 가짜 팔로잉 정렬 금지(클릭 시 안내만) -->
+                <button type="button" onclick="setCommunitySortFollowing()" id="cs-following"  class="comm-sort-btn disabled" aria-disabled="true">팔로잉</button>
+                <button type="button" onclick="setCommunityMyPosts()" id="cf-mine" class="comm-sort-btn comm-mine-btn" aria-pressed="false">👤 내 글</button>
+                <select id="time-select" onchange="setCommunityTime(this.value)" class="comm-dropdown" aria-label="기간 필터">
                     <option value="all">전체</option>
                     <option value="day">일간</option>
                     <option value="week">주간</option>
@@ -2100,7 +2102,8 @@
 <!-- ================================
      COMMUNITY POST DETAIL MODAL
 ================================ -->
-<div id="post-detail-modal" class="hidden fixed inset-0 z-[250] flex items-center justify-center p-4" style="background:rgba(0,0,0,0.92)" onclick="if(event.target===this)closePostDetail()">
+<div id="post-detail-modal" class="hidden fixed inset-0 z-[250] flex items-center justify-center p-4" style="background:rgba(0,0,0,0.92)" onclick="if(event.target===this)closePostDetail()"
+    role="dialog" aria-modal="true" aria-labelledby="pd-title">
     <div class="glass-card rounded-[2rem] w-full max-w-2xl border border-white/10 flex flex-col max-h-[92vh]">
         <!-- 카테고리 컬러 바 -->
         <div id="pd-cat-bar" class="h-1 w-full rounded-t-[2rem] flex-shrink-0"></div>
@@ -2112,7 +2115,7 @@
                     <span id="pd-cat-badge" class="post-type-tag"></span>
                     <span id="pd-date" class="oswald-sharp text-[11px] text-gray-600 italic"></span>
                 </div>
-                <button onclick="closePostDetail()" class="text-gray-500 hover:text-white text-2xl transition flex-shrink-0">✕</button>
+                <button type="button" id="pd-close-btn" onclick="closePostDetail()" aria-label="닫기" class="text-gray-500 hover:text-white text-2xl transition flex-shrink-0">✕</button>
             </div>
             <!-- 제목 -->
             <h2 id="pd-title" class="oswald-sharp text-xl lg:text-2xl font-black italic text-white uppercase tracking-tight leading-snug mb-3"></h2>
@@ -2643,13 +2646,13 @@
 <script src="/js/storage.js"></script>
 <script src="/js/utils.js?v=4"></script>
 <script src="/js/event-countdown.js?v=1"></script>
-<script src="/js/api/supabase.js?v=27"></script>
+<script src="/js/api/supabase.js?v=28"></script>
 <script src="/js/modal-helpers.js"></script>
 <script src="/js/format-helpers.js"></script>
 <script src="/js/news-render-helpers.js?v=2"></script>
 <script src="/js/news.js"></script>
 <script src="/js/youtube.js?v=1"></script>
-<script src="/js/community.js?v=25"></script>
+<script src="/js/community.js?v=26"></script>
 <script src="/js/admin.js?v=27"></script>
 <script src="/js/profile.js?v=4"></script>
 <script src="/js/archive.js?v=20"></script>
@@ -3915,6 +3918,9 @@ async function publishPost() {
         content: c.slice(0, 2000),
         likes: 0,
         date: new Date().toISOString().slice(0,10).replace(/-/g, "."),
+        createdAt: res.data.created_at || new Date().toISOString(),   // 서버 확정 시각(상대시간/정렬용)
+        viewCount: (typeof res.data.view_count === 'number') ? res.data.view_count : 0,
+        isPinned: res.data.is_pinned === true,
         comments: [],
         belt: bName,
         category: catVal,
@@ -6689,13 +6695,14 @@ async function publishPost() {
         }, '⚠ 게시글 저장에 실패했습니다.');
     }
 
-    function likePostInDB(dbId) {
-        if (!sb || !dbId || !currentUser) return;
+    function likePostInDB(dbId, onFail) {
+        if (!sb || !dbId || !currentUser) { if (typeof onFail === 'function') onFail(); return; }
         // increment_post_likes RPC: post_likes INSERT + likes 증가 atomic 처리
         // 중복 좋아요는 RPC 내부 ON CONFLICT DO NOTHING으로 무시됨
+        // 실패(에러/네트워크) 시 onFail 콜백 — 호출측(community.js likePost)이 optimistic 증가를 롤백
         sb.rpc('increment_post_likes', { p_post_id: dbId }).then(function(r) {
-            if (r.error) console.warn('[likePostInDB]', r.error.message);
-        });
+            if (r.error) { console.warn('[likePostInDB]', r.error.message); if (typeof onFail === 'function') onFail(); }
+        }).catch(function() { if (typeof onFail === 'function') onFail(); });
     }
 
 // [A안] post_comments 테이블에 댓글 INSERT (posts jsonb UPDATE 방식 폐기)
