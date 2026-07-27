@@ -3019,3 +3019,93 @@ button.matchup-card:focus-visible, button.side-trow:focus-visible, .fc-rec:focus
 }
 .ps-pct-none { width: 100%; text-align: center; }
 .side-pick-bar.is-empty > i { background: var(--pt-bg-4, #232730); }
+
+/* ══════════ Share Picker (공유 방식 선택 — share-card.js) ══════════
+   모바일(<lg): 바텀시트(상단 모서리만 기존 bottom-sheet 규칙 18px 허용).
+   lg+: 중앙 compact 다이얼로그(radius 8px). 액션은 44px 터치 타깃.
+   신규 letter-spacing 없음. */
+.share-picker-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 560;                 /* fighter-profile(300)·more-sheet(500) 위, auth-modal(600) 아래 */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    background: rgba(0, 0, 0, 0.62);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+}
+/* Tailwind .hidden(display:none)이 display:flex에 밀리지 않도록 특이도 명시 */
+.share-picker-overlay.hidden { display: none; }
+.share-picker-panel {
+    width: 100%;
+    background: var(--pt-bg-1, #0E0F12);
+    border-top: 1px solid var(--pt-line-2, rgba(255,255,255,0.10));
+    border-top-left-radius: 18px;
+    border-top-right-radius: 18px;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.55);
+    padding: 10px 16px calc(20px + env(safe-area-inset-bottom));
+    animation: sharePickerUp 0.22s ease-out;
+}
+@keyframes sharePickerUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .share-picker-panel { animation: none; } }
+.share-picker-grip {
+    width: 36px; height: 4px; margin: 0 auto 10px;
+    background: var(--pt-bg-4, #232730); border-radius: 2px;
+}
+.share-picker-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+}
+.share-picker-title {
+    font-family: var(--pt-font-eyebrow, 'Bebas Neue', 'Oswald', sans-serif);
+    font-size: 13px; color: var(--pt-ink-3, #71757F);
+    text-transform: uppercase;
+}
+.share-picker-x {
+    min-width: 44px; min-height: 44px; margin-right: -10px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: none; border: 0; cursor: pointer;
+    color: var(--pt-ink-3, #71757F); font-size: 18px; line-height: 1;
+}
+.share-picker-x:hover { color: var(--pt-ink-0, #fff); }
+.share-picker-actions { display: flex; flex-direction: column; gap: 2px; }
+.share-picker-act {
+    display: flex; align-items: center; gap: 14px;
+    width: 100%; min-height: 48px; padding: 0 12px;
+    background: transparent; border: 0; border-radius: 8px;
+    cursor: pointer; text-align: left;
+}
+.share-picker-act:hover { background: var(--pt-bg-3, #1B1E25); }
+.share-picker-act-icon { font-size: 20px; width: 26px; text-align: center; flex-shrink: 0; }
+.share-picker-act-label {
+    font-family: var(--pt-font-body, 'Barlow', system-ui, sans-serif);
+    font-weight: 500; font-size: 15px; color: var(--pt-ink-1, #ECECEE);
+}
+.share-picker-cancel {
+    width: 100%; min-height: 48px; margin-top: 10px;
+    background: var(--pt-bg-2, #14161B);
+    border: 1px solid var(--pt-line-2, rgba(255,255,255,0.10));
+    border-radius: 8px; cursor: pointer;
+    font-family: var(--pt-font-body, 'Barlow', system-ui, sans-serif);
+    font-weight: 600; font-size: 14px; color: var(--pt-ink-3, #71757F);
+}
+.share-picker-cancel:hover { color: var(--pt-ink-0, #fff); border-color: var(--pt-line-3, rgba(255,255,255,0.18)); }
+.share-picker-act:focus-visible, .share-picker-cancel:focus-visible, .share-picker-x:focus-visible {
+    outline: 2px solid var(--pt-ink-0, #fff); outline-offset: 2px;
+}
+@media (min-width: 1024px) {
+    .share-picker-overlay { justify-content: center; align-items: center; }
+    .share-picker-panel {
+        width: 360px; max-width: calc(100vw - 48px);
+        border: 1px solid var(--pt-line-2, rgba(255,255,255,0.10));
+        border-radius: 8px;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+        animation: none;
+    }
+    .share-picker-grip { display: none; }
+}
+
+/* 이미지 액션 사전 준비 중(disabled) — 준비 완료 시 활성/라벨 갱신(share-card.js) */
+.share-picker-act:disabled { opacity: 0.55; cursor: default; }
+.share-picker-act:disabled:hover { background: transparent; }
